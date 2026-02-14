@@ -13,7 +13,7 @@ Main    LDB     $2,m
 # Check if we have 2+ command line arguments (we use 2 only)
 # If 2, we need to parse them; else use defaults
         CMP     $4,$0,2
-        PBN     $4,PInpt
+        PBN     $4,0F
 
         LDO     $4,$1,16
         PUSHJ   $3,Parse
@@ -23,7 +23,7 @@ Main    LDB     $2,m
         LDA     $2,$4
 
 # Print the given 2 values
-PInpt   LDA     $5,$2
+0H      LDA     $5,$2
         PUSHJ   $4,PrintN
         LDA     $255,space
 	TRAP	0,Fputs,StdOut
@@ -44,16 +44,16 @@ PInpt   LDA     $5,$2
 
 # Euclid's Algorithm
 Euclid  SWYM
-Step1   DIV     $2,$0,$1
+1H      DIV     $2,$0,$1
         GET     $3,:rR
 
-Step2   PBZ     $3,EucldE
+        PBZ     $3,9F
 
-Step3   LDA     $0,$1
+        LDA     $0,$1
         LDA     $1,$3
-        JMP     Step1
+        JMP     1B
 
-EucldE  LDA     $0,$1
+9H      LDA     $0,$1
         POP     1,0
 
 
@@ -67,12 +67,12 @@ PrintN  LDA     $255,prntbf
         STBU    $2,$255,0
         SUBU    $255,$255,1
 
-        PBNP    $1,PNEnd
+        PBNP    $1,9F
 
         LDA     $0,$1
         JMP     0B
 
-PNEnd   INCL    $255,1
+9H      INCL    $255,1
         TRAP    0,Fputs,StdOut
         POP     0,0
 
@@ -83,7 +83,7 @@ Parse   SET     $1,0
 
 0H      LDB     $3,$0,$2
 
-        PBZ     $3,PrsEnd
+        PBZ     $3,9F
 
         MUL     $1,$1,10
         SUB     $3,$3,'0'
@@ -91,5 +91,5 @@ Parse   SET     $1,0
         INCL    $2,1
         JMP     0B
 
-PrsEnd  LDA     $0,$1
+9H      LDA     $0,$1
         POP     1,0
