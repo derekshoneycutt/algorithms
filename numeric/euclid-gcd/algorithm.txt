@@ -1,0 +1,8 @@
+Given 2 +int m, n, find greatest common divisor;
+    largest +int evenly divide both m, n.
+
+1. [Find remainder.] Divide m by n; let r be remainder. 0 <= r < n.
+
+2. [Is it zero?] If r = 0, return n.
+
+3. [Reduce.] Set m = n, n = r; goto 1.

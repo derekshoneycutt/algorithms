@@ -1,0 +1,10 @@
+Given 2 +int m, n, find greatest common divisor;
+    largest +int evenly divide both m, n.
+
+1. [Remainder m/n.] Divide m by n; let m be remainder.
+
+2. [Is it zero?] If m = 0, return n.
+
+3. [Remainder n/m.] Divide n by m; let n be remainder.
+
+3. [Reduce.] If n = 0, return m; otherwise goto 1.
