@@ -1,4 +1,3 @@
-
 static int euclidgcd(int m, int n)
 {
     int r = m % n;
