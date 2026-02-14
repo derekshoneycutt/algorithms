@@ -22,8 +22,6 @@ Main    LDB     $2,m
         PUSHJ   $4,Parse
         LDA     $2,$4
 
-        JMP     PInpt
-
 # Print the given 2 values
 PInpt   LDA     $5,$2
         PUSHJ   $4,PrintN
@@ -35,10 +33,10 @@ PInpt   LDA     $5,$2
 	TRAP	0,Fputs,StdOut
 
 # Calculate the GCD with Euclid's
-Calc    PUSHJ   $1,Euclid
+        PUSHJ   $1,Euclid
 
 # Print and exit
-POutpt  PUSHJ   $0,PrintN
+        PUSHJ   $0,PrintN
         LDA     $255,endl
 	TRAP	0,Fputs,StdOut
         TRAP	0,Halt,0
@@ -63,34 +61,35 @@ EucldE  LDA     $0,$1
 PrintN  LDA     $255,prntbf
         INCL    $255,10
 
-PrntDv  DIV     $1,$0,10
+0H      DIV     $1,$0,10
         GET     $2,:rR
         ADDU    $2,$2,'0'
         STBU    $2,$255,0
         SUBU    $255,$255,1
 
-        PBP     $1,PrntMr
+        PBNP    $1,PNEnd
 
-        INCL    $255,1
+        LDA     $0,$1
+        JMP     0B
+
+PNEnd   INCL    $255,1
         TRAP    0,Fputs,StdOut
         POP     0,0
-
-PrntMr  LDA     $0,$1
-        JMP     PrntDv
 
 
 # Parse a number from a string
 Parse   SET     $1,0
         SET     $2,0
-PrseC   LDB     $3,$0,$2
-        PBNZ    $3,PrseN
-        LDA     $0,$1
-        POP     1,0
 
-PrseN   MUL     $1,$1,10
+0H      LDB     $3,$0,$2
+
+        PBZ     $3,PrsEnd
+
+        MUL     $1,$1,10
         SUB     $3,$3,'0'
         ADDU    $1,$1,$3
         INCL    $2,1
-        JMP     PrseC
+        JMP     0B
 
-
+PrsEnd  LDA     $0,$1
+        POP     1,0
