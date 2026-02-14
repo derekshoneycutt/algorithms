@@ -1,18 +1,26 @@
+DEFAULT REL
+
+section .note.GNU-stack noalloc noexec nowrite progbits
+
 section .rodata
-  msg: db "Hello, world!", 10
-  msglen: equ $ - msg
+  msg: db "Hello, world!",10,0
+
+global main
 
 section .text
-  global _start
 
-_start:
-  mov rax, 1
-  mov rdi, 1
-  mov rsi, msg
-  mov rdx, msglen
-  syscall
+extern printf
 
-  mov rax, 60
-  mov rdi, 0
-  syscall
+main:
+  push rbp
+  mov rbp, rsp
+  lea rdi, msg
+  xor rax, rax
+  call printf
+  pop rbp
+
+  mov rax, 0
+  ret
+
+
 
