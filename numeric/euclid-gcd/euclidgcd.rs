@@ -1,9 +1,7 @@
-use std::env;
-
-fn euclidgcd(m: i32, n: i32) -> i32 {
-    let mut m_mut: i32 = m;
-    let mut n_mut: i32 = n;
-    let mut r: i32 = m_mut % n_mut;
+fn euclidgcd(m: i64, n: i64) -> i64 {
+    let mut m_mut = m;
+    let mut n_mut = n;
+    let mut r = m_mut % n_mut;
     while r != 0 {
         m_mut = n_mut;
         n_mut = r;
@@ -12,15 +10,14 @@ fn euclidgcd(m: i32, n: i32) -> i32 {
     return n_mut;
 }
 
-
 fn main() {
-    let args: Vec<String> = env::args().collect();
+    let args: Vec<_> = std::env::args().collect();
 
-    let v_1: i32 = if args.len() >= 2 {
-         args[0].parse().expect("Bad value in input 1.") }
+    let v_1 = if args.len() >= 2 {
+         args[1].parse().expect("Bad value in input 1.") }
          else { 15 };
-    let v_2: i32 = if args.len() >= 2 {
-         args[1].parse().expect("Bad value in input 2.") }
+    let v_2 = if args.len() >= 2 {
+         args[2].parse().expect("Bad value in input 2.") }
          else { 10 };
 
     println!("{} {}", v_1, v_2);

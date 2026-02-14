@@ -2,43 +2,40 @@
 	GREG	@
 m       BYTE    15
 n       BYTE    10
-space   BYTE    " ",0
+space   BYTE    ' ',0
 endl    BYTE    10,0
 prntbf  BYTE    0,0,0,0,0,0,0,0,0,0,0
 
 	LOC     #100
-Main    SWYM
+Main    LDB     $2,m
+        LDB     $3,n
+
 # Check if we have 2+ command line arguments (we use 2 only)
 # If 2, we need to parse them; else use defaults
-        CMP     $3,$0,2
-        PBN     $3,PDef
+        CMP     $4,$0,2
+        PBN     $4,PInpt
+
+        LDO     $4,$1,16
+        PUSHJ   $3,Parse
 
         LDO     $5,$1,8
-        LDO     $3,$1,16
-        PUSHJ   $4,Parse
-        LDA     $1,$4
-        LDA     $5,$3
         PUSHJ   $4,Parse
         LDA     $2,$4
 
         JMP     PInpt
 
-PDef    LDB     $1,m
-        LDB     $2,n
-
 # Print the given 2 values
-PInpt   LDA     $4,$1
-        PUSHJ   $3,PrintN
+PInpt   LDA     $5,$2
+        PUSHJ   $4,PrintN
         LDA     $255,space
 	TRAP	0,Fputs,StdOut
-        LDA     $4,$2
-        PUSHJ   $3,PrintN
+        LDA     $5,$3
+        PUSHJ   $4,PrintN
         LDA     $255,endl
 	TRAP	0,Fputs,StdOut
 
 # Calculate the GCD with Euclid's
-Calc    PUSHJ   $0,Euclid
-        LDA     $1,$0
+Calc    PUSHJ   $1,Euclid
 
 # Print and exit
 POutpt  PUSHJ   $0,PrintN
