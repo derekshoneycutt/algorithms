@@ -1,7 +1,6 @@
 -module(euclidgcd).
 -export([main/0, euclidgcd/2]).
 
-
 euclidgcd(M, 0) -> M;
 euclidgcd(M, N) -> euclidgcd(N, M rem N).
 

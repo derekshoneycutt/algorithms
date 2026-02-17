@@ -1,14 +1,10 @@
 
-def euclidgcd(m_in: Int, n_in: Int): Int =
-  var m = m_in
-  var n = n_in
-  var r = m % n
-  while (r != 0) {
-    m = n
-    n = r
-    r = m % n
+def euclidgcd(m: Int, n: Int): Int =
+  val r = m % n
+  r match {
+    case 0 => n
+    case _ => euclidgcd(n, r)
   }
-  n
 
 @main
 def main(v_1: Int = 15, v_2: Int = 10): Unit =
