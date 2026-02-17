@@ -5,12 +5,14 @@ let rec euclidgcd (m: int, n: int) =
     | 0 -> n
     | _ -> euclidgcd(n, r)
 
-let mutable v_1 = 15
-let mutable v_2 = 10
+let v_1 =
+    if fsi.CommandLineArgs.Length >= 2 then
+        fsi.CommandLineArgs[0] |> int
+    else 15
 
-if fsi.CommandLineArgs.Length >= 2 then
-    v_1 <- fsi.CommandLineArgs[0] |> int
-    v_2 <- fsi.CommandLineArgs[1] |> int
+let v_2 =
+    if fsi.CommandLineArgs.Length >= 2 then
+        fsi.CommandLineArgs[1] |> int
+    else 10
 
-printfn($"{v_1} {v_2}")
-printfn($"{euclidgcd(v_1, v_2)}")
+printfn($"{v_1} {v_2}\n{euclidgcd(v_1, v_2)}")
