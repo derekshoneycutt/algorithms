@@ -16,5 +16,5 @@ if len(sys.argv) >= 2:
     v_2 = int(sys.argv[2])
 
 print(f"{v_1} {v_2}")
-print(f"{euclidgcd(v_1, v_2)}")
+print(f"gcd: {euclidgcd(v_1, v_2)}")
     

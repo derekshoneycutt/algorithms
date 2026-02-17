@@ -18,4 +18,4 @@ if ARGV.length >= 2
 end
 
 puts "#{v_1} #{v_2}"
-puts "#{euclidgcd(v_1, v_2)}"
+puts "gcd: #{euclidgcd(v_1, v_2)}"

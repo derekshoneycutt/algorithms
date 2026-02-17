@@ -31,5 +31,5 @@ begin
    end if;
 
    Ada.Text_IO.Put_Line(Integer'Image(m) & " " & Integer'Image(n));
-   Ada.Text_IO.Put_Line(Integer'Image(gcd(m, n)));
+   Ada.Text_IO.Put_Line("gcd: " & Integer'Image(gcd(m, n)));
 end EuclidGcd;

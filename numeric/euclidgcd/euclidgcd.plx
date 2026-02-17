@@ -21,6 +21,6 @@ if (@ARGV >= 2) {
     ($v_1, $v_2) = @ARGV;
 }
 
-print "$v_2 $v_2\n";
+print "$v_1 $v_2\n";
 my $gcd = euclidgcd($v_1, $v_2);
-print "$gcd\n";
+print "gcd: $gcd\n";

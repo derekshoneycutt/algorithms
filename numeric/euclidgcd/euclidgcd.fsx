@@ -5,14 +5,17 @@ let rec euclidgcd (m: int, n: int) =
     | 0 -> n
     | _ -> euclidgcd(n, r)
 
-let v_1 =
-    if fsi.CommandLineArgs.Length >= 2 then
-        fsi.CommandLineArgs[0] |> int
-    else 15
+let mailbox =
+    MailboxProcessor.Start(fun inbox ->
+        let rec receiver() = async {
+            let! (m, n) = inbox.Receive()
+            printfn($"{m} {n}\ngcd: {euclidgcd(m, n)}")
+            return! receiver()
+        }
+        receiver()
+    )
 
-let v_2 =
+mailbox.Post(
     if fsi.CommandLineArgs.Length >= 2 then
-        fsi.CommandLineArgs[1] |> int
-    else 10
-
-printfn($"{v_1} {v_2}\n{euclidgcd(v_1, v_2)}")
+        (fsi.CommandLineArgs[1] |> int, fsi.CommandLineArgs[2] |> int)
+    else (15, 10))

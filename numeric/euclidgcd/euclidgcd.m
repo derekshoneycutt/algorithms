@@ -22,7 +22,7 @@ int main(int argc, const char * argv[]) {
 
     @autoreleasepool {
         NSLog(@"%d %d", v_1, v_2);
-        NSLog(@"%d", euclidgcd(v_1, v_2));
+        NSLog(@"gcd: %d", euclidgcd(v_1, v_2));
     }
     return 0;
 }

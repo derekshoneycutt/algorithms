@@ -25,7 +25,7 @@ int main(int argc, char *argv[])
     }
 
     std::println("{} {}", v_1, v_2);
-    std::println("{}", euclidgcd(v_1, v_2));
+    std::println("gcd: {}", euclidgcd(v_1, v_2));
 
     return 0;
 }

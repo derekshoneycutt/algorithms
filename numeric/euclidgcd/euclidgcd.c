@@ -24,7 +24,7 @@ int main(int argc, char *argv[])
         v_2 = atoi(argv[2]);
     }
 
-    printf("%d %d\n%d\n", v_1, v_2, euclidgcd(v_1, v_2));
+    printf("%d %d\ngcd: %d\n", v_1, v_2, euclidgcd(v_1, v_2));
 
     return 0;
 }

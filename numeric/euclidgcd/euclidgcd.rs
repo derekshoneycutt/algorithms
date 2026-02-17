@@ -21,5 +21,5 @@ fn main() {
          else { 10 };
 
     println!("{} {}", v_1, v_2);
-    println!("{}", euclidgcd(v_1, v_2));
+    println!("gcd: {}", euclidgcd(v_1, v_2));
 }

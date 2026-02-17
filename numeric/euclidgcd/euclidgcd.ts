@@ -18,4 +18,4 @@ if (process.argv.length >= 4) {
 }
 
 console.log(`${v_1} ${v_2}`);
-console.log(`${euclidgcdt(v_1, v_2)}`);
+console.log(`gcd: ${euclidgcdt(v_1, v_2)}`);

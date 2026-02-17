@@ -3,6 +3,7 @@
 m       BYTE    15
 n       BYTE    10
 space   BYTE    ' ',0
+gcdstr  BYTE    "gcd: ",0
 endl    BYTE    10,0
 prntbf  BYTE    0,0,0,0,0,0,0,0,0,0,0
 
@@ -36,6 +37,8 @@ Main    LDB     $2,m
         PUSHJ   $1,Euclid
 
 # Print and exit
+        LDA     $255,gcdstr
+	TRAP	0,Fputs,StdOut
         PUSHJ   $0,PrintN
         LDA     $255,endl
 	TRAP	0,Fputs,StdOut

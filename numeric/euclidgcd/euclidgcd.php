@@ -19,5 +19,5 @@ if ($argc >= 3) {
 
 echo "$v_1 $v_2\n";
 $gcd = euclidgcd($v_1, $v_2);
-echo "$gcd\n";
+echo "gcd: $gcd\n";
 ?>

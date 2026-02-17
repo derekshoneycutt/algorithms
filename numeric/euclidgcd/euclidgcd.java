@@ -26,6 +26,6 @@ public class euclidgcd {
         }
 
         System.out.format("%d %d\n", v_1, v_2);
-        System.out.format("%d\n", perform(v_1, v_2));
+        System.out.format("gcd: %d\n", perform(v_1, v_2));
     }
 }

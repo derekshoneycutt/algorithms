@@ -4,7 +4,7 @@ section .note.GNU-stack noalloc noexec nowrite progbits
 
 section .rodata
   msg: db "%d %d",10,0
-  gcdmsg: db "%d",10,0
+  gcdmsg: db "gcd: %d",10,0
   m: db 15
   n: db 10
 

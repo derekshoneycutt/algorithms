@@ -31,5 +31,5 @@ func main() {
 	}
 
 	fmt.Println(v_1, " ", v_2)
-	fmt.Println(euclidgcd(v_1, v_2))
+	fmt.Println("gcd: ", euclidgcd(v_1, v_2))
 }

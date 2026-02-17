@@ -19,4 +19,4 @@ if (length(args) >= 2) {
 }
 
 sprintf("%d %d", v_1, v_2)
-sprintf("%d", euclidgcd(v_1, v_2))
+sprintf("gcd: %d", euclidgcd(v_1, v_2))
