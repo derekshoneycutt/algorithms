@@ -1,4 +1,6 @@
+import scala.annotation.tailrec
 
+@tailrec
 def euclidgcd(m: Int, n: Int): Int =
   val r = m % n
   r match {
