@@ -1,11 +1,3 @@
-import scala.util.CommandLineParser
-
-given optionIntParser: CommandLineParser.FromString[Option[Int]] with
-  def fromString(s: String): Option[Int] = 
-    if (s == null || s.isEmpty)
-      None
-    else
-      s.toIntOption
 
 def euclidgcd(m_in: Int, n_in: Int): Int =
   var m = m_in
