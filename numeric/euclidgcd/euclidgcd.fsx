@@ -1,13 +1,9 @@
 
-let euclidgcd (m_in: int, n_in: int) =
-    let mutable m = m_in
-    let mutable n = n_in
-    let mutable r = m % n
-    while r <> 0 do
-        m <- n
-        n <- r
-        r <- m % n
-    n
+let rec euclidgcd (m: int, n: int) =
+    let r = m % n
+    match r with
+    | 0 -> n
+    | _ -> euclidgcd(n, r)
 
 let mutable v_1 = 15
 let mutable v_2 = 10
