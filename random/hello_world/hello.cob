@@ -7,5 +7,5 @@
        
        PROCEDURE DIVISION.
        000-MAIN-PROCEDURE.
-           DISPLAY "HELLO WORLD!".
+           DISPLAY "Hello, world!".
            STOP RUN.
