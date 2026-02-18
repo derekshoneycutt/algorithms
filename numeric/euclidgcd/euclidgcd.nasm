@@ -91,4 +91,3 @@ euclidgcd:
 euclidgcd_end:
   mov rax, rsi
   ret
-  
