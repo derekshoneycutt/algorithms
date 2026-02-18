@@ -6,20 +6,14 @@
         m
         (euclidgcd n (remainder m n))))
 
-
 (define (argAsInt args index default)
-    (let ((arg-list (cdr args)))
-        (if (and (>= (length arg-list) 2)
-                (string->number (list-ref arg-list (- index 1))))
-            (string->number (list-ref arg-list (- index 1)))
-            default)))
+    (if (>= (length args) 3)
+        (string->number (list-ref args index))
+        default))
 
-
-(define (main args)
-    (let* ((arg1 (argAsInt args 1 15))
-          (arg2 (argAsInt args 2 10))
-          (gcd (euclidgcd arg1 arg2)))
-        (display arg1) (display " ") (display arg2)
-        (display "\ngcd: ") (display gcd) (display "\n")))
-
-(main (command-line))
+(let* ((args (command-line))
+        (arg1 (argAsInt args 1 15))
+        (arg2 (argAsInt args 2 10))
+        (gcd (euclidgcd arg1 arg2)))
+    (display arg1) (display " ") (display arg2)
+    (display "\ngcd: ") (display gcd) (display "\n"))
