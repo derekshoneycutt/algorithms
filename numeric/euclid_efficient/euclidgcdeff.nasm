@@ -82,11 +82,21 @@ euclidgcd:
   div rsi
 
   cmp rdx, 0
-  je euclidgcd_end
+  je euclidgcd_end_rsi
 
-  mov rdi, rsi
+  mov rdi, rdx
+  mov rax, rsi
+  mov rdx, 0
+  div rdi
+
+  cmp rdx, 0
+  je euclidgcd_end_rdi
+
   mov rsi, rdx
   jmp euclidgcd
 
-euclidgcd_end:
+euclidgcd_end_rdi:
+  mov rsi, rdi
+euclidgcd_end_rsi:
   ret
+

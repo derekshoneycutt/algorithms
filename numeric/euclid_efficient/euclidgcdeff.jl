@@ -11,8 +11,8 @@ function euclidgcd_efficient(m, n)
     return n
 end
 
-v_1 = 10
-v_2 = 15
+v_1 = 15
+v_2 = 10
 
 if length(ARGS) >= 2
     v_1 = parse(Int, ARGS[1])

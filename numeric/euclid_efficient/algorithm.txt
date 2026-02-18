@@ -13,5 +13,4 @@ Given 2 +int m, n, find greatest common divisor;
 
 NOTE: This was taken as an exercise from Knuth's The Art of Computer Programming.
 It's mostly superfluous in modern langauges, though it does prove an interesting
-point in the assembly languages. We'll go ahead with it as an exercise throughout
-nonetheless.
+point in the assembly languages.
