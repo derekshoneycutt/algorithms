@@ -1,7 +1,7 @@
 package numeric.euclidgcd;
 
-public class euclidgcd {
-    
+public class euclidgcd
+{    
     public static int perform(int m, int n)
     {
         int r = 0;

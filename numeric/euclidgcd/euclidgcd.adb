@@ -2,7 +2,6 @@ with Ada.Text_IO;
 with Ada.Command_Line;
 
 procedure EuclidGcd is
-
    function gcd(m_in, n_in : Integer) return Integer is
       m : Integer := m_in;
       n : Integer := n_in;

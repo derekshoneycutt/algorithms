@@ -1,6 +1,5 @@
 
 int euclidgcd(int m, int n) {
-
     int r = 0;
     while (n != 0) {
         r = m % n;

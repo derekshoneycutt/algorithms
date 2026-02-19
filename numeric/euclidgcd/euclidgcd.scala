@@ -2,10 +2,9 @@ import scala.annotation.tailrec
 
 @tailrec
 def euclidgcd(m: Int, n: Int): Int =
-  val r = m % n
-  r match {
-    case 0 => n
-    case _ => euclidgcd(n, r)
+  n match {
+    case 0 => m
+    case _ => euclidgcd(n, m % n)
   }
 
 @main
