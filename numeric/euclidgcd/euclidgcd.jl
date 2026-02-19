@@ -1,21 +1,21 @@
 
 function euclidgcd(m, n)
-    r = m % n
-    while r != 0
+    r = 0
+    while n != 0
+        r = m % n
         m = n
         n = r
-        r = m % n
     end
-    return n
+    return m
 end
 
-v_1 = 15
-v_2 = 10
+m = 15
+n = 10
 
 if length(ARGS) >= 2
-    v_1 = parse(Int, ARGS[1])
-    v_2 = parse(Int, ARGS[2])
+    m = parse(Int, ARGS[1])
+    n = parse(Int, ARGS[2])
 end
 
-println(v_1, " ", v_2)
-println("gcd: ", euclidgcd(v_1, v_2))
+println(m, " ", n)
+println("gcd: ", euclidgcd(m, n))

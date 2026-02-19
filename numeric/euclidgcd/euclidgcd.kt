@@ -2,13 +2,13 @@
 fun euclidgcd(m_in: Int, n_in: Int): Int {
     var m = m_in
     var n = n_in
-    var r = m % n
-    while (r != 0) {
+    var r = 0
+    while (n != 0) {
+        r = m % n
         m = n
         n = r
-        r = m % n
     } 
-    return n
+    return m
 }
 
 fun main(args: Array<String>) {

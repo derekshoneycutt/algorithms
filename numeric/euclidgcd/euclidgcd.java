@@ -4,28 +4,27 @@ public class euclidgcd {
     
     public static int perform(int m, int n)
     {
-        int r = m % n;
-        while (r != 0) 
+        int r = 0;
+        while (n != 0) 
         {
+            r = m % n;
             m = n;
             n = r;
-            r = m % n;
         }
-        return n;
+        return m;
     }
 
     public static void main(String[] args)
     {
-        int v_1 = 15;
-        int v_2 = 10;
+        int m = 15;
+        int n = 10;
 
         if (args.length >= 2)
         {
-            v_1 = Integer.parseInt(args[0]);
-            v_2 = Integer.parseInt(args[1]);
+            m = Integer.parseInt(args[0]);
+            n = Integer.parseInt(args[1]);
         }
 
-        System.out.format("%d %d\n", v_1, v_2);
-        System.out.format("gcd: %d\n", perform(v_1, v_2));
+        System.out.format("%d %d\ngcd: %d\n", m, n, perform(m, n));
     }
 }

@@ -1,18 +1,17 @@
-(ns euclidgcd
-  (:gen-class))
 
-(defn euclidgcd
-  "Does the gcd calculation"
-  [m n] 
-  (if (= (rem m n) 0)
-    n
+(defn euclidgcd [m n]
+  (if (= n 0)
+    m
     (euclidgcd n (rem m n))))
 
-(defn -main
-  "Calculates greatest common denominator via Euclid's method."
-  []
-  (let [m 15
-        n 10]
-    (printf "%d %d\ngcd: %d\n" m n (euclidgcd m n))
-    (flush)
-    (System/exit 0)))
+(defn argAsInt [args index default]
+  (if (>= (count args) 3)
+    (Integer/valueOf (nth args index))
+    default))
+
+(let [args *command-line-args*
+      m (argAsInt args 1 15)
+      n (argAsInt args 2 10)
+      gcd (euclidgcd m n)]
+  (printf "%d %d\ngcd: %d\n" m n gcd))
+

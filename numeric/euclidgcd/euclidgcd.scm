@@ -12,8 +12,8 @@
         default))
 
 (let* ((args (command-line))
-        (arg1 (argAsInt args 1 15))
-        (arg2 (argAsInt args 2 10))
-        (gcd (euclidgcd arg1 arg2)))
+       (arg1 (argAsInt args 1 15))
+       (arg2 (argAsInt args 2 10))
+       (gcd (euclidgcd arg1 arg2)))
     (display arg1) (display " ") (display arg2)
     (display "\ngcd: ") (display gcd) (display "\n"))

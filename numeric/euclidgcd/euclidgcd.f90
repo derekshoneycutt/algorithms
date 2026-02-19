@@ -22,18 +22,16 @@ program EuclidGcdApp
 
 contains
 
-    function euclidgcd(m_in, n_in) result(gcd)
+    function euclidgcd(m_in, n_in) result(m)
         integer, intent(in) :: m_in, n_in
         integer :: m, n, gcd
 
         m = m_in
         n = n_in
-        gcd = mod(m, n)
-        do while (gcd /= 0)
+        do while (n /= 0)
+            gcd = mod(m, n)
             m = n
             n = gcd
-            gcd = mod(m, n)
         end do
-        gcd = n
     end function
 end program EuclidGcdApp

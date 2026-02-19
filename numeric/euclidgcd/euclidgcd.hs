@@ -20,8 +20,9 @@ secondOrDefault Nothing v = v
 main :: IO ()
 main = do
     args <- getArgs
-    let m = firstOrDefault (tryPair args) 15
-    let n = secondOrDefault (tryPair args) 10
+    let twoArgs = tryPair args
+    let m = firstOrDefault twoArgs 15
+    let n = secondOrDefault twoArgs 10
 
     let gcd = euclidgcd m n
 

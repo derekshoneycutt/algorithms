@@ -1,19 +1,18 @@
 
 Function EuclidGcd(m As Integer, n As Integer) As Integer
-    Dim As Integer r = m Mod n
-    While r <> 0
+    Dim As Integer r
+    While n <> 0
+        r = m Mod n
         m = n
         n = r
-        r = m Mod n
     Wend
-    Return n
+    Return m
 End Function
-
 
 Dim As Integer m = 15
 Dim As Integer n = 10
 
-If Len(Command(2)) > 0 Then
+If __FB_ARGC__ >= 3 Then
     m = ValInt(Command(1))
     n = ValInt(Command(2))
 End If

@@ -14,14 +14,7 @@ main() ->
     Args = init:get_plain_arguments(),
     case Args of
         [Arg1Str, Arg2Str] ->
-            try
-                M = list_to_integer(Arg1Str),
-                N = list_to_integer(Arg2Str),
-                P ! {M, N}
-            catch
-                error:badarg ->
-                    io:format("Invalid argument recieved.")
-            end;
+            P ! {list_to_integer(Arg1Str), list_to_integer(Arg2Str)};
         _Other ->
             P ! {15, 10}
     end,

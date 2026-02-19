@@ -1,20 +1,18 @@
 import sys
 
 def euclidgcd(m, n):
-    r = m % n
-    while r != 0:
+    while n != 0:
+        r = m % n
         m = n
         n = r
-        r = m % n
-    return n
+    return m
 
-v_1 = 10
-v_2 = 15
+m = 15
+n = 10
 
-if len(sys.argv) >= 2:
-    v_1 = int(sys.argv[1])
-    v_2 = int(sys.argv[2])
+if len(sys.argv) >= 3:
+    m = int(sys.argv[1])
+    n = int(sys.argv[2])
 
-print(f"{v_1} {v_2}")
-print(f"gcd: {euclidgcd(v_1, v_2)}")
-    
+print(f"{m} {n}")
+print(f"gcd: {euclidgcd(m, n)}")

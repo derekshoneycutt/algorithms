@@ -3,24 +3,20 @@ with Ada.Command_Line;
 
 procedure EuclidGcd is
 
-   function gcd
-      (m_in : Integer;
-      n_in : Integer) return Integer is
-      m, n, r : Integer;
+   function gcd(m_in, n_in : Integer) return Integer is
+      m : Integer := m_in;
+      n : Integer := n_in;
+      r : Integer;
    begin
-      m := m_in;
-      n := n_in;
-      r := m rem n;
-      while r /= 0 loop
+      while n /= 0 loop
+         r := m rem n;
          m := n;
          n := r;
-         r := m rem n;
       end loop;
-      return n;
+      return m;
    end gcd;
 
-   m : Integer;
-   n : Integer;
+   m, n : Integer;
 begin
    m := 15;
    n := 10;

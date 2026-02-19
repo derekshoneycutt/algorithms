@@ -1,21 +1,21 @@
 
 function euclidgcd(m,n) {
-    let r = m % n;
-    while (r != 0) {
+    let r;
+    while (n != 0) {
+        r = m % n;
         m = n;
         n = r;
-        r = m % n;
     }
-    return n;
+    return m;
 }
 
-var v_1 = 10;
-var v_2 = 15;
+var m = 15;
+var n = 10;
 
 if (process.argv.length >= 4) {
-    v_1 = parseInt(process.argv[2]);
-    v_2 = parseInt(process.argv[3]);
+    m = parseInt(process.argv[2]);
+    n = parseInt(process.argv[3]);
 }
 
-console.log(`${v_1} ${v_2}`);
-console.log(`gcd: ${euclidgcd(v_1, v_2)}`);
+console.log(`${m} ${n}`);
+console.log(`gcd: ${euclidgcd(m, n)}`);

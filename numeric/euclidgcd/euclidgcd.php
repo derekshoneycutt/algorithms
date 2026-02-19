@@ -1,23 +1,22 @@
 <?php
 function euclidgcd($m, $n) {
-    $r = $m % $n;
-    while ($r != 0) {
+    while ($n != 0) {
+        $r = $m % $n;
         $m = $n;
         $n = $r;
-        $r = $m % $n;
     }
-    return $n;
+    return $m;
 }
 
-$v_1 = 15;
-$v_2 = 10;
+$m = 15;
+$n = 10;
 
 if ($argc >= 3) {
-    $v_1 = $argv[1];
-    $v_2 = $argv[2];
+    $m = $argv[1];
+    $n = $argv[2];
 }
 
-echo "$v_1 $v_2\n";
-$gcd = euclidgcd($v_1, $v_2);
-echo "gcd: $gcd\n";
+$gcd = euclidgcd($m, $n);
+
+echo "$m $n\ngcd: $gcd\n";
 ?>

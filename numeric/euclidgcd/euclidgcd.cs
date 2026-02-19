@@ -1,22 +1,22 @@
 static int euclidgcd(int m, int n)
 {
-    int r = m % n;
-    while (r != 0)
+    int r = 0;
+    while (n != 0)
     {
+        r = m % n;
         m = n;
         n = r;
-        r = m % n;
     }
-    return n;
+    return m;
 }
 
-int v_1 = 10;
-int v_2 = 15;
+int m = 15;
+int n = 10;
 
 if (args.Length >= 2)
 {
-    (v_1, v_2) = (Int32.Parse(args[0]), Int32.Parse(args[1]));
+    (m, n) = (Int32.Parse(args[0]), Int32.Parse(args[1]));
 }
 
-Console.WriteLine($"{v_1} {v_2}");
-Console.WriteLine($"gcd: {euclidgcd(v_1, v_2)}");
+Console.WriteLine($"{m} {n}");
+Console.WriteLine($"gcd: {euclidgcd(m, n)}");

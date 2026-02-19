@@ -3,14 +3,14 @@ import std.conv;
 
 int euclidgcd(int m, int n)
 {
-    int r = m % n;
-    while (r != 0)
+    int r = 0;
+    while (n != 0)
     {
+        r = m % n;
         m = n;
         n = r;
-        r = m % n;
     }
-    return n;
+    return m;
 }
 
 void main(string[] args)

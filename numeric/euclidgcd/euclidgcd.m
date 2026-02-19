@@ -2,27 +2,27 @@
 #include <stdlib.h>
 
 int euclidgcd(int m, int n) {
-    int r = m % n;
-    while (r != 0) {
+    int r = 0;
+    while (n != 0) {
+        r = m % n;
         m = n;
         n = r;
-        r = m % n;
     }
-    return n;
+    return m;
 }
 
 int main(int argc, const char * argv[]) {
-    int v_1 = 15;
-    int v_2 = 10;
+    int m = 15;
+    int n = 10;
 
     if (argc >= 2) {
-        v_1 = atoi(argv[1]);
-        v_2 = atoi(argv[2]);
+        m = atoi(argv[1]);
+        n = atoi(argv[2]);
     }
 
     @autoreleasepool {
-        NSLog(@"%d %d", v_1, v_2);
-        NSLog(@"gcd: %d", euclidgcd(v_1, v_2));
+        NSLog(@"%d %d", m, n);
+        NSLog(@"gcd: %d", euclidgcd(m, n));
     }
     return 0;
 }

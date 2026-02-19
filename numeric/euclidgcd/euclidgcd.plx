@@ -5,22 +5,22 @@ use warnings;
 sub euclidgcd {
     my $m = $_[0];
     my $n = $_[1];
-    my $r = $m % $n;
-    while ($r != 0) {
+    my $r;
+    while ($n != 0) {
+        $r = $m % $n;
         $m = $n;
         $n = $r;
-        $r = $m % $n;
     }
-    return $n;
+    return $m;
 }
 
-my $v_1 = 15;
-my $v_2 = 10;
+my $m = 15;
+my $n = 10;
 
 if (@ARGV >= 2) {
-    ($v_1, $v_2) = @ARGV;
+    ($m, $n) = @ARGV;
 }
 
-print "$v_1 $v_2\n";
-my $gcd = euclidgcd($v_1, $v_2);
-print "gcd: $gcd\n";
+my $gcd = euclidgcd($m, $n);
+
+print "$m $n\ngcd: $gcd\n";

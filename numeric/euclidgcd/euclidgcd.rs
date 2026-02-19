@@ -1,25 +1,25 @@
-fn euclidgcd(m: i64, n: i64) -> i64 {
-    let mut m_mut = m;
-    let mut n_mut = n;
-    let mut r = m_mut % n_mut;
-    while r != 0 {
-        m_mut = n_mut;
-        n_mut = r;
-        r = m_mut % n_mut;
+fn euclidgcd(m_in: i64, n_in: i64) -> i64 {
+    let mut m = m_in;
+    let mut n = n_in;
+    let mut r;
+    while n != 0 {
+        r = m % n;
+        m = n;
+        n = r;
     }
-    return n_mut;
+    return m;
 }
 
 fn main() {
     let args: Vec<_> = std::env::args().collect();
 
-    let v_1 = if args.len() >= 2 {
+    let m = if args.len() >= 3 {
          args[1].parse().expect("Bad value in input 1.") }
          else { 15 };
-    let v_2 = if args.len() >= 2 {
+    let n = if args.len() >= 3 {
          args[2].parse().expect("Bad value in input 2.") }
          else { 10 };
 
-    println!("{} {}", v_1, v_2);
-    println!("gcd: {}", euclidgcd(v_1, v_2));
+    println!("{} {}", m, n);
+    println!("gcd: {}", euclidgcd(m, n));
 }

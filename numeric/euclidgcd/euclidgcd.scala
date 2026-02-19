@@ -9,8 +9,8 @@ def euclidgcd(m: Int, n: Int): Int =
   }
 
 @main
-def main(v_1: Int = 15, v_2: Int = 10): Unit =
-  println(f"$v_1 $v_2")
-  val gcd = euclidgcd(v_1, v_2)
+def main(m: Int = 15, n: Int = 10): Unit =
+  val gcd = euclidgcd(m, n)
+  println(f"$m $n")
   println(f"gcd: $gcd")
   
