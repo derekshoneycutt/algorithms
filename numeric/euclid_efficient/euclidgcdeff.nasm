@@ -16,7 +16,9 @@ extern printf
 extern atoi
 
 main:
+  mov r8, 0
   movzx r8, byte [m]
+  mov r9, 0
   movzx r9, byte [n]
 
 ; Check if we have 2+ command line arguments (we use 2 only)
@@ -24,30 +26,24 @@ main:
   cmp rdi, 3
   jl print
 
-  push rbp
   push rsi
   mov rdi, [rsi + 8]
   call atoi
   mov r8, 0
   movzx r8, eax
   pop rsi
-  pop rbp
 
-  push rbp
   push r8
   mov rdi, [rsi + 16]
   call atoi
   mov r9, 0
   movzx r9, eax
   pop r8
-  pop rbp
 
 print:
 ; Print the given 2 values
-  push rbp
   push r8
   push r9
-  mov rbp, rsp
   lea rdi, msg
   mov rsi, r8
   mov rdx, r9
@@ -55,7 +51,6 @@ print:
   call printf
   pop r9
   pop r8
-  pop rbp
 
 ; Calculate the GCD with Euclid's
   mov rdi,r8
@@ -63,13 +58,10 @@ print:
   call euclidgcd
 
 ; Print and exit
-  push rbp
-  mov rbp, rsp
   mov rdx, rax
   lea rdi, gcdmsg
   xor rax, rax
   call printf
-  pop rbp
 
   mov rax, 0
   ret
@@ -77,26 +69,29 @@ print:
 
 ; Euclid's Algorithm
 euclidgcd:
-  mov rax, rdi
+  %define m rdi
+  %define n rsi
+  %define r rdx
+  mov rax, m
   mov rdx, 0
-  div rsi
+  div n
 
   cmp rdx, 0
   je euclidgcd_end_rsi
 
-  mov rdi, rdx
-  mov rax, rsi
+  mov m, r
+  mov rax, n
   mov rdx, 0
-  div rdi
+  div m
 
-  cmp rdx, 0
+  cmp r, 0
   je euclidgcd_end_rdi
 
-  mov rsi, rdx
+  mov n, r
   jmp euclidgcd
 
 euclidgcd_end_rdi:
-  mov rsi, rdi
+  mov n, m
 euclidgcd_end_rsi:
   ret
 

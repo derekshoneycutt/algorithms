@@ -1,0 +1,11 @@
+Given n +int in X[n] find highest value of them.
+
+1. [Initialize.] k <- n - 1; j <- n. m <- X[n].
+
+2. [All tested?] if k <= 0, return m.
+
+3. [Compare.] if X[k] <= m, Go to Step 5.
+
+4. [Change m.] m <- X[k]. j <- k.
+
+5. [Decrease k.] k <- k - 1. Go to Step 2.
