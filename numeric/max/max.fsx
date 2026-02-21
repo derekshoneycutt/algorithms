@@ -1,10 +1,15 @@
 
-let rec max list =
+let rec max_state list max =
+    match list with
+    | [] -> max
+    | head :: tail ->
+        max_state tail (if head > max then head else max)
+
+let max list =
     match list with
     | [] -> 0
     | head :: tail ->
-        let tmax = max tail
-        if head > tmax then head else tmax
+        max_state tail head
 
 let mailbox =
     MailboxProcessor.Start(fun inbox ->

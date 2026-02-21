@@ -10,8 +10,8 @@ int max(List<int> values) {
 }
 
 void main(List<String> arguments) {
-    List<int> values = (arguments.length > 0) ?
-        [for (var arg in arguments) int.parse(arg)]
+    List<int> values = (arguments.length > 0)
+        ? [for (var arg in arguments) int.parse(arg)]
         : [15, 10];
 
     int maxValue = max(values);
