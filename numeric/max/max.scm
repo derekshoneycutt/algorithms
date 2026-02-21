@@ -11,9 +11,7 @@
 
 (define (argsAsInts args default)
     (if (> (length args) 0)
-        (fold (lambda (next vals)
-                    (append vals (list (string->number next))))
-              '() args)
+        (map (lambda (val) (string->number val)) args)
         default))
 
 (let* ((args (command-line))
