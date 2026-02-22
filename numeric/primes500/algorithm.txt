@@ -1,0 +1,31 @@
+This is a 2 part algorithm: first (1-8) is to find the first 500 primes,
+    and then (9-11) we print them as a table to the screen.
+
+1. [Start table.] Set PRIME[1] <- 2, n <- 3, j <- 1.
+    n will rum through candidate numbers; j will count the primes.
+
+2. [n is prime.] Set j <- j + 1, PRIME[j] <- n.
+
+3. [500 found?] If j = 500, go to step 9.
+
+4. [Advance n.] Set n <- n + 2.
+
+5. [k <- 2.] Set k <- 2.
+    PRIME[k] will run through n's possible divisors.
+
+6. [PRIME[k] \ n?] Divide n by PRIME[k];
+    let q be the quotient and r the remainder.
+    If r = 0 (n is not prime), go to 4.
+
+7. [PRIME[k] large?] If q <= PRIME[k], go to 2.
+    n must be prime.
+
+8. [Advance k.] Increase k by 1, and go to 6.
+
+9. [Print title.] Output title line and set m <- 1.
+
+10. [Print line.] Output a line that contains
+    PRIME[m], PRIME[50 + m], ..., PRIME[450 + m].
+
+11. [500 printed?] Increase m by 1. If m <= 50, goto 10.
+    Otherwise terminate.
