@@ -7,9 +7,6 @@ primes = sieve [2..]
         p : sieve [x | x <- xs, x `mod` p /= 0]
     sieve [] = []
 
-firstPrimes :: Int -> [Integer]
-firstPrimes n = take n primes
-
 pad :: Integer -> String
 pad num = printf "%04d" num
 
@@ -39,4 +36,4 @@ printPrimes primes = do
     printLines primes 0
 
 main :: IO ()
-main = printPrimes (firstPrimes 500)
+main = printPrimes (take 500 primes)
