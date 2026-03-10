@@ -1,30 +1,22 @@
 
-def get_primes()
-    primes = [2]
-    n = 3
-
-    for j in 1..500 do
-        primes << n
-
-        is_prime = false
-        while !is_prime
-            n += 2
-
-            q = 9999
-            r = 1
-            t = 0
-            k = 1
-            while (r != 0) && (q > t)
-                t = primes[k]
-                q = n / t
-                r = n % t
-                k += 1
+def prime_sieve()
+    Enumerator.new do |yielder|
+        yielder << 2
+        cache = [2]
+        candidate = 3
+        while true
+            if cache.all? { |prime| candidate % prime != 0 }
+                yielder << candidate
+                cache << candidate
             end
 
-            is_prime = (r != 0) && (q <= t)
+            candidate += 2
         end
     end
-    return primes
+end
+
+def get_primes(count)
+    return prime_sieve().take(count)
 end
 
 def print_primes(primes)
@@ -37,4 +29,4 @@ def print_primes(primes)
     end
 end
 
-print_primes(get_primes())
+print_primes(get_primes(500))

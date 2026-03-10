@@ -1,26 +1,18 @@
+import itertools
 
-def get_primes():
-    primes = [2]
-    n = 3
+def prime_sieve():
+    yield 2
+    cache = [2]
+    candidate = 3
+    while True:
+        if all(candidate % prime != 0 for prime in cache):
+            yield candidate
+            cache.append(candidate)
+        
+        candidate += 2
 
-    for j in range(500):
-        primes.append(n)
-
-        is_prime = False
-        while not is_prime:
-            n += 2
-
-            q = 9999
-            r = 1
-            t = 0
-            k = 1
-            while (r != 0) and (q > t):
-                t = primes[k]
-                q = n / t
-                r = n % t
-                k += 1
-            is_prime = (r != 0) and (q <= t)
-    return primes
+def get_primes(count):
+    return list(itertools.islice(prime_sieve(), count))
 
 def print_primes(primes):
     print("First Five Hundred Primes")
@@ -31,4 +23,4 @@ def print_primes(primes):
               f" {primes[i + 300]:04d} {primes[i + 350]:04d}" +
               f" {primes[i + 400]:04d} {primes[i + 450]:04d}")
 
-print_primes(get_primes())
+print_primes(get_primes(500))

@@ -1,35 +1,39 @@
 #include <print>
+#include <vector>
+#include <generator>
+#include <algorithm>
+#include <ranges>
 
-void set_primes(int primes[])
+std::generator<const int> prime_sieve()
 {
-    int n = 3;
-    primes[0] = 2;
-
-    for (int j = 1; j < 500; ++j)
+    co_yield 2;
+    std::vector<int> cache = {2};
+    int candidate = 3;
+    while (true)
     {
-        primes[j] = n;
-
-        bool is_prime = false;
-        while (!is_prime)
+        if (std::all_of(cache.begin(), cache.end(),
+            [=](int prime) { return candidate % prime != 0; }))
         {
-            n += 2;
-
-            int q = 9999;
-            int r = 1;
-            int t = 0;
-            for (int k = 1; (r != 0) && (q > t); ++k)
-            {
-                t = primes[k];
-                q = n / t;
-                r = n % t;
-            }
-
-            is_prime = ((r != 0) && (q <= t));
+            co_yield candidate;
+            cache.push_back(candidate);
         }
+
+        candidate += 2;
     }
 }
 
-void print_primes(int primes[])
+std::vector<int> get_primes(const int count)
+{
+    auto view = prime_sieve() | std::views::take(count);
+    std::vector<int> primes;
+    for (const int prime : view)
+    {
+        primes.push_back(prime);
+    }
+    return primes;
+}
+
+void print_primes(const std::vector<int>& primes)
 {
     std::println("First Five Hundred Primes");
     for (int i = 0; i < 50; ++i)
@@ -44,10 +48,7 @@ void print_primes(int primes[])
 
 int main (int argc, char *argv[])
 {
-    int primes[500];
-
-    set_primes(primes);
-    print_primes(primes);
+    print_primes(get_primes(500));
 
     return 0;
 }

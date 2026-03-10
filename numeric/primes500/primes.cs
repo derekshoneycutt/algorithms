@@ -1,32 +1,24 @@
-static List<int> GetPrimes()
+
+static IEnumerable<int> PrimeSieve()
 {
-    List<int> primes = new(500);
-    int n  = 3;
-    primes.Add(2);
-
-    for (int j = 1; j < 500; ++j)
+    yield return 2;
+    List<int> cache = [2];
+    int candidate = 3;
+    while (true)
     {
-        primes.Add(n);
-
-        bool isPrime = false;
-        while (!isPrime)
+        if (cache.All(prime => candidate % prime != 0))
         {
-            n += 2;
-
-            int q = 9999;
-            int r = 1;
-            int t = 0;
-            for (int k = 1; (r != 0) && (q > t); ++k)
-            {
-                t = primes[k];
-                q = n / t;
-                r = n % t;
-            }
-
-            isPrime = (r != 0) && (q <= t);
+            yield return candidate;
+            cache.Add(candidate);
         }
+
+        candidate += 2;
     }
-    return primes;
+}
+
+static List<int> GetPrimes(int count)
+{
+    return [.. PrimeSieve().Take(count)];
 }
 
 static void PrintPrimes(List<int> primes)
@@ -42,4 +34,4 @@ static void PrintPrimes(List<int> primes)
     }
 }
 
-PrintPrimes(GetPrimes());
+PrintPrimes(GetPrimes(500));

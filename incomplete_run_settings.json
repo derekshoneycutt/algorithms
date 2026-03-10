@@ -20,7 +20,7 @@
         "fsharp": "dotnet fsi",
         "csharp": "dotnet run",
         "vbscript": "cscript //Nologo",
-        "typescript": "cd $dir && mkdir -p output && tsc $fileName --outDir output && node $dir/output/$fileNameWithoutExt.js",
+        "typescript": "cd $dir && mkdir -p output && tsc $fileName --outDir output --target esnext --skipLibCheck true && node $dir/output/$fileNameWithoutExt.js",
         "coffeescript": "coffee",
         "scala": "scala run $dir$fileName -- 15 10",
         "swift": "swift",

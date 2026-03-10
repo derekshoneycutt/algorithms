@@ -1,32 +1,30 @@
 import std.stdio;
+import std.concurrency;
+import std.algorithm.searching;
+import std.range;
+import std.array;
 
-void set_primes(int[] primes)
+void prime_sieve()
 {
-    int n = 3;
-    primes[0] = 2;
-
-    foreach (j; 1 .. 500)
+    yield(2);
+    int[] cache = [2];
+    int candidate = 3;
+    while (true)
     {
-        primes[j] = n;
-
-        bool is_prime =false;
-        while (!is_prime)
+        if (all!((prime) => candidate % prime != 0)(cache))
         {
-            n += 2;
-
-            int q = 9999;
-            int r = 1;
-            int t = 0;
-            for (int k = 1; (r != 0) && (q > t); ++k)
-            {
-                t = primes[k];
-                q = n / t;
-                r = n % t;
-            }
-
-            is_prime = (r != 0) && (q <= t);
+            yield(candidate);
+            cache ~= candidate;
         }
+
+        candidate += 2;
     }
+}
+
+int[] get_primes(const int count)
+{
+    auto gen = new Generator!int(&prime_sieve);
+    return gen.take(count).array;
 }
 
 void print_primes(int[] primes)
@@ -43,8 +41,5 @@ void print_primes(int[] primes)
 
 void main(string[] args)
 {
-    int[500] primes;
-
-    set_primes(primes);
-    print_primes(primes);
+    print_primes(get_primes(500));
 }

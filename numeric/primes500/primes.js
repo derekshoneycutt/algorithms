@@ -1,28 +1,26 @@
 
-function get_primes() {
-    let primes = [2];
-    var n = 3;
+function* prime_sieve() {
+    yield 2;
+    let cache = [2];
+    var candidate = 3;
+    while (true) {
+        if (cache.every((prime) => candidate % prime != 0)) {
+            yield candidate;
+            cache.push(candidate);
+        }
 
-    for (var j = 1; j < 500; ++j) {
-        primes.push(n);
+        candidate += 2;
+    }
+}
 
-        var is_prime = false;
-        while (!is_prime) {
-            n += 2;
-
-            var q = 9999;
-            var r = 1;
-            var t = 0;
-            for (var k = 1; (r != 0) && (q > t); ++k) {
-                t = primes[k];
-                q = n / t;
-                r = n % t;
-            }
-
-            is_prime = (r != 0) && (q <= t);
+function get_primes(count) {
+    let primes = [];
+    for (const prime of prime_sieve()) {
+        primes.push(prime);
+        if (primes.length >= count) {
+            break;
         }
     }
-
     return primes;
 }
 
@@ -38,4 +36,4 @@ function print_primes(primes) {
     }
 }
 
-print_primes(get_primes());
+print_primes(get_primes(500));

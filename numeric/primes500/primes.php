@@ -1,28 +1,29 @@
 <?php
-function get_primes() {
-    $primes = [2];
-    $n = 3;
+function prime_sieve() {
+    yield 2;
+    $cache = [2];
+    $candidate = 3;
+    while (true) {
+        if (array_all($cache, function ($prime) use ($candidate) {
+            return $candidate % $prime != 0; })) {
+            yield $candidate;
+            $cache[] = $candidate;
+        }
 
-    for ($j = 1; $j < 500; ++$j) {
-        $primes[] = $n;
+        $candidate += 2;
+    }
+}
 
-        $is_prime = false;
-        while (!$is_prime) {
-            $n += 2;
-
-            $q = 9999;
-            $r = 1;
-            $t = 0;
-            for ($k = 1; ($r != 0) && ($q > $t); ++$k) {
-                $t = $primes[$k];
-                $q = $n / $t;
-                $r = $n % $t;
-            }
-
-            $is_prime = ($r != 0) && ($q <= $t);
+function get_primes($count) {
+    $primes = [];
+    $n = 0;
+    foreach (prime_sieve() as $prime) {
+        $primes[] = $prime;
+        $n++;
+        if ($n >= $count) {
+            break;
         }
     }
-
     return $primes;
 }
 
@@ -36,5 +37,5 @@ function print_primes($primes) {
     }
 }
 
-print_primes(get_primes());
+print_primes(get_primes(500));
 ?>

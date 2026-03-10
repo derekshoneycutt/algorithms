@@ -1,31 +1,20 @@
 
-fun GetPrimes(): List<Int> {
-    var primes = MutableList(500) {0}
-    primes[0] = 2
-    var n = 3
-
-    for (j in 1..499) {
-        primes[j] = n
-
-        var is_prime = false
-        while (!is_prime) {
-            n += 2
-
-            var q = 9999
-            var r = 1
-            var t = 0
-            var k = 1
-            while ((r != 0) && (q > t)) {
-                t = primes[k]
-                q = n / t
-                r = n % t
-                ++k
-            }
-
-            is_prime = (r != 0) && (q <= t)
+fun PrimeSieve() = sequence {
+    yield(2)
+    var cache = mutableListOf(2)
+    var candidate = 3
+    while (true) {
+        if (cache.all { candidate % it != 0 }) {
+            yield(candidate)
+            cache.add(candidate)
         }
+
+        candidate += 2
     }
-    return primes
+}
+
+fun GetPrimes(count: Int): List<Int> {
+    return PrimeSieve().take(count).toList()
 }
 
 fun PrintPrimes(primes: List<Int>) {
@@ -45,5 +34,5 @@ fun PrintPrimes(primes: List<Int>) {
 }
 
 fun main(args: Array<String>) {
-    PrintPrimes(GetPrimes())
+    PrintPrimes(GetPrimes(500))
 }
