@@ -1,0 +1,40 @@
+Offered as an exercise by Donald Knuth in The Art of Computer Programming, MMIX Fascile 1
+
+This is due to the Neapolitan astronomy Aloysius Lilius
+and the German Jesuit mathematician Christopher Clavius
+in the late 16th century. Works after 1582 to find the
+exact date of Easter Sunday.
+
+Let Y be the year for which Easter date is desired.
+
+1. [Golden number.] Set G <- (Y mod 19) + 1.
+
+    The "Golden number" of the year in the 19-year Metonic cycle.
+
+2. [Century.] Set C <- floor(Y / 100) + 1.
+
+    When not a multiple of 100, C is the century. e.g. 1984->20th Century
+
+3. [Corrections.] Set X <- floor(3C / 4) - 12; Z <- floor((8C + 5) / 25) - 5.
+
+    X is number of years like 1900 that leap year dropped to keep w/ sun.
+    Z is special correction for synchronizing Easter with the moon.
+
+4. [Find Sunday.] Set D <- floor(5Y / 4) - X - 10.
+
+    (March ((-D) mod 7)) will be Sunday.
+
+5. [Epact.] Set E <- (11G + 20 + Z - X) mod 30.
+    If (E = 25 && G > 11) || (E == 24), E += 1
+
+    E is epact; specifies full moon.
+
+6. [Find full moon.] Set N <- 44 - E.
+    If N < 21, set N <- N + 30
+
+    Easter is first Sunday after first full moon on or after March 21.
+    Not strictly true due to the moon. Nth o fMarch is a calendar full moon.
+
+7. [Advance to Sunday.] Set N <- N + 7 - ((D + N) mod 7).
+
+8. [Get month.] If N > 31, date is (N - 31) APRIL; o/w N MARCH.
