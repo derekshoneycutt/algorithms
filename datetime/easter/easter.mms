@@ -30,7 +30,7 @@ curry   GREG    sdate
         GO      coin,coout,0
 
 # Coroutine coout :
-#    Loops through LoopEasters and prints the easter dates
+#    Loops through coin and prints the easter dates
 CoOut   SWYM
 nestrJ  GREG    0
         GET     nestrJ,:rJ
@@ -159,17 +159,17 @@ indent  BYTE    "   ",0
         STBU    t,output,2
         TRAP    0,Fputs,StdOut
 
-0H      BP      MMMM,0F
+0H      BNZ      MMMM,0F
         GREG    @
-fubar   BYTE    " March ",0
-        LDA     $255,fubar
+march   BYTE    " March ",0
+        LDA     $255,march
         TRAP    0,Fputs,StdOut
         JMP     1F
 
 0H      SWYM
         GREG    @
-barfu   BYTE    " April ",0
-        LDA     $255,barfu
+april   BYTE    " April ",0
+        LDA     $255,april
         TRAP    0,Fputs,StdOut
 
 1H      SET     output,PDStack
