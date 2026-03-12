@@ -35,7 +35,7 @@ let rec print_lines list index =
   | x when x >= 50 -> ()
   | _ ->
     print_line list index;
-    print_lines list (index + 1);;
+    print_lines list (index + 1)
 
 let rec print_primes primes =
   Printf.printf "First Five Hundred Primes\n";
@@ -47,4 +47,4 @@ let rec print_list list =
   | head :: [] -> Printf.printf "%d" head
   | head :: tail -> Printf.printf "%d; " head; print_list tail;;
 
-print_primes (take 500 primes);;
+print_primes (take 500 primes)
