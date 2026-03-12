@@ -1,4 +1,7 @@
-Offered as an exercise by Donald Knuth in The Art of Computer Programming, MMIX Fascile 1
+Offered as an exercise by Donald Knuth in The Art of Computer Programming,
+MMIX Fascile 1. Also using this as an opportunity to explore the most
+basic coroutines--generators--in as many languages as possible,
+or building more standard state machines in languages without any such support.
 
 This is due to the Neapolitan astronomy Aloysius Lilius
 and the German Jesuit mathematician Christopher Clavius
