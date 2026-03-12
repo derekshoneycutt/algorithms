@@ -1,7 +1,7 @@
 import Text.Printf
 
 primes :: [Integer]
-primes = sieve [2..]
+primes = sieve ([2] ++ [3, 5..])
   where
     sieve (p : xs) =
         p : sieve [x | x <- xs, x `mod` p /= 0]
