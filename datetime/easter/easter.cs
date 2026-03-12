@@ -29,8 +29,13 @@ static IEnumerable<DateOnly> GetEasters(int startYear, int endYear)
     }
 }
 
-Console.WriteLine("Easters:");
-foreach (DateOnly easter in GetEasters(1950, 2050))
+static void PrintEasters(IEnumerable<DateOnly> easters)
 {
-    Console.WriteLine($"   {easter:dd MMMM, yyyy}");
+    Console.WriteLine("Easters:");
+    foreach (DateOnly easter in easters)
+    {
+        Console.WriteLine($"   {easter:dd MMMM, yyyy}");
+    }
 }
+
+PrintEasters(GetEasters(1950, 2050));
