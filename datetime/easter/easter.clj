@@ -23,9 +23,9 @@
      (cons (getEasterFor (first years))
            (eastersFor (rest years))))))
 
-(defn outputEasters [easters]
+(defn output [easters]
   (doseq [easter easters]
     (printf "   %02d %s, %04d\n" (get easter 0) (get easter 1) (get easter 2))))
 
 (println "Easters:")
-(outputEasters (eastersFor (years 1950 2050)))
+(output (eastersFor (years 1950 2050)))
