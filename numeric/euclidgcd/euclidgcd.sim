@@ -1,0 +1,20 @@
+begin
+    integer procedure euclidgcd(m, n);
+        integer m, n;
+    begin
+        integer r;
+        r := 0;
+        while n ne 0 do begin
+            r := mod(m, n);
+            m := n;
+            n := r;
+        end;
+        euclidgcd := m;
+    end;
+
+    integer m, n;
+    m := 15; n := 10;
+
+    outint(m, 2); outtext(" "); outint(n, 2); outimage;
+    outtext("gcd: "); outint(euclidgcd(m, n), 2); outimage;
+end

@@ -1,0 +1,72 @@
+simulation begin
+    class PrimeSieve(max_count);
+        integer max_count;
+    begin
+        integer current;
+
+        begin
+            integer count, i;
+            boolean isprime;
+            integer array cache(1:max_count);
+            detach;
+            current := 2;
+            detach;
+            cache(1) := 2;
+            count := 1;
+            current := 3;
+
+            while count < max_count do begin
+                isprime := true;
+                for i := 1 step 1 until count do
+                    if mod(current, cache(i)) = 0 then
+                        isprime := false;
+                if isprime then begin
+                    detach;
+                    count := count + 1;
+                    cache(count) := current;
+                end;
+
+                current := current + 2;
+            end;
+        end;
+    end;
+
+    procedure set_primes(primes, n);
+        integer array primes;
+        integer n;
+    begin
+        ref(PrimeSieve) gen;
+        integer count;
+        count := 1;
+        gen :- new PrimeSieve(n);
+        while count <= n do begin
+            resume(gen);
+            primes(count) := gen.current;
+            count := count + 1;
+        end;
+    end;
+
+    procedure print_primes(primes, lines);
+        integer array primes;
+        integer lines;
+    begin
+        integer i;
+        outtext("First Five Hundred Primes"); outimage;
+        for i := 1 step 1 until lines do begin
+            outtext("     "); outint(primes(i), 4); outtext(" ");
+                outint(primes(i + 50), 4); outtext(" ");
+                outint(primes(i + 100), 4); outtext(" ");
+                outint(primes(i + 150), 4); outtext(" ");
+                outint(primes(i + 200), 4); outtext(" ");
+                outint(primes(i + 250), 4); outtext(" ");
+                outint(primes(i + 300), 4); outtext(" ");
+                outint(primes(i + 350), 4); outtext(" ");
+                outint(primes(i + 400), 4); outtext(" ");
+                outint(primes(i + 450), 4); outtext(" "); outimage;
+        end;
+    end;
+    
+    integer array primes(1:500);
+    set_primes(primes, 500);
+    print_primes(primes, 50);
+end

@@ -1,4 +1,5 @@
 output/
+bin/
 .vscode/
 .bsp/
 .scala-build/

@@ -1,0 +1,76 @@
+simulation begin
+    class Easter(year_in, month_in, day_in);
+        integer year_in, day_in;
+        text month_in;
+    begin
+        integer Year, Day;
+        text Month;
+
+        procedure out;
+        begin
+            outint(Day, 2); outtext(" ");
+            outtext(Month); outtext(", ");
+            outint(Year, 4);
+        end;
+
+        Year := year_in;
+        Month :- month_in;
+        Day := day_in;
+    end;
+
+    ref(Easter) procedure get_easter_for(year);
+        integer year;
+    begin
+        integer g, c, x, z, d, e, n;
+        g := mod(year, 19) + 1;
+        c := (year // 100) + 1;
+        x := (3 * c // 4) - 12;
+        z := (((8 * c) + 5) // 25) - 5;
+        d := (5 * year // 4) - x - 10;
+        e := mod(((11 * g) + 20 + z - x), 30);
+        if (e = 25 and g > 11) or e = 24 then
+            e := e + 1;
+        n := 44 - e;
+        if n < 21 then
+            n := n + 30;
+        n := n + 7 - mod(d + n, 7);
+
+        if n > 31 then begin
+            get_easter_for :- new Easter(year, "April", n - 31);
+        end else
+            get_easter_for :- new Easter(year, "March", n);
+    end;
+
+    class EasterCollector(startYear, endYear);
+        integer startYear, endYear;
+    begin
+        ref(Easter) Current;
+        boolean CanContinue;
+
+        begin
+            integer currYear;
+            currYear := startYear;
+            CanContinue := startYear <= endYear;
+            detach;
+
+            while currYear <= endYear do begin
+                Current :- get_easter_for(currYear);
+                currYear := currYear + 1;
+                CanContinue := currYear <= endYear;
+                detach;
+            end;
+        end.
+    end;
+
+    procedure print_easters(easters);
+        ref(EasterCollector) easters;
+    begin
+        outtext("Easters:"); outimage;
+        while easters.CanContinue do begin
+            resume(easters);
+            outtext("   "); easters.Current.out; outimage;
+        end;
+    end;
+
+    print_easters(new EasterCollector(1950, 2050))
+end

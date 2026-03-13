@@ -22,6 +22,7 @@ I explore many different languages. This is a rough list that may more may not b
 
 - COBOL
 - Fortran
+- Simula
 - Ada
 - C
 - C++
