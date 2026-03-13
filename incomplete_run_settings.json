@@ -61,7 +61,8 @@
         "ada": "cd $dir && mkdir -p output && gnatmake -q -D output -o output/$fileNameWithoutExt $fileName && $dir/output/$fileNameWithoutExt",
         "assembly": "cd $dir && mkdir -p output && nasm -f elf64 -o output/$fileNameWithoutExt.o $fileName && gcc -no-pie -o output/$fileNameWithoutExt output/$fileNameWithoutExt.o && $dir/output/$fileNameWithoutExt",
         "cobol": "cd $dir && mkdir -p output && cobc -x -o output/$fileNameWithoutExt $fileName && $dir/output/$fileNameWithoutExt",
-        "basic": "cd $dir && mkdir -p output && cp $fileName output/ && cd output && fbc $fileName && $dir/output/$fileNameWithoutExt"
+        "basic": "cd $dir && mkdir -p output && cp $fileName output/ && cd output && fbc $fileName && $dir/output/$fileNameWithoutExt",
+        "simula": "cd $dir && /home/derek/bin/simula -noPopup $dir$fileName"
     },
     "code-runner.executorMapByFileExtension": {
         ".nasm": "cd $dir && mkdir -p output && nasm -f elf64 -o output/$fileNameWithoutExt.o $fileName && gcc -no-pie -o output/$fileNameWithoutExt output/$fileNameWithoutExt.o && $dir/output/$fileNameWithoutExt",

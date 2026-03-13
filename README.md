@@ -64,8 +64,7 @@ I explore many different languages. This is a rough list that may more may not b
 - Perl
 - PHP
 - Ruby
+- Lua
 - Javascript
 - Typescript
 - FreeBASIC
-
-
