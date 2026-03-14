@@ -1,0 +1,27 @@
+
+This only has some information, but ideally will contain more as needed.
+
+for SSH setup with a VM:
+- install ubuntu server VM
+- Forward port 22 on child to 2222 on host; `ip a` to find IP of child
+- on host: sudo mkdir /home/coderun/codefiles/
+- on host: sudo chmod a+wr /home/coderun/codefiles/
+- on host: sudo adduser coderun
+- on client: ssh-keygen -t ed25519
+- on client: ssh-copy-id -p 2222 coderun@127.0.0.1 
+- test: ssh -p coderun@127.0.0.1 echo "test"
+
+
+On Ubuntu for cm3, the following compile-run-modula-3.sh is created:
+
+#! /bin/bash
+
+cd /home/coderun/codefiles
+mkdir -p AMD64_LINUX
+rm -f ./AMD64_LINUX/*
+mv $1 ./AMD64_LINUX/$1
+/home/coderun/cm3/bin/cm3 $1 > /dev/null
+/home/coderun/codefiles/AMD64_LINUX/prog
+
+# END SCRIPT
+

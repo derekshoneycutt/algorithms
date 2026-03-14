@@ -4,9 +4,6 @@
     },
     "FSharp.suggestGitignore": false,
     "fortran.fortls.disabled": true,
-
-
-
     "code-runner.executorMap": {
         "javascript": "node",
         "java": "cd $dir && mkdir -p output && javac $fileName -d output && dir=${PWD%/*}; packName=\"${dir##*/}\"; algoName=\"${PWD##*/}\" && cd output && java \"${packName}.${algoName}.$fileNameWithoutExt\"",
@@ -74,7 +71,10 @@
         "prolog": "cd $dir && mkdir -p output && gplc $fileName -o output/$fileNameWithoutExt && cd output && ./$fileNameWithoutExt",
         "idris": "cd $dir && mkdir -p output && cp $fileName ./output/$fileName && cd output && idris2 $fileName -o $fileNameWithoutExt && ./build/exec/$fileNameWithoutExt",
         "mercury": "cd $dir && mkdir -p output && cp $fileName ./output/$fileNameWithoutExt.m && cd output && mmc $fileNameWithoutExt.m && ./$fileNameWithoutExt",
-        "factor": "factor -run"
+        "factor": "factor -run",
+        "forth": "cd $dir && scp -P 2222 $fileName coderun@127.0.0.1:/home/coderun/codefiles/$fileName > /dev/null && ssh -p 2222 coderun@127.0.0.1 gforth ./codefiles/$fileName",
+        "m3": "cd $dir && scp -P 2222 $fileName coderun@127.0.0.1:/home/coderun/codefiles/$fileName > /dev/null && ssh -p 2222 coderun@127.0.0.1 ./compile-run-modula-3.sh $fileName",
+        "smalltalk": "cd $dir && scp -P 2222 $fileName coderun@127.0.0.1:/home/coderun/codefiles/$fileName > /dev/null && ssh -p 2222 coderun@127.0.0.1 gst ./codefiles/$fileName",
     },
     "code-runner.executorMapByFileExtension": {
         ".nasm": "cd $dir && mkdir -p output && nasm -f elf64 -o output/$fileNameWithoutExt.o $fileName && gcc -no-pie -o output/$fileNameWithoutExt output/$fileNameWithoutExt.o && $dir/output/$fileNameWithoutExt",
@@ -96,7 +96,7 @@
         ".kt": "cd $dir && kotlinc $fileName -include-runtime -d output/$fileNameWithoutExt.jar && cd output && java -jar $fileNameWithoutExt.jar",
         ".kts": "kotlinc -script",
         ".dart": "dart",
-        ".pas": "cd $dir && fpc $fileName && $dir$fileNameWithoutExt",
+        ".pas": "cd $dir && mkdir -p output && cp $fileName ./output && cd output && fpc $fileName > /dev/null && ./$fileNameWithoutExt",
         ".pp": "cd $dir && fpc $fileName && $dir$fileNameWithoutExt",
         ".d": "cd $dir && dmd $fileName && $dir$fileNameWithoutExt",
         ".hs": "runhaskell",
@@ -123,26 +123,32 @@
     "workbench.iconTheme": "material-icon-theme",
     "files.associations": {
         "*.bas": "freebasic",
+        "*.m3": "m3",
         "*.factor": "factor",
         "*.pl": "prolog",
         "*.plx": "perl",
         "*.m": "objective-c",
         "*.mmc": "mercury",
         "*.mms": "mmixal",
-        "*.rkt": "racket"
+        "*.rkt": "racket",
+        "*.st": "smalltalk",
     },
     "material-icon-theme.files.associations": {
         "*.bas": "freebasic",
+        "*.m3": "modula",
         "*.factor": "factor",
         "*.pl": "prolog",
         "*.plx": "perl",
         "*.m": "objective-c",
         "*.mms": "assembly",
         "*.mmc": "mercury",
+        "*.st": "smalltalk",
     },
     "material-icon-theme.languages.associations": {
         "factor": "factor",
         "freebasic": "freebasic",
-        "mercury": "mercury"
+        "mercury": "mercury",
+        "modula": "modula",
+        "smalltalk": "smalltalk"
     }
 }

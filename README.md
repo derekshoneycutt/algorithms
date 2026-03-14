@@ -50,13 +50,17 @@ I explore many different languages. This is a rough list that may more may not b
 ### Additionally, currently in Hello World
 
 - Factor
+- Forth
 - Haxe
 - Idris2
 - Mercury
+- Modula-3
 - Mojo
 - Nim
+- (Free/Object) Pascal
 - Prolog
 - Racket
+- Smalltalk
 - V
 - Visual Basic .Net
 - Zig
