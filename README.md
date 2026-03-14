@@ -13,64 +13,43 @@ Each file is rather to be its own standalone and follow common patterns.
 
 I explore many different languages. This is a rough list that may more may not be entirely up to date ever.
 
-### Assembly
-
-- MMIXAL - A specialized assembly language to run on a simulated RISC computer. Part of Knuth's The Art of Computer Programming.
-- NASM Assembly - Basic Intel syntax x86-64 assembly.
-
-### Old, Systems, etc. Languages
-
-- COBOL
-- Fortran
-- Simula
 - Ada
 - C
 - C++
-- Objective-C
-- Swift
-- D
-- Go
-- Rust
-
-### Lisp-y
-
-- Clojure
-- Scheme
-
-### General VM-y
-
 - C#
+- Clojure
+- COBOL
+- D
 - Dart
-- Java
-- Kotlin
-
-### Functional fun
-
 - Erlang
 - Elixir
-- Scala
 - F#
+- FreeBASIC
+- Fortran
+- Go
 - Haskell
-- Ocaml
-
-### Lots of Math Stuff
-
+- Java
+- Javascript
 - Julia
-- Python
-- R
-
-### Scripting, etc.
-
+- Kotlin
+- Lua
+- Objective-C
+- Ocaml
 - Perl
 - PHP
+- Python
+- R
 - Ruby
-- Lua
-- Javascript
+- Rust
+- Scala
+- Scheme
+- Simula
+- Swift
 - Typescript
-- FreeBASIC
 
 ### Additionally, currently in Hello World
 
+- Factor
 - Haxe
 - Idris2
 - Mercury

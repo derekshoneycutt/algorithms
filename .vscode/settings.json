@@ -73,7 +73,8 @@
         "simula": "cd $dir && /home/derek/bin/simula -noPopup $dir$fileName",
         "prolog": "cd $dir && mkdir -p output && gplc $fileName -o output/$fileNameWithoutExt && cd output && ./$fileNameWithoutExt",
         "idris": "cd $dir && mkdir -p output && cp $fileName ./output/$fileName && cd output && idris2 $fileName -o $fileNameWithoutExt && ./build/exec/$fileNameWithoutExt",
-        "mercury": "cd $dir && mkdir -p output && cp $fileName ./output/$fileNameWithoutExt.m && cd output && mmc $fileNameWithoutExt.m && ./$fileNameWithoutExt"
+        "mercury": "cd $dir && mkdir -p output && cp $fileName ./output/$fileNameWithoutExt.m && cd output && mmc $fileNameWithoutExt.m && ./$fileNameWithoutExt",
+        "factor": "factor -run"
     },
     "code-runner.executorMapByFileExtension": {
         ".nasm": "cd $dir && mkdir -p output && nasm -f elf64 -o output/$fileNameWithoutExt.o $fileName && gcc -no-pie -o output/$fileNameWithoutExt output/$fileNameWithoutExt.o && $dir/output/$fileNameWithoutExt",
@@ -122,6 +123,7 @@
     "workbench.iconTheme": "material-icon-theme",
     "files.associations": {
         "*.bas": "freebasic",
+        "*.factor": "factor",
         "*.pl": "prolog",
         "*.plx": "perl",
         "*.m": "objective-c",
@@ -131,6 +133,7 @@
     },
     "material-icon-theme.files.associations": {
         "*.bas": "freebasic",
+        "*.factor": "factor",
         "*.pl": "prolog",
         "*.plx": "perl",
         "*.m": "objective-c",
@@ -138,6 +141,7 @@
         "*.mmc": "mercury",
     },
     "material-icon-theme.languages.associations": {
+        "factor": "factor",
         "freebasic": "freebasic",
         "mercury": "mercury"
     }
