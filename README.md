@@ -68,3 +68,16 @@ I explore many different languages. This is a rough list that may more may not b
 - Javascript
 - Typescript
 - FreeBASIC
+
+### Additionally, currently in Hello World
+
+- Haxe
+- Idris2
+- Mercury
+- Mojo
+- Nim
+- Prolog
+- Racket
+- V
+- Visual Basic .Net
+- Zig
