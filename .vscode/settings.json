@@ -1,4 +1,12 @@
 {
+    "go.toolsEnvVars": {
+        "CGO_ENABLED": "0"
+    },
+    "FSharp.suggestGitignore": false,
+    "fortran.fortls.disabled": true,
+
+
+
     "code-runner.executorMap": {
         "javascript": "node",
         "java": "cd $dir && mkdir -p output && javac $fileName -d output && dir=${PWD%/*}; packName=\"${dir##*/}\"; algoName=\"${PWD##*/}\" && cd output && java \"${packName}.${algoName}.$fileNameWithoutExt\"",
@@ -40,7 +48,7 @@
         "pascal": "cd $dir && fpc $fileName && $dir$fileNameWithoutExt",
         "d": "dmd -run",
         "haskell": "runghc",
-        "nim": "nim compile --verbosity:0 --hints:off --run",
+        "nim": "cd $dir && mkdir -p output && nim compile --out:output/$fileNameWithoutExt --verbosity:0 --hints:off --run $fileName",
         "lisp": "sbcl --script",
         "kit": "kitc --run",
         "v": "v run",
@@ -52,7 +60,7 @@
         "fortran_fixed-form": "cd $dir && mkdir -p output && gfortran $fileName -o output/$fileNameWithoutExt && $dir/output/$fileNameWithoutExt",
         "fortran": "cd $dir && mkdir -p output && gfortran -o output/$fileNameWithoutExt && $dir/output/$fileNameWithoutExt",
         "sml": "cd $dir && sml $fileName",
-        "mojo": "mojo run",
+        "mojo": "pixi run mojo run",
         "erlang": "cd $dir && mkdir -p output && erlc -o output/ $fileName && cd output && erl -noshell -s $fileNameWithoutExt main -s init stop",
         "spwn": "spwn build",
         "pkl": "cd $dir && pkl eval -f yaml $fileName -o $fileNameWithoutExt.yaml",
@@ -62,13 +70,16 @@
         "assembly": "cd $dir && mkdir -p output && nasm -f elf64 -o output/$fileNameWithoutExt.o $fileName && gcc -no-pie -o output/$fileNameWithoutExt output/$fileNameWithoutExt.o && $dir/output/$fileNameWithoutExt",
         "cobol": "cd $dir && mkdir -p output && cobc -x -o output/$fileNameWithoutExt $fileName && $dir/output/$fileNameWithoutExt",
         "basic": "cd $dir && mkdir -p output && cp $fileName output/ && cd output && fbc $fileName && $dir/output/$fileNameWithoutExt",
-        "simula": "cd $dir && /home/derek/bin/simula -noPopup $dir$fileName"
+        "simula": "cd $dir && /home/derek/bin/simula -noPopup $dir$fileName",
+        "prolog": "cd $dir && mkdir -p output && gplc $fileName -o output/$fileNameWithoutExt && cd output && ./$fileNameWithoutExt",
+        "idris": "cd $dir && mkdir -p output && cp $fileName ./output/$fileName && cd output && idris2 $fileName -o $fileNameWithoutExt && ./build/exec/$fileNameWithoutExt",
+        "mercury": "cd $dir && mkdir -p output && cp $fileName ./output/$fileNameWithoutExt.m && cd output && mmc $fileNameWithoutExt.m && ./$fileNameWithoutExt"
     },
     "code-runner.executorMapByFileExtension": {
         ".nasm": "cd $dir && mkdir -p output && nasm -f elf64 -o output/$fileNameWithoutExt.o $fileName && gcc -no-pie -o output/$fileNameWithoutExt output/$fileNameWithoutExt.o && $dir/output/$fileNameWithoutExt",
         ".mms": "cd $dir && mkdir -p output && mmixal -o output/$fileNameWithoutExt.mmo $fileName && mmix $dir/output/$fileNameWithoutExt.mmo",
         ".bas": "cd $dir && mkdir -p output && cp $fileName output/ && cd output && fbc $fileName && $dir/output/$fileNameWithoutExt",
-        ".vb": "cd $dir && vbc /nologo $fileName && $dir$fileNameWithoutExt",
+        ".vb": "cd $dir && mkdir -p output && cp $fileName output/ && cd output && echo \"<Project Sdk=\\\"Microsoft.NET.Sdk\\\"><PropertyGroup><OutputType>Exe</OutputType><RootNamespace>Main</RootNamespace><TargetFramework>net10.0</TargetFramework></PropertyGroup></Project>\" > $fileNameWithoutExt.vbproj && dotnet run",
         ".vbs": "cscript //Nologo",
         ".scala": "scala",
         ".jl": "julia",
@@ -88,7 +99,7 @@
         ".pp": "cd $dir && fpc $fileName && $dir$fileNameWithoutExt",
         ".d": "cd $dir && dmd $fileName && $dir$fileNameWithoutExt",
         ".hs": "runhaskell",
-        ".nim": "nim compile --verbosity:0 --hints:off --run",
+        ".nim": "cd $dir && mkdir -p output && nim compile --out:output/$fileNameWithoutExt --verbosity:0 --hints:off --run $fileName",
         ".csproj": "dotnet run --project",
         ".fsproj": "dotnet run --project",
         ".lisp": "sbcl --script",
@@ -99,10 +110,35 @@
         ".cu": "cd $dir && nvcc $fileName -o $fileNameWithoutExt && $dir$fileNameWithoutExt",
         ".ring": "ring",
         ".sml": "cd $dir && sml $fileName",
-        ".mojo": "mojo run",
+        ".mojo": "pixi run mojo run",
         ".erl": "escript",
         ".spwn": "spwn build",
         ".pkl": "cd $dir && pkl eval -f yaml $fileName -o $fileNameWithoutExt.yaml",
-        ".gleam": "gleam run -m $fileNameWithoutExt"
+        ".gleam": "gleam run -m $fileNameWithoutExt",
+        ".pl": "cd $dir && mkdir -p output && gplc $fileName -o output/$fileNameWithoutExt && cd output && ./$fileNameWithoutExt"
+    },
+    "C_Cpp.default.cStandard": "gnu23",
+    "C_Cpp.default.cppStandard": "gnu++26",
+    "workbench.iconTheme": "material-icon-theme",
+    "files.associations": {
+        "*.bas": "freebasic",
+        "*.pl": "prolog",
+        "*.plx": "perl",
+        "*.m": "objective-c",
+        "*.mmc": "mercury",
+        "*.mms": "mmixal",
+        "*.rkt": "racket"
+    },
+    "material-icon-theme.files.associations": {
+        "*.bas": "freebasic",
+        "*.pl": "prolog",
+        "*.plx": "perl",
+        "*.m": "objective-c",
+        "*.mms": "assembly",
+        "*.mmc": "mercury",
+    },
+    "material-icon-theme.languages.associations": {
+        "freebasic": "freebasic",
+        "mercury": "mercury"
     }
 }

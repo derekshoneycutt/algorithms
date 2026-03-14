@@ -1,7 +1,10 @@
 output/
 bin/
-.vscode/
+build/
 .bsp/
 .scala-build/
 .clj-kondo/
 .lsp/
+# pixi environments
+.pixi/*
+!.pixi/config.toml
