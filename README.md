@@ -33,6 +33,8 @@ I explore many different languages. This is a rough list that may more may not b
 - Julia
 - Kotlin
 - Lua
+- MMIXAL (Assembly Language for Donald Knuth's MMIX)
+- NASM (x86_64 Linux ASM)
 - Objective-C
 - Ocaml
 - Perl
