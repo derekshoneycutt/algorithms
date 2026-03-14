@@ -1,4 +1,5 @@
 
+*.mmc linguist-language=Mercury
 *.mms linguist-language=MMIXAL
 *.sim linguist-language=Simula
 # SCM syntax highlighting & preventing 3-way merges
