@@ -138,62 +138,53 @@ dd      IS      $0
 MMMM    IS      $1
 yyyy    IS      $2
 t2      IS      $3
+printr  IS      $20
+printn  IS      $21
+maxn    IS      $22
+filln   IS      $23
+NestrJPrintDate  GREG  0
 
 PDStack  GREG   25000
 
         GREG    @
 indent  BYTE    "   ",0
+comma   BYTE    44,32,0
 
         LDA     output,indent
         TRAP    0,Fputs,StdOut
 
+        GET     NestrJPrintDate,:rJ
+        LDA     printn,dd
+        SET     maxn,2
+        SET     filln,'0'
+        PUSHJ   printr,PrintNumber
         SET     output,PDStack
-        PUT     rD,0
-        DIV     t,dd,10
-        ADDU    t,t,'0'
-        STBU    t,output,0
-        GET     t,:rR
-        ADDU    t,t,'0'
-        STBU    t,output,1
-        SET     t,0
-        STBU    t,output,2
-        TRAP    0,Fputs,StdOut
+        PUT     rJ,NestrJPrintDate
 
-0H      BNZ      MMMM,0F
+0H      BNZ     MMMM,0F
         GREG    @
-march   BYTE    " March ",0
+march   BYTE    " March",0
         LDA     $255,march
+        TRAP    0,Fputs,StdOut
+        LDA     $255,comma
         TRAP    0,Fputs,StdOut
         JMP     1F
 
 0H      SWYM
         GREG    @
-april   BYTE    " April ",0
+april   BYTE    " April",0
         LDA     $255,april
         TRAP    0,Fputs,StdOut
-
-1H      SET     output,PDStack
-        PUT     rD,0
-        SET     t2,1000
-        DIV     t,yyyy,t2
-        ADDU    t,t,'0'
-        STBU    t,output,0
-        GET     t,:rR
-        PUT     rD,0
-        DIV     t,t,100
-        ADDU    t,t,'0'
-        STBU    t,output,1
-        GET     t,:rR
-        PUT     rD,0
-        DIV     t,t,10
-        ADDU    t,t,'0'
-        STBU    t,output,2
-        GET     t,:rR
-        ADDU    t,t,'0'
-        STBU    t,output,3
-        SET     t,0
-        STBU    t,output,4
+        LDA     $255,comma
         TRAP    0,Fputs,StdOut
+
+1H      GET     NestrJPrintDate,:rJ
+        LDA     printn,yyyy
+        SET     maxn,4
+        SET     filln,'0'
+        PUSHJ   printr,PrintNumber
+        SET     output,PDStack
+        PUT     rJ,NestrJPrintDate
 
 1H      GREG    @
 endl    BYTE    10,0

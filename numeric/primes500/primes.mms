@@ -58,17 +58,14 @@ indent  BYTE    "   ",0
 
     # Print a number
 2H      LDWU    pk,ptop,mm
-0H      GREG    #2030303030000000   ; " 0000",0,0,0
-        STOU    0B,BUF
-        LDA     t,BUF+4
+spacing BYTE   " ",0
+        LDA     t,spacing
+        TRAP    0,Fputs,StdOut
 
-1H      DIV     pk,pk,10
-        GET     r,rR
-        INCL    r,'0'
-        STBU    r,t,0
-        SUB     t,t,1
-
-        PBNZ    pk,1B
+        LDA     $1,pk
+        SET     $2,4
+        SET     $3,'0'
+        PUSHJ   $0,PrintNumber
 
         LDA     t,BUF
         TRAP    0,Fputs,StdOut

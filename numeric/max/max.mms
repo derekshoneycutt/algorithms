@@ -10,8 +10,9 @@ endl    BYTE    10,0
 argc    IS      $0
 argv    IS      $1
 tempv   IS      $2
-cparm   IS      $4
 cret    IS      $3
+cparm   IS      $4
+maxn    IS      $5
 output  IS      $255
 
         LOC     #100
@@ -25,7 +26,7 @@ PArgs   MUL     tempv,argc,8
 
 PArgsL  SUBU    argv,argv,8
         LDO     cparm,argv
-        PUSHJ   cret,Parse
+        PUSHJ   cret,ParseNumber
         STO     cret,sp,0
         ADDU    sp,sp,8
         ADDU    n,n,1
@@ -50,7 +51,8 @@ PVals   LDA     output,valstr
         LDA     tempv,n
 PValsL  SUBU    sp,sp,8
         LDO     cparm,sp,0
-        PUSHJ   cret,PrintN
+        SET     maxn,0
+        PUSHJ   cret,PrintNumber
         LDA     output,endl
         TRAP    0,Fputs,StdOut
         SUBU    tempv,tempv,1
@@ -68,7 +70,8 @@ DoIt    LDA     cparm,n
         LDA     output,maxstr
         TRAP    0,Fputs,StdOut
         LDA     cparm,tempv
-        PUSHJ   cret,PrintN
+        SET     maxn,0
+        PUSHJ   cret,PrintNumber
         LDA     output,endl
         TRAP    0,Fputs,StdOut
         TRAP    0,Halt,0
@@ -92,49 +95,4 @@ SMDec   SUBU    stackn,stackn,1
         PBP     stackn,SMLoop
 
         LDA     $0,curr
-        POP     1,0
-
-# Print a number algorithm
-PrintN  SWYM
-PNval   IS      $0
-next    IS      $1
-currd   IS      $2
-PNStack  GREG    2500
-        SET     output,PNStack
-
-0H      DIV     next,PNval,10
-        GET     currd,:rR
-        ADDU    currd,currd,'0'
-        STBU    currd,output,0
-        SUBU    output,output,1
-
-        PBNP    next,9F
-
-        LDA     PNval,next
-        JMP     0B
-
-9H      INCL    output,1
-        TRAP    0,Fputs,StdOut
-        POP     0,0
-
-# Parse a number from a string
-Parse   SWYM
-strval  IS      $0
-Pval    IS      $1
-digit   IS      $2
-t       IS      $3
-        SET     Pval,0
-        SET     digit,0
-
-0H      LDB     t,strval,digit
-
-        PBZ     t,9F
-
-        MUL     Pval,Pval,10
-        SUB     t,t,'0'
-        ADDU    Pval,Pval,t
-        INCL    digit,1
-        JMP     0B
-
-9H      LDA     $0,Pval
         POP     1,0
