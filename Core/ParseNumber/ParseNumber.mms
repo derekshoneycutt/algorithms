@@ -4,15 +4,15 @@
 ParseNumber   SWYM
         PREFIX  ParseNumber:
 strval  IS      $0
-Pval    IS      $1
-digit   IS      $2
-t       IS      $3
+Pval    GREG    0
+digit   GREG    0
+t       GREG    0
         SET     Pval,0
         SET     digit,0
 
 0H      LDB     t,strval,digit
 
-        PBZ     t,9F
+        BZ      t,9F
 
         MUL     Pval,Pval,10
         SUB     t,t,'0'

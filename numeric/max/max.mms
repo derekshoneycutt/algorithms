@@ -26,11 +26,14 @@ PArgs   MUL     tempv,argc,8
 
 PArgsL  SUBU    argv,argv,8
         LDO     cparm,argv
+        PUSHJ   cret,StringIsInt
+        BZ      cret,0F
+        LDO     cparm,argv
         PUSHJ   cret,ParseNumber
         STO     cret,sp,0
         ADDU    sp,sp,8
         ADDU    n,n,1
-        SUBU    argc,argc,1
+0H      SUBU    argc,argc,1
         PBNZ    argc,PArgsL
 
         JMP     PVals

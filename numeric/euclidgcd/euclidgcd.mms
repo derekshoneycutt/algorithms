@@ -11,16 +11,22 @@ Main    LDO     $2,m
         LDO     $3,n
 
 # Check if we have 2+ command line arguments (we use 2 only)
-# If 2, we need to parse them; else use defaults
+# If 2, and both are numbers, we need to parse them; else use defaults
         CMP     $4,$0,3
         PBN     $4,0F
 
+        LDO     $5,$1,16
+        PUSHJ   $4,StringIsInt
+        BZ      $4,0F
+        LDO     $6,$1,8
+        PUSHJ   $5,StringIsInt
+        BZ      $5,0F
+
         LDO     $4,$1,16
         PUSHJ   $3,ParseNumber
-
-        LDO     $5,$1,8
-        PUSHJ   $4,ParseNumber
-        LDA     $2,$4
+        LDO     $6,$1,8
+        PUSHJ   $5,ParseNumber
+        LDA     $2,$5
 
 # Print the given 2 values
 0H      LDA     $5,$2

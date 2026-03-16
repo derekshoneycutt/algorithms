@@ -2,7 +2,8 @@
 
 readonly LINK_MMS_FILES=(
     "../../../Core/ParseNumber/ParseNumber.mms"
-    "../../../Core/PrintNumber/PrintNumber.mms")
+    "../../../Core/PrintNumber/PrintNumber.mms"
+    "../../../Core/StringIsInt/StringIsInt.mms")
 
 fileName=$1
 fileNameWithoutExt="${fileName%.*}"
