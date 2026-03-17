@@ -3,7 +3,6 @@
 This is just a fun little project for myself to write a bunch of algorithms and data
 structures in a bunch of different languages. Why not?
 
-
 The languages that I am interested in are ones that are not too amazingly difficult
 to setup to build and run a single file at a time. Sometimes that is a little bit
 more convoluted than other times, but I am not interested in creating whole projects.
@@ -62,6 +61,7 @@ I explore many different languages. This is a rough list that may more may not b
 - Forth
 - Haxe
 - Idris2
+- Kit
 - Mercury
 - Modula-3
 - Mojo
