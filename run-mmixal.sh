@@ -1,9 +1,11 @@
 #! /bin/bash
 
 readonly LINK_MMS_FILES=(
-    "../../../Core/ParseNumber/ParseNumber.mms"
-    "../../../Core/PrintNumber/PrintNumber.mms"
-    "../../../Core/StringIsInt/StringIsInt.mms")
+    "../../../stdlib/ParseNumber/ParseNumber.mms"
+    "../../../stdlib/PrintNumber/PrintNumber.mms"
+    "../../../stdlib/PrintString/PrintString.mms"
+    "../../../stdlib/StringIsInt/StringIsInt.mms"
+    "../../../stdlib/StringLength/StringLength.mms")
 
 fileName=$1
 fileNameWithoutExt="${fileName%.*}"

@@ -82,20 +82,23 @@ DoIt    LDA     cparm,n
 
 # Find the maximum value in n values on the stack
 StackMax  SWYM
-stackn  IS      $0
+        PREFIX  :StackMax
+n       IS      $0
 curr    IS      $1
 test    IS      $2
-temp    IS      $3
+sp      IS      :sp
+temp    GREG    0
         SET     curr,0
-SMLoop  SUBU    sp,sp,8
+Loop    SUBU    sp,sp,8
         LDO     test,sp,0
         CMP     temp,test,curr
-        PBNP    temp,SMDec
+        PBNP    temp,Dec
 
         LDA     curr,test
 
-SMDec   SUBU    stackn,stackn,1
-        PBP     stackn,SMLoop
+Dec     SUBU    n,n,1
+        PBP     n,Loop
 
         LDA     $0,curr
+        PREFIX  :
         POP     1,0

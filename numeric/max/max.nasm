@@ -4,120 +4,149 @@ section .note.GNU-stack noalloc noexec nowrite progbits
 
 section .rodata
   valuesmsg: db "values:",10,0
-  valuemsg: db "%d",10,0
-  maxmsg: db "max: %d",10,0
+  maxmsg: db "max: ",0
+  endl: db 10,0
   d1: db 15
   d2: db 10
 
-global main
+global _start
+
+%define sys_exit 60
 
 section .text
 
-extern printf
-extern atoi
+extern ParseNumber
+extern PrintString
+extern PrintNumber
+extern StringIsInt
 
-main:
+_start:
+  %define argc rdi
+  %define argv rsi
+  %define argvp r9
+  %define count r8
 ; if we have no parameters, load the default values
-  cmp rdi, 1
-  jle defaultValues
+  mov argc, [rsp]
+  cmp argc, 1
+  jle .defaultValues
 
 ; if we have arguments, we will loop through, parsing each into an integer value
-parseArgs:
-  mov rax, rdi
-  mov rcx, 8
-  mul rcx
-  add rsi, rax
+  .parseArgs:
+  mov argv, 8
+  mov count, 0
 
-  mov r8, 0
+  .parseArgsLoop:
+  add argv, 8
+  mov argvp, [rsp + argv]
 
-parseArgsLoop:
-  sub rsi, 8
-
-  push rdi
-  push rsi
-  push r8
-  mov rdi, [rsi]
-  call atoi
-  mov rcx, 0
-  movzx rcx, eax
-  pop r8
-  pop rsi
+  push argc
+  push argv
+  push count
+  push argvp
+  mov rdi, argvp
+  call StringIsInt
   pop rdi
-  push rcx
+  cmp rax, 0
+  je .continueSkipping
+  call ParseNumber
+  pop count
+  pop argv
+  pop argc
 
-  inc r8
-  dec rdi
+  push rax
+  inc count
+  add argv, 8
+  jmp .continueArgsLoop
+
+  .continueSkipping:
+  pop count
+  pop argv
+  pop argc
+
+  .continueArgsLoop:
+  dec argc
   
-  cmp rdi,1
-  jg parseArgsLoop
+  cmp argc,1
+  jg .parseArgsLoop
 
-  push r8
-  jmp print
+  push count
+  jmp .print
 
 ; For default values, just load the 2 and set the counter on top of the stack
-defaultValues:
+  .defaultValues:
   mov rcx, 0
-  movzx rcx, byte [d2]
+  mov cl, [d2]
   push rcx
-  movzx rcx, byte [d1]
+  mov cl, [d1]
   push rcx
-  mov r8, 2
-  push r8
+  mov count, 2
+  push count
 
-print:
+  .print:
 ; We calculate the max of all entered values to start
-  pop r8
-  mov rdi, r8
+  pop count
+  mov rdi, count
   mov rsi, 0
   call StackMax
+  %define themax rax
 
 ; once we have the max, print the values, then the max
-  push r8
-  push rax
+  push count
+  push themax
   lea rdi, valuesmsg
-  xor rax, rax
-  call printf
-  pop rax
-  pop r8
+  call PrintString
+  pop themax
+  pop count
 
-  mov r9,0
-printLoop:
-  pop rsi
-  push rax
-  push r8
-  push r9
-  lea rdi, valuemsg
-  xor rax, rax
-  call printf
-  pop r9
-  pop r8
-  pop rax
-  inc r9
-  cmp r8, r9
-  jg printLoop
+  %define printCount r9
+  mov printCount,0
+  .printLoop:
+  pop rdi
+  push themax
+  push count
+  push printCount
+  mov rsi, 0
+  call PrintNumber
+  lea rdi, endl
+  call PrintString
+  pop printCount
+  pop count
+  pop themax
+  inc printCount
+  cmp count, printCount
+  jg .printLoop
 
+  push themax
   lea rdi, maxmsg
-  mov rsi, rax
-  xor rax, rax
-  call printf
+  call PrintString
+  pop rdi
+  mov rsi, 0
+  call PrintNumber
+  lea rdi, endl
+  call PrintString
 
-  mov rax, 0
-  ret
+  mov rax, sys_exit
+  xor rdi, rdi
+  syscall
 
 ; Find the maximum value in n values on the stack; this does not pop off the stack.
 StackMax:
-  mov rax, 0
-StackMaxLoop:
-  inc rsi
-  mov rcx, [rsp + rsi * 8]
+  %define n rdi
+  %define curr rsi
+  %define max rax
+  %define test rcx
+  mov max, 0
+  .loop:
+  inc curr
+  mov test, [rsp + curr * 8]
 
-  cmp rcx, rax
-  jl StackMaxDec
+  cmp test, max
+  jl .dec
 
-  mov rax, rcx
-StackMaxDec:
-  dec rdi
-  cmp rdi, 0
-  jg StackMaxLoop
+  mov max, test
+  .dec:
+  dec n
+  cmp n, 0
+  jg .loop
 
   ret

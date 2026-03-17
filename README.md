@@ -9,6 +9,13 @@ to setup to build and run a single file at a time. Sometimes that is a little bi
 more convoluted than other times, but I am not interested in creating whole projects.
 Each file is rather to be its own standalone and follow common patterns.
 
+For MMIX and NASM, I have decided to start collecting a small standard library
+of methods that can be linked in. This is in stdlib/. I am mostly favoring
+my own implementation including syscall routines instead of linking to libc.
+Because of this, there are 2 scripts used to link in the standard library and
+run the code. Both scripts take the file to be run and assembles and links them,
+passing all other command line arguments directly to the final execution.
+
 ## Languages
 
 I explore many different languages. This is a rough list that may more may not be entirely up to date ever.

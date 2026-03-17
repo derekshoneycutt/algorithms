@@ -3,68 +3,100 @@ DEFAULT REL
 section .note.GNU-stack noalloc noexec nowrite progbits
 
 section .rodata
-  msg: db "%d %d",10,0
-  gcdmsg: db "gcd: %d",10,0
-  m: db 15
-  n: db 10
+  space: db " ",0
+  endl: db 10,0
+  gcdmsg: db "gcd: ",0
+  default_m: db 15
+  default_n: db 10
 
-global main
+global _start
+
+%define sys_exit 60
 
 section .text
 
-extern printf
-extern atoi
+extern ParseNumber
+extern PrintString
+extern PrintNumber
+extern StringIsInt
 
-main:
-  mov r8, 0
-  movzx r8, byte [m]
-  mov r9, 0
-  movzx r9, byte [n]
+_start:
+  %define argc rdi
+  %define m r8
+  %define n r9
+  mov m, 0
+  movzx m, byte [default_m]
+  mov n, 0
+  movzx n, byte [default_n]
+
 
 ; Check if we have 2+ command line arguments (we use 2 only)
 ; If 2, we need to parse them; else use defaults
-  cmp rdi, 3
+  mov argc, [rsp]
+  cmp argc, 3
   jl print
 
-  push rsi
-  mov rdi, [rsi + 8]
-  call atoi
-  mov r8, 0
-  movzx r8, eax
-  pop rsi
+  mov rdi, [rsp + 16]
+  call StringIsInt
+  cmp rax, 0
+  je print
+  mov rdi, [rsp + 24]
+  call StringIsInt
+  cmp rax, 0
+  je print
 
-  push r8
-  mov rdi, [rsi + 16]
-  call atoi
-  mov r9, 0
-  movzx r9, eax
-  pop r8
+  mov rdi, [rsp + 16]
+  call ParseNumber
+  mov m, 0
+  movzx m, eax
+
+  mov rdi, [rsp + 24]
+  push m
+  call ParseNumber
+  mov n, 0
+  movzx n, eax
+  pop m
 
 print:
 ; Print the given 2 values
-  push r8
-  push r9
-  lea rdi, msg
-  mov rsi, r8
-  mov rdx, r9
-  xor rax, rax
-  call printf
-  pop r9
-  pop r8
+  push m
+  push n
+  mov rdi, m
+  mov rsi, 0
+  call PrintNumber
+  lea rdi, space
+  call PrintString
+  mov n, [rsp]
+  mov rdi, n
+  mov rsi, 0
+  call PrintNumber
+  lea rdi, endl
+  call PrintString
+  pop n
+  pop m
 
 ; Calculate the GCD with Euclid's
-  mov rdi,r8
-  mov rsi,r9
+  mov rdi,m
+  mov rsi,n
   call euclidgcd
+  mov r11, rax
 
 ; Print and exit
-  mov rdx, rax
+  push r11
+  push rax
   lea rdi, gcdmsg
-  xor rax, rax
-  call printf
+  call PrintString
+  pop rdi
+  pop r11
+  mov rdi, r11
+  mov rsi, 0
+  call PrintNumber
+  lea rdi, endl
+  call PrintString
 
-  mov rax, 0
-  ret
+  mov rax, sys_exit
+  xor rdi, rdi
+  syscall
 
 
 ; Euclid's Algorithm
@@ -72,16 +104,15 @@ euclidgcd:
   %define m rdi
   %define n rsi
   %define r rdx
+  .loop:
   mov rax, m
   mov rdx, 0
   div n
-
-  cmp rdx, 0
-  je euclidgcd_end
-
   mov m, n
   mov n, r
-  jmp euclidgcd
 
-euclidgcd_end:
+  cmp n, 0
+  jne .loop
+
+  mov rax, m
   ret

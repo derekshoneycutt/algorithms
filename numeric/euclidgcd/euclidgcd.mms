@@ -55,15 +55,18 @@ Main    LDO     $2,m
 
 # Euclid's Algorithm
 Euclid  SWYM
-EucM    IS      $0
-EucN    IS      $1
-EucT    IS      $2
-EucR    IS      $3
-1H      DIV     EucT,EucM,EucN
-        GET     EucR,:rR
-        LDA     EucM,EucN
-        LDA     EucN,EucR
-        PBNZ    EucN,1B
+        PREFIX  :EuclidGcd
+m       IS      $0
+n       IS      $1
+t       GREG    0
+r       GREG    0
+1H      DIV     t,m,n
+        GET     r,:rR
+        LDA     m,n
+        LDA     n,r
+        PBNZ    n,1B
 
-9H      POP     1,0
+9H      SWYM
+        PREFIX  :
+        POP     1,0
 

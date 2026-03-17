@@ -5,22 +5,18 @@ section .note.GNU-stack noalloc noexec nowrite progbits
 section .rodata
   msg: db "Hello, world!",10,0
 
-global main
+%define sys_exit 60
+
+global _start
+
+extern PrintString
 
 section .text
 
-extern printf
+_start:
+  mov rdi, msg
+  call PrintString
 
-main:
-  push rbp
-  mov rbp, rsp
-  lea rdi, msg
-  xor rax, rax
-  call printf
-  pop rbp
-
-  mov rax, 0
-  ret
-
-
-
+  mov rax, sys_exit
+  xor rdi, rdi
+  syscall
