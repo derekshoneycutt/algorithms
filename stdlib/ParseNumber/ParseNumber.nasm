@@ -8,10 +8,10 @@ section .text
 
 ParseNumber:
     %define str rdi
-    %define PVal r8
-    %define digit r9
-    %define t r10
-    %define tb r10b
+    %define PVal rax
+    %define digit rcx
+    %define t r8
+    %define tb r8b
     mov digit, 0
     mov PVal, 0
 
@@ -21,15 +21,12 @@ ParseNumber:
     cmp tb, 0
     je .end
 
-    mov rax, PVal
-    mov rcx, 10
-    mul rcx
-    mov PVal, rax
+    mov rdx, 10
+    mul rdx
     sub t, 48
     add PVal, t
-    add digit, 1
+    inc digit
     jmp .loop
 
     .end:
-    mov rax, PVal
     ret

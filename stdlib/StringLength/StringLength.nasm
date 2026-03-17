@@ -8,20 +8,19 @@ section .text
 
 StringLength:
     %define str rdi
-    %define digit r9
-    %define t r10
-    %define tb r10b
+    %define digit rax
+    %define t rcx
+    %define tb cl
     mov digit, 0
+    mov t, 0
 
     .loop:
-    mov t, 0
     mov tb, [str + digit]
     cmp tb, 0
     je .end
 
-    add digit, 1
+    inc digit
     jmp .loop
 
     .end:
-    mov rax, digit
     ret

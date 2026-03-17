@@ -42,6 +42,8 @@ if [ "$fileName" -nt "./output/$fileNameWithoutExt.o" ]; then
 fi
 if [ ! -f "./output/$fileNameWithoutExt" ]; then
     do_link=1
+elif [ "$stdlib" -nt "./output/$fileNameWithoutExt" ]; then
+    do_link=1
 fi
 if [ "$do_link" -eq 1 ]; then
     ld -o ./output/$fileNameWithoutExt ./output/$fileNameWithoutExt.o $stdlib

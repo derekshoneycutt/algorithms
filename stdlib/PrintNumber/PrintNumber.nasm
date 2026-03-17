@@ -26,7 +26,7 @@ PrintNumber:
     mov curr, buffer + 20
     mov digit, 0
     mov byte [curr], digitb
-    sub curr, 1
+    dec curr
     mov len, 0
     push fill
 
@@ -40,8 +40,8 @@ PrintNumber:
 
     add digit, '0'
     mov byte [curr], digitb
-    sub curr, 1
-    add len, 1
+    dec curr
+    inc len
 
     cmp num, 0
     jle .testIfMax
@@ -58,14 +58,14 @@ PrintNumber:
 
     pop fill
     mov byte [curr], fillb
-    sub curr, 1
-    add len, 1
+    dec curr
+    inc len
     push fill
     jmp .testIfMax
 
     .printAndEnd:
     pop fill
-    add curr, 1
+    inc curr
     mov rsi, curr
     mov rdx, len
     mov rax, sys_write

@@ -1,5 +1,5 @@
 
-# Algorithms STandard Library
+# Algorithms Standard Library
 
 The point of algorithms in this folder is to create
 the assembly (MMIX and NASM) that can be copied/linked

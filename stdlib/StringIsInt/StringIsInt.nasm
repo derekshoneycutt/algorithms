@@ -27,7 +27,7 @@ StringIsInt:
     jl .not_int
     cmp tb, '9'
     jg .not_int
-    add digit, 1
+    inc digit
     jmp .loop
 
     .is_int:
