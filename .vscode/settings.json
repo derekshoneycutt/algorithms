@@ -76,6 +76,7 @@
         "forth": "cd $dir && scp -P 2222 $fileName coderun@127.0.0.1:/home/coderun/codefiles/$fileName > /dev/null && ssh -p 2222 coderun@127.0.0.1 gforth ./codefiles/$fileName",
         "m3": "cd $dir && scp -P 2222 $fileName coderun@127.0.0.1:/home/coderun/codefiles/$fileName > /dev/null && ssh -p 2222 coderun@127.0.0.1 ./compile-run-modula-3.sh $fileName",
         "smalltalk": "cd $dir && scp -P 2222 $fileName coderun@127.0.0.1:/home/coderun/codefiles/$fileName > /dev/null && ssh -p 2222 coderun@127.0.0.1 gst ./codefiles/$fileName",
+        "oberon": "cd $dir && scp -P 2222 $fileName coderun@127.0.0.1:/home/coderun/codefiles/$fileName > /dev/null && ssh -p 2222 coderun@127.0.0.1 ./compile-run-oberon.sh $fileName",
     },
     "code-runner.executorMapByFileExtension": {
         ".nasm": "cd $dir && ../../run-nasm.sh $fileName",
@@ -128,6 +129,7 @@
         "*.pl": "prolog",
         "*.plx": "perl",
         "*.m": "objective-c",
+        "*.Mod": "oberon",
         "*.mmc": "mercury",
         "*.mms": "mmix",
         "*.rkt": "racket",
@@ -137,6 +139,7 @@
     "material-icon-theme.files.associations": {
         "*.bas": "freebasic",
         "*.m3": "modula",
+        "*.Mod": "oberon",
         "*.factor": "factor",
         "*.pl": "prolog",
         "*.plx": "perl",
@@ -152,6 +155,7 @@
         "freebasic": "freebasic",
         "mercury": "mercury",
         "modula": "modula",
+        "oberon": "oberon",
         "smalltalk": "smalltalk"
     }
 }

@@ -32,6 +32,7 @@
 <img src="./.vscode/mojo.svg" alt="Mojo" width="30" height="30">
 <img src="./.vscode/assembly.svg" alt="Assembly" width="30" height="30">
 <img src="./.vscode/nim.svg" alt="Nim" width="30" height="30">
+<img src="./.vscode/oberon.svg" alt="Oberon" width="30" height="30">
 <img src="./.vscode/objective-c.svg" alt="Objective-C" width="30" height="30"> 
 <img src="./.vscode/ocaml.svg" alt="Ocaml" width="30" height="30">
 <img src="./.vscode/pascal.svg" alt="Pascal" width="30" height="30">
@@ -127,6 +128,7 @@ I explore many different languages. This is a rough list that may more may not b
 - <img src="./.vscode/mercury.svg" alt="Mercury" width="15" height="15"> Mercury
 - <img src="./.vscode/mojo.svg" alt="Mojo" width="15" height="15"> Mojo
 - <img src="./.vscode/nim.svg" alt="Nim" width="15" height="15"> Nim
+- <img src="./.vscode/oberon.svg" alt="Oberon" width="15" height="15"> Oberon
 - <img src="./.vscode/pascal.svg" alt="Pascal" width="15" height="15"> (Free/Object) Pascal
 - <img src="./.vscode/prolog.svg" alt="Prolog" width="15" height="15"> Prolog
 - <img src="./.vscode/racket.svg" alt="Racket" width="15" height="15"> Racket
