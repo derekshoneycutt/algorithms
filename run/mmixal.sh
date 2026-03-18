@@ -9,6 +9,7 @@ readonly LINK_MMS_FILES=(
 
 fileName=$1
 fileNameWithoutExt="${fileName%.*}"
+other_params=${@:2}
 
 mkdir -p output
 cp "$fileName" ./output/
@@ -18,6 +19,15 @@ for link_file in "${LINK_MMS_FILES[@]}"; do
     cat "$link_file" >> "./$fileName"
 done
 
-mmixal "$fileName"
-mmix "./$fileNameWithoutExt.mmo" ${@:2}
+mmixal "./$fileName" &> ./mmixal-build-last
+
+
+if [[ -f "./$fileNameWithoutExt.mmo" ]]; then
+  mmix "./$fileNameWithoutExt.mmo" $other_params
+else
+  echo "FAILED TO COMPILE MMIXAL. BUILD OUTPUT:"
+  cat "./mmixal-build-last"
+fi
+
+
 cd ..

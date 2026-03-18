@@ -18,6 +18,7 @@
 <img src="./.vscode/freebasic.svg" alt="FreeBASIC" width="30" height="30"> 
 <img src="./.vscode/forth.svg" alt="Forth" width="30" height="30">
 <img src="./.vscode/fortran.svg" alt="Fortran" width="30" height="30"> 
+<img src="./.vscode/gleam.svg" alt="Gleam" width="30" height="30">
 <img src="./.vscode/go.svg" alt="Go" width="30" height="30">
 <img src="./.vscode/haskell.svg" alt="Haskell" width="30" height="30">
 <img src="./.vscode/haxe.svg" alt="Haxe" width="30" height="30">
@@ -125,6 +126,7 @@ I explore many different languages. This is a rough list that may more may not b
 
 - <img src="./.vscode/ballerina.svg" alt="Ballerina" width="15" height="15"> Ballerina
 - <img src="./.vscode/eiffel.svg" alt="Eiffel" width="15" height="15"> Eiffel
+- <img src="./.vscode/gleam.svg" alt="Gleam" width="15" height="15"> Gleam
 - <img src="./.vscode/factor.svg" alt="Factor" width="15" height="15"> Factor
 - <img src="./.vscode/forth.svg" alt="Forth" width="15" height="15"> Forth
 - <img src="./.vscode/haxe.svg" alt="Haxe" width="15" height="15"> Haxe

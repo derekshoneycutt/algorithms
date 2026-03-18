@@ -8,3 +8,8 @@ build/
 # pixi environments
 .pixi/*
 !.pixi/config.toml
+
+*.beam
+*.ez
+/build
+erl_crash.dump

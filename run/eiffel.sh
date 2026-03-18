@@ -3,6 +3,7 @@
 fileName=$1
 fileNameWithoutExt="${fileName%.*}"
 className=${fileNameWithoutExt^^}
+other_params=${@:2}
 new_uuid=$(uuidgen)
 
 mkdir -p output
@@ -49,4 +50,3 @@ else
   cat "./$fileName-last-compile"
   cd ..
 fi
-
