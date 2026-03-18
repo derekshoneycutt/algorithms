@@ -1,4 +1,5 @@
 
+*.Mod linguist-language=oberon
 *.kit linguist-language=kit
 *.mms linguist-language=mmixal
 *.sim linguist-language=Simula
