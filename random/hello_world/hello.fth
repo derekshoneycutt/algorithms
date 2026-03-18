@@ -1,4 +1,4 @@
 
-: HELLO ( -- ) ." Hello, world!" CR ;
+: HELLO ." Hello, world!" CR ;
 HELLO
 bye
