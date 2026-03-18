@@ -105,6 +105,7 @@ I explore many different languages. This is a rough list that may more may not b
 - <img src="./.vscode/modula3.svg" alt="Modula-3" width="15" height="15"> Modula-3
 - <img src="./.vscode/assembly.svg" alt="Assembly" width="15" height="15"> NASM (x86_64 Linux ASM)
 - <img src="./.vscode/objective-c.svg" alt="Objective-C" width="15" height="15"> Objective-C
+- <img src="./.vscode/oberon.svg" alt="Oberon" width="15" height="15"> Oberon
 - <img src="./.vscode/ocaml.svg" alt="Ocaml" width="15" height="15"> Ocaml
 - <img src="./.vscode/perl.svg" alt="Perl" width="15" height="15"> Perl
 - <img src="./.vscode/php.svg" alt="PHP" width="15" height="15"> PHP
@@ -128,7 +129,6 @@ I explore many different languages. This is a rough list that may more may not b
 - <img src="./.vscode/mercury.svg" alt="Mercury" width="15" height="15"> Mercury
 - <img src="./.vscode/mojo.svg" alt="Mojo" width="15" height="15"> Mojo
 - <img src="./.vscode/nim.svg" alt="Nim" width="15" height="15"> Nim
-- <img src="./.vscode/oberon.svg" alt="Oberon" width="15" height="15"> Oberon
 - <img src="./.vscode/pascal.svg" alt="Pascal" width="15" height="15"> (Free/Object) Pascal
 - <img src="./.vscode/prolog.svg" alt="Prolog" width="15" height="15"> Prolog
 - <img src="./.vscode/racket.svg" alt="Racket" width="15" height="15"> Racket
