@@ -101,6 +101,7 @@ I explore many different languages. This is a rough list that may more may not b
 - <img src="./.vscode/kotlin.svg" alt="Kotlin" width="15" height="15"> Kotlin
 - <img src="./.vscode/lua.svg" alt="Lua" width="15" height="15"> Lua
 - <img src="./.vscode/assembly.svg" alt="Assembly" width="15" height="15"> MMIXAL (Assembly Language for Donald Knuth's MMIX)
+- <img src="./.vscode/modula3.svg" alt="Modula-3" width="15" height="15"> Modula-3
 - <img src="./.vscode/assembly.svg" alt="Assembly" width="15" height="15"> NASM (x86_64 Linux ASM)
 - <img src="./.vscode/objective-c.svg" alt="Objective-C" width="15" height="15"> Objective-C
 - <img src="./.vscode/ocaml.svg" alt="Ocaml" width="15" height="15"> Ocaml
@@ -124,7 +125,6 @@ I explore many different languages. This is a rough list that may more may not b
 - <img src="./.vscode/idris.svg" alt="Idris" width="15" height="15"> Idris2
 - <img src="./.vscode/kit.svg" alt="Kit" width="15" height="15"> Kit
 - <img src="./.vscode/mercury.svg" alt="Mercury" width="15" height="15"> Mercury
-- <img src="./.vscode/modula3.svg" alt="Modula-3" width="15" height="15"> Modula-3
 - <img src="./.vscode/mojo.svg" alt="Mojo" width="15" height="15"> Mojo
 - <img src="./.vscode/nim.svg" alt="Nim" width="15" height="15"> Nim
 - <img src="./.vscode/pascal.svg" alt="Pascal" width="15" height="15"> (Free/Object) Pascal
