@@ -9,8 +9,9 @@
 <img src="./.vscode/cobol.svg" alt="COBOL" width="30" height="30">
 <img src="./.vscode/d.svg" alt="D" width="30" height="30">
 <img src="./.vscode/dart.svg" alt="Dart" width="30" height="30">
-<img src="./.vscode/erlang.svg" alt="Erlang" width="30" height="30">
+<img src="./.vscode/eiffel.svg" alt="Eiffel" width="30" height="30">
 <img src="./.vscode/elixir.svg" alt="Elixir" width="30" height="30">
+<img src="./.vscode/erlang.svg" alt="Erlang" width="30" height="30">
 <img src="./.vscode/fsharp.svg" alt="F#" width="30" height="30">
 <img src="./.vscode/factor.svg" alt="Factor" width="30" height="30">
 <img src="./.vscode/freebasic.svg" alt="FreeBASIC" width="30" height="30"> 
@@ -89,8 +90,8 @@ I explore many different languages. This is a rough list that may more may not b
 - <img src="./.vscode/cobol.svg" alt="COBOL" width="15" height="15"> COBOL
 - <img src="./.vscode/d.svg" alt="D" width="15" height="15"> D
 - <img src="./.vscode/dart.svg" alt="Dart" width="15" height="15"> Dart
-- <img src="./.vscode/erlang.svg" alt="Erlang" width="15" height="15"> Erlang
 - <img src="./.vscode/elixir.svg" alt="Elixir" width="15" height="15"> Elixir
+- <img src="./.vscode/erlang.svg" alt="Erlang" width="15" height="15"> Erlang
 - <img src="./.vscode/fsharp.svg" alt="F#" width="15" height="15"> F#
 - <img src="./.vscode/freebasic.svg" alt="FreeBASIC" width="15" height="15"> FreeBASIC
 - <img src="./.vscode/fortran.svg" alt="Fortran" width="15" height="15"> Fortran
@@ -121,6 +122,7 @@ I explore many different languages. This is a rough list that may more may not b
 
 ### Additionally, currently in Hello World
 
+- <img src="./.vscode/eiffel.svg" alt="Eiffel" width="15" height="15"> Eiffel
 - <img src="./.vscode/factor.svg" alt="Factor" width="15" height="15"> Factor
 - <img src="./.vscode/forth.svg" alt="Forth" width="15" height="15"> Forth
 - <img src="./.vscode/haxe.svg" alt="Haxe" width="15" height="15"> Haxe
