@@ -2,6 +2,7 @@
 
 <p align="center">
 <img src="./.vscode/ada.svg" alt="Ada" width="30" height="30">
+<img src="./.vscode/ballerina.svg" alt="Ballerina" width="30" height="30">
 <img src="./.vscode/c.svg" alt="C" width="30" height="30">
 <img src="./.vscode/cpp.svg" alt="C++" width="30" height="30">
 <img src="./.vscode/csharp.svg" alt="C#" width="30" height="30">
@@ -122,6 +123,7 @@ I explore many different languages. This is a rough list that may more may not b
 
 ### Additionally, currently in Hello World
 
+- <img src="./.vscode/ballerina.svg" alt="Ballerina" width="15" height="15"> Ballerina
 - <img src="./.vscode/eiffel.svg" alt="Eiffel" width="15" height="15"> Eiffel
 - <img src="./.vscode/factor.svg" alt="Factor" width="15" height="15"> Factor
 - <img src="./.vscode/forth.svg" alt="Forth" width="15" height="15"> Forth

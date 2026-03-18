@@ -78,6 +78,7 @@
         "smalltalk": "cd $dir && scp -P 2222 $fileName coderun@127.0.0.1:/home/coderun/codefiles/$fileName > /dev/null && ssh -p 2222 coderun@127.0.0.1 gst ./codefiles/$fileName",
         "oberon": "cd $dir && scp -P 2222 $fileName coderun@127.0.0.1:/home/coderun/codefiles/$fileName > /dev/null && ssh -p 2222 coderun@127.0.0.1 ./compile-run-oberon.sh $fileName",
         "eiffel": "cd $dir && ../../run-eiffel.sh $fileName",
+        "ballerina": "cd $dir && mkdir -p output && cp $fileName output/ && cd output && bal build $fileName > ballerina-build-last && java -jar $fileNameWithoutExt.jar",
     },
     "code-runner.executorMapByFileExtension": {
         ".nasm": "cd $dir && ../../run-nasm.sh $fileName",
