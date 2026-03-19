@@ -143,7 +143,7 @@ I explore many different languages. This is a rough list that may more may not b
 - <img src="./icons/icon.svg" alt="Icon" width="15" height="15"> Icon
 - <img src="./icons/idris.svg" alt="Idris" width="15" height="15"> Idris2
 - <img src="./icons/kit.svg" alt="Kit" width="15" height="15"> Kit
-- <img src="./icons/llvm.svg" alt="LLVM" width="15" height="15"> LLVM IR
+- <img src="./icons/llvm.png" alt="LLVM" width="15" height="15"> LLVM IR
 - <img src="./icons/mercury.svg" alt="Mercury" width="15" height="15"> Mercury
 - <img src="./icons/mojo.svg" alt="Mojo" width="15" height="15"> Mojo
 - <img src="./icons/nim.svg" alt="Nim" width="15" height="15"> Nim
