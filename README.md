@@ -22,6 +22,7 @@
 <img src="./icons/go.svg" alt="Go" width="30" height="30">
 <img src="./icons/haskell.svg" alt="Haskell" width="30" height="30">
 <img src="./icons/haxe.svg" alt="Haxe" width="30" height="30">
+<img src="./icons/icon.svg" alt="Icon" width="30" height="30">
 <img src="./icons/idris.svg" alt="Idris" width="30" height="30">
 <img src="./icons/java.svg" alt="Java" width="30" height="30">
 <img src="./icons/javascript.svg" alt="Javascript" width="30" height="30">
@@ -138,6 +139,7 @@ I explore many different languages. This is a rough list that may more may not b
 - <img src="./icons/factor.svg" alt="Factor" width="15" height="15"> Factor
 - <img src="./icons/forth.svg" alt="Forth" width="15" height="15"> Forth
 - <img src="./icons/haxe.svg" alt="Haxe" width="15" height="15"> Haxe
+- <img src="./icons/icon.svg" alt="Icon" width="15" height="15"> Icon
 - <img src="./icons/idris.svg" alt="Idris" width="15" height="15"> Idris2
 - <img src="./icons/kit.svg" alt="Kit" width="15" height="15"> Kit
 - <img src="./icons/mercury.svg" alt="Mercury" width="15" height="15"> Mercury
