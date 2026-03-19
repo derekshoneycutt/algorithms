@@ -57,6 +57,7 @@
 <img src="./icons/typescript.svg" alt="Typescript" width="30" height="30">
 <img src="./icons/vlang.svg" alt="V" width="30" height="30">
 <img src="./icons/visualstudio.svg" alt="VB" width="30" height="30">
+<img src="./icons/webassembly.svg" alt="VB" width="30" height="30">
 <img src="./icons/zig.svg" alt="Zig" width="30" height="30">
 </p>
 
@@ -150,4 +151,5 @@ I explore many different languages. This is a rough list that may more may not b
 - <img src="./icons/tcl.svg" alt="Tcl" width="15" height="15"> Tcl
 - <img src="./icons/vlang.svg" alt="V" width="15" height="15"> V
 - <img src="./icons/visualstudio.svg" alt="VB" width="15" height="15"> Visual Basic .Net
+- <img src="./icons/webassembly.svg" alt="WASM" width="15" height="15"> WASM
 - <img src="./icons/zig.svg" alt="Zig" width="15" height="15"> Zig

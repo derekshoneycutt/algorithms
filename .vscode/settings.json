@@ -62,6 +62,7 @@
         "typescript": "cd $dir && ../../../run/typescript.sh $fileName",
         "v": "cd $dir && ../../../run/v.sh $fileName",
         "vb": "cd $dir && ../../../run/visualbasic.sh $fileName",
+        "wat": "cd $dir && ../../../run/wasm.sh $fileName",
         "zig": "cd $dir && ../../../run/zig.sh $fileName",
     },
     "C_Cpp.default.cStandard": "gnu23",
