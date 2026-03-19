@@ -58,6 +58,7 @@
         "simula": "cd $dir && ../../../run/simula.sh $fileName",
         "smalltalk": "cd $dir && ../../../run/smalltalk.sh $fileName",
         "swift": "cd $dir && ../../../run/swift.sh $fileName",
+        "tcl": "cd $dir && ../../../run/tcl.sh $fileName",
         "typescript": "cd $dir && ../../../run/typescript.sh $fileName",
         "v": "cd $dir && ../../../run/v.sh $fileName",
         "vb": "cd $dir && ../../../run/visualbasic.sh $fileName",
