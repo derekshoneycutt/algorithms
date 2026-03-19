@@ -38,6 +38,7 @@
 <img src="./icons/oberon.svg" alt="Oberon" width="30" height="30">
 <img src="./icons/objective-c.svg" alt="Objective-C" width="30" height="30"> 
 <img src="./icons/ocaml.svg" alt="Ocaml" width="30" height="30">
+<img src="./icons/octave.svg" alt="Octave" width="30" height="30">
 <img src="./icons/pascal.svg" alt="Pascal" width="30" height="30">
 <img src="./icons/perl.svg" alt="Perl" width="30" height="30">
 <img src="./icons/php.svg" alt="PHP" width="30" height="30">
@@ -140,6 +141,7 @@ I explore many different languages. This is a rough list that may more may not b
 - <img src="./icons/mercury.svg" alt="Mercury" width="15" height="15"> Mercury
 - <img src="./icons/mojo.svg" alt="Mojo" width="15" height="15"> Mojo
 - <img src="./icons/nim.svg" alt="Nim" width="15" height="15"> Nim
+- <img src="./icons/octave.svg" alt="Nim" width="15" height="15"> Octave
 - <img src="./icons/pascal.svg" alt="Pascal" width="15" height="15"> (Free/Object) Pascal
 - <img src="./icons/prolog.svg" alt="Prolog" width="15" height="15"> Prolog
 - <img src="./icons/racket.svg" alt="Racket" width="15" height="15"> Racket
