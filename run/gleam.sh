@@ -31,6 +31,6 @@ gleam_stdlib = { version = \">= 0.44.0 and < 2.0.0\" }
 gleeunit = { version = \">= 1.0.0 and < 2.0.0\" }
 " > "./manifest.toml"
 
-gleam run --no-print-progress -m "$fileNameWithoutExt" -- $other_params
+gleam run --no-print-progress -m "$fileNameWithoutExt" -- $other_params 2> ./gleam-stderr-output
 
 cd ..

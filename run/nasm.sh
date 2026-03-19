@@ -11,14 +11,14 @@ start_dir=$PWD
 fileName=$1
 fileNameWithoutExt="${fileName%.*}"
 link_with=
-stdlib=../../stdlib/output/stdlib.o
+stdlib=../../../stdlib/output/stdlib.o
 build_stdlib=0
 do_link=0
 other_params=${@:2}
 
 # First go into stdlib and build the standard library ;)
 #   Only build if there's new changes to be built
-cd ../../stdlib/
+cd ../../../stdlib/
 mkdir -p ./output
 for link_file in "${LINK_MMS_FILES[@]}"; do
     if [ "./$link_file/$link_file.nasm" -nt "./output/$link_file.o" ]; then
