@@ -1,12 +1,19 @@
 #! /bin/bash
 
+lang="eiffel"
 fileName=$1
 fileNameWithoutExt="${fileName%.*}"
 className=${fileNameWithoutExt^^}
 other_params=${@:2}
 new_uuid=$(uuidgen)
 
+if [ "$fileName" == "clean" ]; then
+  ../../../run/_clean.sh force
+  exit
+fi
+../../../run/_clean.sh $lang "./output/EIFGENs/$fileName/F_code/$fileNameWithoutExt"
 mkdir -p output
+
 cp "$fileName" ./output/
 cd ./output/
 
@@ -50,3 +57,5 @@ else
   cat "./$fileName-last-compile"
   cd ..
 fi
+
+echo "$lang" > ./output/last-lang

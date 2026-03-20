@@ -7,10 +7,16 @@ readonly LINK_MMS_FILES=(
     "../../../../stdlib/StringIsInt/StringIsInt.mms"
     "../../../../stdlib/StringLength/StringLength.mms")
 
+lang="mmixal"
 fileName=$1
 fileNameWithoutExt="${fileName%.*}"
 other_params=${@:2}
 
+if [ "$fileName" == "clean" ]; then
+  ../../../run/_clean.sh force
+  exit
+fi
+../../../run/_clean.sh $lang "./output/$fileNameWithoutExt.mmo"
 mkdir -p output
 cp "$fileName" ./output/
 cd ./output/
@@ -21,7 +27,6 @@ done
 
 mmixal "./$fileName" &> ./mmixal-build-last
 
-
 if [[ -f "./$fileNameWithoutExt.mmo" ]]; then
   mmix "./$fileNameWithoutExt.mmo" $other_params
 else
@@ -29,5 +34,5 @@ else
   cat "./mmixal-build-last"
 fi
 
-
 cd ..
+echo "$lang" > ./output/last-lang

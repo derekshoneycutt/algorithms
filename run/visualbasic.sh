@@ -1,10 +1,15 @@
 #! /bin/bash
 
+lang="visualbasic"
 fileName=$1
 fileNameWithoutExt="${fileName%.*}"
-className=${fileNameWithoutExt^^}
 other_params=${@:2}
 
+if [ "$fileName" == "clean" ]; then
+  ../../../run/_clean.sh force
+  exit
+fi
+../../../run/_clean.sh $lang "./output/$fileNameWithoutExt"
 mkdir -p output
 cp "$fileName" ./output/
 cd ./output
@@ -20,3 +25,4 @@ echo "<Project Sdk=\"Microsoft.NET.Sdk\">
 dotnet run -- $other_params
 
 cd ..
+echo "$lang" > ./output/last-lang

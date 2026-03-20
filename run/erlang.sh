@@ -1,10 +1,15 @@
 #! /bin/bash
 
+lang="erlang"
 fileName=$1
 fileNameWithoutExt="${fileName%.*}"
-className=${fileNameWithoutExt^^}
 other_params=${@:2}
 
+if [ "$fileName" == "clean" ]; then
+  ../../../run/_clean.sh force
+  exit
+fi
+../../../run/_clean.sh $lang "./output/$fileNameWithoutExt.beam"
 mkdir -p output
 
 erlc -o "./output/" "$fileName" &> ./output/erlang-build-last
@@ -19,3 +24,4 @@ else
 fi
 
 cd ../
+echo "$lang" > ./output/last-lang

@@ -1,11 +1,17 @@
 #! /bin/bash
 
+lang="ballerina"
 fileName=$1
 fileNameWithoutExt="${fileName%.*}"
-className=${fileNameWithoutExt^^}
 other_params=${@:2}
 
+if [ "$fileName" == "clean" ]; then
+  ../../../run/_clean.sh force
+  exit
+fi
+../../../run/_clean.sh $lang "./output/$fileNameWithoutExt.jar"
 mkdir -p output
+
 cp $fileName ./output/
 cd ./output
 
@@ -19,3 +25,4 @@ else
 fi
 
 cd ../
+echo "$lang" > ./output/last-lang

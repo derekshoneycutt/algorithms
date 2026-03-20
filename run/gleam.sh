@@ -1,11 +1,17 @@
 #! /bin/bash
 
+lang="gleam"
 fileName=$1
 fileNameWithoutExt="${fileName%.*}"
-className=${fileNameWithoutExt^^}
 other_params=${@:2}
 
+if [ "$fileName" == "clean" ]; then
+  ../../../run/_clean.sh force
+  exit
+fi
+../../../run/_clean.sh $lang "./output/build/dev/erlang/$fileNameWithoutExt/ebin/$fileNameWithoutExt.beam"
 mkdir -p output
+
 mkdir -p output/src
 cp "$fileName" ./output/src/
 cd ./output/
@@ -34,3 +40,4 @@ gleeunit = { version = \">= 1.0.0 and < 2.0.0\" }
 gleam run --no-print-progress -m "$fileNameWithoutExt" -- $other_params 2> ./gleam-stderr-output
 
 cd ..
+echo "$lang" > ./output/last-lang

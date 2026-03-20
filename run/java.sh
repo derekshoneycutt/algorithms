@@ -1,17 +1,21 @@
 #! /bin/bash
 
+lang="java"
 fileName=$1
 fileNameWithoutExt="${fileName%.*}"
-className=${fileNameWithoutExt^^}
 other_params=${@:2}
-
-mkdir -p output
-
-javac "$fileName" -d ./output &> ./output/java-build-last
-
 dir="${PWD%/*}"
 packName="${dir##*/}"
 algoName="${PWD##*/}"
+
+if [ "$fileName" == "clean" ]; then
+  ../../../run/_clean.sh force
+  exit
+fi
+../../../run/_clean.sh $lang "./output/$packName/$algoName/$fileNameWithoutExt.class"
+mkdir -p output
+
+javac "$fileName" -d ./output &> ./output/java-build-last
 
 cd ./output
 
@@ -23,3 +27,4 @@ else
 fi
 
 cd ..
+echo "$lang" > ./output/last-lang

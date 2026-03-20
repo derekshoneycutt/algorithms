@@ -1,10 +1,11 @@
 #! /bin/bash
 
 fileName=$1
-fileNameWithoutExt="${fileName%.*}"
-className=${fileNameWithoutExt^^}
 other_params=${@:2}
 
-mkdir -p output
+if [ "$fileName" == "clean" ]; then
+  ../../../run/_clean.sh force
+  exit
+fi
 
 python -u "$fileName" $other_params

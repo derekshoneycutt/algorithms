@@ -1,11 +1,16 @@
 #! /bin/bash
 
+lang="c"
 fileName=$1
 fileNameWithoutExt="${fileName%.*}"
-className=${fileNameWithoutExt^^}
 other_params=${@:2}
 
-mkdir -p output
+if [ "$fileName" == "clean" ]; then
+  ../../../run/_clean.sh force
+  exit
+fi
+../../../run/_clean.sh $lang "./output/$fileNameWithoutExt"
+mkdir -p ./output
 
 gcc "$fileName" -o "./output/$fileNameWithoutExt" &> ./output/c-build-last
 
@@ -15,3 +20,5 @@ else
   echo "FAILED TO COMPILE C. BUILD OUTPUT:"
   cat "./output/c-build-last"
 fi
+
+echo "$lang" > ./output/last-lang

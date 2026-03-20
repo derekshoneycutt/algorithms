@@ -1,10 +1,15 @@
 #! /bin/bash
 
+lang="wasm"
 fileName=$1
 fileNameWithoutExt="${fileName%.*}"
-className=${fileNameWithoutExt^^}
 other_params=${@:2}
 
+if [ "$fileName" == "clean" ]; then
+  ../../../run/_clean.sh force
+  exit
+fi
+../../../run/_clean.sh $lang "./output/$fileNameWithoutExt.wasm"
 mkdir -p output
 cp "$fileName" "./output/$fileName"
 cd ./output
@@ -19,3 +24,4 @@ else
 fi
 
 cd ..
+echo "$lang" > ./output/last-lang
