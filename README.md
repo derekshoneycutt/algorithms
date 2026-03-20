@@ -109,6 +109,7 @@ I explore many different languages. This is a rough list that may more may not b
 - <img src="./icons/fortran.svg" alt="Fortran" width="15" height="15"> Fortran
 - <img src="./icons/go.svg" alt="Go" width="15" height="15"> Go
 - <img src="./icons/haskell.svg" alt="Haskell" width="15" height="15"> Haskell
+- <img src="./icons/haxe.svg" alt="Haxe" width="15" height="15"> Haxe
 - <img src="./icons/java.svg" alt="Java" width="15" height="15"> Java
 - <img src="./icons/javascript.svg" alt="Javascript" width="15" height="15"> Javascript
 - <img src="./icons/julia.svg" alt="Julia" width="15" height="15"> Julia
@@ -140,7 +141,6 @@ I explore many different languages. This is a rough list that may more may not b
 - <img src="./icons/gleam.svg" alt="Gleam" width="15" height="15"> Gleam
 - <img src="./icons/factor.svg" alt="Factor" width="15" height="15"> Factor
 - <img src="./icons/forth.svg" alt="Forth" width="15" height="15"> Forth
-- <img src="./icons/haxe.svg" alt="Haxe" width="15" height="15"> Haxe
 - <img src="./icons/icon.svg" alt="Icon" width="15" height="15"> Icon
 - <img src="./icons/idris.svg" alt="Idris" width="15" height="15"> Idris2
 - <img src="./icons/kit.svg" alt="Kit" width="15" height="15"> Kit
