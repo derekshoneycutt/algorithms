@@ -129,6 +129,7 @@ I explore many different languages. This is a rough list that may more may not b
 - <img src="./icons/scala.svg" alt="Scala" width="15" height="15"> Scala
 - <img src="./icons/scheme.svg" alt="Scheme" width="15" height="15"> Scheme
 - <img src="./icons/simula.svg" alt="Simula" width="15" height="15"> Simula
+- <img src="./icons/smalltalk.svg" alt="Smalltalk" width="15" height="15"> Smalltalk
 - <img src="./icons/swift.svg" alt="Swift" width="15" height="15"> Swift
 - <img src="./icons/typescript.svg" alt="Typescript" width="15" height="15"> Typescript
 
@@ -151,7 +152,6 @@ I explore many different languages. This is a rough list that may more may not b
 - <img src="./icons/pascal.svg" alt="Pascal" width="15" height="15"> (Free/Object) Pascal
 - <img src="./icons/prolog.svg" alt="Prolog" width="15" height="15"> Prolog
 - <img src="./icons/racket.svg" alt="Racket" width="15" height="15"> Racket
-- <img src="./icons/smalltalk.svg" alt="Smalltalk" width="15" height="15"> Smalltalk
 - <img src="./icons/tcl.svg" alt="Tcl" width="15" height="15"> Tcl
 - <img src="./icons/vlang.svg" alt="V" width="15" height="15"> V
 - <img src="./icons/visualstudio.svg" alt="VB" width="15" height="15"> Visual Basic .Net

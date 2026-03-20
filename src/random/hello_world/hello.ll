@@ -3,7 +3,6 @@
 declare i32 @puts(ptr captures(none)) nounwind
 
 define i32 @main() {
-  ; Call puts function to write out the string to stdout.
   call i32 @puts(ptr @.str)
   ret i32 0
 }
