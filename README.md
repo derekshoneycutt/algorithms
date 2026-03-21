@@ -63,35 +63,72 @@
 <img src="./icons/zig.svg" alt="Zig" title="Zig" width="30" height="30">
 </p>
 
-This is just a fun little project for myself to write a bunch of algorithms and data
-structures in a bunch of different languages. Why not?
+This is just a fun little project to write a bunch of algorithms and data structures in a bunch of different languages.
+
+Why not?
 
 I am reading through Knuth's The Art of Computer Programming, serving as
 the primary source for algorithms that appear in here. Instead of just doing
 the MMIXAL alone (although it is included), I have decided to add a bunch
 of other languages to learn the algorithms and techniques in even more
-depth.
+depth. I figured I can make this public, maybe it will benefit someone.
+Mostly it is unabashedly for my own entertainment, though.
 
-All algorithms are in src/
+## Architectural Notes
 
-All languages have a script in run/ that does what is necessary to prepare
+### Source code directories
+
+All algorithms are in `src/`
+
+All languages have a script in `run/` that does what is necessary to prepare
 and run a single file. In some cases, this includes quickly creating a
 project setup and compiling the project. In some cases, this is just compiling
-the single file. Other cases are able to run it directly. Due to the fact
-that I was not able to get every langauge working directly on my ordinary
-computer, I also have a VM with Ubuntu Server setup that runs some languages.
-The run scripts reflect this fact.
+the single file. Other cases are able to run it directly.
 
 For MMIX and NASM, I have decided to start collecting a small standard library
-of methods that can be linked in. This is in stdlib/. I am mostly favoring
+of methods that can be linked in. This is in `stdlib/`. I am mostly favoring
 my own implementation including syscall routines instead of linking to libc.
-Because of this, there are 2 scripts used to link in the standard library and
-run the code. Both scripts take the file to be run and assembles and links them,
-passing all other command line arguments directly to the final execution.
+
+### On the development environment
+
+I am using VS Code on Gentoo Linux to work on this project, using a long list of extensions that can be found in `.vscode/.extensions`
+
+All of the run scripts are setup to be called from the Jun Han Code Runner extension with the same format. They can also be run from any old shell
+this way.
+
+```code sh
+cd $dir && ../../../run/--lang--.sh $fileName --args--
+```
+
+At this time, I have not documented the exact build tools I am using
+in each language, but this can be figured out from the scripts with some
+careful study.
+
+Due to the fact that I was not able to get every langauge working
+directly on my Gentoo box due to build errors of compilers, etc.,
+I also have a VM with Ubuntu Server setup that runs some languages.
+The run scripts reflect this fact. This includes extra scripts for those
+langauges to run code and clean up on the VM.
+
+All code that requires compilation or additional setup in order to run
+has such output placed in the `output/` directory.
+
+### Why did I do it *that* way?!
+
+I don't know, man. Sometimes, I just decided to follow interesting coding
+techniques that are on my mind due to reading through Knuth and the
+available features of all these languages. For example, Knuth quickly discusses
+coroutines, and I quickly began expirementing with different ways to
+express these concepts in code, despite not being inherently part
+of the algorithm at hand. This does make for some fun albeit maybe unnecessary
+patterns at times.
+
+All of this fits the ultimate aim of this project to explore more than
+could ever be called necessary.
+
+Again. Why not?
 
 ## Languages
-
-I explore many different languages. This is a rough list that may more may not be entirely up to date ever.
 
 | | | | | |
 | ---- | ---- | ---- | ---- | ---- |
@@ -104,7 +141,6 @@ I explore many different languages. This is a rough list that may more may not b
 | <img src="./icons/php.svg" alt="PHP" width="15" height="15"> PHP | <img src="./icons/python.svg" alt="Python" width="15" height="15"> Python | <img src="./icons/r.svg" alt="R" width="15" height="15"> R | <img src="./icons/ruby.svg" alt="Ruby" width="15" height="15"> Ruby | <img src="./icons/scala.svg" alt="Scala" width="15" height="15"> Scala |
 | <img src="./icons/scheme.svg" alt="Scheme" width="15" height="15"> Scheme | <img src="./icons/simula.svg" alt="Simula" width="15" height="15"> Simula | <img src="./icons/smalltalk.svg" alt="Smalltalk" width="15" height="15"> Smalltalk | <img src="./icons/swift.svg" alt="Swift" width="15" height="15"> Swift | <img src="./icons/typescript.svg" alt="Typescript" width="15" height="15"> Typescript |
 
-
 ### Additionally, currently in Hello World
 
 | | | | | |
@@ -113,3 +149,4 @@ I explore many different languages. This is a rough list that may more may not b
 | <img src="./icons/icon.svg" alt="Icon" width="15" height="15"> Icon | <img src="./icons/idris.svg" alt="Idris" width="15" height="15"> Idris2 | <img src="./icons/kit.svg" alt="Kit" width="15" height="15"> Kit | <img src="./icons/llvm.png" alt="LLVM" width="15" height="15"> LLVM IR | <img src="./icons/mercury.svg" alt="Mercury" width="15" height="15"> Mercury |
 | <img src="./icons/octave.svg" alt="Nim" width="15" height="15"> Octave (MATLAB) | <img src="./icons/pascal.svg" alt="Pascal" width="15" height="15"> (Free/Object) Pascal | <img src="./icons/prolog.svg" alt="Prolog" width="15" height="15"> Prolog | <img src="./icons/racket.svg" alt="Racket" width="15" height="15"> Racket | |
 | <img src="./icons/tcl.svg" alt="Tcl" width="15" height="15"> Tcl | <img src="./icons/vlang.svg" alt="V" width="15" height="15"> V | <img src="./icons/visualstudio.svg" alt="VB" width="15" height="15"> Visual Basic .Net | <img src="./icons/webassembly.svg" alt="WASM" width="15" height="15"> WASM | <img src="./icons/zig.svg" alt="Zig" width="15" height="15"> Zig |
+
