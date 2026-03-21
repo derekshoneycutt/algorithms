@@ -117,6 +117,7 @@ I explore many different languages. This is a rough list that may more may not b
 - <img src="./icons/lua.svg" alt="Lua" width="15" height="15"> Lua
 - <img src="./icons/assembly.svg" alt="Assembly" width="15" height="15"> MMIXAL (Assembly Language for Donald Knuth's MMIX)
 - <img src="./icons/modula3.svg" alt="Modula-3" width="15" height="15"> Modula-3
+- <img src="./icons/mojo.svg" alt="Mojo" width="15" height="15"> Mojo
 - <img src="./icons/assembly.svg" alt="Assembly" width="15" height="15"> NASM (x86_64 Linux ASM)
 - <img src="./icons/objective-c.svg" alt="Objective-C" width="15" height="15"> Objective-C
 - <img src="./icons/oberon.svg" alt="Oberon" width="15" height="15"> Oberon
@@ -146,7 +147,6 @@ I explore many different languages. This is a rough list that may more may not b
 - <img src="./icons/kit.svg" alt="Kit" width="15" height="15"> Kit
 - <img src="./icons/llvm.png" alt="LLVM" width="15" height="15"> LLVM IR
 - <img src="./icons/mercury.svg" alt="Mercury" width="15" height="15"> Mercury
-- <img src="./icons/mojo.svg" alt="Mojo" width="15" height="15"> Mojo
 - <img src="./icons/nim.svg" alt="Nim" width="15" height="15"> Nim
 - <img src="./icons/octave.svg" alt="Nim" width="15" height="15"> Octave
 - <img src="./icons/pascal.svg" alt="Pascal" width="15" height="15"> (Free/Object) Pascal
