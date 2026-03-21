@@ -17,50 +17,50 @@
 <img src="./icons/factor.svg" alt="Factor" title="Factor" width="30" height="30">
 <img src="./icons/freebasic.svg" alt="FreeBASIC" title="FreeBASIC" width="30" height="30"> 
 <img src="./icons/forth.svg" alt="Forth" title="Forth" width="30" height="30">
-<img src="./icons/fortran.svg" alt="Fortran" width="30" height="30"> 
-<img src="./icons/gleam.svg" alt="Gleam" width="30" height="30">
-<img src="./icons/go.svg" alt="Go" width="30" height="30">
-<img src="./icons/haskell.svg" alt="Haskell" width="30" height="30">
-<img src="./icons/haxe.svg" alt="Haxe" width="30" height="30">
-<img src="./icons/icon.svg" alt="Icon" width="30" height="30">
-<img src="./icons/idris.svg" alt="Idris" width="30" height="30">
-<img src="./icons/java.svg" alt="Java" width="30" height="30">
-<img src="./icons/javascript.svg" alt="Javascript" width="30" height="30">
-<img src="./icons/julia.svg" alt="Julia" width="30" height="30">
-<img src="./icons/kit.svg" alt="Kit" width="30" height="30">
-<img src="./icons/kotlin.svg" alt="Kotlin" width="30" height="30">
-<img src="./icons/llvm.png" alt="Lua" width="30" height="30">
-<img src="./icons/lua.svg" alt="Lua" width="30" height="30">
-<img src="./icons/mercury.svg" alt="Mercury" width="30" height="30">
-<img src="./icons/assembly.svg" alt="Assembly" width="30" height="30">
-<img src="./icons/modula3.svg" alt="Modula-3" width="30" height="30">
-<img src="./icons/mojo.svg" alt="Mojo" width="30" height="30">
-<img src="./icons/assembly.svg" alt="Assembly" width="30" height="30">
-<img src="./icons/nim.svg" alt="Nim" width="30" height="30">
-<img src="./icons/oberon.svg" alt="Oberon" width="30" height="30">
-<img src="./icons/objective-c.svg" alt="Objective-C" width="30" height="30"> 
-<img src="./icons/ocaml.svg" alt="Ocaml" width="30" height="30">
-<img src="./icons/octave.svg" alt="Octave" width="30" height="30">
-<img src="./icons/pascal.svg" alt="Pascal" width="30" height="30">
-<img src="./icons/perl.svg" alt="Perl" width="30" height="30">
-<img src="./icons/php.svg" alt="PHP" width="30" height="30">
-<img src="./icons/prolog.svg" alt="Prolog" width="30" height="30">
-<img src="./icons/python.svg" alt="Python" width="30" height="30">
-<img src="./icons/r.svg" alt="R" width="30" height="30">
-<img src="./icons/racket.svg" alt="Racket" width="30" height="30">
-<img src="./icons/ruby.svg" alt="Ruby" width="30" height="30">
-<img src="./icons/rust.svg" alt="Rust" width="30" height="30">
-<img src="./icons/scala.svg" alt="Scala" width="30" height="30">
-<img src="./icons/scheme.svg" alt="Scheme" width="30" height="30">
-<img src="./icons/simula.svg" alt="Simula" width="30" height="30">
-<img src="./icons/smalltalk.svg" alt="Smalltalk" width="30" height="30">
-<img src="./icons/swift.svg" alt="Swift" width="30" height="30">
-<img src="./icons/tcl.svg" alt="Tcl" width="30" height="30">
-<img src="./icons/typescript.svg" alt="Typescript" width="30" height="30">
-<img src="./icons/vlang.svg" alt="V" width="30" height="30">
-<img src="./icons/visualstudio.svg" alt="VB" width="30" height="30">
-<img src="./icons/webassembly.svg" alt="VB" width="30" height="30">
-<img src="./icons/zig.svg" alt="Zig" width="30" height="30">
+<img src="./icons/fortran.svg" alt="Fortran" title="Fortran" width="30" height="30"> 
+<img src="./icons/gleam.svg" alt="Gleam" title="Gleam" width="30" height="30">
+<img src="./icons/go.svg" alt="Go" title="Go" width="30" height="30">
+<img src="./icons/haskell.svg" alt="Haskell" title="Haskell" width="30" height="30">
+<img src="./icons/haxe.svg" alt="Haxe" title="Haxe" width="30" height="30">
+<img src="./icons/icon.svg" alt="Icon" title="Icon" width="30" height="30">
+<img src="./icons/idris.svg" alt="Idris" title="Idris" width="30" height="30">
+<img src="./icons/java.svg" alt="Java" title="Java" width="30" height="30">
+<img src="./icons/javascript.svg" alt="Javascript" title="Javascript" width="30" height="30">
+<img src="./icons/julia.svg" alt="Julia" title="Julia" width="30" height="30">
+<img src="./icons/kit.svg" alt="Kit" title="Kit" width="30" height="30">
+<img src="./icons/kotlin.svg" alt="Kotlin" title="Kotlin" width="30" height="30">
+<img src="./icons/llvm.png" alt="LLVM IR" title="LLVM IR" width="30" height="30">
+<img src="./icons/lua.svg" alt="Lua" title="Lua" width="30" height="30">
+<img src="./icons/mercury.svg" alt="Mercury" title="Mercury" width="30" height="30">
+<img src="./icons/assembly.svg" alt="MMIXAL" title="MMIXAL" width="30" height="30">
+<img src="./icons/modula3.svg" alt="Modula-3" title="Modula-3" width="30" height="30">
+<img src="./icons/mojo.svg" alt="Mojo" title="Mojo" width="30" height="30">
+<img src="./icons/assembly.svg" alt="Assembly (x86_64 Linux)" title="Assembly (x86_64 Linux)" width="30" height="30">
+<img src="./icons/nim.svg" alt="Nim" title="Nim" width="30" height="30">
+<img src="./icons/oberon.svg" alt="Oberon" title="Oberon" width="30" height="30">
+<img src="./icons/objective-c.svg" alt="Objective-C" title="Objective-C" width="30" height="30"> 
+<img src="./icons/ocaml.svg" alt="Ocaml" title="Ocaml" width="30" height="30">
+<img src="./icons/octave.svg" alt="Octave (MATLAB)" title="Octave (MATLAB)" width="30" height="30">
+<img src="./icons/pascal.svg" alt="Pascal" title="Pascal" width="30" height="30">
+<img src="./icons/perl.svg" alt="Perl" title="Perl" width="30" height="30">
+<img src="./icons/php.svg" alt="PHP" title="PHP" width="30" height="30">
+<img src="./icons/prolog.svg" alt="Prolog" title="Prolog" width="30" height="30">
+<img src="./icons/python.svg" alt="Python" title="Python" width="30" height="30">
+<img src="./icons/r.svg" alt="R" title="R" width="30" height="30">
+<img src="./icons/racket.svg" alt="Racket" title="Racket" width="30" height="30">
+<img src="./icons/ruby.svg" alt="Ruby" title="Ruby" width="30" height="30">
+<img src="./icons/rust.svg" alt="Rust" title="Rust" width="30" height="30">
+<img src="./icons/scala.svg" alt="Scala" title="Scala" width="30" height="30">
+<img src="./icons/scheme.svg" alt="Scheme" title="Scheme" width="30" height="30">
+<img src="./icons/simula.svg" alt="Simula" title="Simula" width="30" height="30">
+<img src="./icons/smalltalk.svg" alt="Smalltalk" title="Smalltalk" width="30" height="30">
+<img src="./icons/swift.svg" alt="Swift" title="Swift" width="30" height="30">
+<img src="./icons/tcl.svg" alt="Tcl" title="Tcl" width="30" height="30">
+<img src="./icons/typescript.svg" alt="Typescript" title="Typescript" width="30" height="30">
+<img src="./icons/vlang.svg" alt="V" title="V" width="30" height="30">
+<img src="./icons/visualstudio.svg" alt="VB.NET" title="Visual Basic .Net" width="30" height="30">
+<img src="./icons/webassembly.svg" alt="WASM" title="Web Assembly (WASM)" width="30" height="30">
+<img src="./icons/zig.svg" alt="Zig" title="Zig" width="30" height="30">
 </p>
 
 This is just a fun little project for myself to write a bunch of algorithms and data
@@ -148,7 +148,7 @@ I explore many different languages. This is a rough list that may more may not b
 - <img src="./icons/llvm.png" alt="LLVM" width="15" height="15"> LLVM IR
 - <img src="./icons/mercury.svg" alt="Mercury" width="15" height="15"> Mercury
 - <img src="./icons/nim.svg" alt="Nim" width="15" height="15"> Nim
-- <img src="./icons/octave.svg" alt="Nim" width="15" height="15"> Octave
+- <img src="./icons/octave.svg" alt="Nim" width="15" height="15"> Octave (MATLAB)
 - <img src="./icons/pascal.svg" alt="Pascal" width="15" height="15"> (Free/Object) Pascal
 - <img src="./icons/prolog.svg" alt="Prolog" width="15" height="15"> Prolog
 - <img src="./icons/racket.svg" alt="Racket" width="15" height="15"> Racket
