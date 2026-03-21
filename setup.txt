@@ -10,3 +10,28 @@ for SSH setup with a VM:
 - on client: ssh-keygen -t ed25519
 - on client: ssh-copy-id -p 2222 coderun@127.0.0.1 
 - test: ssh -p coderun@127.0.0.1 echo "test"
+
+For simula, I could not get GNU cim to compile on Gentoo.
+They just do not like each other. So on to the VM.
+I downloaded 5.1 tar.gz from here: https://www.gnu.org/prep/ftp.html#north_america
+Then I had to modify 2 files. I also needed to apt install libtool.
+
+In lib/ : simset.c and simulation.c both try to #include ../../lib/cim.h
+But that doesn't exist obviously on my system. However, it does exist literally
+right next door. So I just changed them to cim.h bare. This made cim compile
+and install well under ubuntu server.
+
+Then the ./configure, make, sudo make install
+
+This installs libraries in /usr/local/lib that need to be made aware to
+the linker appropriately. 
+
+sudo touch /etc/ld.so.conf.d/libc5.conf
+echo "/usr/local/lib" | sudo tee /etc/ld.so.conf.d/libc5.conf
+sudo ldconfig
+
+(that can be done in a single sudo su carefully)
+
+
+For a temporary fix, we can also export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/usr/local/lib
+

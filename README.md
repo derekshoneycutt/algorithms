@@ -80,24 +80,26 @@ Mostly it is unabashedly for my own entertainment, though.
 
 All algorithms are in `src/`
 
-All languages have a script in `run/` that does what is necessary to prepare
-and run a single file. In some cases, this includes quickly creating a
-project setup and compiling the project. In some cases, this is just compiling
-the single file. Other cases are able to run it directly.
-
 For MMIX and NASM, I have decided to start collecting a small standard library
 of methods that can be linked in. This is in `stdlib/`. I am mostly favoring
 my own implementation including syscall routines instead of linking to libc.
+
+There are some helper runners in `run/`. Right now, this includes a node-based
+javascript loader for WASM. The other is a script that parallels `run.sh`
+closely but is designed to run on my VM and build and run the specific
+code languages correctly there.
 
 ### On the development environment
 
 I am using VS Code on Gentoo Linux to work on this project, using a long list of extensions that can be found in `.vscode/.extensions`
 
-All of the run scripts are setup to be called from the Jun Han Code Runner extension with the same format. They can also be run from any old shell
-this way.
+The run script is setup to be called from the Jun Han Code Runner extension with the same format. They can also be run from any old shell this way. The language
+to compile and run is based on the extension of the filename passed in.
+Any additional arguments will be passed to the application when it is run,
+as command line arguments.
 
 ```code sh
-cd $dir && ../../../run/--lang--.sh $fileName --args--
+cd $dir && ../../../run.sh $fileName --args--
 ```
 
 At this time, I have not documented the exact build tools I am using
