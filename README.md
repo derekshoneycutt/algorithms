@@ -1,22 +1,22 @@
 # Algorithms Grab-bag
 
 <p align="center">
-<img src="./icons/ada.svg" alt="Ada" width="30" height="30">
-<img src="./icons/ballerina.svg" alt="Ballerina" width="30" height="30">
-<img src="./icons/c.svg" alt="C" width="30" height="30">
-<img src="./icons/cpp.svg" alt="C++" width="30" height="30">
-<img src="./icons/csharp.svg" alt="C#" width="30" height="30">
-<img src="./icons/clojure.svg" alt="Clojure" width="30" height="30">
-<img src="./icons/cobol.svg" alt="COBOL" width="30" height="30">
-<img src="./icons/d.svg" alt="D" width="30" height="30">
-<img src="./icons/dart.svg" alt="Dart" width="30" height="30">
-<img src="./icons/eiffel.svg" alt="Eiffel" width="30" height="30">
-<img src="./icons/elixir.svg" alt="Elixir" width="30" height="30">
-<img src="./icons/erlang.svg" alt="Erlang" width="30" height="30">
-<img src="./icons/fsharp.svg" alt="F#" width="30" height="30">
-<img src="./icons/factor.svg" alt="Factor" width="30" height="30">
-<img src="./icons/freebasic.svg" alt="FreeBASIC" width="30" height="30"> 
-<img src="./icons/forth.svg" alt="Forth" width="30" height="30">
+<img src="./icons/ada.svg" alt="Ada" title="Ada" width="30" height="30">
+<img src="./icons/ballerina.svg" alt="Ballerina" title="Ballerina" width="30" height="30">
+<img src="./icons/c.svg" alt="C" title="C" width="30" height="30">
+<img src="./icons/cpp.svg" alt="C++" title="C++" width="30" height="30">
+<img src="./icons/csharp.svg" alt="C#" title="C#" width="30" height="30">
+<img src="./icons/clojure.svg" alt="Clojure" title="Clojure" width="30" height="30">
+<img src="./icons/cobol.svg" alt="COBOL" title="COBOL" width="30" height="30">
+<img src="./icons/d.svg" alt="D" title="D" width="30" height="30">
+<img src="./icons/dart.svg" alt="Dart" title="Dart" width="30" height="30">
+<img src="./icons/eiffel.svg" alt="Eiffel" title="Eiffel" width="30" height="30">
+<img src="./icons/elixir.svg" alt="Elixir" title="Elixir" width="30" height="30">
+<img src="./icons/erlang.svg" alt="Erlang" title="Erlang" width="30" height="30">
+<img src="./icons/fsharp.svg" alt="F#" title="F#" width="30" height="30">
+<img src="./icons/factor.svg" alt="Factor" title="Factor" width="30" height="30">
+<img src="./icons/freebasic.svg" alt="FreeBASIC" title="FreeBASIC" width="30" height="30"> 
+<img src="./icons/forth.svg" alt="Forth" title="Forth" width="30" height="30">
 <img src="./icons/fortran.svg" alt="Fortran" width="30" height="30"> 
 <img src="./icons/gleam.svg" alt="Gleam" width="30" height="30">
 <img src="./icons/go.svg" alt="Go" width="30" height="30">
