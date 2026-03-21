@@ -1,4 +1,5 @@
 
+" Make our own class to handle the easter date structure, and display them "
 Object subclass: EasterDate [
     | day month year |
 
@@ -17,6 +18,7 @@ Object subclass: EasterDate [
     ]
 ]
 
+" We extend Integer for some string padding and Knuth's algorithm"
 Integer extend [
     padZeros: n [
         | s s2 |
@@ -25,6 +27,7 @@ Integer extend [
         ^ s2
     ]
 
+    "Here we have Knuths algorithm; the rest is fun"
     getEaster [
         | g c x z d e n day month year easter |
         year := self.
@@ -56,5 +59,6 @@ Integer extend [
     ]
 ]
 
+"Honestly, this is so nice, Smalltalk can just do this, thats ok"
 stdout nextPutAll: 'Easters:'; nl.
 (1950 to: 2050) do: [:year | (year getEaster) print]
