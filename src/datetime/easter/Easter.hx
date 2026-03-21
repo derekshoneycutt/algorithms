@@ -1,6 +1,17 @@
 
-class Easter {
+// Custom Iterator that loops through the desired years
+// and returns easter for each one. Basic generator.
+// Constructor always requires start and end years.
+class EasterGenerator {
+    var currYear: Int;
+    var endYear: Int;
 
+    public function new(startYear: Int, endAt: Int) {
+        endYear = endAt;
+        currYear = startYear - 1;
+    }
+
+    // this is the actual algorithm from knuth; the rest I made up
     static function getEasterFor(year: Int): Date {
         var g: Int = (year % 19) + 1;
         var c: Int = Std.int(year / 100) + 1;
@@ -23,21 +34,27 @@ class Easter {
         return new Date(year, 2, n, 0, 0, 0);
     }
 
-    static function getEasters(startYear: Int, endYear: Int): List<Date> {
-        var easters = new List<Date>();
-
-        for (year in startYear...endYear) {
-            easters.add(getEasterFor(year));
-        }
-
-        return easters;
+    // Required iterator section for Haxe
+    public function hasNext() {
+        var nextYear = currYear + 1;
+        return (nextYear <= endYear);
     }
 
+    public function next() {
+        currYear = currYear + 1;
+        return getEasterFor(currYear);
+    }
+}
+
+// Continue the ordinary pattern of a main class that operates it all
+class Easter {
+
+    // it's shorter this way in printEasters; easier to read; just pad 00
     static function pad(prime: Int): String {
         return StringTools.lpad(Std.string(prime), "0", 2);
     }
 
-    static function printEasters(easters: List<Date>): Void {
+    static function printEasters(easters: EasterGenerator): Void {
         Sys.println('Easters:');
         for (easter in easters) {
             Sys.println('   ${DateTools.format(easter, "%d %B %Y")}');
@@ -45,6 +62,6 @@ class Easter {
     }
 
     static public function main() : Void {
-        printEasters(getEasters(1950,2050));
+        printEasters(new EasterGenerator(1950,2050));
     }
 }
