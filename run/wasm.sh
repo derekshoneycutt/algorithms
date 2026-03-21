@@ -17,7 +17,7 @@ cd ./output
 wat2wasm "$fileName" -o "$fileNameWithoutExt.wasm" &> ./wasm-build-last
 
 if [[ -f "./$fileNameWithoutExt.wasm" ]]; then
-  node ../../../../run/runwasm.js "./$fileNameWithoutExt.wasm" $other_params
+  node ../../../../run/wasm.js "./$fileNameWithoutExt.wasm" $other_params
 else
   echo "FAILED TO COMPILE WASM. BUILD OUTPUT:"
   cat "./wasm-build-last"

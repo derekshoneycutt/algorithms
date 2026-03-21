@@ -1,6 +1,6 @@
 {
     "go.toolsEnvVars": {
-        "CGO_ENABLED": "0"
+        "CGO_ENABLED": "0",
     },
     "FSharp.suggestGitignore": false,
     "fortran.fortls.disabled": true,
