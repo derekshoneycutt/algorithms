@@ -1,4 +1,4 @@
-# Algorithms Grab-bag
+# Algorithms
 
 <p align="center">
 <img src="./icons/ada.svg" alt="Ada" title="Ada" width="30" height="30">
@@ -150,3 +150,24 @@ Again. Why not?
 | <img src="./icons/octave.svg" alt="Nim" width="15" height="15"> Octave (MATLAB) | <img src="./icons/pascal.svg" alt="Pascal" width="15" height="15"> (Free/Object) Pascal | <img src="./icons/prolog.svg" alt="Prolog" width="15" height="15"> Prolog | <img src="./icons/racket.svg" alt="Racket" width="15" height="15"> Racket | |
 | <img src="./icons/tcl.svg" alt="Tcl" width="15" height="15"> Tcl | <img src="./icons/vlang.svg" alt="V" width="15" height="15"> V | <img src="./icons/visualstudio.svg" alt="VB" width="15" height="15"> Visual Basic .Net | <img src="./icons/webassembly.svg" alt="WASM" width="15" height="15"> WASM | <img src="./icons/zig.svg" alt="Zig" width="15" height="15"> Zig |
 
+## MIT License
+
+Copyright (c) 2026 Derek Honeycutt
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
