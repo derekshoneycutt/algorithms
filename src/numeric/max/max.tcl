@@ -2,8 +2,10 @@
 proc max {values} {
     set current 0
     foreach value $values {
-        if {$value > $current} {
-            set current $value
+        if {[string is integer -strict $value]} {
+            if {$value > $current} {
+                set current [expr {int($value)}]
+            }
         }
     }
     return $current
@@ -12,7 +14,7 @@ proc max {values} {
 
 set values $argv
 if {$argc < 1} {
-    set values [list 15 10]
+    set values {15 10}
 }
 set max_value [max $values]
 
