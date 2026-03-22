@@ -664,7 +664,11 @@ function rust_run() {
 #           Scala
 # =============================================
 function scala_compile() {
+    echo "cp \"./$fileName\" ./output/ && cd ./output && scala compile \"./$fileName\" && cd .." > ./output/scala-build-last
     cp "./$fileName" ./output/
+    cd ./output
+    scala compile "./$fileName" &>> ./scala-build-last
+    cd ..
 }
 function scala_run() {
     if [ "$#" -lt 2 ]; then
@@ -1051,6 +1055,7 @@ case "$fileExtension" in
   "scala")
     lang="scala"
     testFile="./output/$fileName"
+    outputFile="./output/scala-build-last"
     make_output=1
     ;;
   "scm")
