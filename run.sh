@@ -388,9 +388,12 @@ function kotlin_run() {
 # =============================================
 #           LLVM IR
 # =============================================
-function llvmir_compile() { :; }
+function llvmir_compile() {
+  echo "clang \"./$fileName\" -O2 -Wall -o \"./output/$fileNameWithoutExt\"" > ./output/llvmir-build-last
+  clang "./$fileName" -O2 -Wall -o "./output/$fileNameWithoutExt" &>> ./output/llvmir-build-last
+}
 function llvmir_run() {
-    lli "./$fileName" $other_params
+    "./output/$fileNameWithoutExt" $other_params
 }
 
 # =============================================
@@ -941,7 +944,9 @@ case "$fileExtension" in
     ;;
   "ll")
     lang="llvmir"
-    testFile="./$fileName"
+    testFile="./output/$fileNameWithoutExt"
+    outputFile="./output/llvmir-build-last"
+    make_output=1
     ;;
   "lua")
     lang="lua"
