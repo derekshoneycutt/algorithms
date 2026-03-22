@@ -154,8 +154,8 @@ run.sh script.
 
 | Icon | Language | Extension | Code* | Build Tool | Etc |
 | --- | -------- | --------- | ----- | ---------- | --- |
-| <img src="./icons/ada.svg" alt="Ada" width="15" height="15"> | Ada | .adb | ada | GNAT toolchain, gnatmake | |
-| <img src="./icons/ballerina.svg" alt="Ballerina" width="15" height="15"> | Ballerina | .bal | ballerina | Ballerina, bal; java | |
+| <img src="./icons/ada.svg" alt="Ada"> | Ada | .adb | ada | GNAT toolchain, gnatmake | |
+| <img src="./icons/ballerina.svg" alt="Ballerina"> | Ballerina | .bal | ballerina | Ballerina, bal; java | |
 | <img src="./icons/c.svg" alt="C" width="15" height="15"> | C | .c | c | GCC | |
 | <img src="./icons/cpp.svg" alt="C++" width="15" height="15"> | C++ | .cpp | cpp | GCC, g++ | |
 | <img src="./icons/csharp.svg" alt="C#" width="15" height="15"> | C# | .cs | csharp | dotnet | |
