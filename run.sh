@@ -567,9 +567,12 @@ function nasm_run() {
 # =============================================
 #           Nim
 # =============================================
-function nim_compile() { :; }
+function nim_compile() {
+  echo "nim compile --out:\"./output/$fileNameWithoutExt\" \"./$fileName\"" > ./output/nim-build-last
+  nim compile --out:"./output/$fileNameWithoutExt" "./$fileName" &>> ./output/nim-build-last
+}
 function nim_run() {
-    nim compile --out:"./output/$fileNameWithoutExt" --verbosity:0 --hints:off --run "./$fileName" $other_params
+    "./output/$fileNameWithoutExt" $other_params
 }
 
 # =============================================
@@ -999,7 +1002,9 @@ case "$fileExtension" in
     ;;
   "nim")
     lang="nim"
-    testFile="./$fileName"
+    testFile="./output/$fileNameWithoutExt"
+    outputFile="./output/nim-build-last"
+    make_output=1
     ;;
   "pas")
     lang="pascal"
