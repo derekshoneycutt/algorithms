@@ -1,3 +1,6 @@
+(*
+  This prints hello to the screen
+*)
 MODULE hello;
 IMPORT Out;
 BEGIN

@@ -1,2 +1,7 @@
-
-outtext("Hello, world!")
+comment
+    This prints hello to the screen
+;
+simulation begin
+    ! all we do is print;
+    outtext("Hello, world!"); outimage;
+end

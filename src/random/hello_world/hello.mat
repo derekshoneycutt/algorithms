@@ -1,2 +1,5 @@
+%{
+    This prints hello to the screen
+ %}
 
-disp("Hello, world!")
+disp("Hello, world!") % all necessary here

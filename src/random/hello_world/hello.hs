@@ -1,2 +1,7 @@
+{-
+    This prints hello to the screen
+ -}
 
-main = putStrLn "Hello, world!"
+-- | The main entry point for our application
+main :: IO ()
+main = putStrLn "Hello, world!" -- prints new line at end

@@ -1,3 +1,5 @@
+; Prints hello to the screen
+
 DEFAULT REL
 
 section .note.GNU-stack noalloc noexec nowrite progbits
@@ -13,7 +15,7 @@ extern PrintString
 
 section .text
 
-_start:
+_start:           ; The main entry point to the application
   mov rdi, msg
   call PrintString
 

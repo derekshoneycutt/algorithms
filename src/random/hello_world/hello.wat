@@ -1,3 +1,9 @@
+(;
+  This prints hello to the screen
+  We utilize an environment object passing a jsprint
+    method. This is specific to our build setup, and
+    is less relevant in ordinary use cases.
+;)
 (module
   (import "env" "jsprint" (func $jsprint (param i32)))
 
@@ -6,9 +12,8 @@
   
   (export "pagememory" (memory $0))
 
-  (func $helloworld
+  (func $helloworld ;; our "run" method that our js loader will call into
     (call $jsprint (i32.const 0))
   )
-
   (export "run" (func $helloworld))
 )

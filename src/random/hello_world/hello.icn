@@ -1,4 +1,4 @@
-
+# This prints hello to the screen
 procedure main()
     write("Hello, world!")
 end

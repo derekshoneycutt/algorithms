@@ -13,6 +13,11 @@ create
 
 feature -- Euclid's GCD Algorithm
     euclidgcd (m, n: INTEGER): INTEGER
+        -- Gets the greatest common denominator for 2 numbers with Euclid's algorithm
+        --
+        -- `m`: The first integer to get the common denominator for
+        -- `n`: The second integer to get the common denominator for
+        -- `Result`: Will be the final, calculated greatest common denominator
         local
             a, b, r: INTEGER
         do
@@ -29,7 +34,7 @@ feature -- Euclid's GCD Algorithm
         end
 
 
-feature {NONE}
+feature {NONE} -- Main application entry
 
 	make
         local

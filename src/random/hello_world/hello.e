@@ -9,7 +9,7 @@ class
 create
 	make
 
-feature {NONE}
+feature {NONE} -- Prints hello to the screen
 
 	make
 		do
