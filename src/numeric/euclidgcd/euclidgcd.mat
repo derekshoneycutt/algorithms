@@ -1,0 +1,23 @@
+
+m = 0;
+n = 0;
+function output = euclid_gcd(m, n)
+  while n ~= 0
+    r = mod(m, n);
+    m = n;
+    n = r;
+  end
+  output = m;
+end
+
+m = 15;
+n = 10;
+args = argv();
+if length(args) > 1
+    m = str2num(args{1});
+    n = str2num(args{2});
+end
+
+disp([num2str(m), ' ', num2str(n)])
+gcd = euclid_gcd(m, n);
+disp(['gcd: ', num2str(gcd)]);

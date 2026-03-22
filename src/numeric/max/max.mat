@@ -1,0 +1,27 @@
+
+values = [];
+function output = max_of(values)
+    current = 0;
+    for value = values
+        if value > current
+            current = value;
+        end
+    end
+    output = current;
+end
+
+args = argv();
+if length(args) > 0
+    for index = 1:length(args)
+        values = [values, str2num(args{index})];
+    end
+else
+    values = [15, 10];
+end
+
+maxval = max_of(values);
+
+disp('values:');
+disp(values);
+disp(['max: ', num2str(maxval)]);
+

@@ -420,11 +420,11 @@ function modula3_run() {
 #           Octave
 # =============================================
 function octave_compile() {
-    cp "./$fileName" "./output/$fileNameWithoutExt.m"
+    cp "./$fileName" "./output/${fileNameWithoutExt}shaved.m"
 }
 function octave_run() {
     cd ./output
-    octave "$fileNameWithoutExt.m" $other_params
+    octave --quiet "${fileNameWithoutExt}shaved.m" $other_params
     cd ..
 }
 
@@ -954,7 +954,7 @@ case "$fileExtension" in
     ;;
   "mat")
     lang="octave"
-    testFile="./$fileName"
+    testFile="./output/${fileNameWithoutExt}shaved.m"
     make_output=1
     ;;
   "ml")
