@@ -1,3 +1,6 @@
+/*
+    This prints hello to the screen
+ */
 :- module hello.
 
 :- interface.
@@ -8,4 +11,5 @@
 :- implementation.
 
 main(!IO) :-
-    io.write_string("Hello, World!\n", !IO).
+    % just write string; we add \n ourselves
+    io.write_string("Hello, world!\n", !IO).
