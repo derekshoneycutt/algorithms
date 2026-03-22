@@ -154,66 +154,66 @@ run.sh script.
 
 | Icon | Language | Extension | Code* | Build Tool | Etc |
 | --- | -------- | --------- | ----- | ---------- | --- |
-| <img src="./icons/ada.svg" alt="Ada" height="20" width="20"> | Ada | .adb | ada | GNAT toolchain, gnatmake | |
-| <img src="./icons/ballerina.svg" alt="Ballerina" height="20" width="20"> | Ballerina | .bal | ballerina | Ballerina, bal; java | |
-| <img src="./icons/c.svg" alt="C" height="20" width="20"> | C | .c | c | GCC | |
-| <img src="./icons/cpp.svg" alt="C++" height="20" width="20"> | C++ | .cpp | cpp | GCC, g++ | |
-| <img src="./icons/csharp.svg" alt="C#" height="20" width="20"> | C# | .cs | csharp | dotnet | |
-| <img src="./icons/clojure.svg" alt="Clojure" height="20" width="20"> | Clojure | .clj | clojure | Leiningen, lein exec |  |
-| <img src="./icons/cobol.svg" alt="COBOL" height="20" width="20"> | COBOL | .cbl | cobol | GNU COBOL, cobc |  |
-| <img src="./icons/d.svg" alt="D" height="20" width="20"> | D | .d | d  | dmd |  |
-| <img src="./icons/dart.svg" alt="Dart" height="20" width="20"> | Dart | .dart | dart | dart |  |
-| <img src="./icons/eiffel.svg" alt="Eiffel" height="20" width="20"> | Eiffel | .e | eiffel | EiffelStudio | open source compiler can be used free only for open source code |
-| <img src="./icons/elixir.svg" alt="Elixir" height="20" width="20"> | Elixir | .exs | elixir | elixir |  |
-| <img src="./icons/erlang.svg" alt="Erlang" height="20" width="20"> | Erlang | .erl | erlang | erlc, erl |  |
-| <img src="./icons/fsharp.svg" alt="F#" height="20" width="20"> | F# | .fsx | fsharp | dotnet |  |
-| <img src="./icons/factor.svg" alt="Factor" height="20" width="20"> | Factor | .factor | factor | factor |  |
-| <img src="./icons/freebasic.svg" alt="FreeBASIC" height="20" width="20"> | FreeBASIC | *.bas | freebasic  | fbc |  |
-| <img src="./icons/forth.svg" alt="Forth" height="20" width="20"> | Forth | .fth | forth | GNU Forth, gforth |  |
-| <img src="./icons/fortran.svg" alt="Fortran" height="20" width="20"> | Fortran | .f90 | fortran | GNU Fortran, gfortran |  |
-| <img src="./icons/gleam.svg" alt="Gleam" height="20" width="20"> | Gleam | .gleam | gleam | gleam |  |
-| <img src="./icons/go.svg" alt="Go" height="20" width="20"> | Go | .go | go | go |  |
-| <img src="./icons/haskell.svg" alt="Haskell" height="20" width="20"> | Haskell | .hs | haskell | Glasgow Haskell Compiler, runghc |  |
-| <img src="./icons/haxe.svg" alt="Haxe" height="20" width="20"> | Haxe | .hx | haxe | haxe |  |
-| <img src="./icons/icon.svg" alt="Icon" height="20" width="20"> | Icon | .icn | icon | icon |  |
-| <img src="./icons/idris.svg" alt="Idris" height="20" width="20"> | Idris2 | .idr | idris | idris2 |  |
-| <img src="./icons/java.svg" alt="Java" height="20" width="20"> | Java | .java | java | Java |  |
-| <img src="./icons/javascript.svg" alt="Javascript" height="20" width="20"> | Javascript | .js | javascript | node |  |
-| <img src="./icons/julia.svg" alt="Julia" height="20" width="20"> |  Julia | .jl | julia | julia |  |
-| <img src="./icons/kit.svg" alt="Kit" height="20" width="20"> | Kit | .kit | kit | kit |  |
-| <img src="./icons/kotlin.svg" alt="Kotlin" height="20" width="20"> | Kotlin | .kt | kotlin | kotlinc, java |  |
-| <img src="./icons/llvm.png" alt="LLVM" height="20" width="20"> | LLVM IR | .ll | llvmir | clang |  |
+| <img src="./icons/ada.svg" alt="Ada" height="25" width="25"> | Ada | .adb | ada | GNAT toolchain, gnatmake | |
+| <img src="./icons/ballerina.svg" alt="Ballerina" height="25" width="25"> | Ballerina | .bal | ballerina | Ballerina, bal; java | |
+| <img src="./icons/c.svg" alt="C" height="25" width="25"> | C | .c | c | GCC | |
+| <img src="./icons/cpp.svg" alt="C++" height="25" width="25"> | C++ | .cpp | cpp | GCC, g++ | |
+| <img src="./icons/csharp.svg" alt="C#" height="25" width="25"> | C# | .cs | csharp | dotnet | |
+| <img src="./icons/clojure.svg" alt="Clojure" height="25" width="25"> | Clojure | .clj | clojure | Leiningen, lein exec |  |
+| <img src="./icons/cobol.svg" alt="COBOL" height="25" width="25"> | COBOL | .cbl | cobol | GNU COBOL, cobc |  |
+| <img src="./icons/d.svg" alt="D" height="25" width="25"> | D | .d | d  | dmd |  |
+| <img src="./icons/dart.svg" alt="Dart" height="25" width="25"> | Dart | .dart | dart | dart |  |
+| <img src="./icons/eiffel.svg" alt="Eiffel" height="25" width="25"> | Eiffel | .e | eiffel | EiffelStudio | open source compiler can be used free only for open source code |
+| <img src="./icons/elixir.svg" alt="Elixir" height="25" width="25"> | Elixir | .exs | elixir | elixir |  |
+| <img src="./icons/erlang.svg" alt="Erlang" height="25" width="25"> | Erlang | .erl | erlang | erlc, erl |  |
+| <img src="./icons/fsharp.svg" alt="F#" height="25" width="25"> | F# | .fsx | fsharp | dotnet |  |
+| <img src="./icons/factor.svg" alt="Factor" height="25" width="25"> | Factor | .factor | factor | factor |  |
+| <img src="./icons/freebasic.svg" alt="FreeBASIC" height="25" width="25"> | FreeBASIC | *.bas | freebasic  | fbc |  |
+| <img src="./icons/forth.svg" alt="Forth" height="25" width="25"> | Forth | .fth | forth | GNU Forth, gforth |  |
+| <img src="./icons/fortran.svg" alt="Fortran" height="25" width="25"> | Fortran | .f90 | fortran | GNU Fortran, gfortran |  |
+| <img src="./icons/gleam.svg" alt="Gleam" height="25" width="25"> | Gleam | .gleam | gleam | gleam |  |
+| <img src="./icons/go.svg" alt="Go" height="25" width="25"> | Go | .go | go | go |  |
+| <img src="./icons/haskell.svg" alt="Haskell" height="25" width="25"> | Haskell | .hs | haskell | Glasgow Haskell Compiler, runghc |  |
+| <img src="./icons/haxe.svg" alt="Haxe" height="25" width="25"> | Haxe | .hx | haxe | haxe |  |
+| <img src="./icons/icon.svg" alt="Icon" height="25" width="25"> | Icon | .icn | icon | icon |  |
+| <img src="./icons/idris.svg" alt="Idris" height="25" width="25"> | Idris2 | .idr | idris | idris2 |  |
+| <img src="./icons/java.svg" alt="Java" height="25" width="25"> | Java | .java | java | Java |  |
+| <img src="./icons/javascript.svg" alt="Javascript" height="25" width="25"> | Javascript | .js | javascript | node |  |
+| <img src="./icons/julia.svg" alt="Julia" height="25" width="25"> |  Julia | .jl | julia | julia |  |
+| <img src="./icons/kit.svg" alt="Kit" height="25" width="25"> | Kit | .kit | kit | kit |  |
+| <img src="./icons/kotlin.svg" alt="Kotlin" height="25" width="25"> | Kotlin | .kt | kotlin | kotlinc, java |  |
+| <img src="./icons/llvm.png" alt="LLVM" height="25" width="25"> | LLVM IR | .ll | llvmir | clang |  |
 | <img src="./icons/lua.svg" alt="Lua" width="15" height="15">  | Lua | .lua | lua | lua |  |
-| <img src="./icons/mercury.svg" alt="Mercury" height="20" width="20"> | Mercury | .moo | mercury | Melbourne Mercury Compiler, mmc |  |
+| <img src="./icons/mercury.svg" alt="Mercury" height="25" width="25"> | Mercury | .moo | mercury | Melbourne Mercury Compiler, mmc |  |
 | <img src="./icons/assembly.svg" alt="Assembly" width="15" height="15">  | MMIXAL | .mms | mmixal | Knuth's; mmixal, mmix | ASM for Knuth's MMIX simulated RISC CPU |
-| <img src="./icons/modula3.svg" alt="Modula-3" height="20" width="20"> | Modula-3 | .m3 | modula3 | Critical Mass Modula-3, cm3 |  |
-| <img src="./icons/mojo.svg" alt="Mojo" height="20" width="20"> | Mojo | .mojo | mojo | pixi, mojo | mojo installed via pixi |
-| <img src="./icons/assembly.svg" alt="Assembly" height="20" width="20"> | NASM | .nasm | nasm | The Netwide Assembler, GNU linker; nasm, ld | x86_64 Linux Assembly |
-| <img src="./icons/nim.svg" alt="Nim" height="20" width="20"> | Nim | .nim | nim | nim |  |
-| <img src="./icons/objective-c.svg" alt="Objective-C" height="20" width="20"> | Objective-C | .m | objectivec | clang |  |
-| <img src="./icons/ocaml.svg" alt="Ocaml" height="20" width="20"> | Ocaml | .ml | ocaml | ocaml |  |
-| <img src="./icons/octave.svg" alt="Nim" height="20" width="20"> | Octave (MATLAB) | .mat | octave  | octave | copies to (name)shaved.m extension in output before running |
-| <img src="./icons/oberon.svg" alt="Oberon" height="20" width="20"> | Oberon | .Mod | oberon | Vishap Oberon Compiler, voc |  |
-| <img src="./icons/pascal.svg" alt="Pascal" height="20" width="20"> | Pascal (Free/Object) | .pas | pascal | Free Pascal, fpc |  |
-| <img src="./icons/perl.svg" alt="Perl" height="20" width="20"> | Perl | .plx | perl | perl |  |
-| <img src="./icons/php.svg" alt="PHP" height="20" width="20"> | PHP | .php | php | php |  |
-| <img src="./icons/prolog.svg" alt="Prolog" height="20" width="20"> | Prolog | .pl | prolog | GNU Prolog compiler, gplc |  |
-| <img src="./icons/python.svg" alt="Python" height="20" width="20"> | Python | .py | python | python |  |
-| <img src="./icons/r.svg" alt="R" height="20" width="20"> | R | .r | r | R, Rscript |  |
-| <img src="./icons/racket.svg" alt="Racket" height="20" width="20"> | Racket | .rkt | racket | racket |  |
-| <img src="./icons/ruby.svg" alt="Ruby" height="20" width="20"> | Ruby  | .rb | ruby | ruby |  |
-| <img src="./icons/rust.svg" alt="Rust" height="20" width="20"> | Rust  | .rs | rust | rustc |  |
-| <img src="./icons/scala.svg" alt="Scala" height="20" width="20"> | Scala | .scala | scala | scala |  |
-| <img src="./icons/scheme.svg" alt="Scheme" height="20" width="20"> | Scheme | .scm | scheme | GNU Guile, guile |  |
-| <img src="./icons/simula.svg" alt="Simula" height="20" width="20"> | Simula | .sim | simula | GNU Cim, cim |  |
-| <img src="./icons/smalltalk.svg" alt="Smalltalk" height="20" width="20"> | Smalltalk | .st | smalltalk | GNU Smalltalk, gst |  |
-| <img src="./icons/swift.svg" alt="Swift" height="20" width="20"> | Swift | .swift | swift | swift |  |
-| <img src="./icons/tcl.svg" alt="Tcl" height="20" width="20"> | Tcl | .tcl | tcl | tclsh |  |
-| <img src="./icons/typescript.svg" alt="Typescript" height="20" width="20"> | TypeScript | .ts | typescript | tsc, node |  |
-| <img src="./icons/vlang.svg" alt="V" height="20" width="20"> | V | .v | v | v |  |
-| <img src="./icons/visualstudio.svg" alt="VB" height="20" width="20"> | Visual Basic .Net | .vb | visualbasic | dotnet |  |
-| <img src="./icons/webassembly.svg" alt="WASM" height="20" width="20"> | Web Assembly (WASM) | .wat | wat | wabt, wat2wasm; node | In WAT Lisp dialect |
-| <img src="./icons/zig.svg" alt="Zig" height="20" width="20"> | Zig | .zig | zig | zig |  |
+| <img src="./icons/modula3.svg" alt="Modula-3" height="25" width="25"> | Modula-3 | .m3 | modula3 | Critical Mass Modula-3, cm3 |  |
+| <img src="./icons/mojo.svg" alt="Mojo" height="25" width="25"> | Mojo | .mojo | mojo | pixi, mojo | mojo installed via pixi |
+| <img src="./icons/assembly.svg" alt="Assembly" height="25" width="25"> | NASM | .nasm | nasm | The Netwide Assembler, GNU linker; nasm, ld | x86_64 Linux Assembly |
+| <img src="./icons/nim.svg" alt="Nim" height="25" width="25"> | Nim | .nim | nim | nim |  |
+| <img src="./icons/objective-c.svg" alt="Objective-C" height="25" width="25"> | Objective-C | .m | objectivec | clang |  |
+| <img src="./icons/ocaml.svg" alt="Ocaml" height="25" width="25"> | Ocaml | .ml | ocaml | ocaml |  |
+| <img src="./icons/octave.svg" alt="Nim" height="25" width="25"> | Octave (MATLAB) | .mat | octave  | octave | copies to (name)shaved.m extension in output before running |
+| <img src="./icons/oberon.svg" alt="Oberon" height="25" width="25"> | Oberon | .Mod | oberon | Vishap Oberon Compiler, voc |  |
+| <img src="./icons/pascal.svg" alt="Pascal" height="25" width="25"> | Pascal (Free/Object) | .pas | pascal | Free Pascal, fpc |  |
+| <img src="./icons/perl.svg" alt="Perl" height="25" width="25"> | Perl | .plx | perl | perl |  |
+| <img src="./icons/php.svg" alt="PHP" height="25" width="25"> | PHP | .php | php | php |  |
+| <img src="./icons/prolog.svg" alt="Prolog" height="25" width="25"> | Prolog | .pl | prolog | GNU Prolog compiler, gplc |  |
+| <img src="./icons/python.svg" alt="Python" height="25" width="25"> | Python | .py | python | python |  |
+| <img src="./icons/r.svg" alt="R" height="25" width="25"> | R | .r | r | R, Rscript |  |
+| <img src="./icons/racket.svg" alt="Racket" height="25" width="25"> | Racket | .rkt | racket | racket |  |
+| <img src="./icons/ruby.svg" alt="Ruby" height="25" width="25"> | Ruby  | .rb | ruby | ruby |  |
+| <img src="./icons/rust.svg" alt="Rust" height="25" width="25"> | Rust  | .rs | rust | rustc |  |
+| <img src="./icons/scala.svg" alt="Scala" height="25" width="25"> | Scala | .scala | scala | scala |  |
+| <img src="./icons/scheme.svg" alt="Scheme" height="25" width="25"> | Scheme | .scm | scheme | GNU Guile, guile |  |
+| <img src="./icons/simula.svg" alt="Simula" height="25" width="25"> | Simula | .sim | simula | GNU Cim, cim |  |
+| <img src="./icons/smalltalk.svg" alt="Smalltalk" height="25" width="25"> | Smalltalk | .st | smalltalk | GNU Smalltalk, gst |  |
+| <img src="./icons/swift.svg" alt="Swift" height="25" width="25"> | Swift | .swift | swift | swift |  |
+| <img src="./icons/tcl.svg" alt="Tcl" height="25" width="25"> | Tcl | .tcl | tcl | tclsh |  |
+| <img src="./icons/typescript.svg" alt="Typescript" height="25" width="25"> | TypeScript | .ts | typescript | tsc, node |  |
+| <img src="./icons/vlang.svg" alt="V" height="25" width="25"> | V | .v | v | v |  |
+| <img src="./icons/visualstudio.svg" alt="VB" height="25" width="25"> | Visual Basic .Net | .vb | visualbasic | dotnet |  |
+| <img src="./icons/webassembly.svg" alt="WASM" height="25" width="25"> | Web Assembly (WASM) | .wat | wat | wabt, wat2wasm; node | In WAT Lisp dialect |
+| <img src="./icons/zig.svg" alt="Zig" height="25" width="25"> | Zig | .zig | zig | zig |  |
 
 
 ## MIT License
