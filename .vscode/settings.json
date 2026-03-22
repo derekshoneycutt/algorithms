@@ -4,6 +4,7 @@
     },
     "FSharp.suggestGitignore": false,
     "fortran.fortls.disabled": true,
+    "code-runner.runInTerminal": true,
     "code-runner.executorMap": {
         "ada": "cd $dir && ../../../run.sh $fileName",
         "assembly": "cd $dir && ../../run.sh $fileName",
