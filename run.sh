@@ -735,7 +735,7 @@ function simula_run() {
 # =============================================
 function smalltalk_compile() { :; }
 function smalltalk_run() {
-  timeout --foreground $DEREKALGOS_TIMEOUT gst "./$fileName" $other_params
+  timeout --foreground $DEREKALGOS_TIMEOUT gst "./$fileName" -a $other_params
 }
 
 # =============================================
