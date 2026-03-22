@@ -277,10 +277,15 @@ format = { version = \">= 1.0.0 and < 2.0.0\" }
 gleam_stdlib = { version = \">= 0.44.0 and < 2.0.0\" }
 gleeunit = { version = \">= 1.0.0 and < 2.0.0\" }
     " > "./output/manifest.toml"
+
+    echo "gleam build \"$fileNameWithoutExt\"" > ./output/gleam-build-last
+    cd ./output
+    gleam build 2>> ./gleam-build-last
+    cd ../
 }
 function gleam_run() {
     cd ./output
-    gleam run --no-print-progress -m "$fileNameWithoutExt" -- $other_params 2> ./build-last
+    gleam run --no-print-progress -m "$fileNameWithoutExt" -- $other_params 2>> ./gleam-build-last
     cd ..
 }
 
@@ -884,7 +889,7 @@ case "$fileExtension" in
     ;;
   "gleam")
     lang="gleam"
-    testFile="./output/src/$fileName"
+    testFile="./output/build/dev/erlang/$fileNameWithoutExt/ebin/$fileNameWithoutExt.beam"
     outputFile="./output/gleam-build-last"
     make_output=1
     ;;
