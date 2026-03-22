@@ -215,8 +215,27 @@ run.sh script.
 | <img src="./icons/webassembly.svg" alt="WASM" height="25" width="25"> | Web Assembly (WASM) | .wat | wat | wabt, wat2wasm; node | In WAT Lisp dialect |
 | <img src="./icons/zig.svg" alt="Zig" height="25" width="25"> | Zig | .zig | zig | zig |  |
 
+## Icons
+
+The icons shown here, and which I have configured in my VSCode setup for this project,
+come from 2 primary sources. One is the [Material Design Icon Theme Extension](https://github.com/material-extensions/vscode-material-icon-theme), which serves
+as the base. That theme includes far more icons that are included, here, however it
+does not have all of the languages listed here. Some of the other icons
+were pulled off the internet and the best representation I could find on the official 
+website, or the closest thing to it. In order to make them work, sometimes I used basic
+online tools to change transparent backgrounds and convert to svg.
+A few also came courtesy of the VSCode extension for the language, such as the Simula
+and LLVM IR logos.
+
+I make no claim to originality in the icons. While they make my README look nice,
+they're included here moreso because they make my VS Code look nice. I highly recommend
+the above stated extension. Any that you cannot find there, look for the language
+extension with the logo included, or feel free to use the one I probably scavanged
+via the online tools with no promises or charge.
 
 ## MIT License
+
+The code in here is open source, under the MIT license.
 
 Copyright (c) 2026 Derek Honeycutt
 
