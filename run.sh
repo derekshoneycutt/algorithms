@@ -839,250 +839,67 @@ fi
 #          ./output/lang-build-last instead.
 
 case "$fileExtension" in
-  "adb")
-    lang="ada"
-    testFile="./output/$fileNameWithoutExt"
-    ;;
-  "bal")
-    lang="ballerina"
-    testFile="./output/$fileNameWithoutExt.jar"
-    ;;
-  "bas")
-    lang="freebasic"
-    testFile="./output/$fileNameWithoutExt"
-    ;;
-  "c")
-    lang="c"
-    testFile="./output/$fileNameWithoutExt"
-    ;;
-  "clj")
-    lang="clojure"
-    testFile="./$fileName"
-    ;;
-  "cob")
-    lang="cobol"
-    testFile="./output/$fileNameWithoutExt"
-    ;;
-  "cpp")
-    lang="cpp"
-    testFile="./output/$fileNameWithoutExt"
-    ;;
-  "cs")
-    lang="csharp"
-    testFile="./$fileName"
-    ;;
-  "d")
-    lang="d"
-    testFile="./$fileName"
-    ;;
-  "dart")
-    lang="dart"
-    testFile="./$fileName"
-    ;;
-  "e")
-    lang="eiffel"
-    testFile="./output/EIFGENs/$fileName/F_code/$fileName"
-    ;;
-  "erl")
-    lang="erlang"
-    testFile="./output/$fileNameWithoutExt.beam"
-    ;;
-  "exs")
-    lang="elixir"
-    testFile="./$fileName"
-    ;;
-  "f90")
-    lang="fortran"
-    testFile="./output/$fileNameWithoutExt"
-    ;;
-  "factor")
-    lang="factor"
-    testFile="./$fileName"
-    ;;
-  "fsx")
-    lang="fsharp"
-    testFile="./$fileName"
-    ;;
-  "fth")
-    lang="forth"
-    testFile="./$fileName"
-    ;;
-  "gleam")
-    lang="gleam"
-    testFile="./output/build/dev/erlang/$fileNameWithoutExt/ebin/$fileNameWithoutExt.beam"
-    ;;
-  "go")
-    lang="go"
-    testFile="./$fileName"
-    ;;
-  "hs")
-    lang="haskell"
-    testFile="./$fileName"
-    ;;
-  "hx")
-    lang="haxe"
-    testFile="./$fileName"
-    ;;
-  "icn")
-    lang="icon"
-    testFile="./$fileName"
-    ;;
-  "idr")
-    lang="idris"
-    testFile="./output/build/exec/$fileNameWithoutExt"
-    ;;
-  "java")
-    lang="java"
-    testFile="./output/$packName/$algoName/$fileNameWithoutExt.class"
-    ;;
-  "jl")
-    lang="julia"
-    testFile="./$fileName"
-    ;;
-  "js")
-    lang="javascript"
-    testFile="./$fileName"
-    ;;
-  "kit")
-    lang="kit"
-    testFile="./$fileName"
-    ;;
-  "kt")
-    lang="kotlin"
-    testFile="./output/$fileNameWithoutExt.jar"
-    ;;
-  "ll")
-    lang="llvmir"
-    testFile="./output/$fileNameWithoutExt"
-    ;;
-  "lua")
-    lang="lua"
-    testFile="./$fileName"
-    ;;
-  "m")
-    lang="objectivec"
-    testFile="./output/$fileNameWithoutExt"
-    ;;
-  "m3")
-    lang="modula3"
-    testFile="./output/AMD64_LINUX/prog"
-    ;;
-  "mat")
-    lang="octave"
-    testFile="./output/${fileNameWithoutExt}shaved.m"
-    ;;
-  "ml")
-    lang="ocaml"
-    testFile="./$fileName"
-    ;;
-  "mms")
-    lang="mmixal"
-    testFile="./output/$fileNameWithoutExt.mmo"
-    ;;
-  "Mod")
-    lang="oberon"
-    testFile="./output/$fileNameWithoutExt"
-    ;;
-  "mojo")
-    lang="mojo"
-    testFile="./$fileName"
-    ;;
-  "moo")
-    lang="mercury"
-    testFile="./output/$fileNameWithoutExt"
-    ;;
-  "nasm")
-    lang="nasm"
-    testFile="./output/$fileNameWithoutExt"
-    ;;
-  "nim")
-    lang="nim"
-    testFile="./output/$fileNameWithoutExt"
-    ;;
-  "pas")
-    lang="pascal"
-    testFile="./output/$fileNameWithoutExt"
-    ;;
-  "php")
-    lang="php"
-    testFile="./$fileName"
-    ;;
-  "pl")
-    lang="prolog"
-    testFile="./output/$fileNameWithoutExt"
-    ;;
-  "plx")
-    lang="perl"
-    testFile="./$fileName"
-    ;;
-  "py")
-    lang="python"
-    testFile="./$fileName"
-    ;;
-  "r")
-    lang="r"
-    testFile="./$fileName"
-    ;;
-  "rb")
-    lang="ruby"
-    testFile="./$fileName"
-    ;;
-  "rkt")
-    lang="racket"
-    testFile="./$fileName"
-    ;;
-  "rs")
-    lang="rust"
-    testFile="./output/$fileNameWithoutExt"
-    ;;
-  "scala")
-    lang="scala"
-    testFile="./output/$fileName"
-    ;;
-  "scm")
-    lang="scheme"
-    testFile="./$fileName"
-    ;;
-  "sim")
-    lang="simula"
-    testFile="./output/$fileNameWithoutExt"
-    ;;
-  "st")
-    lang="smalltalk"
-    testFile="./$fileName"
-    ;;
-  "swift")
-    lang="swift"
-    testFile="./$fileName"
-    ;;
-  "tcl")
-    lang="tcl"
-    testFile="./$fileName"
-    ;;
-  "ts")
-    lang="typescript"
-    testFile="./output/$fileNameWithoutExt.js"
-    ;;
-  "v")
-    lang="v"
-    testFile="./$fileName"
-    ;;
-  "vb")
-    lang="visualbasic"
-    testFile="./output/bin/Debug/net10.0/$fileNameWithoutExt"
-    ;;
-  "wat")
-    lang="wat"
-    testFile="./output/$fileNameWithoutExt.wasm"
-    ;;
-  "zig")
-    lang="zig"
-    testFile="./$fileName"
-    ;;
-  *)
-    echo "Unrecognized file extension, not building!"
-    exit
-    ;;
+  "adb") lang="ada"; testFile="./output/$fileNameWithoutExt";;
+  "bal") lang="ballerina"; testFile="./output/$fileNameWithoutExt.jar";;
+  "bas") lang="freebasic"; testFile="./output/$fileNameWithoutExt";;
+  "c") lang="c"; testFile="./output/$fileNameWithoutExt";;
+  "clj") lang="clojure"; testFile="./$fileName";;
+  "cob") lang="cobol"; testFile="./output/$fileNameWithoutExt";;
+  "cpp") lang="cpp"; testFile="./output/$fileNameWithoutExt";;
+  "cs") lang="csharp"; testFile="./$fileName";;
+  "d") lang="d"; testFile="./$fileName";;
+  "dart") lang="dart"; testFile="./$fileName";;
+  "e") lang="eiffel"; testFile="./output/EIFGENs/$fileName/F_code/$fileName";;
+  "erl") lang="erlang"; testFile="./output/$fileNameWithoutExt.beam";;
+  "exs") lang="elixir"; testFile="./$fileName";;
+  "f90") lang="fortran"; testFile="./output/$fileNameWithoutExt";;
+  "factor") lang="factor"; testFile="./$fileName";;
+  "fsx") lang="fsharp"; testFile="./$fileName";;
+  "fth") lang="forth"; testFile="./$fileName";;
+  "gleam") lang="gleam"; testFile="./output/build/dev/erlang/$fileNameWithoutExt/ebin/$fileNameWithoutExt.beam";;
+  "go") lang="go"; testFile="./$fileName";;
+  "hs") lang="haskell"; testFile="./$fileName";;
+  "hx") lang="haxe"; testFile="./$fileName";;
+  "icn") lang="icon"; testFile="./$fileName";;
+  "idr") lang="idris"; testFile="./output/build/exec/$fileNameWithoutExt";;
+  "java") lang="java"; testFile="./output/$packName/$algoName/$fileNameWithoutExt.class";;
+  "jl") lang="julia"; testFile="./$fileName";;
+  "js") lang="javascript"; testFile="./$fileName";;
+  "kit") lang="kit"; testFile="./$fileName";;
+  "kt") lang="kotlin"; testFile="./output/$fileNameWithoutExt.jar";;
+  "ll") lang="llvmir"; testFile="./output/$fileNameWithoutExt";;
+  "lua") lang="lua"; testFile="./$fileName";;
+  "m") lang="objectivec"; testFile="./output/$fileNameWithoutExt";;
+  "m3") lang="modula3"; testFile="./output/AMD64_LINUX/prog";;
+  "mat") lang="octave"; testFile="./output/${fileNameWithoutExt}shaved.m";;
+  "ml") lang="ocaml"; testFile="./$fileName";;
+  "mms") lang="mmixal"; testFile="./output/$fileNameWithoutExt.mmo";;
+  "Mod") lang="oberon"; testFile="./output/$fileNameWithoutExt";;
+  "mojo") lang="mojo"; testFile="./$fileName";;
+  "moo") lang="mercury"; testFile="./output/$fileNameWithoutExt";;
+  "nasm") lang="nasm"; testFile="./output/$fileNameWithoutExt";;
+  "nim") lang="nim"; testFile="./output/$fileNameWithoutExt";;
+  "pas") lang="pascal"; testFile="./output/$fileNameWithoutExt";;
+  "php") lang="php"; testFile="./$fileName";;
+  "pl") lang="prolog"; testFile="./output/$fileNameWithoutExt";;
+  "plx") lang="perl"; testFile="./$fileName";;
+  "py") lang="python"; testFile="./$fileName";;
+  "r") lang="r"; testFile="./$fileName";;
+  "rb") lang="ruby"; testFile="./$fileName";;
+  "rkt") lang="racket"; testFile="./$fileName";;
+  "rs") lang="rust"; testFile="./output/$fileNameWithoutExt";;
+  "scala") lang="scala"; testFile="./output/$fileName";;
+  "scm") lang="scheme"; testFile="./$fileName";;
+  "sim") lang="simula"; testFile="./output/$fileNameWithoutExt";;
+  "st") lang="smalltalk"; testFile="./$fileName";;
+  "swift") lang="swift"; testFile="./$fileName";;
+  "tcl") lang="tcl"; testFile="./$fileName";;
+  "ts") lang="typescript"; testFile="./output/$fileNameWithoutExt.js";;
+  "v") lang="v"; testFile="./$fileName";;
+  "vb") lang="visualbasic"; testFile="./output/bin/Debug/net10.0/$fileNameWithoutExt";;
+  "wat") lang="wat"; testFile="./output/$fileNameWithoutExt.wasm";;
+  "zig") lang="zig"; testFile="./$fileName";;
+  *) echo "Unrecognized file extension, not building!"; exit;;
 esac
 
 # Now, we should check if the environment wants our language
