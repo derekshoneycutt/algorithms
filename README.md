@@ -108,7 +108,7 @@ lazy evaluation in functional languages can often mimic the behavior of
 coroutines in other languages, while other languages require an explicit state machine
 to mimic the behavior. These may be explored next to each other while focusing
 on a simple date calculation algorithm. However, some times there is a wonderful
-way to express a solution in a problem separately than many other languages may
+way to express a solution in a language separately from how many other languages may
 favor more traditional procedural approaches.
 
 ### On the development environment
@@ -126,40 +126,13 @@ application when it is run, as command line arguments.
 cd $dir && ../../../run.sh $fileName [additional argments]
 ```
 
-At this time, I have not documented the exact build tools I am using
-in each language below the list below.
-All code that requires compilation or additional setup in order to run
-has such output placed in the `output/` directory.
-
 Due to the fact that I was not able to get every langauge working
 directly on my Gentoo box due to build errors of compilers, etc.,
 I also have a VM with Ubuntu Server setup that runs some languages.
-The run scripts reflect this fact.
 
-The following should be modified as necessary and added to `~/.bash_profile` on
-the host machine running this code. `run.sh` attempts to be easily run on
-many machines, but it then uses these values to decide when to call into a code
-running VM via SSH, how long of a timeout to give each call, etc.
+The entire build environment setup can be viewed in the
+[System-setup](System-setup.md) document.
 
-```bash
-export DEREKALGOS_RUNONVM="forth modula3 oberon simula smalltalk"
-export DEREKALGOS_VMPORT="2222"
-export DEREKALGOS_VMUSER="coderun"
-export DEREKALGOS_VMADDRESS="127.0.0.1"
-export DEREKALGOS_VMCODEDIR="/home/coderun/codefiles"
-export DEREKALGOS_VMSTARTDIR="/home/coderun"
-export DEREKALGOS_VMRUNSCRIPT="../run.sh"
-export DEREKALGOS_TIMEOUT="-k 10s 1m"
-```
-
-Originally, separate scripts were developed for running the code on the
-VM, but this was merged into `run.sh`.
-The VM is setup with a coderun user and `run.sh` located in the home
-directory. All code files are copied to the `codefiles/` directories
-and then run via `../run.sh`. The exacts can be configured via
-the above environment variables. All languages listed in
-DEREKALGOS_RUNONVM, separated by spaces, will be uploaded and run on the VM
-in this way.
 
 ### Standard Library
 
