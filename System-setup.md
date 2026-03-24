@@ -267,7 +267,8 @@ I primarily use VS Code as my IDE of sorts for this project. Other editors are
 easily used, if you want.
 
 The easiest way in most places is to download the install package from the VS Code
-website. In Gentoo, it is as easy as `sudo emerge -av vscode`.
+website. There is a deb for Ubuntu there. In Gentoo, it is as easy as
+`sudo emerge -av vscode`.
 
 ## Ada
 
