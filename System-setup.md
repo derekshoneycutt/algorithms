@@ -284,7 +284,21 @@ First, ensure Java is already installed. See Java.
 
 We can download the language ZIP file from the
 [Installation Options](https://ballerina.io/downloads/installation-options/)
-and continue with installation from there. *todo: describe this*
+and continue with installation from there.
+
+At the location of the zip file, we unzip it and then we just have to find
+the binary and create a link to it in our PATH somewhere. I use `~/bin` but
+this is entirely optional. As long as it is in your PATH, or you add the location
+to PATH in `~/.bash_profile`
+
+```bash
+unzip ballerina-2201.13.1-swan-lake.zip
+# you can move the files that are extracted, etc. as you need
+# if you need a link, something like the following will put the link
+# at ~/bin/bal, so if ~/bin is in PATH, it's callable
+ln -s /home/USER/path-to-ballerina-bins/bin/bal ~/bin/bal
+bal --version
+```
 
 ### Ballerina on Ubuntu
 
@@ -292,7 +306,11 @@ I needed to make sure that Java was installed first, despite having a .deb. See 
 
 For Ubuntu, we download Ballerina right from the
 [Downloads](https://ballerina.io/downloads/) page on their website, for us in deb form.
-I simply install this, and Ballerina is up and going for me.
+Simply install this, and Ballerina is up and going.
+
+```bash
+bal --version
+```
 
 ## C
 
@@ -337,6 +355,8 @@ sudo add-apt-repository ppa:ubuntu-toolchain-r/test
 apt install gcc
 sudo update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-13 110
 sudo update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-15 220
+sudo update-alternatives --config gcc
+gcc --version
 ```
 
 ## C++
@@ -380,6 +400,8 @@ sudo add-apt-repository ppa:ubuntu-toolchain-r/test
 apt install g++
 sudo update-alternatives --install /usr/bin/g++ g++ /usr/bin/g++-13 110
 sudo update-alternatives --install /usr/bin/g++ g++ /usr/bin/g++-15 220
+sudo update-alternatives --config g++
+g++ --version
 ```
 
 ## C\#
@@ -749,7 +771,7 @@ We use the GNU Forth tool on Linux.
 
 ### Forth on Gentoo
 
-I did not get GNU forth or any other forth tool to work correctly under Linux.
+I did not get GNU forth or any other forth tool to work correctly under Gentoo.
 Yes, there is a `dev-lang/gforth` package in portage. This is even more tragic,
 as it is harder to even try to modify the source in there. However, I get the
 same errors when trying to build the latest version from source.
@@ -888,11 +910,19 @@ mkdir ~/haxelib && haxelib setup ~/haxelib
 
 ## Icon
 
-We use the standard Icon tools on Linux.
+We use the standard Icon tools on Linux. All distributions will build the Icon
+tools from source. Once the source is built, I copy the contents of the bin
+directory to somewhere in PATH. If `~/bin` is in PATH, this works. Otherwise
+change the `cp` line to copy somewhere to PATH.
 
-### Icon on Gentoo
-
-### Icon on Ubuntu
+```bash
+git clone https://github.com/gtownsend/icon.git
+cd icon
+make Configure name=linux
+make
+cp ./bin/* ~/bin/
+icon
+```
 
 ## Idris2
 
@@ -900,7 +930,32 @@ We use the standard Idris2 tools on Linux.
 
 ### Idris2 on Gentoo
 
+Idris2 is on portage.
+
+```bash
+emerge -av dev-lang/idris2
+go --version
+```
+
 ### Idris2 on Ubuntu
+
+Install Racket first. This is required to install pack, which we
+will then use to install Idris2. Once racket is installed, return here.
+
+First `nano ~/.bash_profile` and add the following line:
+
+```bash
+export PATH="$HOME/.local/bin:$HOME/.idris2/bin:$PATH"
+```
+
+Then install pack and Idris2 together. Verifying that Idris2 works will
+verify that the install was successful.
+
+```bash
+source ~/.bash_profile
+bash -c "$(curl -fsSL https://raw.githubusercontent.com/stefan-hoeck/idris2-pack/main/install.bash)"
+idris2 --version
+```
 
 ## Java
 
@@ -931,23 +986,62 @@ We use node on Linux.
 
 ### Javascript on Gentoo
 
+Portage has a good management of node.
+
+```bash
+emerge -av net-libs/nodejs
+node --version
+```
+
 ### Javascript on Ubuntu
+
+Node can be installed right on apt.
+
+```bash
+sudo apt install nodejs
+node --version
+```
 
 ## Julia
 
-We use the standard Julia tools on Linux.
+We use the standard Julia tools on Linux. This is the same on every distribution,
+using juliaup to manage the installation.
 
-### Julia on Gentoo
-
-### Julia on Ubuntu
+```bash
+curl -fsSL https://install.julialang.org | sh
+source ~/.bashrc
+juliaup
+julia --version
+```
 
 ## Kit
 
-We use the standard Kit tools on Linux.
+We use the standard Kit tools on Linux. You should install Zig first, regardless
+of your distribution. Come back here when Zig is installed.
 
-### Kit on Gentoo
+One other prerequisite is also required, libffi. On gentoo, this is an easy
+`emerge -av dev-libs/libffi`. On Ubuntu, you can `sudo apt install libffi-dev`.
 
-### Kit on Ubuntu
+Once this is done, the developers have created a nice install script that is
+easily called.
+
+```bash
+curl -fsSL https://kit-lang.org/install.sh | bash
+```
+
+This installs to e.g. `~/.kit` and we need to add `~/.kit/bin` to PATH. So
+we can open `nano ~/.bash_profile` and add a PATH export.
+
+```bash
+export PATH="$HOME/.kit/bin:$PATH"
+```
+
+Then go ahead and verify
+
+```bash
+source ~/.bash_profile
+kit --version
+```
 
 ## Kotlin
 
@@ -955,15 +1049,49 @@ We use the standard Kotlin tools and Java on Linux.
 
 ### Kotlin on Gentoo
 
+You can install the binary from portage quite easily.
+
+```bash
+emerge -av dev-lang/kotlin-bin
+kotlinc -version
+```
+
 ### Kotlin on Ubuntu
+
+You can install what we need from apt quite easily.
+
+```bash
+sudo apt install kotlin
+kotlinc -version
+```
 
 ## LLVM IR
 
-We use the standard LLVM tools on Linux.
+We use the standard LLVM tools on Linux. In fact, we are specifically using
+Clang as our in to LLVM, and will bring in what we need with LLVM.
 
 ### LLVM on Gentoo
 
+We can just install clang from portage.
+
+```bash
+emerge -av llvm-core/clang
+clang --version
+```
+
 ### LLVM on Ubuntu
+
+We have to shuffle the versions thing, especially if you just install `clang`
+at first. And we offer the test repository again.
+
+```bash
+sudo add-apt-repository ppa:ubuntu-toolchain-r/test
+apt install clang-22
+sudo update-alternatives --install /usr/bin/clang clang /usr/bin/clang-18 110
+sudo update-alternatives --install /usr/bin/clang clang /usr/bin/clang-22 220
+sudo update-alternatives --config clang
+clang --version
+```
 
 ## Lua
 
@@ -1099,7 +1227,21 @@ We use the standard Racket tools on Linux.
 
 ### Racket on Gentoo
 
+You can also get Racket via the portage package.
+
+```bash
+emerge -av dev-scheme/racket
+racket --version
+```
+
 ### Racket on Ubuntu
+
+You can get Racket via apt easily.
+
+```bash
+sudo apt install racket
+racket --version
+```
 
 ## Ruby
 
@@ -1144,10 +1286,40 @@ We use the standard Scala tools on Linux.
 ## Scheme
 
 We use the GNU Guile tools on Linux.
+Chez Scheme is also available in both, but this project is built with
+Guile in mind.
 
 ### Scheme on Gentoo
 
+Guile is easily available in portage.
+
+```bash
+emerge -av dev-scheme/guile
+guile --version
+```
+
+Alternative (not how this project is using it):
+
+```bash
+emerge -av dev-scheme/chez
+chezscheme --version
+```
+
 ### Scheme on Ubuntu
+
+Guile is easily available in apt.
+
+```bash
+sudo apt install guile-3.0
+guile --version
+```
+
+Alternative (not how this project is using it):
+
+```bash
+sudo apt install chezscheme
+chezscheme --version
+```
 
 ## Simula
 
@@ -1319,4 +1491,34 @@ We use the standard Zig tools on Linux.
 
 ### Zig on Gentoo
 
+This is easy to install on portage.
+
+```bash
+emerge -av dev-lang/zig
+```
+
 ### Zig on Ubuntu
+
+Ubuntu does not have such an easy package, so we need to do som extra work.
+Go to the Zig website and download the correct package. The wget here is
+an example. We then extract it and move it to somewhere useful. I just use
+`~/zig` here as an example. We will want to keep it where we put it.
+
+```bash
+wget https://ziglang.org/builds/zig-x86_64-linux-0.16.0-dev.2973+06b85a4fd.tar.xz
+tar xvf zig-*.tar.xz
+mv -vf ./zig-x86_64-linux-0.16.0-dev.2973+06b85a4fd ~/zig
+```
+
+Now we `nano ~/.bash_profile` and our new zig folder to PATH.
+
+```bash
+export PATH="$HOME/zig:$PATH"
+```
+
+Then, to verify we can source a terminal and run it.
+
+```bash
+source ~/.bash_profile
+zig version
+```
