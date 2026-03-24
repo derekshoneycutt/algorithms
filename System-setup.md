@@ -33,8 +33,8 @@ export DEREKALGOS_VMSTARTDIR="/home/coderun"
 export DEREKALGOS_VMRUNSCRIPT="../run.sh"
 export DEREKALGOS_TIMEOUT="-k 10s 1m"
 export DEREKALGOS_GCC13="/usr/x86_64-pc-linux-gnu/gcc-bin/13/"
-export DEREKALGOS_GCC13NAME="x86_64-pc-linux-gcc"
-export DEREKALGOS_GXX13NAME="x86_64-pc-linux-g++"
+export DEREKALGOS_GCC13NAME="x86_64-pc-linux-gnu-gcc"
+export DEREKALGOS_GXX13NAME="x86_64-pc-linux-gnu-g++"
 ```
 
 ### Gentoo
@@ -56,7 +56,7 @@ complete, we also need to install some tools that will be used by many of
 the languages, or in some cases in building the tools for some languages.
 
 ```bash
-apt install build-essential libtool libtool-bin cmake libstdc++-13-dev git curl unzip xz-utils zip libglu1-mesa flex bison
+apt install build-essential libtool libtool-bin cmake libstdc++-13-dev git curl unzip xz-utils zip libglu1-mesa flex bison ninja-build
 ```
 
 This will give us several GCC related tools, which will already give us some
@@ -1293,9 +1293,29 @@ cm3 --version
 
 We use the standard Mojo tools on Linux.
 
-### Mojo on Gentoo
+This is kind of annoying on all the platforms. We need to install this through
+the pixi package management system. Once that is installed, we navigate
+to some directory outside of the current project and create some dummy
+project. Maybe you have something want to do and can start a project here.
 
-### Mojo on Ubuntu
+This makes it so we can just go into this repo and start someething up in mojo.
+The `pixi add mojo` is just an example, but doing so is why we have
+`pixi.lock` and `pixi.toml`, which include references to mojo.
+
+```bash
+curl -fsSL https://pixi.sh/install.sh | sh
+source ~/.bashrc
+mkdir ~/temp-directory/
+# Initiate mojo in our system
+cd ~/temp-directory/
+pixi init hello-world \
+  -c https://conda.modular.com/max-nightly/ -c conda-forge \
+  && cd hello-world
+pixi add mojo
+# run something in our repo
+cd algos-repo/src/random/hello_world/
+../../../run.sh hello.mojo
+```
 
 ## NASM
 
@@ -2020,11 +2040,21 @@ sudo apt install --install-suggests dotnet-sdk-10.0
 
 ## Web Assembly (WASM)
 
-We use the wabt tools and node on Linux.
+We use the wabt tools and node on Linux. See the Javascript section
+for installing node. Assuming this is done, we just clone the git repository
+for wabt, import its submodules, make, and install it.
 
-### Web Assembly (WASM) on Gentoo
+```bash
+git clone https://github.com/WebAssembly/wabt.git
+cd wabt
+git submodule update --init
+make
+sudo make install
+wat2wasm --version
 
-### Web Assembly (WASM) on Ubuntu
+#if you don't have /usr/local/bin in PATH, add to ~/.bash_profile :
+export PATH="$PATH:/usr/local/bin"
+```
 
 ## Zig
 
