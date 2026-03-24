@@ -356,10 +356,14 @@ function idris_run() {
 function java_compile() {
   echo "javac \"./$fileName\" -d ./output" > ./output/java-build-last
   javac "./$fileName" -d ./output &>> ./output/java-build-last
+  cd ./output
+  echo "jar cvfe \"$fileNameWithoutExt.jar\" \"$packName.$algoName.$fileNameWithoutExt\" \"$packName/$algoName/$fileNameWithoutExt.class\"" >> ./java-build-last
+  jar cvfe "$fileNameWithoutExt.jar" "$packName.$algoName.$fileNameWithoutExt" "$packName/$algoName/$fileNameWithoutExt.class" &>> ./java-build-last
+  cd ..
 }
 function java_run() {
   cd ./output
-  timeout --foreground $DEREKALGOS_TIMEOUT java "${packName}.${algoName}.$fileNameWithoutExt" -- $other_params
+  timeout --foreground $DEREKALGOS_TIMEOUT java -jar "$fileNameWithoutExt.jar" -- $other_params
   cd ..
 }
 
@@ -868,7 +872,7 @@ case "$fileExtension" in
   "hx") lang="haxe"; testFile="./$fileName";;
   "icn") lang="icon"; testFile="./$fileName";;
   "idr") lang="idris"; testFile="./output/build/exec/$fileNameWithoutExt";;
-  "java") lang="java"; testFile="./output/$packName/$algoName/$fileNameWithoutExt.class";;
+  "java") lang="java"; testFile="./output/$fileNameWithoutExt.jar";;
   "jl") lang="julia"; testFile="./$fileName";;
   "js") lang="javascript"; testFile="./$fileName";;
   "kit") lang="kit"; testFile="./$fileName";;
