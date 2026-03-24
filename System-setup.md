@@ -329,6 +329,18 @@ If needed, it is otherwise simple.
 apt install gcc
 ```
 
+If we get a version below 15 and have any issues with modern code, we can update
+to 15 by the adding the testing PPA, and then managing the g++ version
+via update-alternatives.
+
+```bash
+sudo add-apt-repository ppa:ubuntu-toolchain-r/test
+apt install gcc
+sudo update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-13 110
+sudo update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-15 220
+```
+
+
 ## C++
 
 We use GCC on Linux.
@@ -347,17 +359,6 @@ Alter the USE variables if necessary. The `cxx` flag is usually already enabled.
 
 ```bash
 emerge -av gcc
-```
-
-If we get a version below 15 and have any issues with modern code, we can update
-to 15 by the adding the testing PPA, and then managing the g++ version
-via update-alternatives.
-
-```bash
-sudo add-apt-repository ppa:ubuntu-toolchain-r/test
-apt install gcc
-sudo update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-13 110
-sudo update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-15 220
 ```
 
 ### C++ on Ubuntu
