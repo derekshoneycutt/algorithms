@@ -31,6 +31,9 @@ export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/usr/local/lib
 #export DEREKALGOS_VMSTARTDIR="/home/coderun"
 #export DEREKALGOS_VMRUNSCRIPT="../run.sh"
 #export DEREKALGOS_TIMEOUT="-k 10s 1m"
+#export DEREKALGOS_GCC13="/usr/x86_64-pc-linux-gnu/gcc-bin/13/"
+#export DEREKALGOS_GCC13NAME="x86_64-pc-linux-gcc"
+#export DEREKALGOS_GXX13NAME="x86_64-pc-linux-g++"
 
 # The first section, each language that we support needs to have
 # a lang_compile and lang_run. This will be called when a file of
@@ -723,7 +726,10 @@ function simula_compile() {
   cp "./$fileName" ./output/
   echo "cd ./output && cim \"./$fileName\" && cd .." > ./output/simula-build-last
   cd ./output/
-  cim "./$fileName" &>> ./simula-build-last
+  rm -f ./gcc ./g++
+  ln -s "${DEREKALGOS_GCC13}${DEREKALGOS_GCC13NAME}" ./gcc
+  ln -s "${DEREKALGOS_GCC13}${DEREKALGOS_GXX13NAME}" ./g++
+  PATH="$PWD:$PATH" cim "./$fileName" &>> ./simula-build-last
   cd ..
 }
 function simula_run() {

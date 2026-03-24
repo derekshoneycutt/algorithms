@@ -1,6 +1,9 @@
 # System Setup
 
-**CAUTION**: This documentation is currently under construction
+**CAUTION**: You are going to have to think critically and troubelshoot for
+yourself if you try to follow the instructions here. The goal is to make it
+possible to run the code in this repository in a standard way, but it can
+be helpful for other means.
 
 This project is currently developed to build and run on Linux computers. All
 the code is currently running on command line.
@@ -29,6 +32,9 @@ export DEREKALGOS_VMCODEDIR="/home/coderun/codefiles"
 export DEREKALGOS_VMSTARTDIR="/home/coderun"
 export DEREKALGOS_VMRUNSCRIPT="../run.sh"
 export DEREKALGOS_TIMEOUT="-k 10s 1m"
+export DEREKALGOS_GCC13="/usr/x86_64-pc-linux-gnu/gcc-bin/13/"
+export DEREKALGOS_GCC13NAME="x86_64-pc-linux-gcc"
+export DEREKALGOS_GXX13NAME="x86_64-pc-linux-g++"
 ```
 
 ### Gentoo
@@ -50,12 +56,21 @@ complete, we also need to install some tools that will be used by many of
 the languages, or in some cases in building the tools for some languages.
 
 ```bash
-apt install build-essential libtool cmake git curl unzip xz-utils zip libglu1-mesa
+apt install build-essential libtool libtool-bin cmake libstdc++-13-dev git curl unzip xz-utils zip libglu1-mesa flex bison
 ```
 
 This will give us several GCC related tools, which will already give us some
 of the language support we are looking for. It also enables us to build those
 that don't come in nice apt packages.
+
+On GCC versions, Ubuntu places them all in `/usr/bin` with just a bare version
+number attached. So the export variables in `~/.bash_profile` will look as follows.
+
+```bash
+export DEREKALGOS_GCC13="/usr/bin"
+export DEREKALGOS_GCC13NAME="gcc-13"
+export DEREKALGOS_GXX13NAME="g++-13"
+```
 
 Additionally, Ubuntu has some deeper resources on how to install many
 of the most common languages today.
@@ -167,6 +182,13 @@ guest OS, unless you want to setup a string of code running servers.
 Additionally, on the guest OS, you should at least export the `DEREKALGOS_TIMEOUT`
 environment variable in `~/.bash_profile`.
 
+For some languages, it is important that we always run code in GCC-13. However,
+our default is to use GCC-15. For this purpose, we need to set `DEREKALGOS_GCC13`
+to the directory that contains the gcc and g++ executables. Then
+`DEREKALGOS_GCC13NAME` contains the name of the gcc 13 executable,
+and `DEREKALGOS_GXX13NAME` contains the name of the g++ 13 executable. This
+is required for e.g. Simula.
+
 In fact, there are several other variables you can modify, including the username,
 port, and other factors of the SSH server that will be connected to for running
 code. As per `DEREKALGOS_RUNONVM`, it is normal for the host OS and guest OS
@@ -181,6 +203,9 @@ export DEREKALGOS_VMCODEDIR="/home/coderun/codefiles"
 export DEREKALGOS_VMSTARTDIR="/home/coderun"
 export DEREKALGOS_VMRUNSCRIPT="../run.sh"
 export DEREKALGOS_TIMEOUT="-k 10s 1m"
+export DEREKALGOS_GCC13="/usr/x86_64-pc-linux-gnu/gcc-bin/13/"
+export DEREKALGOS_GCC13NAME="x86_64-pc-linux-gcc"
+export DEREKALGOS_GXX13NAME="x86_64-pc-linux-g++"
 ```
 
 ### VM Hibernation
@@ -331,6 +356,18 @@ Alter the USE variables if necessary.
 emerge -av gcc
 ```
 
+For some languages, I needed to get GCC 13 in a slot and set environment settings
+for some of their packages. Installing the extra slot is simple enough on a fresh
+install, but you may need to disable specific USE flags if you get circular
+dependency issues.
+
+```bash
+emerge -av =sys-devel/gcc-13*
+```
+
+You can switch between these with `gcc-config [GCC-INSTANCE]`.
+Use `gcc-config -l` to view all available instances that you can set to.
+
 ### C on Ubuntu
 
 We have installed GCC on Ubuntu at the start of this document via `build-essential`,
@@ -378,6 +415,18 @@ Alter the USE variables if necessary. The `cxx` flag is usually already enabled.
 ```bash
 emerge -av gcc
 ```
+
+For some languages, I needed to get GCC 13 in a slot and set environment settings
+for some of their packages. Installing the extra slot is simple enough on a fresh
+install, but you may need to disable specific USE flags if you get circular
+dependency issues.
+
+```bash
+emerge -av =sys-devel/gcc-13*
+```
+
+You can switch between these with `gcc-config [GCC-INSTANCE]`.
+Use `gcc-config -l` to view all available instances that you can set to.
 
 ### C++ on Ubuntu
 
@@ -771,11 +820,18 @@ We use the GNU Forth tool on Linux.
 
 ### Forth on Gentoo
 
-I did not get GNU forth or any other forth tool to work correctly under Gentoo.
-Yes, there is a `dev-lang/gforth` package in portage. This is even more tragic,
-as it is harder to even try to modify the source in there. However, I get the
-same errors when trying to build the latest version from source.
-My recommendation here is to use a VM build server with Ubuntu Server.
+I struggled with Gentoo at first, but I was able to get the portage package to
+work for me. I just had to make it use GCC 13 when I was compiling. To do this,
+I used `gcc-config` before and after the emerge.
+
+```bash
+gcc-config x86_64-pc-linux-gnu-13
+. /etc/profile
+emerge -av gforth
+gcc-config x86_64-pc-linux-gnu-15
+. /etc/profile
+gforth --version
+```
 
 ### Forth on Ubuntu
 
@@ -891,6 +947,9 @@ We use the standard Haxe tool on Linux.
 Download the binaries from the [Haxe Website](https://haxe.org/download/)
 and place the files into somewhere in your PATH. I like it in a `~/bin` and
 exporting that as part of PATH in `~/.bash_profile`.
+
+I cannot really make this easier because they have a kind of annoying
+download link setup. It is what it is.
 
 ```bash
 mkdir ~/haxelib && haxelib setup ~/haxelib
@@ -1099,7 +1158,22 @@ We use the standard Lua tools on Linux.
 
 ### Lua on Gentoo
 
+We can just install this from portage if it isn't already installed.
+
+```bash
+emerge -av dev-lang/lua
+lua -v
+```
+
 ### Lua on Ubuntu
+
+There are multiple versions of lua available on apt. We will use 5.4, which
+is the version on portage as the time of this writing.
+
+```bash
+sudo apt install lua5.4
+lua -v
+```
 
 ## Mercury
 
@@ -1107,15 +1181,66 @@ We use the Melbourne Mercury Compiler tools on Linux.
 
 ### Mercury on Gentoo
 
+We can just install this from portage.
+
+```bash
+emerge -av dev-lang/mercury
+mmc --version
+```
+
 ### Mercury on Ubuntu
+
+I was able to get the PPA for this working correctly.
+
+```bash
+sudo apt install wget ca-certificates
+cd /tmp
+wget https://paul.bone.id.au/paul.asc
+sudo cp paul.asc /etc/apt/trusted.gpg.d/paulbone.asc
+```
+
+Open `nano /etc/apt/sources.list.d/mercury.list` and paste in the
+following text (this is for 24.04 noble; change accordingly).
+
+```text
+deb http://dl.mercurylang.org/deb/ noble main
+deb-src http://dl.mercurylang.org/deb/ noble main
+```
+
+Then we update and install it.
+
+```bash
+sudo apt update
+sudo apt install mercury-recommended
+mmc --version
+```
 
 ## MMIX
 
-We use the Knuth's MMIXware tools on Linux.
+We use the Knuth's MMIXware tools on Linux.sud
 
 ### MMIX on Gentoo
 
+This is one simple package in protage.
+
+```bash
+emerge -av dev-lang/mmix
+mmix
+```
+
 ### MMIX on Ubuntu
+
+You can download the literal binaries at
+[MMIXware Site](https://mmix.cs.hm.edu/bin/index.html).
+Go to somewhere in your PATH and download them.
+
+```bash
+wget https://mmix.cs.hm.edu/bin/mmix
+wget https://mmix.cs.hm.edu/bin/mmixal
+wget https://mmix.cs.hm.edu/bin/mmmix
+wget https://mmix.cs.hm.edu/bin/mmotype
+chmod a+x mmix mmixal mmmix mmotype
+```
 
 ## Modula-3
 
@@ -1123,7 +1248,54 @@ We use the Critical Mass Modula-3 tools on Linux.
 
 ### Modula-3 on Gentoo
 
+I did not succeed in getting any tools working to build Modula-3 on
+my Gentoo system. You can try building cm3 from source if you're into
+that kinda thing. I recommend using a VM with Ubuntu Server.
+
+There is technically a binary in the bootstrapper when I attempt to compile
+this on Gentoo. This is not the well built version intended. In fact, trying
+to use it to build code immediately runs into the fact that there are missing
+libraries.
+
+Modula-3 has its whole own build setup that is quite interesting but makes
+troubleshooting what is wrong on Gentoo almost impossible. I would gladly
+put in some effort to describe it here if I find a way in the future.
+
 ### Modula-3 on Ubuntu
+
+We download the release package from the GitHub repository that allows
+us to bootstrap our system for building the compiler. We extract this
+file and go into a temporary build directory to call the concierge
+script that will build it for us.
+
+```bash
+wget https://github.com/modula3/cm3/releases/download/d5.11.10/cm3-dist-AMD64_LINUX-None.tar.xz
+tar xvf cm3-*.tar.xz
+mkdir build
+cd build
+../cm3-dist-AMD64_LINUX-None/scripts/concierge.py install --prefix $HOME/cm3
+```
+
+Now `nano ~/.bash_profile` and add `$HOME/cm3/bin` to PATH
+
+```bash
+export PATH="$HOME/cm3/bin:$PATH"
+```
+
+Now we can verify that the install is complete.
+
+```bash
+source ~/.bash_profile
+cm3 --version
+```
+
+## Mojo
+
+We use the standard Mojo tools on Linux.
+
+### Mojo on Gentoo
+
+### Mojo on Ubuntu
 
 ## NASM
 
@@ -1131,7 +1303,21 @@ We use the Netwide Assembler and GNU ld tools on Linux.
 
 ### NASM on Gentoo
 
+This is one simple package in protage.
+
+```bash
+emerge -av dev-lang/nasm
+nasm -v
+```
+
 ### NASM on Ubuntu
+
+This is also very easy on apt.
+
+```bash
+sudo apt install nasm
+nasm -v
+```
 
 ## Nim
 
@@ -1139,7 +1325,21 @@ We use the standard Nim tools on Linux.
 
 ### Nim on Gentoo
 
+This is one simple package in protage.
+
+```bash
+emerge -av dev-lang/nim
+nasm -v
+```
+
 ### Nim on Ubuntu
+
+This is also very easy on apt.
+
+```bash
+sudo apt install nim
+nasm -v
+```
 
 ## Objective-C
 
@@ -1147,7 +1347,27 @@ We use the standard Clang tools on Linux.
 
 ### Objective-C on Gentoo
 
+In gentoo, we install gnustep and libobjc2, and it works quite nicely.
+
+```bash
+emerge gnustep-base/libobjc2 gnustep-base/gnustep-base gnustep-base/gnustep-make
+```
+
 ### Objective-C on Ubuntu
+
+This was really annoying for me. In theory, we just install the appropriate
+packages and go.
+
+```bash
+sudo apt update
+sudo apt install gobjc gnustep gnustep-devel
+```
+
+I ended up with a system that could not find header files for Objective-C when
+I attempted to build Objective-C code. If you run into the same thing,
+hey, there's always Gentoo or a VM of some kind. I basically hosed an Ubuntu VM
+trying to chase a fix, so I will leave the "official" recommendation above
+and this word of warning.
 
 ## Ocaml
 
@@ -1155,15 +1375,43 @@ We use the standard Ocaml tools on Linux.
 
 ### Ocaml on Gentoo
 
+This is an easy package in portage.
+
+```bash
+emerge -av dev-lang/ocaml
+ocaml --version
+```
+
 ### Ocaml on Ubuntu
+
+This is a simple package in apt that works.
+
+```bash
+sudo apt install ocaml
+ocaml --version
+```
 
 ## Octave (MATLAB)
 
-We use the standard Octave tools on Linux.
+We use the GNU Octave tools on Linux.
 
 ### Octave on Gentoo
 
+This is another easy package in portage.
+
+```bash
+emerge -av sci-mathematics/octave
+octave --version
+```
+
 ### Octave on Ubuntu
+
+This is available on apt easily.
+
+```bash
+sudo apt install octave
+octave --version
+```
 
 ## Oberon
 
@@ -1171,7 +1419,57 @@ We use the Vishap Oberon Compiler tools on Linux.
 
 ### Oberon on Gentoo
 
+I was able to figure out how to get Vishap Oberon Compiler to build
+on Gentoo with some work, some of it quite odd.
+
+First, I had to `sudo nano /etc/os-release` and change the `ID='gentoo'`
+line to `ID=gentoo`; note the removed single quotes. I replaced these
+quotes as soon as I was done with this build, assuming other parts
+may assume they are there.
+
+I also used `gcc-config` to make sure that I was using GCC-13 for the
+build, which seems to make it easier. Otherwise, it was a pretty
+standard build following the github.
+
+```bash
+sudo gcc-config x86_64-pc-linux-gnu-13
+. /etc/profile
+git clone https://github.com/vishaps/voc
+cd voc
+make full
+sudo make install
+sudo gcc-config x86_64-pc-linux-gnu-15
+. /etc/profile
+```
+
+In our `~/.bash_profile` we then export the installed bin directory.
+
+```bash
+export PATH="/opt/voc/bin:$PATH"
+```
+
 ### Oberon on Ubuntu
+
+This is surpisingly easy in Ubuntu. The only thing I did do is to ensure
+via `update-alternatives` that I was running GCC 13. See the C/C++ section
+for instructions on setting that up.
+
+```bash
+sudo update-alternatives --config gcc
+sudo update-alternatives --config g++
+git clone https://github.com/vishaps/voc
+cd voc
+make full
+sudo make install
+sudo update-alternatives --config gcc
+sudo update-alternatives --config g++
+```
+
+In our `~/.bash_profile` we then export the installed bin directory.
+
+```bash
+export PATH="/opt/voc/bin:$PATH"
+```
 
 ## Pascal
 
@@ -1179,7 +1477,21 @@ We use the standard Free Pascal tools on Linux.
 
 ### Pascal on Gentoo
 
+We use the basic portage package for this.
+
+```bash
+emerge -av dev-lang/fpc
+fpc -h
+```
+
 ### Pascal on Ubuntu
+
+This is also available as a simple apt package.
+
+```bash
+sudo apt install fpc
+fpc -h
+```
 
 ## Perl
 
@@ -1187,7 +1499,21 @@ We use the standard Perl tools on Linux.
 
 ### Perl on Gentoo
 
+There is a basic portage package for this.
+
+```bash
+emerge -av dev-lang/perl
+perl --version
+```
+
 ### Perl on Ubuntu
+
+This is also available as a simple apt package.
+
+```bash
+sudo apt install perl
+perl --version
+```
 
 ## PHP
 
@@ -1195,7 +1521,21 @@ We use the standard PHP tools on Linux.
 
 ### PHP on Gentoo
 
+There is a basic portage package for this.
+
+```bash
+emerge -av dev-lang/php
+php --version
+```
+
 ### PHP on Ubuntu
+
+This is also available as a simple apt package.
+
+```bash
+sudo apt install php
+php --version
+```
 
 ## Prolog
 
@@ -1203,7 +1543,24 @@ We use the GNU Prolog tools on Linux.
 
 ### Prolog on Gentoo
 
+There is a basic portage package for this.
+There are both a `prolog` and a `gprolog` package available in portage,
+and we use the one with the `g`.
+
+```bash
+emerge -av dev-lang/gprolog
+gplc --version
+```
+
 ### Prolog on Ubuntu
+
+This is also available as a simple apt package. Note that this
+is the `gprolog` package, preceded with a `g`.
+
+```bash
+sudo apt install gprolog
+gplc --version
+```
 
 ## Python
 
@@ -1211,7 +1568,27 @@ We use the standard Python tools on Linux.
 
 ### Python on Gentoo
 
+Portage depends on python, but you can get into the weeds of python slots and
+environments on Gentoo if you want. Portage manages the packages in the main
+python environment in Gentoo, and you typically create another environment
+to use other package managers. Keep up with the news on the official Gentoo
+feed, `eselect news read`, to be aware of signficant version changes. We just
+use python3 quite happily at this point.
+
+```bash
+python --version
+```
+
 ### Python on Ubuntu
+
+Python3 is often already installed. If not, it is a simple apt package.
+You can install the python-is-python3 to call into python as simply `python`
+instead of `python3`.
+
+```bash
+sudo apt install python3 python-is-python3
+python --version
+```
 
 ## R
 
@@ -1219,7 +1596,29 @@ We use the standard R tools on Linux.
 
 ### R on Gentoo
 
+There is a basic portage package for this.
+
+```bash
+emerge -av dev-lang/R
+R --version
+```
+
 ### R on Ubuntu
+
+For ubuntu, we have to add the CRAN sources to `/etc/apt/sources.list.d/cran.list`
+and install from there. First, to add to the file.
+
+```text
+deb https://cloud.r-project.org/bin/linux/ubuntu noble-cran40/
+```
+
+Then we can install.
+
+```bash
+sudo apt update
+sudo apt install r-base
+R --version
+```
 
 ## Racket
 
@@ -1249,7 +1648,21 @@ We use the standard Ruby tools on Linux.
 
 ### Ruby on Gentoo
 
+You can also get Ruby via the portage package.
+
+```bash
+emerge -av dev-lang/rub
+ruby --version
+```
+
 ### Ruby on Ubuntu
+
+You can get Ruby via apt easily.
+
+```bash
+sudo apt install ruby
+ruby --version
+```
 
 ## Rust
 
@@ -1278,10 +1691,15 @@ rustc --version
 ## Scala
 
 We use the standard Scala tools on Linux.
+I ended up not using any of the packages that are immediately in the
+package managers on linux for this. You can find the appropriate command line
+to run on [The Scala Website](https://www.scala-lang.org/download/).
 
-### Scala on Gentoo
-
-### Scala on Ubuntu
+```bash
+curl -fL https://github.com/coursier/coursier/releases/latest/download/cs-x86_64-pc-linux.gz | gzip -d > cs && chmod +x cs && ./cs setup
+source ~/.bash_profile
+scala --version
+```
 
 ## Scheme
 
@@ -1323,20 +1741,24 @@ chezscheme --version
 
 ## Simula
 
-The primary case to show here is getting GNU cim running on Ubuntu.
-
-### Simula on Gentoo
-
-For simula, I could not get GNU cim to compile on Gentoo, and I have ultimately
-decided to run it on my Ubuntu VM. Thus I follow the Ubuntu instructions.
-
-### Simula on Ubuntu
-
-First, usual requirements: `sudo apt install build-essential libtool`
+We use GNU cim. It is not always the easiest to get going, but I was able
+to figure it out.
 
 I downloaded 5.1 tar.gz from
 [The GNU Cim Website](https://www.gnu.org/prep/ftp.html#north_america). Extract
 this to a working directory somewhere for compilation with `tar zxvf cim-5.1.tar.gz`.
+
+I was able to get Simula working on Gentoo and Ubuntu with GCC-13 (see C or C++ section).
+You need to switch to the correct GCC version before beginning.
+
+```bash
+# Gentoo:
+sudo gcc-config x86_64-pc-linux-gnu-13
+. /etc/profile
+
+# Ubuntu:
+sudo update-alternatives --config gcc
+```
 
 Then I had to modify 2 files. In lib/ : simset.c and simulation.c both try to
 `#include ../../lib/cim.h` But that doesn't exist obviously on my system. However,
@@ -1344,9 +1766,15 @@ it does exist literally right next door. So I just changed them to cim.h bare.
 This made cim compile and install well under Ubuntu.
 
 ```bash
+wget http://mirror.keystealth.org/gnu/cim/cim-5.1.tar.gz
+tar zxvf cim-5.1.tar.gz
+cd cim-5.1
+nano ./lib/simset.c # Fix the ../../lib/cim.h to just cim.h at the very top
+nano ./lib/simulation.c # Fix the ../../lib/cim.h to just cim.h at the very top
 ./configure
 make
 sudo make install
+cim --version
 ```
 
 This installs libraries in `/usr/local/lib` that need to be made aware to
@@ -1364,9 +1792,20 @@ For a temporary fix, we can also
 export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/usr/local/lib
 ```
 
+At the end, don't forget to set back to GCC 15, if that is your default.
+
+```bash
+# Gentoo
+sudo gcc-config x86_64-pc-linux-gnu-15
+. /etc/profile
+
+# Ubuntu:
+sudo update-alternatives --config gcc
+```
+
 ### Protable Simula
 
-I did get Portable Simula working on Gentoo, although I now use cim.
+I did get Portable Simula working as well, although I now use cim.
 This should probably work fine on any distribution with Java installed.
 Latest Simula requires Java 25 or later.
 SimulaSetupR21 requires Java 21-25.
@@ -1394,9 +1833,53 @@ offers, you can add the `-noPopup` argument.
 
 We use the GNU Smalltalk tools on Linux.
 
-### Smalltalk on Gentoo
+I was able to get Simula working on Gentoo and Ubuntu with GCC-13 (see C or C++ section).
+You need to switch to the correct GCC version before beginning.
 
-### Smalltalk on Ubuntu
+```bash
+# Gentoo:
+sudo gcc-config x86_64-pc-linux-gnu-13
+. /etc/profile
+
+# Ubuntu:
+sudo update-alternatives --config gcc
+sudo update-alternatives --config g++
+```
+
+We download the latest version, which at the time of writing was 3.2.5,
+extract it, and build and install it in the usual `make` way.
+
+This got extremely weird, to be honest, though.
+
+On Gentoo, I had to edit the `packages/blox/tk/BloxTK.c` file and remove
+references to a parameter that is not recognized in my system. I just
+replaced it with nothing, which reduces useful output in development for
+that unique case, but I can live with it.
+
+On both Gentoo and Ubuntu, the `make` appeared to have an obscure error
+related to awk. `make install` immediately worked, after I noticed the
+binaries all seemed to be there. This has been a working system for me since.
+
+```bash
+wget https://ftp.gnu.org/gnu/smalltalk/smalltalk-3.2.5.tar.gz
+tar zxvf smalltalk-3.2.5.tar.gz
+cd smalltalk-3.2.5
+./configure
+make
+sudo make install
+```
+
+At the end, don't forget to set back to GCC 15, if that is your default.
+
+```bash
+# Gentoo
+sudo gcc-config x86_64-pc-linux-gnu-15
+. /etc/profile
+
+# Ubuntu:
+sudo update-alternatives --config gcc
+sudo update-alternatives --config g++
+```
 
 ## Swift
 
@@ -1404,7 +1887,28 @@ We use the standard Swift tools on Linux.
 
 ### Swift on Gentoo
 
+Swift is easily available in portage.
+
+```bash
+emerge -av dev-lang/swift
+swift --version
+```
+
 ### Swift on Ubuntu
+
+Swift is a little more annoying on Ubuntu. We will use the Swiftly tool
+to manage it on Ubuntu. [The Swift Website](https://www.swift.org/install/linux/)
+describes this.
+
+```bash
+curl -O https://download.swift.org/swiftly/linux/swiftly-$(uname -m).tar.gz && \
+    tar zxf swiftly-$(uname -m).tar.gz && \
+    ./swiftly init --quiet-shell-followup && \
+    . "${SWIFTLY_HOME_DIR:-$HOME/.local/share/swiftly}/env.sh" && \
+    hash -r
+source ~/.bash_profile
+swift --version
+```
 
 ## Tcl
 
@@ -1412,7 +1916,21 @@ We use the standard Tcl tools on Linux.
 
 ### Tcl on Gentoo
 
+This another simply easy one on Gentoo.
+
+```bash
+emerge -av dev-lang/tcl dev-lang/tk
+# tclsh
+```
+
 ### Tcl on Ubuntu
+
+apt makes it easy on Ubuntu as well.
+
+```bash
+emerge -av dev-lang/tcl dev-lang/tk
+# tclsh
+```
 
 ## Typescript
 
@@ -1420,15 +1938,38 @@ We use the standard Typescript tools and node on Linux.
 
 ### Typescript on Gentoo
 
+This another simply easy one on Gentoo.
+
+```bash
+emerge -av dev-lang/typescript
+tsc --verison
+```
+
 ### Typescript on Ubuntu
+
+Ubuntu annoys me about this one, but we have to go through NPM.
+
+```bash
+sudo apt install nodejs npm
+sudo npm install -g typescript
+tsc --version
+```
 
 ## V
 
 We use the standard V tools on Linux.
 
-### V on Gentoo
-
-### V on Ubuntu
+```bash
+wget https://github.com/vlang/v/releases/latest/download/v_linux.zip
+unzip v_linux.zip
+cd v
+make
+# you can move the v directory to $HOME if you wish; this is my preferred
+cd .. && cp -fv ./v ~/v
+# Finally, v will make a global symlink for us
+sudo ~/v symlink
+v --version
+```
 
 ## Visual Basic .Net
 
