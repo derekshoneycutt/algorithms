@@ -263,9 +263,7 @@ gnatmake --version
 
 ### Ada on Ubuntu
 
-We need to isntall GNAT. Which we can just do as the lowercase version.
-Once installed, it will tell us the version. We can try running any source file
-if we want from there using `run.sh` or carefully compile with `gnatmake` manually.
+We need to isntall GNAT, which is kindly on apt for easy install.
 
 ```bash
 sudo apt install gnat
@@ -286,7 +284,7 @@ First, ensure Java is already installed. See Java.
 
 We can download the language ZIP file from the
 [Installation Options](https://ballerina.io/downloads/installation-options/)
-and continue with installation from there.
+and continue with installation from there. *todo: describe this*
 
 ### Ballerina on Ubuntu
 
@@ -294,6 +292,7 @@ I needed to make sure that Java was installed first, despite having a .deb. See 
 
 For Ubuntu, we download Ballerina right from the
 [Downloads](https://ballerina.io/downloads/) page on their website, for us in deb form.
+I simply install this, and Ballerina is up and going for me.
 
 ## C
 
@@ -339,7 +338,6 @@ apt install gcc
 sudo update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-13 110
 sudo update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-15 220
 ```
-
 
 ## C++
 
@@ -690,11 +688,31 @@ sudo apt install --install-suggests dotnet-sdk-10.0
 
 ## Factor
 
-We use the standard Factor tool on Linux.
+We use the standard Factor tool on Linux. To get this, navigate to the
+[Factor website](https://factorcode.org) and download the tar.gz package
+for Linux. I assume that the tar.gz is downloaded to `~`. Adjust your own
+actions accordingly. This is the same process for all versions of Linux.
 
-### Factor on Gentoo
+```bash
+tar zxvf factor-linux-*.tar.gz
+cd factor
+```
 
-### Factor on Ubuntu
+Then `nano ~/.bash_profile` to add the factor directory to PATH. Note, however,
+that many linux machines come with a `factor` in `/usr/bin` that calculates a factor.
+If anything in your system is expecting this from your user, this could be
+problematic. You will need to consider this yourself.
+
+```bash
+export PATH=$HOME/factor:$PATH
+```
+
+After doing `source ~/.bash_profile` we should then be able to get coding
+with factor.
+
+```bash
+factor --version
+```
 
 ## FreeBASIC
 
@@ -702,7 +720,28 @@ We use the standard FreeBASIC tool on Linux.
 
 ### FreeBASIC on Gentoo
 
+The FreeBASIC compiler is available on portage.
+
+```bash
+emerge -av dev-lang-fbc
+fbc --version
+```
+
 ### FreeBASIC on Ubuntu
+
+Go to [The FreeBASIC Website](https://freebasic.net) and download the
+latest version of FreeBASIC from sourceforge. This will give you a deb file
+you can install through the ordinary package manager.
+
+This failed to install a required libtinfo5, and this appears not to
+exist on Ubuntu repositories any more. So we need to manually install that.
+
+```bash
+sudo apt update
+wget http://security.ubuntu.com/ubuntu/pool/universe/n/ncurses/libtinfo5_6.3-2ubuntu0.1_amd64.deb
+sudo apt install ./libtinfo5_6.3-2ubuntu0.1_amd64.deb
+fbc --version
+```
 
 ## Forth
 
@@ -710,7 +749,21 @@ We use the GNU Forth tool on Linux.
 
 ### Forth on Gentoo
 
+I did not get GNU forth or any other forth tool to work correctly under Linux.
+Yes, there is a `dev-lang/gforth` package in portage. This is even more tragic,
+as it is harder to even try to modify the source in there. However, I get the
+same errors when trying to build the latest version from source.
+My recommendation here is to use a VM build server with Ubuntu Server.
+
 ### Forth on Ubuntu
+
+You can in fact just install gforth from apt easily enough. In my experience,
+it is also quite easy to build the latest version from source with standard means.
+
+```bash
+sudo apt install gforth
+gforth --version
+```
 
 ## Fortran
 
@@ -718,7 +771,25 @@ We use the GNU Fortran tool on Linux.
 
 ### Fortran on Gentoo
 
+We have to add the `fortran` USE flag to gcc and, if necessary, rebuild GCC with the
+new flag.
+
+```bash
+emerge -p gcc
+# If you already have the ada flag, you can skip the next 2 lines
+echo "sys-devel/gcc fortran" >> /etc/portage/package.use/gcc
+emerge -avU gcc
+gfortran --version
+```
+
 ### Fortran on Ubuntu
+
+We need to isntall gfortran, which is kindly on apt for easy install.
+
+```bash
+sudo apt install gfortran
+gnatmake --version
+```
 
 ## Gleam
 
@@ -726,7 +797,24 @@ We use the standard Gleam tool on Linux.
 
 ### Gleam on Gentoo
 
+Gleam is on portage, and even recognized on the official website for it.
+
+```bash
+sudo echo 'dev-lang/gleam ~amd64' >> /etc/portage/package.accept_keywords
+emerge -av dev-lang/gleam
+gleam --version
+```
+
 ### Gleam on Ubuntu
+
+To get Gleam working on Ubuntu, I needed to build it from scratch. This requires
+Rust to be installed first, at the lastest stable. See Rust.
+
+```bash
+git clone https://github.com/gleam-lang/gleam.git --branch v1.14.0
+cd gleam
+cargo install --path gleam-bin --force --locked
+```
 
 ## Go
 
@@ -734,7 +822,21 @@ We use the standard Go tool on Linux.
 
 ### Go on Gentoo
 
+Go is on portage.
+
+```bash
+emerge -av dev-lang/go
+go --version
+```
+
 ### Go on Ubuntu
+
+It is pretty easy to install a more recent build of Go via snap.
+
+```bash
+sudo snap install --classic go
+go --version
+```
 
 ## Haskell
 
@@ -742,7 +844,21 @@ We use the standard Glasgow Haskell Compiler on Linux.
 
 ### Haskell on Gentoo
 
+The Glasgow Haskell Compiler is on portage.
+
+```bash
+emerge -av dev-lang/ghc
+ghc --version
+```
+
 ### Haskell on Ubuntu
+
+The Glasgo Haskell Compiler can be easily installed via apt.
+
+```bash
+sudo apt install ghc
+ghc --version
+```
 
 ## Haxe
 
@@ -750,7 +866,25 @@ We use the standard Haxe tool on Linux.
 
 ### Haxe on Gentoo
 
+Download the binaries from the [Haxe Website](https://haxe.org/download/)
+and place the files into somewhere in your PATH. I like it in a `~/bin` and
+exporting that as part of PATH in `~/.bash_profile`.
+
+```bash
+mkdir ~/haxelib && haxelib setup ~/haxelib
+```
+
 ### Haxe on Ubuntu
+
+There is a PPA that is well maintained by the Haxe team to download
+recent versions.
+
+```bash
+sudo add-apt-repository ppa:haxe/releases -y
+sudo apt update
+sudo apt install haxe
+mkdir ~/haxelib && haxelib setup ~/haxelib
+```
 
 ## Icon
 
@@ -773,6 +907,13 @@ We use the standard Idris2 tools on Linux.
 We use Java on Linux.
 
 ### Java on Gentoo
+
+There is a good, binary distribution of OpenJDK available on portage.
+
+```bash
+emerge -av dev-java/openjdk-bin
+java --version
+```
 
 ### Java on Ubuntu
 
@@ -974,7 +1115,23 @@ We use the standard Rust tools on Linux.
 
 ### Rust on Gentoo
 
+Rust is typically installed at first install in Gentoo, as the kernel now requires it.
+If you need to review the installation, you can review portage.
+
+```bash
+emerge -p dev-lang/rust
+rustc --version
+```
+
 ### Rust on Ubuntu
+
+For Ubuntu, we use rustup to manage the Rust install.
+
+```bash
+curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
+source ~/.bash_profile
+rustc --version
+```
 
 ## Scala
 
