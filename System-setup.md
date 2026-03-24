@@ -1390,6 +1390,14 @@ hey, there's always Gentoo or a VM of some kind. I basically hosed an Ubuntu VM
 trying to chase a fix, so I will leave the "official" recommendation above
 and this word of warning.
 
+That said... I did the following export, and my Objective-C compilations
+began to work correctly again. I consider a bit of a hack, but if you need
+it, and it works for you, too...
+
+```bash
+export OBJC_INCLUDE_PATH="/usr/lib/gcc/x86_64-linux-gnu/15/include/:$OBJC_INCLUDE_PATH"
+```
+
 ## Ocaml
 
 We use the standard Ocaml tools on Linux.
