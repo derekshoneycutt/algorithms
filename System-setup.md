@@ -367,7 +367,7 @@ so we already have the basics. We can view the version that was installed to be 
 
 *Quick warning*: The code in this repository was coded on Gentoo, where I immediately
 had access to GCC 15. This means I am already using modern C++ that is not available
-on Ubuntu without building GCC from source.
+on Ubuntu without adding testing repositories. This may change as Ubuntu upgrades, etc.
 
 ```bash
 g++ --version
