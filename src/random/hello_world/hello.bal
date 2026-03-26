@@ -1,8 +1,7 @@
 import ballerina/io;
 
-// Comment
-
 # The main entry to print hello.
 public function main() {
+    // Print with a new line
     io:println("Hello, world!");
 }

@@ -1,7 +1,5 @@
 #include <stdio.h>
 
-// Comment
-
 /**
  * @brief The main entry point to the application.
  * 
@@ -9,6 +7,7 @@
  */
 int main()
 {
+    // Print
     printf("Hello, world!\n");
 
     return 0;

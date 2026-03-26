@@ -3,9 +3,8 @@
 -module(hello).
 -export([main/0]).
 
-% Comment
-
 %% @doc The main entry point for the application
 main() ->
+    % Print hello world and a new line
     io:format("Hello, world!~n"),
     ok.

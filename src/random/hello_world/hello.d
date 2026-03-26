@@ -4,12 +4,10 @@
 */
 import std.stdio;
 
-// Hello
-
 /++
- * Main entry point to the application
+ + Main entry point to the application
  +/
 void main()
 {
-    writeln("Hello, world!");
+    writeln("Hello, world!"); // Hello
 }

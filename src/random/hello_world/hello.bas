@@ -1,8 +1,6 @@
-
-REM Comment
-
 /'
     All this app does is say hello!
 '/
 
-Print "Hello, world!" ' Comment
+REM Print it
+Print "Hello, world!" ' Adds a new line automatically

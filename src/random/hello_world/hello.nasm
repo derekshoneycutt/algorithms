@@ -1,5 +1,4 @@
 ; Prints hello to the screen
-
 DEFAULT REL
 
 section .note.GNU-stack noalloc noexec nowrite progbits

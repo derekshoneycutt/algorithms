@@ -2,6 +2,5 @@
     This application prints hello world
  */
 
-// Comment
-
+// Write the line to the console
 Console.WriteLine("Hello, world!");

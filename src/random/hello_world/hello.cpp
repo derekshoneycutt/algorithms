@@ -1,7 +1,5 @@
 #include <print>
 
-// Comment
-
 /**
  * @brief The main entry point to the application.
  * 
@@ -9,6 +7,7 @@
  */
 int main()
 {
+    // print it with a new line
     std::println("Hello, world!");
 
     return 0;

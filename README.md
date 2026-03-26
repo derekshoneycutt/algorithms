@@ -140,24 +140,81 @@ For MMIX and NASM, I have decided to start collecting a small standard library
 of methods that can be linked in. This is in `stdlib/`. I am mostly favoring
 my own implementation including syscall routines instead of linking to libc.
 
-### Why did I do it *that* way?
+## On Analysis
 
-Sometimes, I decided to follow interesting coding
-techniques that are on my mind due to reading through Knuth and the
-available features of all these languages. For example, Knuth quickly discusses
-coroutines, and I quickly began expirementing with different ways to
-express these concepts in code, despite not being inherently part
-of the algorithm at hand. This does make for some fun albeit maybe unnecessary
-patterns at times.
+The starting point of this project is and will continue for some time to
+be me reading through Knuth and wanting to explore some of the algorithms
+and exercises myself in my own, fun way.
 
-All of this fits the ultimate aim of this project to explore more than
-could ever be called necessary. Additionally, it would be somewhat superfluous
-to simply do the raw algorithms in MMIX. That has pedagological interest, but
-for me, this project includes being a bit more playful and explorative. I am
-not intending to bound myself to explicit implementations of algorithms and
-exercises in Knuth only. Rather, I am having fun and playing as I go.
+That said, I am me. I have been writing code since I was something like 8
+or 10 years old. My memory is not awesome, so the exact date is fuzzy.
+I have never really thought it mattered at that point anyway, but it is
+a fun fact. I have been professionally writing code for most of my adult
+life. At the same time, my (BA) degree in psychology (and math), enjoy
+reading a lot, and I enjoy writing about my own experiences.
 
-Again. Why not?
+Being me leads me to wanting to give a direction to this project that
+includes writing an analysis about my experience and what programmers
+are trying to tell each other with the different styles I am playing
+with. I could never outdo Knuth's mathematical analyses of the algorithms
+I am going through, and I would refer anyone interested in that analysis
+there. However, I think, through this project and my unique background,
+I can contribute something new and different in an analysis about the
+empirical, phenomenological experience of studying algorithms through
+60 different programming languages.
+
+This will give me an opportunity to explain what my thoughts are in
+writing each piece of code the way I did. There are choices made
+along the way, some of which are not immediately obvious from the
+code alone. This gives an opportunity to discuss what programers
+are saying when we use these techniques that appear unnecessary in
+immediate perception, as well as give insight into my own thoughts
+writing the code itself.
+
+There are a few major principles that will be central to these analyses.
+Before those are stated, even more important to say: this project is
+done for fun. This kind of analysis being included in that fun. A lot
+of people do not get off on this kind of shit. That is known. But. Well. ...
+
+No langauge is **right**. No language is **wrong**. Each language lives in
+a historical moment and within a meaningful philosophy that can be
+respected and enjoyed in this project without demanding anything about
+one having any superiority over another. This analysis is not interested in
+how people have misused languages in terms of bad code, and it is not
+overly concerned in whether this project misuses code in that negative sense.
+This analysis is more likely to be curious about how code is misused
+in society, although there is likely limited chance for it in this
+project. The benefit of working through the algorithms with another
+analysis, such as Knuth, is inherent in that anyone who reads along can
+learn a lot and be better programmers from doing so. However, the goal
+of these analyses is more of just a curious comparison of the different
+experiences.
+
+This analysis has a necessarily phenomenological basis. There is not
+an effort to make a major mathematical analysis of the languages in
+any regard here. There is ample space to explore that, as some have.
+Just comparing what a similar goal outputs in different languages
+brings unique value to itself. The interest in this analysis is in
+pointing out the differences and begining to explore some underlying
+semantic interests in how programmers use these different languages to
+construct and exercise different meanings to themselves and other
+programmers who employ the languages in reading and writing.
+Semantics often has a meaning within programming languages
+that somewhat escapes the goal of this analysis, however. Rather
+than the typical use within programming languages, this is going
+to come at a kind of social semantics of code that is more
+interested in the experience of making interpersonal meaning through
+code and the experience of perceiving the social meaning made by
+others in code. The computer is another actor that necessarily limits
+and acts upon part of this meaning, but there are many opportunities
+to explore the irrational human meaning over the inhuman and objective.
+
+If any time these principles seem to be clearly in violation or
+just incoherently applied, that is the entire fault of myself, the author.
+
+If someone derives some benefit or enjoyment out of my ramblings here,
+then that is quite wonderful. If we include myself, then the project
+is already a success!
 
 ## Languages
 
