@@ -47,6 +47,8 @@ task. To the Gentoo user, it is hardly a noteable day.
 Ubuntu had the negative of much more frequently needing to add repository
 sources in the package manager. This is a thing in Gentoo as well, but it is
 somewhat more common to just go grab the source and build it oneself.
+Ubuntu tends to side on the just finding a package and installing it. It is
+odd to have to build it yourself from source, let alone modify sources.
 One cannot judge these against each other as these are fundamental differences
 in the way the OSs are designed, not anything to do with our code projects.
 
