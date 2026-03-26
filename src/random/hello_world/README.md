@@ -966,13 +966,13 @@ the quotes are talking amongst the programmers, separate from the small
 talking among virtual objects as actors in the code?" Well. See.
 
 There is an aesthetic and semantic discussion concerning how strings are
-stored. In Smalltalk, all strings are represented in single quote form.
+represented. In Smalltalk, all strings are represented in single quote form.
 In BASIC, single quotes are comments. In most C-style languages, single
 quotes are reserved for single characters and double quotes for full
 strings. Some languages allow either of the quote style for wrapping
 strings, typically as long as they are used both opening and closing.
 Javascript, as an example of another difference, uses the
-backtick `\`` to denote templates that are typically a form a string.
+backtick to denote templates that are typically a form a string.
 This can all be a point of contention among programmers who have strong
 preferences, of course. Perhaps Smalltalk should be appreciated for
 making double quotes comments and solving part of the discussion in their
