@@ -47,8 +47,6 @@ task. To the Gentoo user, it is hardly a noteable day.
 Ubuntu had the negative of much more frequently needing to add repository
 sources in the package manager. This is a thing in Gentoo as well, but it is
 somewhat more common to just go grab the source and build it oneself.
-Ubuntu tends to side on the just finding a package and installing it. It is
-odd to have to build it yourself from source, let alone modify sources.
 One cannot judge these against each other as these are fundamental differences
 in the way the OSs are designed, not anything to do with our code projects.
 
@@ -59,7 +57,10 @@ for many even if it means changing a couple lines of code somewhere,
 even if it might be avoided day to day. Advanced interventions were
 avoided at first for this project, but both platforms ultimately
 required similar techniques and resulting workarounds to get all
-languages working.
+languages working. Ubuntu tends to side on the just finding a package
+and installing it. It is odd to have to build it yourself from source,
+let alone modify sources. Yet, that ended up being required for this
+project to get all 60 langauges working.
 
 While stepping away from OSs and their package managers, Dart was as
 easy as installing VS Code and then installing the Flutter extension.
