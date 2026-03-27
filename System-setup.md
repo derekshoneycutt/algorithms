@@ -5,11 +5,18 @@ yourself if you try to follow the instructions here. The goal is to make it
 possible to run the code in this repository in a standard way, but it can
 be helpful for other means.
 
-This project is currently developed to build and run on Linux computers. All
-the code is currently running on command line.
+This project is currently developed to build and run on Linux and FreeBSD
+computers. All the code is currently running on command line.
 
 Gentoo is the first supported platform, on account of it is the platform I like
-to run for fun. However, it has some issues that require further setup.
+to run for fun. However, it has some issues that require further setup. Namely,
+I could not get Modula-3 to run under Gentoo. This requires an Ubuntu Server
+or FreeBSD VM running SSH that can run that code.
+
+There are some languages that someone can probably get working under FreeBSD
+if they want to play with doing the builds and dependencies all well. I skipped
+this a number of times so far, but this document may be updated in the future
+if I find working solutions for the missing packages.
 
 ## Basic Setup
 
@@ -18,6 +25,7 @@ tips that can help setup the base system for building packages in the various
 languages given here.
 
 All Linux variants should export variables for use in the `~/.bash_profile`.
+FreeBSD should also have the same exports in `~/.profile`.
 The VM variables are described further below, but the TIMEOUT variable will
 be used on every call in `run.sh`. This sets how long the command is allowed
 to run before it is killed. This is especially important on headless VMs, but
@@ -79,6 +87,14 @@ I will not try to go into the most depth, just choosing a common, simple route
 and offering it if it works on my own system. Please do review the Ubuntu
 documentation and make your own decisions as well for these common languages.
 
+### FreeBSD
+
+If you are going to run FreeBSD as a code server, you need to make sure that
+you choose the SSH Daemon running on startup, or install it yourself. Otherwise,
+there is not much more to do. The
+[FreeBSD Handbook](https://docs.freebsd.org/en/books/handbook/bsdinstall/)
+contains an excellent chapter on installing FreeBSD, as well as many other topics.
+
 ## Setting up an Unbuntu Server VM as a Code Runner
 
 A small collection of languages do not seem to like the Gentoo system. Unsurprisingly,
@@ -118,12 +134,13 @@ emerge @module-rebuild
 
 ### VM Setup
 
-Setup a VM for running Ubuntu Server. This should be pretty basic and obvious to any
-VM software. In VirtualBox, you can simply select the Ubuntu Server iso and select all
-your values.
+Setup a VM for running Ubuntu Server or FreeBSD. This should be pretty basic and
+obvious to any VM software. In VirtualBox, you can simply select the iso and
+select all your values.
 
-For OS, Ubuntu Server is the best choice of Ubuntu. This comes with SSH already running
-and setup for being run headless. This way, we can have the VM running in the background
+For OS, Ubuntu Server is the best choice of Ubuntu. FreeBSD also works wonderfully
+as a VM code server. These both come with SSH already running and setup for being
+run headless. This way, we can have the VM running in the background
 as just an SSH host.
 
 A standard install should be enough to get going here. More RAM and CPU cores will
@@ -151,10 +168,10 @@ At this point, you can copy `run.sh` from this repository to `/home/coderun/run.
 This will be used to run any code that is requested on the VM. Follow the Ubuntu
 setup for any language that is desired to be run on the VM.
 
-Just as the other Ubuntu setups, we need the essential build setup.
+If you are on Ubuntu, we need the essential build setup.
 
 ```bash
-apt install build-essential libtool cmake
+apt install build-essential libtool libtool-bin cmake libstdc++-13-dev git curl unzip xz-utils zip flex bison ninja-build
 ```
 
 ### SSH Setup
@@ -173,14 +190,17 @@ ssh -p coderun@127.0.0.1 echo "test"
 
 Once languages are set up in the guest OS, we can specify that the project should
 compile and run them on the VM by modifying the `DEREKALGOS_RUNONVM` variable. The
-best way to do this is by modifying `~/.bash_profile` with the following line,
-and then running `source ~/.bash_profile` or restarting your OS session. All
+best way to do this is by modifying your profile--`~/.bash_profile` on Linux and
+`~/.profile` on FreeBSD--with the following lines,
+and then running `source ~/.bash_profile` or `source ~/.profile`.
+
+Especially on the host, OS, pay attention to `DEREKALGOS_RUNONVM`. All
 languages that should run on the VM are in this string in the host OS,
 separated by a single space. This should probably be an empty string on the
 guest OS, unless you want to setup a string of code running servers.
 
 Additionally, on the guest OS, you should at least export the `DEREKALGOS_TIMEOUT`
-environment variable in `~/.bash_profile`.
+environment variable in your profile.
 
 For some languages, it is important that we always run code in GCC-13. However,
 our default is to use GCC-15. For this purpose, we need to set `DEREKALGOS_GCC13`
@@ -192,7 +212,7 @@ is required for e.g. Simula.
 In fact, there are several other variables you can modify, including the username,
 port, and other factors of the SSH server that will be connected to for running
 code. As per `DEREKALGOS_RUNONVM`, it is normal for the host OS and guest OS
-to set different values in their respective `~/.bash_profile` instances.
+to set different values in their respective profile instances.
 
 ```bash
 export DEREKALGOS_RUNONVM="forth modula3 oberon simula smalltalk"
@@ -211,10 +231,10 @@ export DEREKALGOS_GXX13NAME="x86_64-pc-linux-g++"
 ### VM Hibernation
 
 This is generally good enough to get going once we install the language support as
-well. However, there is a significant issue that the VM will hibernate and take tens of
-minutes to start up again at times. To fix this, we need to turn off some services
-that will try to force it, and also update grub settings to change how the OS is started.
-We start with disabling the services.
+well. However, in Ubuntu Server, there is a significant issue that the VM will
+hibernate and take tens of minutes to start up again at times. To fix this, we
+need to turn off some services that will try to force it, and also update grub
+settings to change how the OS is started. We start with disabling the services.
 
 ```bash
 sudo systemctl mask sleep.target suspend.target hibernate.target hybrid-sleep.target
@@ -281,7 +301,6 @@ new flag.
 
 ```bash
 emerge -p gcc
-# If you already have the ada flag, you can skip the next 2 lines
 echo "sys-devel/gcc ada" >> /etc/portage/package.use/gcc
 emerge -avU gcc
 gnatmake --version
@@ -296,11 +315,46 @@ sudo apt install gnat
 gnatmake --version
 ```
 
+### Ada on FreeBSD
+
+We can get GNAT from pkg. The simplest includes GNAT 12, but we
+can get GNAT 14 as well if we want.
+
+```sh
+sudo pkg install gmake gprbuild gnat12 git gnupg alire
+```
+
+I ran into some issues here. Because I had multiple versions of GCC
+installed already, and gprbuild wants to install GCC12 for yet another,
+neither gnat12 nor gnat14 ended up actually installing properly on
+my VM. Rather, I got a nice little package of executables to do with
+what I wanted. This includes versions of GCC, so there is some
+apprehension about just extracting it and setting it as path. That said,
+the basic idea of how to get them and make them usable, if you use it
+cautiously...
+
+```sh
+tar xvf /usr/local/share/gnat14/assets/gnat-x86_64-freebsd.15-14.2.0.tar.xz
+cd gnat-x86_64-freebsd.15-14.2.0
+mkdir ~/.local
+mv -fv ./* ~/.local
+```
+
+Then you can export variables to access them well.
+
+```sh
+export PATH="$HOME/.local/bin/:$PATH"
+export LD_LIBRARY_PATH="$HOME/.local/lib/:$LD_LIBRARY_PATH"
+export LIBRARY_PATH="$HOME/.local/lib/:$LIBRARY_PATH"
+export C_INCLUDE_PATH="$HOME/.local/include/:$C_INCLUDE_PATH"
+export CPP_INCLUDE_PATH="$HOME/.local/include/:$CPP_INCLUDE_PATH"
+```
+
 ## Ballerina
 
 Ballerina requires Java. The
 [Installation Options](https://ballerina.io/downloads/installation-options/)
-states taht Java version 11 is required for Update 7 and below,
+states that Java version 11 is required for Update 7 and below,
 Java version 17 for Updates 8, 9, and 10, and Java 21 for
 Update 11 and above.
 
@@ -337,6 +391,12 @@ Simply install this, and Ballerina is up and going.
 ```bash
 bal --version
 ```
+
+### Ballerina on FreeBSD
+
+Ballerina runs on Java, so maybe we can look at how to get support. Immediately, it
+is noted that there are bash scripts that run the underlying java. However, they
+require bash. They may be able to be modified. I have decided not to try at this point.
 
 ## C
 
@@ -397,6 +457,33 @@ sudo update-alternatives --config gcc
 gcc --version
 ```
 
+### C on FreeBSD
+
+The default compiler on FreeBSD that usually comes preinstalled is Clang,
+which we use for some purposes. However, we primarily favor GCC for C/C++,
+and it is also required for several other builds.
+
+GCC is available on pkg in multiple versions.
+
+```sh
+pkg install gcc gcc13 gcc15
+```
+
+FreeBSD does not have the same kind of tooling available for managing
+multiple versions of GCC in a single place. Rather, we will need to be prepared
+to play with simlinks, PATH, and linker environment variables to make
+sure everything stays good. A quick hack that is used in the run script,
+you can create symlinks in a folder and specify that directory first in
+PATH. You can use `whereis gcc` and similar to find the exact location
+of the executables you will link to.
+
+```sh
+whereis gcc15
+mkdir -p $HOME/links
+ln -s /usr/local/bin/gcc15 $HOME/links/gcc
+PATH="$HOME/links/:$PATH" gcc --version
+```
+
 ## C++
 
 We use GCC on Linux.
@@ -454,6 +541,34 @@ sudo update-alternatives --config g++
 g++ --version
 ```
 
+### C++ on FreeBSD
+
+The default compiler on FreeBSD that usually comes preinstalled is Clang,
+which we use for some purposes. However, we primarily favor GCC for C/C++,
+and it is also required for several other builds.
+
+GCC is available on pkg in multiple versions.
+
+```sh
+pkg install gcc gcc13 gcc15
+```
+
+FreeBSD does not have the same kind of tooling available for managing
+multiple versions of GCC in a single place. Rather, we will need to be prepared
+to play with simlinks, PATH, and linker environment variables to make
+sure everything stays good. A quick hack that is used in the run script,
+you can create symlinks in a folder and specify that directory first in
+PATH. You can use `whereis gcc` and similar to find the exact location
+of the executables you will link to.
+
+```sh
+whereis gcc15
+mkdir -p $HOME/links
+ln -s /usr/local/bin/gcc15 $HOME/links/gcc
+ln -s /usr/local/bin/g++15  $HOME/links/g++
+PATH="$HOME/links/:$PATH" gcc --version
+```
+
 ## C\#
 
 We have 2 options for any dotnet language on Linux these days. I use the
@@ -501,17 +616,38 @@ repository is commented here.
 sudo apt install --install-suggests dotnet-sdk-10.0
 ```
 
+### C\# on FreeBSD
+
+The FreeBSD team has made .NET surprisingly easy for not being so immediately
+supported on official channels. It is not always up to the latest version, but
+is often on its way.
+
+```sh
+sudo pkg install dotnet
+dotnet --version
+dotnet --list-sdks
+dotnet --list-runtimes
+```
+
 ## Clojure
 
 We use the Leiningen tool on Linux. On any distribution, this requires Java.
 See Java.
 
-Once java is installed, all Linux flavors use the lein script.
+Once java is installed, all Linux flavors use the lein script. FreeBSD uses
+`pkg install` easily enough.
 
 ```bash
+# Linux
 wget https://raw.githubusercontent.com/technomancy/leiningen/stable/bin/lein
 sudo chmod a+x ./lein
 sudo mv -vf ./lein /usr/bin/lein
+lein
+```
+
+```sh
+# FreeBSD
+sudo pkg install leiningen
 lein
 ```
 
@@ -548,6 +684,15 @@ sudo apt install gnucobol
 cobc --version
 ```
 
+### COBOL on FreeBSD
+
+Another easy one with pkg.
+
+```sh
+sudo pkg install gnucobol
+cobc --version
+```
+
 ## D
 
 We use the standard D compiler on Linux.
@@ -568,6 +713,19 @@ For Ubuntu, there is no apt package, but it is available on snap.
 ```bash
 sudo snap install --classic dmd
 dmd --version
+```
+
+### D on FreeBSD
+
+For FreeBSD, we can use the
+[Official Install Script](https://dlang.org/install.html), if we
+install bash, first. For the most part, I do avoid using bash, and in fact
+avoided actually going furthere here. This is a reference so you can
+consider the requirements.
+
+```sh
+sudo pkg install bash
+curl https://dlang.org/install.sh | bash -s
 ```
 
 ## Dart
@@ -602,9 +760,16 @@ to access dart.
 dart --version
 ```
 
+### Dart and FreeBSD
+
+Looking over the Dart Language GitHub discussions, the team does not consider
+any flavor of BSD viable for them in terms of human resources to support. This
+is somewhat unfortunate, but maybe in the future.
+
 ## Eiffel
 
-We use the standard, open source EiffelStudio compiler on Linux.
+We use the standard, open source EiffelStudio compiler. This is available for
+both Linux and FreeBSD (and many others).
 
 It should be noted that EiffelStudio is a licensed product with a complete,
 interesting IDE for development. The compiler is dual licensed, requiring
@@ -613,14 +778,19 @@ may continue to use it under an open source license. The code in this project
 is all being released under the MIT license and for educational purposes only.
 As such, we take advantage of the open source license.
 
-A note on Gentoo: The EiffelStudio website mentions a route using a custom PPA,
+A note on Ubuntu: The EiffelStudio website mentions a route using a custom PPA,
 but that did not have any packages for 24.04, here in 2026, so I found it highly
 unreliable and went the same path as I did for Gentoo.
 
 Download EiffelStudio from the [Eiffel website](https://account.eiffel.com/downloads/).
 
-Consult their [Installation Instructions](https://www.eiffel.org/doc/eiffelstudio/Linux)
-for more instructions, this is just a simple walkthrough.
+Consult their
+[Linux Installation Instructions](https://www.eiffel.org/doc/eiffelstudio/Linux) Or
+[FreeBSD Installation Instructions](https://www.eiffel.org/doc/eiffelstudio/FreeBSD)
+for more instructions, this is just a simple walkthrough, leaning towards Linux.
+
+EiffelStudio itself is a graphic IDE, so it requires a graphical environment like
+wayland or X going. It will not work great for headless server situations.
 
 I downloaded it via browser and then continued to move it to `/usr/local` for
 installation across the system in that folder.
@@ -689,6 +859,15 @@ source ~/.bash_profile
 iex --version
 ```
 
+### Elixir on FreeBSD
+
+This is available on pkg, and will also install Erlang.
+
+```sh
+sudo pkg install elixir
+iex --version
+```
+
 ## Erlang
 
 We use the standard Erlang tool on Linux.
@@ -708,6 +887,15 @@ Erlang is available on apt in a usable manner.
 
 ```bash
 sudo apt install erlang
+erl
+```
+
+### Erlang on FreeBSD
+
+This is available on pkg.
+
+```sh
+sudo pkg install erlang
 erl
 ```
 
@@ -758,12 +946,29 @@ repository is commented here.
 sudo apt install --install-suggests dotnet-sdk-10.0
 ```
 
+### F\# on FreeBSD
+
+The FreeBSD team has made .NET surprisingly easy for not being so immediately
+supported on official channels. It is not always up to the latest version, but
+is often on its way.
+
+```sh
+sudo pkg install dotnet
+dotnet --version
+dotnet --list-sdks
+dotnet --list-runtimes
+```
+
 ## Factor
 
 We use the standard Factor tool on Linux. To get this, navigate to the
 [Factor website](https://factorcode.org) and download the tar.gz package
 for Linux. I assume that the tar.gz is downloaded to `~`. Adjust your own
 actions accordingly. This is the same process for all versions of Linux.
+
+Unfortunately, it does not have a formally supported FreeBSD version. We
+can try to build it from source with the Linux style if we want, but I am not
+going to include that here.
 
 ```bash
 tar zxvf factor-linux-*.tar.gz
@@ -815,6 +1020,20 @@ sudo apt install ./libtinfo5_6.3-2ubuntu0.1_amd64.deb
 fbc --version
 ```
 
+### FreeBASIC on FreeBSD
+
+FreeBASIC does offer official FreeBASIC packages for FreeBSD on their
+[GitHub Releases](https://github.com/freebasic/fbc/releases). Here, I just copy
+all of the files from the extract to local PATH directories.
+
+```sh
+tar xvf FreeBASIC-1.10.1-freebsd-x86_64.tar.gz
+cd FreeBASIC-1.10.1-freebsd-x86_64
+cp -Rfv ./* ~/.local/
+cd
+fbc --version
+```
+
 ## Forth
 
 We use the GNU Forth tool on Linux.
@@ -844,6 +1063,15 @@ sudo apt install gforth
 gforth --version
 ```
 
+### Forth on FreeBSD
+
+This is pretty easily available on pkg.
+
+```sh
+sudo pkg install gforth
+gforth --version
+```
+
 ## Fortran
 
 We use the GNU Fortran tool on Linux.
@@ -870,6 +1098,10 @@ sudo apt install gfortran
 gnatmake --version
 ```
 
+### Fortran on FreeBSD
+
+This was installed as part of the GCC package. See C or C++.
+
 ## Gleam
 
 We use the standard Gleam tool on Linux.
@@ -895,6 +1127,15 @@ cd gleam
 cargo install --path gleam-bin --force --locked
 ```
 
+### Gleam on FreeBSD
+
+This can be installed easily enough via pkg.
+
+```sh
+sudo pkg install gleam
+gleam --version
+```
+
 ## Go
 
 We use the standard Go tool on Linux.
@@ -917,6 +1158,15 @@ sudo snap install --classic go
 go --version
 ```
 
+### Go on FreeBSD
+
+This is available on pkg.
+
+```sh
+sudo pkg install go
+go --version
+```
+
 ## Haskell
 
 We use the standard Glasgow Haskell Compiler on Linux.
@@ -932,10 +1182,19 @@ ghc --version
 
 ### Haskell on Ubuntu
 
-The Glasgo Haskell Compiler can be easily installed via apt.
+The Glasgow Haskell Compiler can be easily installed via apt.
 
 ```bash
 sudo apt install ghc
+ghc --version
+```
+
+### Haskell on FreeBSD
+
+The Glasgow Haskell Compiler can be easily installed via pkg.
+
+```sh
+sudo pkg add ghc
 ghc --version
 ```
 
@@ -968,19 +1227,27 @@ sudo apt install haxe
 mkdir ~/haxelib && haxelib setup ~/haxelib
 ```
 
+### Hax on FreeBSD
+
+You could try to build it from the source. It might work. I am not attempting
+it at this time.
+
 ## Icon
 
 We use the standard Icon tools on Linux. All distributions will build the Icon
-tools from source. Once the source is built, I copy the contents of the bin
-directory to somewhere in PATH. If `~/bin` is in PATH, this works. Otherwise
-change the `cp` line to copy somewhere to PATH.
+tools from source. Pay attention to the lines below; the `make Configure` line
+should only be run once, based on the platform that you are building on.
+Once the source is built, I copy the contents of the bin directory to somewhere
+in PATH. If `~/.local/bin` is in PATH, this works. Otherwise change the `cp`
+line to copy somewhere to PATH.
 
 ```bash
 git clone https://github.com/gtownsend/icon.git
 cd icon
 make Configure name=linux
+make Configure name=bsd
 make
-cp ./bin/* ~/bin/
+cp ./bin/* ~/.local/bin/
 icon
 ```
 
@@ -1017,6 +1284,13 @@ bash -c "$(curl -fsSL https://raw.githubusercontent.com/stefan-hoeck/idris2-pack
 idris2 --version
 ```
 
+### Idris2 on FreeBSD
+
+It appears the way to go here is to build the package from source. I have not
+yet attempted this. The
+[Install Instructions](https://github.com/idris-lang/Idris2/blob/main/INSTALL.md)
+on GitHub mention modifications for BSD. Feel free to give it a go.
+
 ## Java
 
 We use Java on Linux.
@@ -1037,6 +1311,17 @@ If we don't know that we need something else, we can just install that.
 
 ```bash
 sudo apt install default-jdk
+java --version
+```
+
+### Java on FreeBSD
+
+On FreeBSD, we need to specify a version when we install via pkg, but it is quite
+easy from there.
+
+```sh
+sudo pkg search openjdk
+sudo pkg install openjdk25
 java --version
 ```
 
@@ -1062,9 +1347,19 @@ sudo apt install nodejs
 node --version
 ```
 
+### Javascript on FreeBSD
+
+This is also pretty simple with pkg.
+
+```sh
+sudo pkg install node
+node --version
+```
+
 ## Julia
 
-We use the standard Julia tools on Linux. This is the same on every distribution,
+We use the standard Julia tools on Linux and FreeBSD.
+This is the same on every Linux distribution, as well as on FreeBSD,
 using juliaup to manage the installation.
 
 ```bash
@@ -1078,6 +1373,10 @@ julia --version
 
 We use the standard Kit tools on Linux. You should install Zig first, regardless
 of your distribution. Come back here when Zig is installed.
+
+The build script here requires bash, so I did not go further on FreeBSD. Assuming
+that you are okay with bash, it may work okay. Proceed with caution. There is
+also simply the whole source you can attempt to build.
 
 One other prerequisite is also required, libffi. On gentoo, this is an easy
 `emerge -av dev-libs/libffi`. On Ubuntu, you can `sudo apt install libffi-dev`.
@@ -1125,6 +1424,17 @@ sudo apt install kotlin
 kotlinc -version
 ```
 
+### Kotlin on FreeBSD
+
+This is available on pkg. Funnily enough, it will install bash, so
+languages requiring bash may accidentally make it through the no-bash-on-FreeBSD
+filter once this one is installed.
+
+```sh
+sudo pkg install kotlin
+kotlinc -version
+```
+
 ## LLVM IR
 
 We use the standard LLVM tools on Linux. In fact, we are specifically using
@@ -1153,6 +1463,14 @@ sudo update-alternatives --config clang
 clang --version
 ```
 
+### LLVM on FreeBSD
+
+FreeBSD comes packaged with Clang installed!
+
+```sh
+clang --version
+```
+
 ## Lua
 
 We use the standard Lua tools on Linux.
@@ -1174,6 +1492,16 @@ is the version on portage as the time of this writing.
 ```bash
 sudo apt install lua5.4
 lua -v
+```
+
+### Lua on FreeBSD
+
+There are several versions of Lua available on pkg. We do 54. If we need to,
+we can create a symlink to allow the run script etc. to call simply `lua`.
+
+```sh
+sudo pkg install lua54
+lua54 -v
 ```
 
 ## Mercury
@@ -1216,6 +1544,11 @@ sudo apt install mercury-recommended
 mmc --version
 ```
 
+### Mercury on FreeBSD
+
+You can download the source and try to build it from scratch. I have not
+attempted this at this time.
+
 ## MMIX
 
 We use the Knuth's MMIXware tools on Linux.sud
@@ -1242,6 +1575,12 @@ wget https://mmix.cs.hm.edu/bin/mmmix
 wget https://mmix.cs.hm.edu/bin/mmotype
 chmod a+x mmix mmixal mmmix mmotype
 ```
+
+### MMIX on FreeBSD
+
+There are no official binaries for MMIXAL. I have not gone further, but the
+source code is available, and GCC also has some support for MMIXAL if built
+correctly. I have not explored either of these on FreeBSD at this time.
 
 ## Modula-3
 
@@ -1287,6 +1626,37 @@ Now we can verify that the install is complete.
 
 ```bash
 source ~/.bash_profile
+cm3 --version
+```
+
+### Modula-3 on FreeBSD
+
+FreeBSD has its own way to move forward here, as outlined on the
+[GitHub repo](https://github.com/modula3/cm3/wiki/Getting-Started:-BSD).
+This process does not seem to work on the latest version, so I actually went back
+a couple of revisions to get this to build on FreeBSD. Then we can fix the build
+to have a FreeBSD target and use the `c++` compiler.
+
+```sh
+sudo pkg install cmake gtar python3 unixODBC wget
+wget https://github.com/modula3/cm3/releases/download/d5.11.4/cm3-dist-AMD64_LINUX-d5.11.4.tar.xz
+gtar Jxf cm3-dist-AMD64_LINUX-d5.11.4.tar.xz
+sed -i -e 's/^SYSTEM_CC.*/SYSTEM_CC = "c++ -fPIC"/' cm3-dist-AMD64_LINUX-d5.11.4/m3-sys/cminstall/src/config-no-install/AMD64_FREEBSD
+mkdir build
+cd build
+../cm3-dist-AMD64_LINUX-d5.11.4/scripts/concierge.py install --prefix $HOME/cm3 --target AMD64_FREEBSD
+```
+
+Now edit `~/.profile` and add `$HOME/cm3/bin` to PATH
+
+```bash
+export PATH="$HOME/cm3/bin:$PATH"
+```
+
+Now we can verify that the install is complete.
+
+```bash
+. ~/.profile
 cm3 --version
 ```
 
@@ -1340,6 +1710,14 @@ sudo apt install nasm
 nasm -v
 ```
 
+### NASM on FreeBSD
+
+The Netwide Assembler is available on pkg.
+
+```sh
+pkg install nasm
+```
+
 ## Nim
 
 We use the standard Nim tools on Linux.
@@ -1360,6 +1738,16 @@ This is also very easy on apt.
 ```bash
 sudo apt install nim
 nasm -v
+```
+
+### Nim on FreeBSD
+
+Nim is available through pkg as well. Note: On my system, the `nim` was
+binary was installed in "/usr/local/nim/bin" and this needed to be added to PATH.
+
+```sh
+sudo pkg install nim
+nim -v
 ```
 
 ## Objective-C
@@ -1398,6 +1786,18 @@ it, and it works for you, too...
 export OBJC_INCLUDE_PATH="/usr/lib/gcc/x86_64-linux-gnu/15/include/:$OBJC_INCLUDE_PATH"
 ```
 
+### Objective-C on FreeBSD
+
+Clang comes installed on FreeBSD, but we need to add libobjc2 and gnustep
+in order to make our builds for Objective-C work. We also need to add a
+source to pull in GNU step information. The second line should also be
+added to `~/.profile`.
+
+```sh
+sudo pkg install libobjc2 gnustep gnustep-make
+. /usr/local/GNUstep/System/Library/Makefiles/GNUstep.sh
+```
+
 ## Ocaml
 
 We use the standard Ocaml tools on Linux.
@@ -1420,6 +1820,15 @@ sudo apt install ocaml
 ocaml --version
 ```
 
+### Ocaml on FreeBSD
+
+Just install this via pkg as well.
+
+```sh
+sudo pkg install ocaml
+ocaml --version
+```
+
 ## Octave (MATLAB)
 
 We use the GNU Octave tools on Linux.
@@ -1439,6 +1848,17 @@ This is available on apt easily.
 
 ```bash
 sudo apt install octave
+octave --version
+```
+
+### Octave on FreeBSD
+
+This is on pkg. This loaded in tons of dependencies for me,
+so take caution where you will about that. If you already have a destkop
+installed on FreeBSD, you may have less.
+
+```sh
+sudo pkg install octave
 octave --version
 ```
 
@@ -1500,6 +1920,26 @@ In our `~/.bash_profile` we then export the installed bin directory.
 export PATH="/opt/voc/bin:$PATH"
 ```
 
+### Oberon on FreeBSD
+
+Because FreeBSD does not do the whole multiple GCC version management like
+Gentoo or Ubuntu, if we need to change GCC version, that is going to be
+on us to do manually. I was able to just use whatever GCC I had active at
+the time, but your mileage may vary.
+
+```sh
+git clone https://github.com/vishaps/voc
+cd voc
+make full
+sudo make install
+```
+
+In our `~/.profile` we then export the installed bin directory.
+
+```bash
+export PATH="/usr/local/share/voc/bin:$PATH"
+```
+
 ## Pascal
 
 We use the standard Free Pascal tools on Linux.
@@ -1519,6 +1959,15 @@ This is also available as a simple apt package.
 
 ```bash
 sudo apt install fpc
+fpc -h
+```
+
+### Pascal on FreeBASIC
+
+We install this via pkg as well.
+
+```sh
+sudo pkg install fpc
 fpc -h
 ```
 
@@ -1544,6 +1993,16 @@ sudo apt install perl
 perl --version
 ```
 
+### Perl on FreeBSD
+
+This got pulled in by another dependency along the way for me, but
+it is also available on pkg as perl5.
+
+```sh
+sudo pkg install perl5
+perl --version
+```
+
 ## PHP
 
 We use the standard PHP tools on Linux.
@@ -1563,6 +2022,15 @@ This is also available as a simple apt package.
 
 ```bash
 sudo apt install php
+php --version
+```
+
+### PHP on FreeBSD
+
+We can install this via php85 on pkg.
+
+```sh
+sudo pkg install php85
 php --version
 ```
 
@@ -1591,6 +2059,15 @@ sudo apt install gprolog
 gplc --version
 ```
 
+### Prolog on FreeBSD
+
+This is also available on pkg
+
+```sh
+sudo pkg install gprolog
+gplc --version
+```
+
 ## Python
 
 We use the standard Python tools on Linux.
@@ -1616,6 +2093,15 @@ instead of `python3`.
 
 ```bash
 sudo apt install python3 python-is-python3
+python --version
+```
+
+### Python on FreeBSD
+
+This is also available on pkg.
+
+```sh
+sudo pkg install python
 python --version
 ```
 
@@ -1649,6 +2135,15 @@ sudo apt install r-base
 R --version
 ```
 
+### R on FreeBSD
+
+This is available on pkg.
+
+```sh
+sudo pkg install R
+R --version
+```
+
 ## Racket
 
 We use the standard Racket tools on Linux.
@@ -1671,6 +2166,15 @@ sudo apt install racket
 racket --version
 ```
 
+### Racket on FreeBSD
+
+This is available on pkg.
+
+```sh
+sudo pkg install racket
+racket --version
+```
+
 ## Ruby
 
 We use the standard Ruby tools on Linux.
@@ -1690,6 +2194,15 @@ You can get Ruby via apt easily.
 
 ```bash
 sudo apt install ruby
+ruby --version
+```
+
+### Ruby on FreeBSD
+
+This is available on pkg.
+
+```sh
+sudo pkg install ruby
 ruby --version
 ```
 
@@ -1717,9 +2230,21 @@ source ~/.bash_profile
 rustc --version
 ```
 
+### Rust on FreeBSD
+
+This is available on pkg.
+
+```sh
+sudo pkg install rust
+rustc --version
+```
+
 ## Scala
 
-We use the standard Scala tools on Linux.
+We use the standard Scala tools.
+
+### Scala on Linux
+
 I ended up not using any of the packages that are immediately in the
 package managers on linux for this. You can find the appropriate command line
 to run on [The Scala Website](https://www.scala-lang.org/download/).
@@ -1727,6 +2252,15 @@ to run on [The Scala Website](https://www.scala-lang.org/download/).
 ```bash
 curl -fL https://github.com/coursier/coursier/releases/latest/download/cs-x86_64-pc-linux.gz | gzip -d > cs && chmod +x cs && ./cs setup
 source ~/.bash_profile
+scala --version
+```
+
+### Scala on FreeBSD
+
+I just used pkg to install scala.
+
+```sh
+sudo pkg install scala
 scala --version
 ```
 
@@ -1768,10 +2302,27 @@ sudo apt install chezscheme
 chezscheme --version
 ```
 
+### Scheme on FreeBSD
+
+Guild is easily available.
+
+```sh
+sudo pkg install lang/guile
+guile --version
+```
+
+Alternative:
+
+```sh
+sudo pkg install chez-scheme
+chez-scheme --version
+```
+
 ## Simula
 
 We use GNU cim. It is not always the easiest to get going, but I was able
-to figure it out.
+to figure it out on Gentoo and Ubuntu. This process did not work on FreeBSD,
+and I stopped and moved on without getting this going on FreeBSD yet.
 
 I downloaded 5.1 tar.gz from
 [The GNU Cim Website](https://www.gnu.org/prep/ftp.html#north_america). Extract
@@ -1860,9 +2411,12 @@ offers, you can add the `-noPopup` argument.
 
 ## Smalltalk
 
-We use the GNU Smalltalk tools on Linux.
+We use the GNU Smalltalk tools on Linux. I attempted this process on FreeBSD
+but got more build errors and did not pursue it further. With some
+determination, this may work.
 
-I was able to get Simula working on Gentoo and Ubuntu with GCC-13 (see C or C++ section).
+I was able to get Simula working on Gentoo and Ubuntu with GCC-13
+(see C or C++ section).
 You need to switch to the correct GCC version before beginning.
 
 ```bash
@@ -1961,6 +2515,15 @@ emerge -av dev-lang/tcl dev-lang/tk
 # tclsh
 ```
 
+### Tcl on FreeBSD
+
+We install this via pkg as version 9.
+
+```sh
+sudo pkg install tcl90
+# tclsh9.0
+```
+
 ## Typescript
 
 We use the standard Typescript tools and node on Linux.
@@ -1984,6 +2547,16 @@ sudo npm install -g typescript
 tsc --version
 ```
 
+### Typescript on FreeBSD
+
+We use NPM to install typescript on FreeBSD.
+
+```sh
+sudo pkg install node npm
+sudo npm install -g typescript
+tsc --version
+```
+
 ## V
 
 We use the standard V tools on Linux.
@@ -1997,6 +2570,23 @@ make
 cd .. && cp -fv ./v ~/v
 # Finally, v will make a global symlink for us
 sudo ~/v symlink
+v --version
+```
+
+### V on FreeBSD
+
+We build from source on FreeBSD. We also need to add the boehm-gc-threaded
+dependency first.
+
+```sh
+sudo pkg install boehm-gc-threaded
+git clone --depth=1 https://github.com/vlang/v
+cd v
+make
+# you can move the v directory to $HOME if you wish; this is my preferred
+cd .. && cp -Rfv ./v ~/v
+# Finally, v will make a global symlink for us
+sudo /home/USER/v/v symlink
 v --version
 ```
 
@@ -2045,6 +2635,19 @@ repository is commented here.
 ```bash
 # sudo add-apt-repository ppa:ubuntu-toolchain-r/test
 sudo apt install --install-suggests dotnet-sdk-10.0
+```
+
+### Visual Basic .Net on FreeBSD
+
+The FreeBSD team has made .NET surprisingly easy for not being so immediately
+supported on official channels. It is not always up to the latest version, but
+is often on its way.
+
+```sh
+sudo pkg install dotnet
+dotnet --version
+dotnet --list-sdks
+dotnet --list-runtimes
 ```
 
 ## Web Assembly (WASM)
@@ -2101,4 +2704,13 @@ Then, to verify we can source a terminal and run it.
 ```bash
 source ~/.bash_profile
 zig version
+```
+
+### Zig on FreeBSD
+
+This is available on pkg.
+
+```sh
+sudo pkg install zig
+zig --version
 ```
