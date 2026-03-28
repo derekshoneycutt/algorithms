@@ -37,9 +37,9 @@ and a specified build target.
 The build target is case insensitive. The available options
 are as follows.
 
-- MMIX - This amalgamates the MMIXAL source files into ./output/stdlib.mms
-- Linux-x64 - This builds the Linux-x64 NASM source into ./output/stdlib-Linux-x64.o
-- Clean - This cleans the output files. The next build will rebuild all of the specified platform, if another build follows.
+- `MMIX` - This amalgamates the MMIXAL source files into ./output/stdlib.mms
+- `Linux-x64` - This builds the Linux-x64 NASM source into ./output/stdlib-Linux-x64.o
+- `Clean` - This cleans the output files. The next build will rebuild all of the specified platform, if another build follows.
 
 It is possible to go into each subdirectory here and run the local build
 scripts. This will build all the files in the directory for the specified
