@@ -689,7 +689,7 @@ nasm_compile() {
   fi
   if [ "$do_build" -eq 1 ]; then
     echo "nasm -f elf64 -o \"./output/$fileNameWithoutExt.o\" \"$fileName\"" >> ./output/nasm-build-last
-    nasm -f elf64 -o "./output/$fileNameWithoutExt.o" "$fileName"
+    nasm -f elf64 -o "./output/$fileNameWithoutExt.o" "$fileName" >> ./output/nasm-build-last 2>&1
     retValue="$?"
     echo "-- nasm returned: $retValue" >> ./output/nasm-build-last
     if [ "$retValue" -ne 0 ]; then
