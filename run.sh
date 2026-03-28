@@ -21,6 +21,13 @@ testFile=
 destroy_output=0
 retValue=0
 
+# Color variables
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[0;33m'
+BLUE='\033[0;34m'
+NORMAL='\033[0m' # Resets the color to default
+
 # The following of environment variables may be best suited
 # in ~/.bash_profile ; as such many are commented out here.
 
@@ -104,6 +111,7 @@ c_compile() {
 }
 c_run() {
   timeout --foreground $DEREKALGOS_TIMEOUT "./output/$fileNameWithoutExt" $other_params
+  retValue="$?"
 }
 
 # =============================================
@@ -112,6 +120,7 @@ c_run() {
 clojure_compile() { :; }
 clojure_run() {
   timeout --foreground $DEREKALGOS_TIMEOUT lein exec "./$fileName" $other_params
+  retValue="$?"
 }
 
 # =============================================
@@ -125,6 +134,7 @@ cobol_compile() {
 }
 cobol_run() {
   timeout --foreground $DEREKALGOS_TIMEOUT "./output/$fileNameWithoutExt" $other_params
+  retValue="$?"
 }
 
 # =============================================
@@ -138,6 +148,7 @@ cpp_compile() {
 }
 cpp_run() {
   timeout --foreground $DEREKALGOS_TIMEOUT "./output/$fileNameWithoutExt" $other_params
+  retValue="$?"
 }
 
 # =============================================
@@ -146,6 +157,7 @@ cpp_run() {
 csharp_compile() { :; }
 csharp_run() {
   timeout --foreground $DEREKALGOS_TIMEOUT dotnet run "./$fileName" $other_params
+  retValue="$?"
 }
 
 # =============================================
@@ -154,6 +166,7 @@ csharp_run() {
 d_compile() { :; }
 d_run() {
   timeout --foreground $DEREKALGOS_TIMEOUT dmd -run "./$fileName" $other_params
+  retValue="$?"
 }
 
 # =============================================
@@ -162,6 +175,7 @@ d_run() {
 dart_compile() { :; }
 dart_run() {
   timeout --foreground $DEREKALGOS_TIMEOUT dart "./$fileName" $other_params
+  retValue="$?"
 }
 
 # =============================================
@@ -220,6 +234,7 @@ FIRST COMPILE FINISHED. CALLING finish_freezing in EIFGENs/$fileName/F_code
 }
 eiffel_run() {
   timeout --foreground $DEREKALGOS_TIMEOUT "./output/EIFGENs/$fileName/F_code/$fileName" $other_params
+  retValue="$?"
 }
 
 # =============================================
@@ -234,6 +249,7 @@ erlang_compile() {
 erlang_run() {
   cd ./output
   timeout --foreground $DEREKALGOS_TIMEOUT erl -noshell -s "$fileNameWithoutExt" main -s init stop -- $other_params
+  retValue="$?"
   cd ..
 }
 
@@ -243,6 +259,7 @@ erlang_run() {
 elixir_compile() { :; }
 elixir_run() {
   timeout --foreground $DEREKALGOS_TIMEOUT elixir "./$fileName" $other_params
+  retValue="$?"
 }
 
 # =============================================
@@ -256,6 +273,7 @@ fortran_compile() {
 }
 fortran_run() {
   timeout --foreground $DEREKALGOS_TIMEOUT "./output/$fileNameWithoutExt" $other_params
+  retValue="$?"
 }
 
 # =============================================
@@ -264,6 +282,7 @@ fortran_run() {
 factor_compile() { :; }
 factor_run() {
   timeout --foreground $DEREKALGOS_TIMEOUT factor -run "./$fileName" $other_params
+  retValue="$?"
 }
 
 # =============================================
@@ -272,6 +291,7 @@ factor_run() {
 fsharp_compile() { :; }
 fsharp_run() {
   timeout --foreground $DEREKALGOS_TIMEOUT dotnet fsi "./$fileName" $other_params
+  retValue="$?"
 }
 
 # =============================================
@@ -280,6 +300,7 @@ fsharp_run() {
 forth_compile() { :; }
 forth_run() {
   timeout --foreground $DEREKALGOS_TIMEOUT gforth "./$fileName" -- $other_params
+  retValue="$?"
 }
 
 # =============================================
@@ -326,6 +347,7 @@ gleeunit = { version = \">= 1.0.0 and < 2.0.0\" }
 gleam_run() {
   cd ./output
   timeout --foreground $DEREKALGOS_TIMEOUT gleam run --no-print-progress -m "$fileNameWithoutExt" -- $other_params 2>> ./gleam-build-last
+  retValue="$?"
   cd ..
 }
 
@@ -335,6 +357,7 @@ gleam_run() {
 go_compile() { :; }
 go_run() {
   timeout --foreground $DEREKALGOS_TIMEOUT go run "./$fileName" $other_params
+  retValue="$?"
 }
 
 # =============================================
@@ -343,6 +366,7 @@ go_run() {
 haskell_compile() { :; }
 haskell_run() {
   timeout --foreground $DEREKALGOS_TIMEOUT runghc "./$fileName" $other_params
+  retValue="$?"
 }
 
 # =============================================
@@ -351,6 +375,7 @@ haskell_run() {
 haxe_compile() { :; }
 haxe_run() {
   timeout --foreground $DEREKALGOS_TIMEOUT haxe --run "$fileName" $other_params
+  retValue="$?"
 }
 
 # =============================================
@@ -359,6 +384,7 @@ haxe_run() {
 icon_compile() { :; }
 icon_run() {
   timeout --foreground $DEREKALGOS_TIMEOUT icon "./$fileName" $other_params
+  retValue="$?"
 }
 
 # =============================================
@@ -377,6 +403,7 @@ idris_compile() {
 }
 idris_run() {
   timeout --foreground $DEREKALGOS_TIMEOUT "./output/build/exec/$fileNameWithoutExt" $other_params
+  retValue="$?"
 }
 
 # =============================================
@@ -400,6 +427,7 @@ java_compile() {
 java_run() {
   cd ./output
   timeout --foreground $DEREKALGOS_TIMEOUT java -jar "$fileNameWithoutExt.jar" -- $other_params
+  retValue="$?"
   cd ..
 }
 
@@ -409,6 +437,7 @@ java_run() {
 julia_compile() { :; }
 julia_run() {
   timeout --foreground $DEREKALGOS_TIMEOUT julia "./$fileName" $other_params
+  retValue="$?"
 }
 
 # =============================================
@@ -417,6 +446,7 @@ julia_run() {
 javascript_compile() { :; }
 javascript_run() {
   timeout --foreground $DEREKALGOS_TIMEOUT node "./$fileName" $other_params
+  retValue="$?"
 }
 
 # =============================================
@@ -425,6 +455,7 @@ javascript_run() {
 kit_compile() { :; }
 kit_run() {
   timeout --foreground $DEREKALGOS_TIMEOUT kit run "./$fileName" $other_params
+  retValue="$?"
 }
 
 # =============================================
@@ -438,6 +469,7 @@ kotlin_compile() {
 }
 kotlin_run() {
   timeout --foreground $DEREKALGOS_TIMEOUT java -jar "./output/$fileNameWithoutExt.jar" $other_params
+  retValue="$?"
 }
 
 # =============================================
@@ -451,6 +483,7 @@ llvmir_compile() {
 }
 llvmir_run() {
   timeout --foreground $DEREKALGOS_TIMEOUT "./output/$fileNameWithoutExt" $other_params
+  retValue="$?"
 }
 
 # =============================================
@@ -459,6 +492,7 @@ llvmir_run() {
 lua_compile() { :; }
 lua_run() {
   timeout --foreground $DEREKALGOS_TIMEOUT lua "./$fileName" $other_params
+  retValue="$?"
 }
 
 # =============================================
@@ -472,6 +506,7 @@ objectivec_compile() {
 }
 objectivec_run() {
   timeout --foreground $DEREKALGOS_TIMEOUT "./output/$fileNameWithoutExt" $other_params
+  retValue="$?"
 }
 
 # =============================================
@@ -492,6 +527,7 @@ modula3_compile() {
 }
 modula3_run() {
   timeout --foreground $DEREKALGOS_TIMEOUT "./output/AMD64_LINUX/prog" $other_params
+  retValue="$?"
 }
 
 # =============================================
@@ -503,6 +539,7 @@ octave_compile() {
 octave_run() {
   cd ./output
   timeout --foreground $DEREKALGOS_TIMEOUT octave --quiet "${fileNameWithoutExt}shaved.m" $other_params
+  retValue="$?"
   cd ..
 }
 
@@ -512,6 +549,7 @@ octave_run() {
 ocaml_compile() { :; }
 ocaml_run() {
   timeout --foreground $DEREKALGOS_TIMEOUT ocaml "./$fileName" $other_params
+  retValue="$?"
 }
 
 # =============================================
@@ -524,9 +562,7 @@ mmixal_compile() {
   retValue="$?"
   cd $start_dir
   if [ $retValue -ne 0 ]; then
-    echo "Standard Library Build Failed."
-    cat ./output/mmixal-build-last
-    exit 1
+    return $retValue
   fi
 
   cat ../../../stdlib/output/stdlib.mms >> "./output/$fileName"
@@ -541,6 +577,7 @@ mmixal_compile() {
 mmixal_run() {
   cd ./output
   timeout --foreground $DEREKALGOS_TIMEOUT mmix "./$fileNameWithoutExt.mmo" $other_params
+  retValue="$?"
   cd ..
 }
 
@@ -559,6 +596,7 @@ oberon_compile() {
 }
 oberon_run() {
   timeout --foreground $DEREKALGOS_TIMEOUT "./output/$fileNameWithoutExt" $other_params
+  retValue="$?"
 }
 
 # =============================================
@@ -567,6 +605,7 @@ oberon_run() {
 mojo_compile() { :; }
 mojo_run() {
   timeout --foreground $DEREKALGOS_TIMEOUT pixi run mojo run "./$fileName" $other_params
+  retValue="$?"
 }
 
 # =============================================
@@ -586,6 +625,7 @@ mercury_compile() {
 }
 mercury_run() {
   timeout --foreground $DEREKALGOS_TIMEOUT "./output/$fileNameWithoutExt" $other_params
+  retValue="$?"
 }
 
 # =============================================
@@ -593,6 +633,31 @@ mercury_run() {
 # =============================================
 nasm_compile() {
   do_link=0
+  cpu_arch=$(uname -m)
+  platform=$(uname -s)
+  platform_output=
+  if [ "$platform" = "Linux" ]; then
+    platform="Linux"
+    platform_output="linux"
+  elif [ "$platform" = "FreeBSD" ]; then
+    platform="FreeBSD"
+    platform_output="freebsd"
+  else
+    echo "Unrecognized Platform for NASM Builds" > ./output/nasm-build-last
+    retValue=1
+    return 1
+  fi
+  case "$cpu_arch" in
+    "x86_64")
+      platform="${platform}-x64"
+      platform_output="${platform_output}x64"
+      ;;
+    *)
+      echo "Unrecognized CPU Architecture for NASM Builds" > ./output/nasm-build-last
+      retValue=1
+      return 1
+      ;;
+  esac
 
   # First go into stdlib and build the standard library ;)
   #   Only build if there's new changes to be built
@@ -600,16 +665,14 @@ nasm_compile() {
   echo "Building NASM Standard Library..." >> ./output/nasm-build-last
   cp "./$fileName" ./output/
   cd ../../../stdlib
-  ./build.sh linux-x64 > "$start_dir/output/nasm-build-last"
+  ./build.sh "$platform" > "$start_dir/output/nasm-build-last"
   retValue="$?"
   cd $start_dir
   if [ $retValue -ne 0 ]; then
-    echo "Standard Library Build Failed."
-    cat ./output/nasm-build-last
-    exit 1
+    return $retValue
   fi
-  cat ../../../stdlib/output/linuxx64-build-last >> ./output/nasm-build-last
-  stdlib=../../../stdlib/output/stdlib-Linux-x64.o
+  cat "../../../stdlib/output/${platform_output}-build-last" >> ./output/nasm-build-last
+  stdlib="../../../stdlib/output/stdlib-${platform}.o"
 
   # Now we build our actual output, linking to the standard library
   #   Only build if there's new changes to be built
@@ -647,6 +710,7 @@ nasm_compile() {
 }
 nasm_run() {
   timeout --foreground $DEREKALGOS_TIMEOUT "./output/$fileNameWithoutExt" $other_params
+  retValue="$?"
 }
 
 # =============================================
@@ -660,6 +724,7 @@ nim_compile() {
 }
 nim_run() {
   timeout --foreground $DEREKALGOS_TIMEOUT "./output/$fileNameWithoutExt" $other_params
+  retValue="$?"
 }
 
 # =============================================
@@ -678,6 +743,7 @@ pascal_compile() {
 }
 pascal_run() {
   timeout --foreground $DEREKALGOS_TIMEOUT "./output/$fileNameWithoutExt" $other_params
+  retValue="$?"
 }
 
 # =============================================
@@ -686,6 +752,7 @@ pascal_run() {
 php_compile() { :; }
 php_run() {
   timeout --foreground $DEREKALGOS_TIMEOUT php "$fileName" $other_params
+  retValue="$?"
 }
 
 # =============================================
@@ -699,6 +766,7 @@ prolog_compile() {
 }
 prolog_run() {
   timeout --foreground $DEREKALGOS_TIMEOUT "./output/$fileNameWithoutExt" $other_params
+  retValue="$?"
 }
 
 # =============================================
@@ -707,6 +775,7 @@ prolog_run() {
 perl_compile() { :; }
 perl_run() {
   timeout --foreground $DEREKALGOS_TIMEOUT perl "$fileName" $other_params
+  retValue="$?"
 }
 
 # =============================================
@@ -715,6 +784,7 @@ perl_run() {
 python_compile() { :; }
 python_run() {
   timeout --foreground $DEREKALGOS_TIMEOUT python -u "$fileName" $other_params
+  retValue="$?"
 }
 
 # =============================================
@@ -723,6 +793,7 @@ python_run() {
 r_compile() { :; }
 r_run() {
   timeout --foreground $DEREKALGOS_TIMEOUT Rscript "$fileName" $other_params
+  retValue="$?"
 }
 
 # =============================================
@@ -731,6 +802,7 @@ r_run() {
 ruby_compile() { :; }
 ruby_run() {
   timeout --foreground $DEREKALGOS_TIMEOUT ruby "$fileName" $other_params
+  retValue="$?"
 }
 
 # =============================================
@@ -739,6 +811,7 @@ ruby_run() {
 racket_compile() { :; }
 racket_run() {
   timeout --foreground $DEREKALGOS_TIMEOUT racket "$fileName" $other_params
+  retValue="$?"
 }
 
 # =============================================
@@ -752,6 +825,7 @@ rust_compile() {
 }
 rust_run() {
   timeout --foreground $DEREKALGOS_TIMEOUT "./output/$fileNameWithoutExt" $other_params
+  retValue="$?"
 }
 
 # =============================================
@@ -773,6 +847,7 @@ scala_run() {
 
   cd ./output
   timeout --foreground $DEREKALGOS_TIMEOUT scala run "$fileName" -- $other_params
+  retValue="$?"
   cd ..
 }
 
@@ -782,6 +857,7 @@ scala_run() {
 scheme_compile() { :; }
 scheme_run() {
   timeout --foreground $DEREKALGOS_TIMEOUT guile -s "$fileName" $other_params
+  retValue="$?"
 }
 
 # =============================================
@@ -802,6 +878,7 @@ simula_compile() {
 }
 simula_run() {
   timeout --foreground $DEREKALGOS_TIMEOUT "./output/$fileNameWithoutExt" $other_params
+  retValue="$?"
 }
 
 # =============================================
@@ -810,6 +887,7 @@ simula_run() {
 smalltalk_compile() { :; }
 smalltalk_run() {
   timeout --foreground $DEREKALGOS_TIMEOUT gst "./$fileName" -a $other_params
+  retValue="$?"
 }
 
 # =============================================
@@ -818,6 +896,7 @@ smalltalk_run() {
 swift_compile() { :; }
 swift_run() {
   timeout --foreground $DEREKALGOS_TIMEOUT swift "$fileName" $other_params
+  retValue="$?"
 }
 
 # =============================================
@@ -826,6 +905,7 @@ swift_run() {
 tcl_compile() { :; }
 tcl_run() {
   timeout --foreground $DEREKALGOS_TIMEOUT tclsh "$fileName" $other_params
+  retValue="$?"
 }
 
 # =============================================
@@ -839,6 +919,7 @@ typescript_compile() {
 }
 typescript_run() {
   timeout --foreground $DEREKALGOS_TIMEOUT node ./output/$fileNameWithoutExt.js $other_params
+  retValue="$?"
 }
 
 # =============================================
@@ -847,6 +928,7 @@ typescript_run() {
 v_compile() { :; }
 v_run() {
   timeout --foreground $DEREKALGOS_TIMEOUT v run "$fileName" $other_params
+  retValue="$?"
 }
 
 # =============================================
@@ -872,6 +954,7 @@ visualbasic_compile() {
 }
 visualbasic_run() {
   timeout --foreground $DEREKALGOS_TIMEOUT "./output/bin/Debug/net10.0/$fileNameWithoutExt" $other_params
+  retValue="$?"
 }
 
 # =============================================
@@ -888,6 +971,7 @@ wat_compile() {
 }
 wat_run() {
   timeout --foreground $DEREKALGOS_TIMEOUT node ../../../run-wasm.js "./output/$fileNameWithoutExt.wasm" $other_params
+  retValue="$?"
 }
 
 # =============================================
@@ -896,6 +980,7 @@ wat_run() {
 zig_compile() { :; }
 zig_run() {
   timeout --foreground $DEREKALGOS_TIMEOUT zig run "$fileName" -- $other_params
+  retValue="$?"
 }
 
 # =============================================
@@ -1024,7 +1109,9 @@ fi
 # and if successful, run it immediately.
 # if the build fails, try to output the last build output
 
+before_compile=$(date +%s%3N)
 "${lang}_compile"
+after_compile=$(date +%s%3N)
 
 if [ "$retValue" -eq 0 ]; then
   if [ ! -f "$testFile" ]; then
@@ -1033,10 +1120,20 @@ Build output:
 
 "
     cat "./output/${lang}-build-last"
-    exit
   else
+    retValue=0
+    before_run=$(date +%s%3N)
     "${lang}_run"
-    echo "$lang" > ./output/last-lang
+    after_run=$(date +%s%3N)
+
+    compile_duration=$((after_compile - before_compile))
+    run_duration=$((after_run - before_run))
+
+    echo -e "${BLUE}
+    Compile Time ${compile_duration}ms; Run Time ${run_duration}ms; Returned $retValue"
+    if [ "$retValue" -eq 124 ]; then
+      echo -e "${YELLOW}Return value 124 typically signals a timeout."
+    fi
   fi
 else
   echo "Failed to compile $lang.
@@ -1045,4 +1142,6 @@ Build output:
 "
   cat "./output/${lang}-build-last"
 fi
+
+echo "$lang" > ./output/last-lang
 exit

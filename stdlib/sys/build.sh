@@ -5,6 +5,7 @@
 
 MMIX_OUTPUT_FILE="sys.mms"
 LINUX_X64_OUTPUT_FILE="sys-Linux-x64.o"
+FREEBSD_X64_OUTPUT_FILE="sys-FreeBSD-x64.o"
 
 BUILD_TARGET=$(echo "$1" | tr '[:lower:]' '[:upper:]')
 
@@ -14,6 +15,9 @@ case "$BUILD_TARGET" in
     ;;
     "LINUX-X64")
         ../build-local.sh linux-x64 $LINUX_X64_OUTPUT_FILE
+    ;;
+    "FREEBSD-X64")
+        ../build-local.sh freebsd-x64 $FREEBSD_X64_OUTPUT_FILE
     ;;
     "CLEAN")
         ../build-local.sh clean

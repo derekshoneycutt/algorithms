@@ -100,6 +100,68 @@ case "$BUILD_TARGET" in
 
         echo "LINUX-X64 BUILD END" >> ./output/linuxx64-build-last
     ;;
+    
+    "FREEBSD-X64")
+        # For FreeBSD x86 64, we need to first loop through all of the files,
+        # building them with nasm. Then we have to link them all with ld
+        mkdir -p ./output
+        echo "STARTING FREEBSD-X64 BUILD..." > ./output/freebsdx64-build-last
+        DO_FREEBSD_X64_BUILD=0
+        ALL_FREEBSD_X64_OUTPUTS=
+        for NASM_FILE in $(find . -maxdepth 1 -type f -name '*-FreeBSD-x64.nasm'); do
+            NASM_WITHOUT_EXT="${NASM_FILE%.*}"
+            NASM_OBJ_OUTPUT="${NASM_WITHOUT_EXT}.o"
+            ALL_FREEBSD_X64_OUTPUTS="$ALL_FREEBSD_X64_OUTPUTS $NASM_OBJ_OUTPUT"
+            DO_CURRENT_FREEBSD_X64_BUILD=0
+            if [ ! -f "./output/$NASM_OBJ_OUTPUT" ]; then
+                DO_FREEBSD_X64_BUILD=1
+                DO_CURRENT_FREEBSD_X64_BUILD=1
+            elif [ -n "$(find "./$NASM_FILE" -prune -newer "./output/$NASM_OBJ_OUTPUT" 2>/dev/null)" ]; then
+                DO_FREEBSD_X64_BUILD=1
+                DO_CURRENT_FREEBSD_X64_BUILD=1
+            fi
+            if [ "$DO_CURRENT_FREEBSD_X64_BUILD" -eq 1 ]; then
+                echo "nasm -f elf64 -o \"./output/$NASM_OBJ_OUTPUT\" \"$NASM_FILE\"" >> ./output/freebsdx64-build-last
+                nasm -f elf64 -o "./output/$NASM_OBJ_OUTPUT" "$NASM_FILE" >> ./output/freebsdx64-build-last 2>&1
+                LAST_RETURN_VALUE="$?"
+                echo "-- nasm returned: $LAST_RETURN_VALUE" >> "./output/freebsdx64-build-last"
+
+                # We exit completely on any failures
+                if [ "$LAST_RETURN_VALUE" -ne 0 ]; then
+                    echo "FAILED BUILD."
+                    cat ./output/freebsdx64-build-last
+                    exit 1
+                fi
+            fi
+        done
+
+        if [ ! -f "./output/$OUTPUT_FILE" ]; then
+            DO_FREEBSD_X64_BUILD=1
+        fi
+
+        echo "Initial building completed; $DO_FREEBSD_X64_BUILD; moving to linking..." >> ./output/freebsdx64-build-last
+
+        # Build completed, we move to linking
+        if [ "$DO_FREEBSD_X64_BUILD" -eq 1 ]; then
+            cd ./output
+            echo "cd ./output" >> "./freebsdx64-build-last"
+            echo "ld -r -o \"./$OUTPUT_FILE\" $ALL_FREEBSD_X64_OUTPUTS" >> "./freebsdx64-build-last"
+            ld -r -o "./$OUTPUT_FILE" $ALL_FREEBSD_X64_OUTPUTS >> ./freebsdx64-build-last 2>&1
+            LAST_RETURN_VALUE="$?"
+            echo "-- ld returned: $LAST_RETURN_VALUE" >> "./freebsdx64-build-last"
+            echo "cd .." >> "./freebsdx64-build-last"
+            cd ..
+
+            # We exit completely on any failures
+            if [ "$LAST_RETURN_VALUE" -ne 0 ]; then
+                echo "FAILED BUILD."
+                cat ./output/freebsdx64-build-last
+                exit 1
+            fi
+        fi
+
+        echo "FREEBSD-X64 BUILD END" >> ./output/freebsdx64-build-last
+    ;;
 
     "CLEAN")
         # If we have a clean target, we just delete the output
