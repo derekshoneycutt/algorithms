@@ -95,6 +95,13 @@ there is not much more to do. The
 [FreeBSD Handbook](https://docs.freebsd.org/en/books/handbook/bsdinstall/)
 contains an excellent chapter on installing FreeBSD, as well as many other topics.
 
+You should install `gdate` which `run.sh` uses to show the time in milliseconds
+that it takes to compile and run the algorithms.
+
+```sh
+sudo pkg install gdate
+```
+
 ## Setting up an Unbuntu Server VM as a Code Runner
 
 A small collection of languages do not seem to like the Gentoo system. Unsurprisingly,
