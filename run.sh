@@ -518,23 +518,24 @@ ocaml_run() {
 #           MMIXAL
 # =============================================
 mmixal_compile() {
-  LINK_MMS_FILES="../../../stdlib/ParseNumber/ParseNumber.mms
-../../../stdlib/PrintNumber/PrintNumber.mms
-../../../stdlib/PrintString/PrintString.mms
-../../../stdlib/StringIsInt/StringIsInt.mms
-../../../stdlib/StringLength/StringLength.mms"
-  
   cp "./$fileName" ./output/
+  cd ../../../stdlib
+  ./build.sh mmix > "$start_dir/output/mmixal-build-last"
+  retValue="$?"
+  cd $start_dir
+  if [ $retValue -ne 0 ]; then
+    echo "Standard Library Build Failed."
+    cat ./output/mmixal-build-last
+    exit 1
+  fi
 
-  for link_file in "${LINK_MMS_FILES[@]}"; do
-      cat "$link_file" >> "./output/$fileName"
-  done
+  cat ../../../stdlib/output/stdlib.mms >> "./output/$fileName"
 
   cd ./output
-  echo "cd ./output/ && mmixal \"./$fileName\" & cd .." > ./mmixal-build-last
+  echo "cd ./output/ && mmixal \"./$fileName\" & cd .." >> ./mmixal-build-last
   mmixal "./$fileName" >> ./mmixal-build-last 2>&1
   retValue="$?"
-  echo "-- mmixal returned: $retValue" >> ./output/mmixal-build-last
+  echo "-- mmixal returned: $retValue" >> ./mmixal-build-last
   cd ..
 }
 mmixal_run() {
@@ -591,45 +592,24 @@ mercury_run() {
 #           NASM
 # =============================================
 nasm_compile() {
-  LINK_STD_FILES="ParseNumber PrintString PrintNumber StringLength StringIsInt"
-  link_with=
-  stdlib=../../../stdlib/output/stdlib.o
-  build_stdlib=0
   do_link=0
 
   # First go into stdlib and build the standard library ;)
   #   Only build if there's new changes to be built
   echo "Building NASM..." > ./output/nasm-build-last
   echo "Building NASM Standard Library..." >> ./output/nasm-build-last
-  cd ../../../stdlib/
-  mkdir -p ./output
-  for link_file in "${LINK_STD_FILES[@]}"; do
-    link_nasm="./$link_file/$link_file.nasm"
-    link_out="./output/$link_file.o"
-    if [ -n "$(find "$link_nasm" -prune -newer "$link_out" 2>/dev/null)" ]; then
-      echo "nasm -f elf64 -o ./output/$link_file.o ./$link_file/$link_file.nasm" >> "$start_dir/output/nasm-build-last"
-      nasm -f elf64 -o ./output/$link_file.o ./$link_file/$link_file.nasm
-      retValue="$?"
-      echo "-- nasm returned: $retValue" >> "$start_dir/output/nasm-build-last"
-      if [ "$retValue" -ne 0 ]; then
-        return $retValue
-      fi
-      build_stdlib=1
-    fi
-    link_with+=" ./output/$link_file.o"
-  done
-  if [ "$build_stdlib" -eq 1 ]; then
-    echo "ld -r -o ./output/stdlib.o $link_with" >> "$start_dir/output/nasm-build-last"
-    ld -r -o ./output/stdlib.o $link_with
-    retValue="$?"
-    echo "-- ld returned: $retValue" >> "$start_dir/output/nasm-build-last"
-    if [ "$retValue" -ne 0 ]; then
-      return $retValue
-    fi
-    do_link=1
-  fi
+  cp "./$fileName" ./output/
+  cd ../../../stdlib
+  ./build.sh linux-x64 > "$start_dir/output/nasm-build-last"
+  retValue="$?"
   cd $start_dir
-  echo "NASM Standard Library Complete" >> ./output/nasm-build-last
+  if [ $retValue -ne 0 ]; then
+    echo "Standard Library Build Failed."
+    cat ./output/nasm-build-last
+    exit 1
+  fi
+  cat ../../../stdlib/output/linuxx64-build-last >> ./output/nasm-build-last
+  stdlib=../../../stdlib/output/stdlib-Linux-x64.o
 
   # Now we build our actual output, linking to the standard library
   #   Only build if there's new changes to be built
@@ -637,8 +617,7 @@ nasm_compile() {
   do_build=0
   if [ ! -f "./output/$fileNameWithoutExt.o" ]; then
     do_build=1
-  fi
-  if [ -n "$(find "$fileName" -prune -newer "./output/$fileNameWithoutExt.o" 2>/dev/null)" ]; then
+  elif [ -n "$(find "$fileName" -prune -newer "./output/$fileNameWithoutExt.o" 2>/dev/null)" ]; then
     do_build=1
   fi
   if [ "$do_build" -eq 1 ]; then
