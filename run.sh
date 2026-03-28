@@ -1145,9 +1145,9 @@ Build output:
     run_duration=$((after_run - before_run))
 
     echo -e "${BLUE}
-    Compile Time ${compile_duration}ms; Run Time ${run_duration}ms; Returned $retValue"
+    Compile Time ${compile_duration}ms; Run Time ${run_duration}ms; Returned $retValue${NORMAL}"
     if [ "$retValue" -eq 124 ]; then
-      echo -e "${YELLOW}Return value 124 typically signals a timeout."
+      echo -e "${YELLOW}Return value 124 typically signals a timeout.${NORMAL}"
     fi
   fi
 else
