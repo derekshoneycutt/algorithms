@@ -12,6 +12,8 @@ fileExtension="${fileName##*.}"
 className=$(echo "$fileNameWithoutExt" | tr '[:lower:]' '[:upper:]')
 shift 1
 other_params="$@"
+CURRENT_CPU_ARCH=$(uname -m)
+CURRENT_PLATFORM=$(uname -s)
 start_dir=$PWD
 dir="${PWD%/*}"
 packName="${dir##*/}"
@@ -20,6 +22,12 @@ lang=
 testFile=
 destroy_output=0
 retValue=0
+
+DATECMD="date"
+case "$CURRENT_PLATFORM" in
+  "FreeBSD") DATECMD="gdate" ;;
+  *) ;;
+esac
 
 # Color variables
 RED='\033[0;31m'
@@ -633,8 +641,7 @@ mercury_run() {
 # =============================================
 nasm_compile() {
   do_link=0
-  cpu_arch=$(uname -m)
-  platform=$(uname -s)
+  platform="$CURRENT_PLATFORM"
   platform_output=
   if [ "$platform" = "Linux" ]; then
     platform="Linux"
@@ -647,7 +654,7 @@ nasm_compile() {
     retValue=1
     return 1
   fi
-  case "$cpu_arch" in
+  case "$CURRENT_CPU_ARCH" in
     "x86_64")
       platform="${platform}-x64"
       platform_output="${platform_output}x64"

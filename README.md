@@ -133,6 +133,8 @@ I also have a VM with Ubuntu Server setup that runs some languages.
 The entire build environment setup can be viewed in the
 [System-setup](System-setup.md) document.
 
+NOTE: On FreeBSD, the run script uses `gdate`, which you can install simply
+via `sudo pkg install gdate`.
 
 ### Standard Library
 
