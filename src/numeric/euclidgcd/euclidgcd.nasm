@@ -45,13 +45,13 @@ _start:
   mov rdi, [rsp + 16]
   call ParseNumber
   mov m, 0
-  movzx m, byte eax
+  mov m, rax
 
   mov rdi, [rsp + 24]
   push m
   call ParseNumber
   mov n, 0
-  movzx n, byte eax
+  mov n, rax
   pop m
 
 print:
