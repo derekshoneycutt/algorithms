@@ -150,7 +150,7 @@ syntax to comment out "the rest of the line."
 MMIXAL is developed quite loose and flexible allowing just about any
 style of single line comment.
 
-```mmix
+```Assembly
 # This prints hello to the screen
         LOC	Data_Segment
         GREG	@
