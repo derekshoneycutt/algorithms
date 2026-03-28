@@ -652,6 +652,10 @@ nasm_compile() {
       platform="${platform}-x64"
       platform_output="${platform_output}x64"
       ;;
+    "amd64")
+      platform="${platform}-x64"
+      platform_output="${platform_output}x64"
+      ;;
     *)
       echo "Unrecognized CPU Architecture for NASM Builds" > ./output/nasm-build-last
       retValue=1
