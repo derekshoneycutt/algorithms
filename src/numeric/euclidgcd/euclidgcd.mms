@@ -16,41 +16,41 @@ Main    LDO     $2,m
         PBN     $4,0F
 
         LDO     $5,$1,16
-        PUSHJ   $4,StringIsInt
+        PUSHJ   $4,std:strings:StringIsInt
         BZ      $4,0F
         LDO     $6,$1,8
-        PUSHJ   $5,StringIsInt
+        PUSHJ   $5,std:strings:StringIsInt
         BZ      $5,0F
 
         LDO     $4,$1,16
-        PUSHJ   $3,ParseNumber
+        PUSHJ   $3,std:strings:ParseNumber
         LDO     $6,$1,8
-        PUSHJ   $5,ParseNumber
+        PUSHJ   $5,std:strings:ParseNumber
         LDA     $2,$5
 
 # Print the given 2 values
 0H      LDA     $5,$2
         SET     $6,0
-        PUSHJ   $4,PrintNumber
-        LDA     $255,space
-        TRAP	0,Fputs,StdOut
+        PUSHJ   $4,std:io:PrintNumber
+        LDA     $10,space
+        PUSHJ   $9,std:io:PrintString
         LDA     $5,$3
         SET     $6,0
-        PUSHJ   $4,PrintNumber
-        LDA     $255,endl
-        TRAP	0,Fputs,StdOut
+        PUSHJ   $4,std:io:PrintNumber
+        LDA     $10,endl
+        PUSHJ   $9,std:io:PrintString
 
 # Calculate the GCD with Euclid's
         PUSHJ   $1,Euclid
 
 # Print and exit
-        LDA     $255,gcdstr
-        TRAP	0,Fputs,StdOut
+        LDA     $10,gcdstr
+        PUSHJ   $9,std:io:PrintString
         SET     $2,0
-        PUSHJ   $0,PrintNumber
-        LDA     $255,endl
-        TRAP	0,Fputs,StdOut
-        TRAP	0,Halt,0
+        PUSHJ   $0,std:io:PrintNumber
+        LDA     $10,endl
+        PUSHJ   $9,std:io:PrintString
+        JMP     std:sys:Exit          % Exit the application
 
 
 # Euclid's Algorithm
@@ -67,6 +67,7 @@ r       GREG    0
         PBNZ    n,1B
 
 9H      SWYM
-        PREFIX  :
         POP     1,0
+
+        PREFIX  :
 

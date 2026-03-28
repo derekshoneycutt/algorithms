@@ -1,7 +1,5 @@
 DEFAULT REL
 
-section .note.GNU-stack noalloc noexec nowrite progbits
-
 section .rodata
   header: db "First Five Hundred Primes",10,0
   valuespace: db " ",0
@@ -13,14 +11,13 @@ section .data
 
 global _start
 
-%define sys_exit 60
-
 section .text
 
 extern ParseNumber
 extern PrintString
 extern PrintNumber
 extern StringIsInt
+extern Exit
 
 _start:
   %define currp r9
@@ -123,6 +120,4 @@ _start:
   jl .stepTen
 
   .end:
-  mov rax, sys_exit
-  xor rdi, rdi
-  syscall
+  call Exit

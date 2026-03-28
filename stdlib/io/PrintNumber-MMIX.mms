@@ -1,3 +1,4 @@
+        PREFIX std:io:
 
 # Print a number algorithm
 #   $0 is the number value to print
@@ -5,7 +6,7 @@
 #       0 is automatic with no padding
 #   $2 is the character (ASCII) to pad with, when needed
 PrintNumber  SWYM
-        PREFIX  PrintNumber:
+        PREFIX  std:io:PrintNumber:
 output  IS      $255
 val     IS      $0
 max     IS      $1
@@ -46,6 +47,8 @@ Stack   GREG    100
         JMP     7B
 
 9H      INCL    output,1
-        PREFIX  :
-        TRAP    0,Fputs,StdOut
+        TRAP    0,:Fputs,:StdOut
         POP     0,0
+
+        PREFIX  :
+

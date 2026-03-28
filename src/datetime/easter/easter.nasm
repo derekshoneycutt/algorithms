@@ -1,7 +1,5 @@
 DEFAULT REL
 
-section .note.GNU-stack noalloc noexec nowrite progbits
-
 section .rodata
   header: db "Easters:",10,0
   indent: db "   ",0
@@ -13,12 +11,11 @@ section .rodata
 
 global _start
 
-%define sys_exit 60
-
 section .text
 
 extern PrintString
 extern PrintNumber
+extern Exit
 
 _start:
     %define coinp rsi
@@ -26,9 +23,7 @@ _start:
     mov coinp, CoIn
     call CoOut
 
-    mov rax, sys_exit
-    xor rdi, rdi
-    syscall
+    call Exit
 
 ; Coroutine CoIn : Loops over the range of years,
 ;       returning date of easter on each to coout.

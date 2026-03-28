@@ -1,7 +1,5 @@
 DEFAULT REL
 
-section .note.GNU-stack noalloc noexec nowrite progbits
-
 section .rodata
   space: db " ",0
   endl: db 10,0
@@ -11,14 +9,13 @@ section .rodata
 
 global _start
 
-%define sys_exit 60
-
 section .text
 
 extern ParseNumber
 extern PrintString
 extern PrintNumber
 extern StringIsInt
+extern Exit
 
 _start:
   %define argc rdi
@@ -94,9 +91,7 @@ print:
   lea rdi, endl
   call PrintString
 
-  mov rax, sys_exit
-  xor rdi, rdi
-  syscall
+  call Exit
 
 
 ; Euclid's Algorithm

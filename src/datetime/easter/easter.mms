@@ -1,6 +1,7 @@
 sdate   IS      1950
 edate   IS      2050
-output  IS      $255
+prntr   IS      $9
+output  IS      $10
 t       GREG    0
 coin    GREG    0       # coroutine in current address
 coout   GREG    0       # coroutine out current address
@@ -8,7 +9,7 @@ coout   GREG    0       # coroutine out current address
         LOC     #100
 Main    GETA    coin,CoIn
         PUSHJ   $0,CoOut
-        TRAP    0,Halt,0
+        JMP     std:sys:Exit          % Exit the application
 
 # Coroutine coin : Loops over the range of years,
 #       returning date of easter on each to coout.
@@ -36,8 +37,8 @@ nestrJ  GREG    0
         GET     nestrJ,:rJ
         GREG    @
 header  BYTE    "Easters:",10,0
-        LDA     $255,header
-        TRAP    0,Fputs,StdOut
+        LDA     output,header
+        PUSHJ   prntr,std:io:PrintString
 
 0H      GO      coout,coin,0
         BN      $0,9F
@@ -150,45 +151,52 @@ PDStack  GREG   25000
 indent  BYTE    "   ",0
 comma   BYTE    44,32,0
 
-        LDA     output,indent
-        TRAP    0,Fputs,StdOut
+        GET     NestrJPrintDate,:rJ
+        LDA     printn,indent
+        PUSHJ   printr,std:io:PrintString
+        PUT     rJ,NestrJPrintDate
 
         GET     NestrJPrintDate,:rJ
         LDA     printn,dd
         SET     maxn,2
         SET     filln,'0'
-        PUSHJ   printr,PrintNumber
+        PUSHJ   printr,std:io:PrintNumber
         SET     output,PDStack
         PUT     rJ,NestrJPrintDate
 
 0H      BNZ     MMMM,0F
+        GET     NestrJPrintDate,:rJ
         GREG    @
 march   BYTE    " March",0
-        LDA     $255,march
-        TRAP    0,Fputs,StdOut
-        LDA     $255,comma
-        TRAP    0,Fputs,StdOut
+        LDA     printn,march
+        PUSHJ   printr,std:io:PrintString
+        LDA     printn,comma
+        PUSHJ   printr,std:io:PrintString
+        PUT     rJ,NestrJPrintDate
         JMP     1F
 
 0H      SWYM
+        GET     NestrJPrintDate,:rJ
         GREG    @
 april   BYTE    " April",0
-        LDA     $255,april
-        TRAP    0,Fputs,StdOut
-        LDA     $255,comma
-        TRAP    0,Fputs,StdOut
+        LDA     printn,april
+        PUSHJ   printr,std:io:PrintString
+        LDA     printn,comma
+        PUSHJ   printr,std:io:PrintString
+        PUT     rJ,NestrJPrintDate
 
 1H      GET     NestrJPrintDate,:rJ
         LDA     printn,yyyy
         SET     maxn,4
         SET     filln,'0'
-        PUSHJ   printr,PrintNumber
+        PUSHJ   printr,std:io:PrintNumber
         SET     output,PDStack
         PUT     rJ,NestrJPrintDate
 
 1H      GREG    @
 endl    BYTE    10,0
-        LDA     output,endl
-        TRAP    0,Fputs,StdOut
+        GET     NestrJPrintDate,:rJ
+        LDA     printn,endl
+        PUSHJ   printr,std:io:PrintString
+        PUT     rJ,NestrJPrintDate
         POP     0,0
-

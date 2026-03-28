@@ -1,9 +1,10 @@
+        PREFIX  std:strings:
 
 # Determine the length of a string that terminates in a null char
 #   $0 is the address to the string to test
 #   $0 will return the number of characters before null was found
 StringLength  SWYM
-        PREFIX  StringLength:
+        PREFIX  std:strings:StringLength:
 strval  IS      $0
 bret    IS      $0
 digit   GREG    0
@@ -17,5 +18,6 @@ t       GREG    0
         JMP     0B
 
 9H      SET     bret,digit
-        PREFIX  :
         POP     1,0
+
+        PREFIX  :

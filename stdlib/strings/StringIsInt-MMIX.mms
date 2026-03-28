@@ -1,9 +1,10 @@
+        PREFIX  std:strings:
 
 # Determine if a string is an integer number
 #   $0 is the address to the string to test
 #   $0 will return 1 if it is a string of all 0-9 characters
 StringIsInt  SWYM
-        PREFIX  StringIsInt:
+        PREFIX  std:strings:StringIsInt:
 strval  IS      $0
 bret    IS      $0
 digit   GREG    0
@@ -28,5 +29,6 @@ v       GREG    0
 8H      SET     bret,0
 
 9H      SWYM
-        PREFIX  :
         POP     1,0
+
+        PREFIX  :

@@ -1,7 +1,5 @@
 DEFAULT REL
 
-section .note.GNU-stack noalloc noexec nowrite progbits
-
 global StringLength
 
 section .text

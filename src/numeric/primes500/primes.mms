@@ -13,7 +13,6 @@ PRIME1  WYDE    2
         LOC     PRIME1+2*L
 ptop    GREG	@
 j0      GREG    PRIME1+2-@
-BUF     OCTA    0
 
 # First entry immediately calculates 500 primes
         LOC     #100
@@ -47,38 +46,35 @@ endl    BYTE    10,0
 indent  BYTE    "   ",0
 
     # header
-2H      LDA     t,header
-        TRAP    0,Fputs,StdOut
+2H      LDA     $1,header
+        PUSHJ   0,std:io:PrintString
         NEG     mm,2
 
     # Print a line of numbers
 3H      ADD     mm,mm,j0
-        LDA     t,indent
-        TRAP    0,Fputs,StdOut
+        LDA     $1,indent
+        PUSHJ   0,std:io:PrintString
 
     # Print a number
 2H      LDWU    pk,ptop,mm
-spacing BYTE   " ",0
-        LDA     t,spacing
-        TRAP    0,Fputs,StdOut
+spacing BYTE    " ",0
+        LDA     $1,spacing
+        PUSHJ   0,std:io:PrintString
 
         LDA     $1,pk
         SET     $2,4
         SET     $3,'0'
-        PUSHJ   $0,PrintNumber
-
-        LDA     t,BUF
-        TRAP    0,Fputs,StdOut
+        PUSHJ   $0,std:io:PrintNumber
 
     # advance to next number in line?
         INCL    mm,2*L/10
         PBN     mm,2B
 
     # Go to the next line; or end
-        LDA     t,endl
-        TRAP    0,Fputs,StdOut
+        LDA     $1,endl
+        PUSHJ   0,std:io:PrintString
 
         CMP     t,mm,2*(L/10-1)
         PBNZ    t,3B
 
-        TRAP    0,Halt,0
+        JMP     std:sys:Exit          % Exit the application

@@ -13,7 +13,8 @@ tempv   IS      $2
 cret    IS      $3
 cparm   IS      $4
 maxn    IS      $5
-output  IS      $255
+prntr   IS      $9
+output  IS      $10
 
         LOC     #100
 Main    SUBU    argc,argc,1
@@ -26,10 +27,10 @@ PArgs   MUL     tempv,argc,8
 
 PArgsL  SUBU    argv,argv,8
         LDO     cparm,argv
-        PUSHJ   cret,StringIsInt
+        PUSHJ   cret,std:strings:StringIsInt
         BZ      cret,0F
         LDO     cparm,argv
-        PUSHJ   cret,ParseNumber
+        PUSHJ   cret,std:strings:ParseNumber
         STO     cret,sp,0
         ADDU    sp,sp,8
         ADDU    n,n,1
@@ -50,14 +51,14 @@ dVals   LDO     tempv,d1
 
 # print the values on the stack
 PVals   LDA     output,valstr
-        TRAP    0,Fputs,StdOut
+        PUSHJ   prntr,std:io:PrintString
         LDA     tempv,n
 PValsL  SUBU    sp,sp,8
         LDO     cparm,sp,0
         SET     maxn,0
-        PUSHJ   cret,PrintNumber
+        PUSHJ   cret,std:io:PrintNumber
         LDA     output,endl
-        TRAP    0,Fputs,StdOut
+        PUSHJ   prntr,std:io:PrintString
         SUBU    tempv,tempv,1
         PBP     tempv,PValsL
 
@@ -71,13 +72,14 @@ DoIt    LDA     cparm,n
         LDA     tempv,cret
         
         LDA     output,maxstr
-        TRAP    0,Fputs,StdOut
+        PUSHJ   prntr,std:io:PrintString
         LDA     cparm,tempv
+
         SET     maxn,0
-        PUSHJ   cret,PrintNumber
+        PUSHJ   cret,std:io:PrintNumber
         LDA     output,endl
-        TRAP    0,Fputs,StdOut
-        TRAP    0,Halt,0
+        PUSHJ   prntr,std:io:PrintString
+        JMP     std:sys:Exit          % Exit the application
 
 
 # Find the maximum value in n values on the stack
@@ -100,5 +102,6 @@ Dec     SUBU    n,n,1
         PBP     n,Loop
 
         LDA     $0,curr
-        PREFIX  :
         POP     1,0
+
+        PREFIX  :

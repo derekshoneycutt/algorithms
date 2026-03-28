@@ -1,7 +1,5 @@
 DEFAULT REL
 
-section .note.GNU-stack noalloc noexec nowrite progbits
-
 section .rodata
   valuesmsg: db "values:",10,0
   maxmsg: db "max: ",0
@@ -11,14 +9,13 @@ section .rodata
 
 global _start
 
-%define sys_exit 60
-
 section .text
 
 extern ParseNumber
 extern PrintString
 extern PrintNumber
 extern StringIsInt
+extern Exit
 
 _start:
   %define argc rdi
@@ -125,9 +122,7 @@ _start:
   lea rdi, endl
   call PrintString
 
-  mov rax, sys_exit
-  xor rdi, rdi
-  syscall
+  call Exit
 
 ; Find the maximum value in n values on the stack; this does not pop off the stack.
 StackMax:
