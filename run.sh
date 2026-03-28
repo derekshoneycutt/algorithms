@@ -23,11 +23,15 @@ testFile=
 destroy_output=0
 retValue=0
 
-DATECMD="date"
+DATE_CMD="date"
 case "$CURRENT_PLATFORM" in
-  "FreeBSD") DATECMD="gdate" ;;
+  "FreeBSD") DATE_CMD="gdate" ;;
   *) ;;
 esac
+
+get_ms_time() {
+  $DATE_CMD +%s%N | cut -b1-13
+}
 
 # Color variables
 RED='\033[0;31m'
@@ -1120,9 +1124,9 @@ fi
 # and if successful, run it immediately.
 # if the build fails, try to output the last build output
 
-before_compile=$(date +%s%3N)
+before_compile=$(get_ms_time)
 "${lang}_compile"
-after_compile=$(date +%s%3N)
+after_compile=$(get_ms_time)
 
 if [ "$retValue" -eq 0 ]; then
   if [ ! -f "$testFile" ]; then
@@ -1133,9 +1137,9 @@ Build output:
     cat "./output/${lang}-build-last"
   else
     retValue=0
-    before_run=$(date +%s%3N)
+    before_run=$(get_ms_time)
     "${lang}_run"
-    after_run=$(date +%s%3N)
+    after_run=$(get_ms_time)
 
     compile_duration=$((after_compile - before_compile))
     run_duration=$((after_run - before_run))
