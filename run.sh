@@ -30,7 +30,7 @@ case "$CURRENT_PLATFORM" in
 esac
 
 get_ms_time() {
-  $DATE_CMD +%s%N | cut -b1-13
+  $DATE_CMD +%s%3N | cut -b1-13
 }
 
 # Color variables
