@@ -3,10 +3,6 @@
 # This builds the standard library. A first parameter is required, which
 # must be the build target.
 
-# Available Build Targets: MMIX, LINUX-X64, CLEAN
-
-# CLEAN clears out all output folders.
-
 mkdir -p ./output
 
 BUILD_TARGET=$(echo "$1" | tr '[:lower:]' '[:upper:]')

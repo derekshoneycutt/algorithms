@@ -3,9 +3,6 @@
 # This is a build script to build a local directory of the "standard library"
 # for this algorithms project.
 
-# Available build targets are MMIX and LINUX-X64 (case insensitive)
-# CLEAN target cleans out the output entirely
-
 # This script is intended to be called by the build script within the
 # subdirectory.
 

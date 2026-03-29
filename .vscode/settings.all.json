@@ -1,0 +1,57 @@
+{
+    "go.toolsEnvVars": {
+        "CGO_ENABLED": "0"
+    },
+    "FSharp.suggestGitignore": false,
+    "fortran.fortls.disabled": true,
+    "code-runner.runInTerminal": true,
+    "C_Cpp.default.cStandard": "gnu23",
+    "C_Cpp.default.cppStandard": "gnu++26",
+    "workbench.iconTheme": "material-icon-theme",
+    "files.associations": {
+        "*.bas": "freebasic",
+        "*.e": "eiffel",
+        "*.factor": "factor",
+        "*.icn": "unicon",
+        "*.m": "objective-c",
+        "*.m3": "m3",
+        "*.mat": "octave",
+        "*.mmc": "mercury",
+        "*.mms": "mmix",
+        "*.Mod": "oberon",
+        "*.pl": "prolog",
+        "*.plx": "perl",
+        "*.rkt": "racket",
+        "*.st": "smalltalk",
+        "*.kit": "kit",
+        "*.vb": "vb"
+    },
+    "material-icon-theme.files.associations": {
+        "*.bas": "freebasic",
+        "*.e": "eiffel",
+        "*.factor": "factor",
+        "*.gleam": "gleam-lang",
+        "*.icn": "icon",
+        "*.kit": "kit",
+        "*.m": "objective-c",
+        "*.m3": "modula",
+        "*.mat": "octave",
+        "*.mms": "assembly",
+        "*.mmc": "mercury",
+        "*.Mod": "oberon",
+        "*.nasm": "assembly",
+        "*.pl": "prolog",
+        "*.plx": "perl",
+        "*.st": "smalltalk"
+    },
+    "material-icon-theme.languages.associations": {
+        "eiffel": "eiffel",
+        "factor": "factor",
+        "freebasic": "freebasic",
+        "gleam": "gleam-lang",
+        "mercury": "mercury",
+        "modula": "modula",
+        "oberon": "oberon",
+        "smalltalk": "smalltalk"
+    }
+}

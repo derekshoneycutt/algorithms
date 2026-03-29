@@ -8,6 +8,12 @@ be helpful for other means.
 This project is currently developed to build and run on Linux and FreeBSD
 computers. All the code is currently running on command line.
 
+GCC is the major framework used for multiple languages, in terms of what the code
+is programmed to aim in this project. Specifically, the C++ is aimed at recent
+versions of C++ requiring GCC15. However, some older languages require GCC13 to
+build and even to build the code in this project. Therefore, the system running
+this project will likely need to prepare for having both versions of GCC installed.
+
 Gentoo is the first supported platform, on account of it is the platform I like
 to run for fun. However, it has some issues that require further setup. Namely,
 I could not get Modula-3 to run under Gentoo. This requires an Ubuntu Server
@@ -17,6 +23,11 @@ There are some languages that someone can probably get working under FreeBSD
 if they want to play with doing the builds and dependencies all well. I skipped
 this a number of times so far, but this document may be updated in the future
 if I find working solutions for the missing packages.
+
+The Windows support here is kind of added on in a begrudging fun. You can do
+it, but mostly, I am just seeing if I can. Assuming I can, I will try to keep
+up the assembly standard library for Windows. However, it is not a major
+priority for me to have everything working amazing under Windows.
 
 ## Basic Setup
 
@@ -101,6 +112,37 @@ that it takes to compile and run the algorithms.
 ```sh
 sudo pkg install gdate
 ```
+
+### Windows
+
+I highly recommend starting a Windows setup for this project by installing Visual
+Studio. The Community version is free and available for open source or similar
+projects, though they want you to upgrade for commercial, etc. purporses. Even
+Visual Studio Community, however, allows you to install the dotnet langauges for
+this project, as well as python, node, and the Visual C++ compiler.
+
+That said, I primarily use VS Code not the entire VS IDE for this project.
+VS Code is a little bit lighter and the extensions are a little bit easier
+to make work for this project. I do recommend going to the VS Code website
+and downloading and installing it on Windows.
+
+The next task is to install [git](https://gitforwindows.org). Download it from
+their website and follow the install instructions. This should install Git Bash
+along the way (if prompted, ensure to include it).
+
+Instead of a separate build script, this project uses Git Bash on Windows to
+run the code. This allows the same run and build script on all platforms.
+It is not exactly the native choice on Windows, but it ends up working quite
+well. This does mean you need to run the run script via `bash.exe`. The VS Code
+settings provided will do this if you have the
+[VS Code Settings for Mac Windows and Linux extension by franmastromarino](https://github.com/franmastromarino/vs-code-settings-os)
+extension installed in VS Code alongside the code runner. Alternatively, you
+can just run the build script from inside a Git Bash instance.
+
+At this time, the solution is mostly built just to get dotnet on Windows working.
+This is a work in progress, but feel free to check in for different languages
+if I feel like going about it. The run script works via Git Bash, and that
+is the primary thing. After that, it is just figuring out each individual language.
 
 ## Setting up an Unbuntu Server VM as a Code Runner
 
@@ -296,6 +338,29 @@ easily used, if you want.
 The easiest way in most places is to download the install package from the VS Code
 website. There is a deb for Ubuntu there. In Gentoo, it is as easy as
 `sudo emerge -av vscode`.
+
+I highly recommend the
+[VS Code Settings for Mac Windows and Linux extension by franmastromarino](https://github.com/franmastromarino/vs-code-settings-os).
+This project effectively utilizes this extension in the
+.vscode folder to have varied settings based on the OS that is currently
+being run on.
+
+Another recommendation is the
+[Material Design Icon Theme Extension](https://github.com/material-extensions/vscode-material-icon-theme).
+This makes looking at a list of files in 60 different
+programming languages a little bit easier on the eyes in my opinion, and
+I have provided settings that work with this extension.
+
+In order to get all of the icons for every language, you will need to copy any
+missing icons from the `icon` folder in this repository into the appropriate
+folder for the VS Code extension. This is usually in somewhere like `~/.vscode`
+and it takes a little bit of looking.
+
+Furthermore, I largely use the
+[Code Runner Extension by Jun Han](https://github.com/formulahendry/vscode-code-runner)
+in order to provide easy access. The settings files in `.vscode` include
+instructions for this extension to run each language via the run
+script included in the project.
 
 ## Ada
 
@@ -636,6 +701,19 @@ dotnet --list-sdks
 dotnet --list-runtimes
 ```
 
+### C\# on Windows
+
+The suggested route for this document is to navigate to the Visual Studio
+website and download the Community version. This will give a Visual Studio
+installer tool that allows many selections. Install all that you might
+want, including .NET.
+
+In a Powershell, you can check the full info on dotnet in a single command.
+
+```powershell
+dotnet --info
+```
+
 ## Clojure
 
 We use the Leiningen tool on Linux. On any distribution, this requires Java.
@@ -964,6 +1042,19 @@ sudo pkg install dotnet
 dotnet --version
 dotnet --list-sdks
 dotnet --list-runtimes
+```
+
+### F\# on Windows
+
+The suggested route for this document is to navigate to the Visual Studio
+website and download the Community version. This will give a Visual Studio
+installer tool that allows many selections. Install all that you might
+want, including .NET.
+
+In a Powershell, you can check the full info on dotnet in a single command.
+
+```powershell
+dotnet --info
 ```
 
 ## Factor
@@ -1642,7 +1733,8 @@ FreeBSD has its own way to move forward here, as outlined on the
 [GitHub repo](https://github.com/modula3/cm3/wiki/Getting-Started:-BSD).
 This process does not seem to work on the latest version, so I actually went back
 a couple of revisions to get this to build on FreeBSD. Then we can fix the build
-to have a FreeBSD target and use the `c++` compiler.
+to have a FreeBSD target and use the `c++` compiler. Finally, it is that concierge
+python script to walk us through the build.
 
 ```sh
 sudo pkg install cmake gtar python3 unixODBC wget
@@ -2655,6 +2747,19 @@ sudo pkg install dotnet
 dotnet --version
 dotnet --list-sdks
 dotnet --list-runtimes
+```
+
+### Visual Basic .Net on Windows
+
+The suggested route for this document is to navigate to the Visual Studio
+website and download the Community version. This will give a Visual Studio
+installer tool that allows many selections. Install all that you might
+want, including .NET.
+
+In a Powershell, you can check the full info on dotnet in a single command.
+
+```powershell
+dotnet --info
 ```
 
 ## Web Assembly (WASM)
