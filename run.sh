@@ -25,7 +25,12 @@ retValue=0
 
 DATE_CMD="date"
 case "$CURRENT_PLATFORM" in
-  "FreeBSD") DATE_CMD="gdate" ;;
+  "MINGW64_NT"*) . ~/.bash_profile ;;
+  "Linux"*) . ~/.bash_profile ;;
+  "FreeBSD")
+    DATE_CMD="gdate"
+    . ~/.profile
+    ;;
   *) ;;
 esac
 
@@ -631,7 +636,7 @@ mercury_compile() {
   echo "cd ./output && mmc \"./$fileNameWithoutExt.m\" && cd .." >> ./mercury-build-last
   mmc "./$fileNameWithoutExt.m" >> ./mercury-build-last 2>&1
   retValue="$?"
-  echo "-- mmc returned: $retValue" >> ./output/mercury-build-last
+  echo "-- mmc returned: $retValue" >> ./mercury-build-last
 
   cd ..
 }
