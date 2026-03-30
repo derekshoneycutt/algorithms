@@ -82,19 +82,19 @@ import { Imogene as $_, ImogeneArray } from './Imogene/Imogene';
  */
 const ALGORITHMS_PAGES = {
     title: "Algorithms",
-    page: "/index.html",
+    page: "index.html",
     writings: [
         {
             title: "Gentoo Setup",
-            page: "/Gentoo-setup.html"
+            page: "Gentoo-setup.html"
         },
         {
             title: "System Setup",
-            page: "/System-setup.html"
+            page: "System-setup.html"
         },
         {
             title: "1. Hello world",
-            page: "/random_helloworld.html"
+            page: "random_helloworld.html"
         },
     ]
 };
@@ -154,7 +154,7 @@ function loadSideBar() {
 
     let navlist = $_.find('#side-navlist');
     navlist.emptyAndReplace(
-        <li class={`home_item ${currentPage === ALGORITHMS_PAGES.page ? 'on_page' : ''}`}>
+        <li class={`home_item ${currentPage === `/${ALGORITHMS_PAGES.page}` ? 'on_page' : ''}`}>
             <a href={currentPage === ALGORITHMS_PAGES.page ? undefined : ALGORITHMS_PAGES.page}
                class="nav_link">
                 <span class="material-symbols-outlined home_icon">home</span>
@@ -164,7 +164,7 @@ function loadSideBar() {
 
     ALGORITHMS_PAGES.writings.forEach(writing => {
         let listitem_element =
-            <li class={currentPage === writing.page ? 'on_page' : ""}>
+            <li class={currentPage === `/${writing.page}` ? 'on_page' : ""}>
                 <a href={writing.page} class="nav_link">
                     {writing.title}
                 </a>

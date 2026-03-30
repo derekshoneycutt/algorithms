@@ -74,6 +74,7 @@
 </p>
 
 [GitHub Project](https://github.com/derekshoneycutt/algorithms)
+[Analysis Pages](https://derekshoneycutt.github.io/algorithms/)
 
 This is just a fun little project to write a bunch of algorithms
 and data structures in a bunch of different languages. I have also decided
