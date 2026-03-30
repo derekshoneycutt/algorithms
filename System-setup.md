@@ -567,7 +567,42 @@ GCC on all platforms, so we are going to look at mingw here. You can start
 at the [MingW Website](https://www.mingw-w64.org/).
 
 We will go with a [WinLibs](https://winlibs.com/) route about this. We need
-both GCC 15 and GCC 13, and this is somewhat easier with 
+both GCC 15 and GCC 13, and this is somewhat easier with the winlibs route.
+We just download zip files for version 15 and version 13. We can do the latest
+of both for Win64.
+
+Personally, I placed the contents of the version 15 package such that bin,
+etc. were directly in $HOME/.local. I also placed version 13 alongside in
+its own mingw13 folder within $HOME/.local. As long as you know where these are
+and can use both, you can use your own layout as you wish.
+
+You need to open $HOME/.bash_profile and add the following exports to the
+extracted binaries. This assumes the $HOME/.local layout; change as required
+for your own layout.
+
+```bash
+export PATH="$HOME/.local/bin:$PATH"
+export CC="$HOME/.local/bin/x86_64-w64-mingw32-gcc.exe"
+export CXX="$HOME/.local/bin/x86_64-w64-mingw32-g++.exe"
+export FC="$HOME/.local/bin/x86_64-w64-mingw32-gfortran.exe"
+export F77="$HOME/.local/bin/x86_64-w64-mingw32-gfortran.exe"
+export LD="$HOME/.local/bin/ld.exe"
+export AR="$HOME/.local/bin/x86_64-w64-mingw32-gcc-ar.exe"
+export RANLIB="$HOME/.local/bin/x86_64-w64-mingw32-gcc-ranlib.exe"
+export WINDRES="$HOME/.local/bin/windres.exe"
+export RC="$HOME/.local/bin/windres.exe"
+export NM="$HOME/.local/bin/x86_64-w64-mingw32-gcc-nm.exe"
+export DLLTOOL="$HOME/.local/bin/dlltool.exe"
+export STRIP="$HOME/.local/bin/strip.exe"
+export PKG_CONFIG="$HOME/.local/bin/pkgconf.exe"
+```
+
+We can then test this in a Git Bash.
+
+```bash
+. ~/.bash_profile
+gcc --version
+```
 
 ## C++
 
@@ -652,6 +687,50 @@ mkdir -p $HOME/links
 ln -s /usr/local/bin/gcc15 $HOME/links/gcc
 ln -s /usr/local/bin/g++15  $HOME/links/g++
 PATH="$HOME/links/:$PATH" gcc --version
+```
+
+### C++ on Windows
+
+You can play with Visual C++ for C++ code if you want, but this project uses
+GCC on all platforms, so we are going to look at mingw here. You can start
+at the [MingW Website](https://www.mingw-w64.org/).
+
+We will go with a [WinLibs](https://winlibs.com/) route about this. We need
+both GCC 15 and GCC 13, and this is somewhat easier with the winlibs route.
+We just download zip files for version 15 and version 13. We can do the latest
+of both for Win64.
+
+Personally, I placed the contents of the version 15 package such that bin,
+etc. were directly in $HOME/.local. I also placed version 13 alongside in
+its own mingw13 folder within $HOME/.local. As long as you know where these are
+and can use both, you can use your own layout as you wish.
+
+You need to open $HOME/.bash_profile and add the following exports to the
+extracted binaries. This assumes the $HOME/.local layout; change as required
+for your own layout.
+
+```bash
+export PATH="$HOME/.local/bin:$PATH"
+export CC="$HOME/.local/bin/x86_64-w64-mingw32-gcc.exe"
+export CXX="$HOME/.local/bin/x86_64-w64-mingw32-g++.exe"
+export FC="$HOME/.local/bin/x86_64-w64-mingw32-gfortran.exe"
+export F77="$HOME/.local/bin/x86_64-w64-mingw32-gfortran.exe"
+export LD="$HOME/.local/bin/ld.exe"
+export AR="$HOME/.local/bin/x86_64-w64-mingw32-gcc-ar.exe"
+export RANLIB="$HOME/.local/bin/x86_64-w64-mingw32-gcc-ranlib.exe"
+export WINDRES="$HOME/.local/bin/windres.exe"
+export RC="$HOME/.local/bin/windres.exe"
+export NM="$HOME/.local/bin/x86_64-w64-mingw32-gcc-nm.exe"
+export DLLTOOL="$HOME/.local/bin/dlltool.exe"
+export STRIP="$HOME/.local/bin/strip.exe"
+export PKG_CONFIG="$HOME/.local/bin/pkgconf.exe"
+```
+
+We can then test this in a Git Bash.
+
+```bash
+. ~/.bash_profile
+g++ --version
 ```
 
 ## C\#
@@ -1102,49 +1181,6 @@ with factor.
 factor --version
 ```
 
-## FreeBASIC
-
-We use the standard FreeBASIC tool on Linux.
-
-### FreeBASIC on Gentoo
-
-The FreeBASIC compiler is available on portage.
-
-```bash
-emerge -av dev-lang-fbc
-fbc --version
-```
-
-### FreeBASIC on Ubuntu
-
-Go to [The FreeBASIC Website](https://freebasic.net) and download the
-latest version of FreeBASIC from sourceforge. This will give you a deb file
-you can install through the ordinary package manager.
-
-This failed to install a required libtinfo5, and this appears not to
-exist on Ubuntu repositories any more. So we need to manually install that.
-
-```bash
-sudo apt update
-wget http://security.ubuntu.com/ubuntu/pool/universe/n/ncurses/libtinfo5_6.3-2ubuntu0.1_amd64.deb
-sudo apt install ./libtinfo5_6.3-2ubuntu0.1_amd64.deb
-fbc --version
-```
-
-### FreeBASIC on FreeBSD
-
-FreeBASIC does offer official FreeBASIC packages for FreeBSD on their
-[GitHub Releases](https://github.com/freebasic/fbc/releases). Here, I just copy
-all of the files from the extract to local PATH directories.
-
-```sh
-tar xvf FreeBASIC-1.10.1-freebsd-x86_64.tar.gz
-cd FreeBASIC-1.10.1-freebsd-x86_64
-cp -Rfv ./* ~/.local/
-cd
-fbc --version
-```
-
 ## Forth
 
 We use the GNU Forth tool on Linux.
@@ -1212,6 +1248,93 @@ gnatmake --version
 ### Fortran on FreeBSD
 
 This was installed as part of the GCC package. See C or C++.
+
+### Fortran on Windows
+
+You can play with Visual C++ for C++ code if you want, but this project uses
+GCC on all platforms, so we are going to look at mingw here. You can start
+at the [MingW Website](https://www.mingw-w64.org/).
+
+We will go with a [WinLibs](https://winlibs.com/) route about this. We need
+both GCC 15 and GCC 13, and this is somewhat easier with the winlibs route.
+We just download zip files for version 15 and version 13. We can do the latest
+of both for Win64.
+
+Personally, I placed the contents of the version 15 package such that bin,
+etc. were directly in $HOME/.local. I also placed version 13 alongside in
+its own mingw13 folder within $HOME/.local. As long as you know where these are
+and can use both, you can use your own layout as you wish.
+
+You need to open $HOME/.bash_profile and add the following exports to the
+extracted binaries. This assumes the $HOME/.local layout; change as required
+for your own layout.
+
+```bash
+export PATH="$HOME/.local/bin:$PATH"
+export CC="$HOME/.local/bin/x86_64-w64-mingw32-gcc.exe"
+export CXX="$HOME/.local/bin/x86_64-w64-mingw32-g++.exe"
+export FC="$HOME/.local/bin/x86_64-w64-mingw32-gfortran.exe"
+export F77="$HOME/.local/bin/x86_64-w64-mingw32-gfortran.exe"
+export LD="$HOME/.local/bin/ld.exe"
+export AR="$HOME/.local/bin/x86_64-w64-mingw32-gcc-ar.exe"
+export RANLIB="$HOME/.local/bin/x86_64-w64-mingw32-gcc-ranlib.exe"
+export WINDRES="$HOME/.local/bin/windres.exe"
+export RC="$HOME/.local/bin/windres.exe"
+export NM="$HOME/.local/bin/x86_64-w64-mingw32-gcc-nm.exe"
+export DLLTOOL="$HOME/.local/bin/dlltool.exe"
+export STRIP="$HOME/.local/bin/strip.exe"
+export PKG_CONFIG="$HOME/.local/bin/pkgconf.exe"
+```
+
+We can then test this in a Git Bash.
+
+```bash
+. ~/.bash_profile
+gfortran --version
+```
+
+## FreeBASIC
+
+We use the standard FreeBASIC tool on Linux.
+
+### FreeBASIC on Gentoo
+
+The FreeBASIC compiler is available on portage.
+
+```bash
+emerge -av dev-lang-fbc
+fbc --version
+```
+
+### FreeBASIC on Ubuntu
+
+Go to [The FreeBASIC Website](https://freebasic.net) and download the
+latest version of FreeBASIC from sourceforge. This will give you a deb file
+you can install through the ordinary package manager.
+
+This failed to install a required libtinfo5, and this appears not to
+exist on Ubuntu repositories any more. So we need to manually install that.
+
+```bash
+sudo apt update
+wget http://security.ubuntu.com/ubuntu/pool/universe/n/ncurses/libtinfo5_6.3-2ubuntu0.1_amd64.deb
+sudo apt install ./libtinfo5_6.3-2ubuntu0.1_amd64.deb
+fbc --version
+```
+
+### FreeBASIC on FreeBSD
+
+FreeBASIC does offer official FreeBASIC packages for FreeBSD on their
+[GitHub Releases](https://github.com/freebasic/fbc/releases). Here, I just copy
+all of the files from the extract to local PATH directories.
+
+```sh
+tar xvf FreeBASIC-1.10.1-freebsd-x86_64.tar.gz
+cd FreeBASIC-1.10.1-freebsd-x86_64
+cp -Rfv ./* ~/.local/
+cd
+fbc --version
+```
 
 ## Gleam
 

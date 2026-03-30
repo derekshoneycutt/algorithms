@@ -85,16 +85,16 @@ const ALGORITHMS_PAGES = {
     page: "index.html",
     writings: [
         {
-            title: "Gentoo Setup",
-            page: "Gentoo-setup.html"
+            title: "1. Hello world",
+            page: "random_helloworld.html"
         },
         {
             title: "System Setup",
             page: "System-setup.html"
         },
         {
-            title: "1. Hello world",
-            page: "random_helloworld.html"
+            title: "Gentoo Setup",
+            page: "Gentoo-setup.html"
         },
     ]
 };

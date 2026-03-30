@@ -158,8 +158,8 @@ cobol_run() {
 #           C++
 # =============================================
 cpp_compile() {
-  echo "g++ \"./$fileName\" -o \"./output/$fileNameWithoutExt\" --std=c++23" > ./output/cpp-build-last
-  g++ "./$fileName" -o "./output/$fileNameWithoutExt" --std=c++23 >> ./output/cpp-build-last 2>&1
+  echo "g++ \"./$fileName\" -o \"./output/$fileNameWithoutExt\" --std=c++23 -lstdc++exp" > ./output/cpp-build-last
+  g++ "./$fileName" -o "./output/$fileNameWithoutExt" --std=c++23 -lstdc++exp >> ./output/cpp-build-last 2>&1
   retValue="$?"
   echo "-- G++ returned: $retValue" >> ./output/cpp-build-last
 }
@@ -652,17 +652,25 @@ nasm_compile() {
   do_link=0
   platform="$CURRENT_PLATFORM"
   platform_output=
-  if [ "$platform" = "Linux" ]; then
-    platform="Linux"
-    platform_output="linux"
-  elif [ "$platform" = "FreeBSD" ]; then
-    platform="FreeBSD"
-    platform_output="freebsd"
-  else
-    echo "Unrecognized Platform for NASM Builds" > ./output/nasm-build-last
-    retValue=1
-    return 1
-  fi
+  case "$platform" in
+    "MINGW64_NT"*)
+      platform="Windows"
+      platform_output="windows"
+    ;;
+    "Linux"*)
+      platform="Linux"
+      platform_output="linux"
+    ;;
+    "FreeBSD"*)
+      platform="FreeBSD"
+      platform_output="freebsd"
+    ;;
+    *)
+      echo "Unrecognized Platform for NASM Builds" > ./output/nasm-build-last
+      retValue=1
+      return 1
+    ;;
+  esac
   case "$CURRENT_CPU_ARCH" in
     "x86_64")
       platform="${platform}-x64"
@@ -704,9 +712,18 @@ nasm_compile() {
     do_build=1
   fi
   if [ "$do_build" -eq 1 ]; then
-    echo "nasm -f elf64 -o \"./output/$fileNameWithoutExt.o\" \"$fileName\"" >> ./output/nasm-build-last
-    nasm -f elf64 -o "./output/$fileNameWithoutExt.o" "$fileName" >> ./output/nasm-build-last 2>&1
-    retValue="$?"
+    case "$platform" in
+      "Windows")
+        echo "nasm -f win64 -o \"./output/$fileNameWithoutExt.o\" \"$fileName\"" >> ./output/nasm-build-last
+        nasm -f win64 -o "./output/$fileNameWithoutExt.o" "$fileName" >> ./output/nasm-build-last 2>&1
+        retValue="$?"
+      ;;
+      *)
+        echo "nasm -f elf64 -o \"./output/$fileNameWithoutExt.o\" \"$fileName\"" >> ./output/nasm-build-last
+        nasm -f elf64 -o "./output/$fileNameWithoutExt.o" "$fileName" >> ./output/nasm-build-last 2>&1
+        retValue="$?"
+      ;;
+    esac
     echo "-- nasm returned: $retValue" >> ./output/nasm-build-last
     if [ "$retValue" -ne 0 ]; then
       return $retValue
@@ -719,9 +736,18 @@ nasm_compile() {
     do_link=1
   fi
   if [ "$do_link" -eq 1 ]; then
-    echo "ld -o \"./output/$fileNameWithoutExt\" \"./output/$fileNameWithoutExt.o\" \"$stdlib\"" >> ./output/nasm-build-last
-    ld -o "./output/$fileNameWithoutExt" "./output/$fileNameWithoutExt.o" "$stdlib" >> ./output/nasm-build-last 2>&1
-    retValue="$?"
+    case "$platform" in
+      "Windows")
+        echo "ld -o \"./output/$fileNameWithoutExt\" \"./output/$fileNameWithoutExt.o\" \"$stdlib\"" >> ./output/nasm-build-last
+        ld -lkernel32 -o "./output/$fileNameWithoutExt" "./output/$fileNameWithoutExt.o" "$stdlib" >> ./output/nasm-build-last 2>&1
+        retValue="$?"
+      ;;
+      *)
+        echo "ld -o \"./output/$fileNameWithoutExt\" \"./output/$fileNameWithoutExt.o\" \"$stdlib\"" >> ./output/nasm-build-last
+        ld -o "./output/$fileNameWithoutExt" "./output/$fileNameWithoutExt.o" "$stdlib" >> ./output/nasm-build-last 2>&1
+        retValue="$?"
+      ;;
+    esac
     echo "-- ld returned: $retValue" >> ./output/nasm-build-last
     if [ "$retValue" -ne 0 ]; then
       return $retValue

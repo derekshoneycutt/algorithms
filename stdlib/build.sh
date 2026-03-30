@@ -115,6 +115,46 @@ case "$BUILD_TARGET" in
         echo "ALL BUILD SUCCESS" >> ./output/freebsdx64-build-last
     ;;
 
+    "WINDOWS-X64")
+        # Windows x86 64 requires us to loop through and build each of subdirectories,
+        # and then we have to link all of the packages together with ld
+        echo "STARTING WINDOWS X86 64 BUILD" > ./output/windows64-build-last
+        ALL_TO_BUILD=
+        for SUBDIR_REL in $(find . -maxdepth 1 -type d ! -name '.'); do
+            SUBDIR="${SUBDIR_REL#./}"
+            if [ -f "./$SUBDIR/build.sh" ]; then
+                cd "./$SUBDIR"
+                echo "cd $SUBDIR && ./build.sh $1 && cd .." >> ../output/windows64-build-last
+                ./build.sh $1 >> ../output/windows64-build-last
+                cd ..
+
+                # Exit immediately on any failed builds
+                LAST_RETURN_VALUE="$?"
+                if [ "$LAST_RETURN_VALUE" -ne 0 ]; then
+                    echo "FAILED BUILD."
+                    cat ./output/windows64-build-last
+                    exit 1
+                fi
+                cat ./$SUBDIR/output/windows64-build-last >> ./output/windows64-build-last
+                ALL_TO_BUILD="$ALL_TO_BUILD ../$SUBDIR/output/$SUBDIR-Windows-x64.o"
+            fi
+        done
+
+        # If all the builds are successful, we link them together into a single object file
+        cd ./output
+        echo "ld -r -o \"./stdlib.o\" $ALL_TO_BUILD" >> "./windows64-build-last"
+        ld -lkernel32 -r -o "./stdlib-Windows-x64.o" $ALL_TO_BUILD >> ./windows64-build-last 2>&1
+        LAST_RETURN_VALUE="$?"
+        echo "-- ld returned: $LAST_RETURN_VALUE" >> "./windows64-build-last"
+        cd ..
+        if [ "$LAST_RETURN_VALUE" -ne 0 ]; then
+            echo "FAILED BUILD."
+            cat ./output/windows64-build-last
+            exit 1
+        fi
+        echo "ALL BUILD SUCCESS" >> ./output/windows64-build-last
+    ;;
+
     "CLEAN")
         # For clean, we just loop through each subdirectory and call clean there
         for SUBDIR_REL in $(find . -maxdepth 1 -type d ! -name '.'); do
