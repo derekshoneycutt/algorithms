@@ -1,0 +1,61 @@
+{
+  "name": "algorithms",
+  "version": "1.0.0",
+  "description": "Coding a lot of algorithms",
+  "homepage": "https://github.com/derekshoneycutt/algorithms#readme",
+  "bugs": {
+    "url": "https://github.com/derekshoneycutt/algorithms/issues"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/derekshoneycutt/algorithms.git"
+  },
+  "license": "MIT",
+  "author": "Derek Honeycutt",
+  "main": "web/algorithms.jsx",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "build": "webpack"
+  },
+  "devDependencies": {
+    "@babel/cli": "^7.28.6",
+    "@babel/core": "^7.29.0",
+    "@babel/preset-env": "^7.29.2",
+    "@babel/preset-react": "^7.28.5",
+    "@fontsource/roboto": "^5.2.10",
+    "autoprefixer": "^10.4.27",
+    "babel-loader": "^10.1.1",
+    "cheerio": "^1.2.0",
+    "css-loader": "^7.1.4",
+    "cssnano": "^7.1.4",
+    "dompurify": "^3.3.3",
+    "extract-loader": "^4.0.3",
+    "file-loader": "^6.2.0",
+    "html-loader": "^5.1.0",
+    "html-webpack-partials-plugin": "^0.8.0",
+    "html-webpack-plugin": "^5.6.6",
+    "material-symbols": "^0.43.0",
+    "mini-css-extract-plugin": "^2.10.2",
+    "postcss-loader": "^8.2.1",
+    "sass": "^1.98.0",
+    "sass-loader": "^16.0.7",
+    "url-loader": "^4.1.1",
+    "webpack": "^5.105.4",
+    "webpack-cli": "^7.0.2"
+  },
+  "dependencies": {
+    "@material/elevation": "^14.0.0",
+    "@material/web": "^2.4.1",
+    "@octokit/core": "^7.0.6"
+  },
+  "babel-cli": {
+    "presets": [
+      [
+        "@babel/preset-env",
+        {
+          "modules": false
+        }
+      ]
+    ]
+  }
+}

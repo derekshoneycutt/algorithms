@@ -73,8 +73,12 @@
 <img src="./icons/zig.svg" alt="Zig" title="Zig" width="30" height="30">
 </p>
 
+[GitHub Project](https://github.com/derekshoneycutt/algorithms)
+
 This is just a fun little project to write a bunch of algorithms
-and data structures in a bunch of different languages.
+and data structures in a bunch of different languages. I have also decided
+to start doing some writings about the experience, trying to do some kind of
+amateur analysis of what is being said and so on.
 
 Why not?
 

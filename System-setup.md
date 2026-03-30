@@ -58,7 +58,7 @@ export DEREKALGOS_GXX13NAME="x86_64-pc-linux-gnu-g++"
 
 ### Gentoo
 
-I have created a [gentoo-setup.md](gentoo-setup.md) which describes the general
+I have created a [Gentoo setup resource](gentoo-setup.md) which describes the general
 Gentoo process that I used to create systems that can run all of this code. This
 is basically just a supplement to the Gentoo Handbook and does not add anything
 unusual, really. There are no significant extra steps to add to a Gentoo setup,
@@ -138,6 +138,10 @@ settings provided will do this if you have the
 [VS Code Settings for Mac Windows and Linux extension by franmastromarino](https://github.com/franmastromarino/vs-code-settings-os)
 extension installed in VS Code alongside the code runner. Alternatively, you
 can just run the build script from inside a Git Bash instance.
+
+I install MingW for C/C++ because we do use GCC for this project, and there is
+some point to reduce how much I have to change the run script for different
+platforms. I suggest starting there as well, in the C and C++ sections.
 
 At this time, the solution is mostly built just to get dotnet on Windows working.
 This is a work in progress, but feel free to check in for different languages
@@ -555,6 +559,15 @@ mkdir -p $HOME/links
 ln -s /usr/local/bin/gcc15 $HOME/links/gcc
 PATH="$HOME/links/:$PATH" gcc --version
 ```
+
+### C on Windows
+
+You can play with Visual C++ for C code if you want, but this project uses
+GCC on all platforms, so we are going to look at mingw here. You can start
+at the [MingW Website](https://www.mingw-w64.org/).
+
+We will go with a [WinLibs](https://winlibs.com/) route about this. We need
+both GCC 15 and GCC 13, and this is somewhat easier with 
 
 ## C++
 

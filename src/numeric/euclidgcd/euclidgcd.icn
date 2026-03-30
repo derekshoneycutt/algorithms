@@ -1,0 +1,28 @@
+# This calculated the greatest common denominator with Euclid's algorithm
+
+# The procedure to calculate GCD
+procedure euclidgcd(m, n)
+    local r
+    while n ~= 0 do {
+        r := m % n
+        m := n
+        n := r
+    }
+    return m
+end
+
+# Main procedure for the application; just gets numbers and calcs gcd
+procedure main(args)
+    local m, n, gcd
+
+    m := 15
+    n := 10
+    if *args >= 2 then {
+        m := args[1]
+        n := args[2]
+    }
+
+    gcd := euclidgcd(m, n)
+    write(string(m), " ", string(n))
+    write("gcd: ", string(gcd))
+end
