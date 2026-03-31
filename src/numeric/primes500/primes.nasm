@@ -6,7 +6,6 @@ section .rodata
   indent: db "   ",0
   endl: db 10,0
 
-; CAUTION: THIS DOESN'T WORK IN WINDOWS. WE NEED TO UPDATE THIS.
 section .data
   array times 500 dw 0
 
@@ -22,6 +21,7 @@ extern Exit
 
 _start:
   %define currp r9
+  %define tempp r11
   %define n cx
   %define j rdx
   %define k rsi
@@ -55,12 +55,13 @@ _start:
   .stepSix: ; [PRIME[k] \ n?] Divide n by PRIME[k];
   mov prime, 0
   mov rdi, 0
-  mov di, word [array + k * 2]
+  lea tempp, [array]
+  mov di, word [tempp + k * 2]
 
   push j
   mov q, 0
-  mov ax, n
-  mov rdx, 0
+  movzx q, n
+  xor rdx, rdx
   div prime
   mov r, rdx
   pop j
@@ -99,7 +100,8 @@ _start:
   call PrintString
   mov i, [rsp]
   mov rdi, 0
-  mov di, word [array + i * 2]
+  lea currp, [array]
+  mov di, word [currp + i * 2]
   mov rsi, 4
   mov rdx, '0'
   call PrintNumber
