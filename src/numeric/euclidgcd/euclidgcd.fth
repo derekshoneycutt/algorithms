@@ -25,14 +25,14 @@
             2DROP 10
         then
     else
-        10 15
+        15 10
     then ;
 
 \ The main entry point we used to house the application
 : main ( -- )
     get-args
     2dup
-    . ."  " . CR ." gcd: "
+    swap . ."  " . CR ." gcd: "
     euclidgcd . CR ;
 
 main bye
