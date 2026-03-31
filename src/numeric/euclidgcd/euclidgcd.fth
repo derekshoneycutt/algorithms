@@ -14,12 +14,12 @@
 : get-args ( -- m n )
     argc @ 4 >= if
         next-arg 2drop
-        1 arg s>number? if
+        next-arg s>number? if
             d>s
         else
             2DROP 15
         then
-        2 arg s>number? if
+        next-arg s>number? if
             d>s
         else
             2DROP 10
