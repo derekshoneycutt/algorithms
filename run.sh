@@ -1007,12 +1007,12 @@ visualbasic_run() {
 #           WASM (wat)
 # =============================================
 wat_compile() {
-  echo "cp \"$fileName\" \"./output/$fileName\" && cd ./output && wat2wasm \"$fileName\" -o \"$fileNameWithoutExt.wasm\" && cd .." > ./output/wasm-build-last
+  echo "cp \"$fileName\" \"./output/$fileName\" && cd ./output && wat2wasm \"$fileName\" -o \"$fileNameWithoutExt.wasm\" && cd .." > ./output/wat-build-last
   cp "$fileName" "./output/$fileName"
   cd ./output
-  wat2wasm "$fileName" -o "$fileNameWithoutExt.wasm" >> ./wasm-build-last 2>&1
+  wat2wasm "$fileName" -o "$fileNameWithoutExt.wasm" >> ./wat-build-last 2>&1
   retValue="$?"
-  echo "-- wat2wasm returned: $retValue" >> ./wasm-build-last
+  echo "-- wat2wasm returned: $retValue" >> ./wat-build-last
   cd ..
 }
 wat_run() {

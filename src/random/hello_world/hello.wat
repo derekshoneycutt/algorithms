@@ -12,8 +12,8 @@
   
   (export "pagememory" (memory $0))
 
-  (func $helloworld ;; our "run" method that our js loader will call into
+  ;; our "run" method that our js loader will call into
+  (func $run (export "run")
     (call $jsprint (i32.const 0))
   )
-  (export "run" (func $helloworld))
 )
