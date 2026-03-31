@@ -1178,8 +1178,13 @@ Build output:
     compile_duration=$((after_compile - before_compile))
     run_duration=$((after_run - before_run))
 
-    echo -e "${BLUE}
-    Compile Time ${compile_duration}ms; Run Time ${run_duration}ms; Returned $retValue${NORMAL}"
+    if [ "$retValue" -eq 0 ]; then
+      echo -e "
+    ${BLUE}Compile Time ${compile_duration}ms; Run Time ${run_duration}ms; ${GREEN}Returned $retValue${NORMAL}"
+    else
+      echo -e "
+    ${BLUE}Compile Time ${compile_duration}ms; Run Time ${run_duration}ms; ${RED}Returned $retValue${NORMAL}"
+    fi
     if [ "$retValue" -eq 124 ]; then
       echo -e "${YELLOW}Return value 124 typically signals a timeout.${NORMAL}"
     fi
