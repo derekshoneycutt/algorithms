@@ -713,7 +713,7 @@ nasm_compile() {
   fi
   if [ "$do_build" -eq 1 ]; then
     case "$platform" in
-      "Windows")
+      "Windows-x64")
         echo "nasm -f win64 -o \"./output/$fileNameWithoutExt.o\" \"$fileName\"" >> ./output/nasm-build-last
         nasm -f win64 -o "./output/$fileNameWithoutExt.o" "$fileName" >> ./output/nasm-build-last 2>&1
         retValue="$?"
@@ -737,9 +737,9 @@ nasm_compile() {
   fi
   if [ "$do_link" -eq 1 ]; then
     case "$platform" in
-      "Windows")
-        echo "ld -o \"./output/$fileNameWithoutExt\" \"./output/$fileNameWithoutExt.o\" \"$stdlib\"" >> ./output/nasm-build-last
-        ld -lkernel32 -o "./output/$fileNameWithoutExt" "./output/$fileNameWithoutExt.o" "$stdlib" >> ./output/nasm-build-last 2>&1
+      "Windows-x64")
+        echo "ld -o \"./output/$fileNameWithoutExt\" \"./output/$fileNameWithoutExt.o\" \"$stdlib\" -L \"$LD_ADDITIONAL_DIRECTORY\" -lkernel32" >> ./output/nasm-build-last
+        ld -o "./output/$fileNameWithoutExt" "./output/$fileNameWithoutExt.o" "$stdlib" -L "$LD_ADDITIONAL_DIRECTORY" -lkernel32 >> ./output/nasm-build-last 2>&1
         retValue="$?"
       ;;
       *)
@@ -1037,6 +1037,9 @@ zig_run() {
 
 if [ "$fileName" == "clean" ]; then
   rm -Rf ./output >> /dev/null
+  cd ../../../stdlib/
+  ./build.sh clean
+  cd $start_dir
   exit
 fi
 

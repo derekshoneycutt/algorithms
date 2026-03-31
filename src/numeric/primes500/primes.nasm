@@ -6,6 +6,7 @@ section .rodata
   indent: db "   ",0
   endl: db 10,0
 
+; CAUTION: THIS DOESN'T WORK IN WINDOWS. WE NEED TO UPDATE THIS.
 section .data
   array times 500 dw 0
 

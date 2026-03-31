@@ -29,6 +29,9 @@ _start:
 
 ; Check if we have 2+ command line arguments (we use 2 only)
 ; If 2, we need to parse them; else use defaults
+; We just skip this on Windows right now...
+%ifidn __OUTPUT_FORMAT__, win64
+%else
   mov argc, [rsp]
   cmp argc, 3
   jl print
@@ -53,6 +56,7 @@ _start:
   mov n, 0
   mov n, rax
   pop m
+%endif
 
 print:
 ; Print the given 2 values

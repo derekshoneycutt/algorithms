@@ -1,8 +1,8 @@
 DEFAULT REL
 
 section .bss
-    buffer resb 21
-    bytesWrittenInPrintString resd 1
+    std_io_PrintNumber_buffer resb 21
+    std_io_PrintNumber_bytesWritten resd 1
 
 global PrintNumber
 
@@ -24,7 +24,7 @@ PrintNumber:
     %define len r10
     push rbp
 
-    mov curr, buffer + 20
+    mov curr, std_io_PrintNumber_buffer + 20
     mov digit, 0
     mov byte [curr], digitb
     dec curr
@@ -66,15 +66,15 @@ PrintNumber:
 
     .printAndEnd:
     inc curr
-    push curr
+    push len
     mov rcx, STD_OUTPUT_HANDLE
     call GetStdHandle
-    mov rdi, rax
+    mov rbx, rax
 
-    mov rcx, rdi
+    mov rcx, rbx
     mov rdx, curr
     pop r8
-    lea r9, [bytesWrittenInPrintString]
+    lea r9, [std_io_PrintNumber_bytesWritten]
     sub rsp, 32
     call WriteConsoleA
     add rsp, 32

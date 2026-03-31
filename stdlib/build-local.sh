@@ -164,7 +164,7 @@ case "$BUILD_TARGET" in
         # For Windows x86 64, we need to first loop through all of the files,
         # building them with nasm. Then we have to link them all with ld
         mkdir -p ./output
-        echo "STARTING WINDOWS-X64 BUILD..." > ./output/windows64-build-last
+        echo "STARTING WINDOWS-X64 BUILD..." > ./output/windowsx64-build-last
         DO_WINDOWS_X64_BUILD=0
         ALL_WINDOWS_X64_OUTPUTS=
         for NASM_FILE in $(find . -maxdepth 1 -type f -name '*-Windows-x64.nasm'); do
@@ -180,15 +180,15 @@ case "$BUILD_TARGET" in
                 DO_CURRENT_WINDOWS_X64_BUILD=1
             fi
             if [ "$DO_CURRENT_WINDOWS_X64_BUILD" -eq 1 ]; then
-                echo "nasm -f win64 -o \"./output/$NASM_OBJ_OUTPUT\" \"$NASM_FILE\"" >> ./output/windows64-build-last
-                nasm -f win64 -o "./output/$NASM_OBJ_OUTPUT" "$NASM_FILE" >> ./output/windows64-build-last 2>&1
+                echo "nasm -f win64 -o \"./output/$NASM_OBJ_OUTPUT\" \"$NASM_FILE\"" >> ./output/windowsx64-build-last
+                nasm -f win64 -o "./output/$NASM_OBJ_OUTPUT" "$NASM_FILE" >> ./output/windowsx64-build-last 2>&1
                 LAST_RETURN_VALUE="$?"
-                echo "-- nasm returned: $LAST_RETURN_VALUE" >> "./output/windows64-build-last"
+                echo "-- nasm returned: $LAST_RETURN_VALUE" >> "./output/windowsx64-build-last"
 
                 # We exit completely on any failures
                 if [ "$LAST_RETURN_VALUE" -ne 0 ]; then
                     echo "FAILED BUILD."
-                    cat ./output/windows64-build-last
+                    cat ./output/windowsx64-build-last
                     exit 1
                 fi
             fi
@@ -198,28 +198,28 @@ case "$BUILD_TARGET" in
             DO_WINDOWS_X64_BUILD=1
         fi
 
-        echo "Initial building completed; $DO_WINDOWS_X64_BUILD; moving to linking..." >> ./output/windows64-build-last
+        echo "Initial building completed; $DO_WINDOWS_X64_BUILD; moving to linking..." >> ./output/windowsx64-build-last
 
         # Build completed, we move to linking
         if [ "$DO_WINDOWS_X64_BUILD" -eq 1 ]; then
             cd ./output
-            echo "cd ./output" >> "./windows64-build-last"
-            echo "ld -lkernel32 -r -o \"./$OUTPUT_FILE\" $ALL_WINDOWS_X64_OUTPUTS" >> "./windows64-build-last"
-            ld -lkernel32 -r -o "./$OUTPUT_FILE" $ALL_WINDOWS_X64_OUTPUTS >> ./windows64-build-last 2>&1
+            echo "cd ./output" >> "./windowsx64-build-last"
+            echo "ld -r -o \"./$OUTPUT_FILE\" $ALL_WINDOWS_X64_OUTPUTS" >> "./windowsx64-build-last"
+            ld -r -o "./$OUTPUT_FILE" $ALL_WINDOWS_X64_OUTPUTS >> ./windowsx64-build-last 2>&1
             LAST_RETURN_VALUE="$?"
-            echo "-- ld returned: $LAST_RETURN_VALUE" >> "./windows64-build-last"
-            echo "cd .." >> "./windows64-build-last"
+            echo "-- ld returned: $LAST_RETURN_VALUE" >> "./windowsx64-build-last"
+            echo "cd .." >> "./windowsx64-build-last"
             cd ..
 
             # We exit completely on any failures
             if [ "$LAST_RETURN_VALUE" -ne 0 ]; then
                 echo "FAILED BUILD."
-                cat ./output/windows64-build-last
+                cat ./output/windowsx64-build-last
                 exit 1
             fi
         fi
 
-        echo "WINDOWS-X64 BUILD END" >> ./output/windows64-build-last
+        echo "WINDOWS-X64 BUILD END" >> ./output/windowsx64-build-last
     ;;
 
     "CLEAN")

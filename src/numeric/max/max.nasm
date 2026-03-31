@@ -23,6 +23,8 @@ _start:
   %define argvp r9
   %define count r8
 ; if we have no parameters, load the default values
+%ifidn __OUTPUT_FORMAT__, win64
+%else
   mov argc, [rsp]
   cmp argc, 1
   jle .defaultValues
@@ -68,6 +70,7 @@ _start:
 
   push count
   jmp .print
+%endif
 
 ; For default values, just load the 2 and set the counter on top of the stack
   .defaultValues:

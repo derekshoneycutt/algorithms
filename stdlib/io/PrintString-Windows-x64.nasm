@@ -1,6 +1,6 @@
 DEFAULT REL
 
-segment .bs
+segment .bss
     bytesWrittenInPrintString resd 1
 
 global PrintString
@@ -22,9 +22,9 @@ PrintString:
     push rax
     mov rcx, STD_OUTPUT_HANDLE
     call GetStdHandle
-    mov rdi, rax
+    mov rbx, rax
 
-    mov rcx, rdi
+    mov rcx, rbx
     mov rdx, str
     pop r8
     lea r9, [bytesWrittenInPrintString]
