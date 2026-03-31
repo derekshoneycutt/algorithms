@@ -43,8 +43,13 @@ case "$BUILD_TARGET" in
         echo "STARTING LINUX-X64 BUILD..." > ./output/linuxx64-build-last
         DO_LINUX_X64_BUILD=0
         ALL_LINUX_X64_OUTPUTS=
-        for NASM_FILE in $(find . -maxdepth 1 -type f -name '*-Linux-x64.nasm'); do
-            NASM_WITHOUT_EXT="${NASM_FILE%.*}"
+        for NASM_FILE in $(find . -maxdepth 1 -type f -name '*-Linux-x64.nasm' -o -name '*-All.nasm'); do
+            case "$NASM_FILE" in
+                *"-All.nasm")
+                    NASM_WITHOUT_EXT="${NASM_FILE%-All.nasm}-Linux-x64"
+                ;;
+                *) NASM_WITHOUT_EXT="${NASM_FILE%.*}" ;;
+            esac
             NASM_OBJ_OUTPUT="${NASM_WITHOUT_EXT}.o"
             ALL_LINUX_X64_OUTPUTS="$ALL_LINUX_X64_OUTPUTS $NASM_OBJ_OUTPUT"
             DO_CURRENT_LINUX_X64_BUILD=0
@@ -105,8 +110,13 @@ case "$BUILD_TARGET" in
         echo "STARTING FREEBSD-X64 BUILD..." > ./output/freebsdx64-build-last
         DO_FREEBSD_X64_BUILD=0
         ALL_FREEBSD_X64_OUTPUTS=
-        for NASM_FILE in $(find . -maxdepth 1 -type f -name '*-FreeBSD-x64.nasm'); do
-            NASM_WITHOUT_EXT="${NASM_FILE%.*}"
+        for NASM_FILE in $(find . -maxdepth 1 -type f -name '*-FreeBSD-x64.nasm' -o -name '*-All.nasm'); do
+            case "$NASM_FILE" in
+                *"-All.nasm")
+                    NASM_WITHOUT_EXT="${NASM_FILE%-All.nasm}-FreeBSD-x64"
+                ;;
+                *) NASM_WITHOUT_EXT="${NASM_FILE%.*}" ;;
+            esac
             NASM_OBJ_OUTPUT="${NASM_WITHOUT_EXT}.o"
             ALL_FREEBSD_X64_OUTPUTS="$ALL_FREEBSD_X64_OUTPUTS $NASM_OBJ_OUTPUT"
             DO_CURRENT_FREEBSD_X64_BUILD=0
@@ -167,8 +177,13 @@ case "$BUILD_TARGET" in
         echo "STARTING WINDOWS-X64 BUILD..." > ./output/windowsx64-build-last
         DO_WINDOWS_X64_BUILD=0
         ALL_WINDOWS_X64_OUTPUTS=
-        for NASM_FILE in $(find . -maxdepth 1 -type f -name '*-Windows-x64.nasm'); do
-            NASM_WITHOUT_EXT="${NASM_FILE%.*}"
+        for NASM_FILE in $(find . -maxdepth 1 -type f -name '*-Windows-x64.nasm' -o -name '*-All.nasm'); do
+            case "$NASM_FILE" in
+                *"-All.nasm")
+                    NASM_WITHOUT_EXT="${NASM_FILE%-All.nasm}-Windows-x64"
+                ;;
+                *) NASM_WITHOUT_EXT="${NASM_FILE%.*}" ;;
+            esac
             NASM_OBJ_OUTPUT="${NASM_WITHOUT_EXT}.o"
             ALL_WINDOWS_X64_OUTPUTS="$ALL_WINDOWS_X64_OUTPUTS $NASM_OBJ_OUTPUT"
             DO_CURRENT_WINDOWS_X64_BUILD=0

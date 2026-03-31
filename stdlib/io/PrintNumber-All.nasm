@@ -2,14 +2,10 @@ DEFAULT REL
 
 section .bss
     std_io_PrintNumber_buffer resb 21
-    std_io_PrintNumber_bytesWritten resd 1
 
 global PrintNumber
 
-extern GetStdHandle
-extern WriteConsoleA
-
-%define STD_OUTPUT_HANDLE -11
+extern PrintString
 
 section .text
 
@@ -65,21 +61,10 @@ PrintNumber:
     jmp .testIfMax
 
     .printAndEnd:
-    inc curr
-    push len
-    mov rcx, STD_OUTPUT_HANDLE
-    call GetStdHandle
-    mov rbx, rax
-
-    mov rcx, rbx
-    mov rdx, curr
-    pop r8
-    lea r9, [std_io_PrintNumber_bytesWritten]
-    sub rsp, 32
-    call WriteConsoleA
-    add rsp, 32
-
     pop fill
+    inc curr
+    mov rdi, curr
+    call PrintString
 
     pop rbp
     ret
