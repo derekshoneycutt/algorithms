@@ -1,0 +1,34 @@
+# Calculates the GCD between two numbers
+
+module Euclidgcd
+
+## Calculates the GCD between two numbers
+##
+## Parameters:
+##  m - The first number to get the gcd for
+##  n - The second number to get the gcd for
+euclid-gcd = fn(m, n) =>
+    match n
+    | 0 -> m
+    | _ -> euclid-gcd(n, (m % n))
+
+## The main entry point to the application
+##
+## Parameters:
+##  env - Environment information
+main = fn (env: Env) =>
+    m = match env.args
+    | [_, _, _, m_str | _] ->
+        m-temp = Int.parse m_str
+        if (is-ok? m-temp) then Result.unwrap m-temp else 15
+    | _ -> 15
+    n = match env.args
+    | [_, _, _, _, n_str | _] ->
+        n-temp = Int.parse n_str
+        if (is-ok? n-temp) then Result.unwrap n-temp else 10
+    | _ -> 10
+    gcd = euclid-gcd(m, n)
+    println "${m} ${n}"
+    println "gcd: ${gcd}"
+
+main
