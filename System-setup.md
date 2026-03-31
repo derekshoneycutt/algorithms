@@ -143,10 +143,20 @@ I install MingW for C/C++ because we do use GCC for this project, and there is
 some point to reduce how much I have to change the run script for different
 platforms. I suggest starting there as well, in the C and C++ sections.
 
-At this time, the solution is mostly built just to get dotnet on Windows working.
-This is a work in progress, but feel free to check in for different languages
-if I feel like going about it. The run script works via Git Bash, and that
-is the primary thing. After that, it is just figuring out each individual language.
+Ultimately, Windows is a special kind of hell that does not play as well with the
+assembly, let alone trying to install all of these languages in a way that is
+easily accessible from a single central location. It is incredibly normal for
+languages to recommend and even require setting up some special package manager
+environment that you have to call into in order to use the tools. This would
+be completely different from the run bash script style on every other platform.
+The instructions here try to avoid the special environments and everything,
+but the result is tons of painful overlap, and painful management of that
+overlap. I am not going heavily into it here. I recommend just doing an Ubuntu
+Server VM or WSL for a lot of the langauges on Windows.
+
+An initial support for assembly is added, but we mostly skip over any
+command line parameter processing in windows because it is a lot more involved
+than the unix OSs.
 
 ## Setting up an Unbuntu Server VM as a Code Runner
 
@@ -426,6 +436,15 @@ export C_INCLUDE_PATH="$HOME/.local/include/:$C_INCLUDE_PATH"
 export CPP_INCLUDE_PATH="$HOME/.local/include/:$CPP_INCLUDE_PATH"
 ```
 
+### Ada on Windows
+
+The run script for this project is built for just a normal gnatmake setup.
+You can try to set that up, but it is kind of a pain. This is so easy to
+get working on Linux, I do not want to move forward with the pain that is
+Windows. You can try some things to make this work if you want, including
+an Ubuntu Server VM or try one of the existing distribution methods and
+see if you can make it work.
+
 ## Ballerina
 
 Ballerina requires Java. The
@@ -473,6 +492,25 @@ bal --version
 Ballerina runs on Java, so maybe we can look at how to get support. Immediately, it
 is noted that there are bash scripts that run the underlying java. However, they
 require bash. They may be able to be modified. I have decided not to try at this point.
+
+### Ballerina on Windows
+
+You can just download and install the MSI from the
+[Downloads page](https://ballerina.io/downloads/).
+
+Consider installing Java first, to get it out of the way. It is not a strict
+requirement before the install, however.
+
+You will then need to make sure that it is in PATH for Git Bash.
+You could just use an alias for this, since we want `bal` and not `bal.bat`
+so need an alias anyway. I show adding to
+PATH anyway for verbosity. Edit `C:\Users\YOURUSER\.bash_profile`
+
+```bash
+
+export PATH="/c/Program Files/Ballerina/bin:$PATH"
+alias bal="bal.bat"
+```
 
 ## C
 
@@ -595,6 +633,7 @@ export NM="$HOME/.local/bin/x86_64-w64-mingw32-gcc-nm.exe"
 export DLLTOOL="$HOME/.local/bin/dlltool.exe"
 export STRIP="$HOME/.local/bin/strip.exe"
 export PKG_CONFIG="$HOME/.local/bin/pkgconf.exe"
+export LD_ADDITIONAL_DIRECTORY="$HOME/.local/x86_64-w64-mingw32/lib/"
 ```
 
 We can then test this in a Git Bash.
@@ -724,6 +763,7 @@ export NM="$HOME/.local/bin/x86_64-w64-mingw32-gcc-nm.exe"
 export DLLTOOL="$HOME/.local/bin/dlltool.exe"
 export STRIP="$HOME/.local/bin/strip.exe"
 export PKG_CONFIG="$HOME/.local/bin/pkgconf.exe"
+export LD_ADDITIONAL_DIRECTORY="$HOME/.local/x86_64-w64-mingw32/lib/"
 ```
 
 We can then test this in a Git Bash.
@@ -870,6 +910,16 @@ sudo pkg install gnucobol
 cobc --version
 ```
 
+### COBOL on Windows
+
+You can download some binaries are recent as 2023 from
+[Arnold Trembley's website](https://www.arnoldtrembley.com/GnuCOBOL.htm).
+
+These end up conflicting with other GCC binaries and such without using some
+convoluted special environment and package manager. These do not click as well
+with the script for every other OS, so we avoid it. I opted not to continue
+here, but it is available and possible if you want to do the work.
+
 ## D
 
 We use the standard D compiler on Linux.
@@ -905,6 +955,23 @@ sudo pkg install bash
 curl https://dlang.org/install.sh | bash -s
 ```
 
+### D on Windows
+
+We just download and run the installer from the
+[D Language website](https://dlang.org/download.html).
+
+Once it is installed, you should find a `dmd2vars64.bat` file in `C:\D\` or
+wherever you installed D. This will contain a good hint of the PATH variables
+that we need to add to `~/.bash_profile` as follows. Note, we also add an
+alias so we don't have to add .exe to everything. There are other commands you
+can add an alias to if you want, but the run script does not require any more.
+
+```bash
+export PATH="/c/D/dmd2/windows/bin;$PATH"
+export PATH="/c/D/dmd2/windows/bin64:$PATH"
+alias dmd="dmd.exe"
+```
+
 ## Dart
 
 We use the standard Dart compiler on Linux. This is actually quite strange
@@ -931,7 +998,8 @@ say Yes.
 
 I found that this made an appropriate entry in my `~/.bash_profile` but
 in some cases, until reboot, I did have to do a `source ~/.bash_profile` in order
-to access dart.
+to access dart. On Windows, I had to restart any Git Bash instances for the
+change to take full effect.
 
 ```bash
 dart --version
@@ -1045,6 +1113,18 @@ sudo pkg install elixir
 iex --version
 ```
 
+### Elixir on Windows
+
+Finish the Erlang install first. Then go to the
+[Elixir Website](https://elixir-lang.org/install.html#windows).
+Download and install Elixir for the appropriate Erlang version.
+The installer offers to add to your PATH, and you should. Then
+restarting any Git Bash will be enough.
+
+```bash
+iex --version
+```
+
 ## Erlang
 
 We use the standard Erlang tool on Linux.
@@ -1074,6 +1154,20 @@ This is available on pkg.
 ```sh
 sudo pkg install erlang
 erl
+```
+
+### Erlang on Windows
+
+You can download an installer off the
+[Erlang website](https://www.erlang.org/downloads).
+
+I had to add the bin directory for the install made from that to my PATH
+for Git Bash. While there, I made an alias to not need the .exe part.
+
+```bash
+export PATH="/c/Program Files/Erlang OTP/bin:$PATH"
+alias erl="erl.exe"
+alias erlc="erlc.exe"
 ```
 
 ## F\#
@@ -1151,14 +1245,14 @@ dotnet --info
 
 ## Factor
 
-We use the standard Factor tool on Linux. To get this, navigate to the
-[Factor website](https://factorcode.org) and download the tar.gz package
-for Linux. I assume that the tar.gz is downloaded to `~`. Adjust your own
-actions accordingly. This is the same process for all versions of Linux.
+We use the standard Factor tool. To get this, navigate to the
+[Factor website](https://factorcode.org) and download the tar.gz package.
+I assume that the tar.gz is downloaded to `~`. Adjust your own
+actions accordingly. 
 
-Unfortunately, it does not have a formally supported FreeBSD version. We
-can try to build it from source with the Linux style if we want, but I am not
-going to include that here.
+### Factor on Gentoo and Ubuntu
+
+This is the same process for all versions of Linux.
 
 ```bash
 tar zxvf factor-linux-*.tar.gz
@@ -1179,6 +1273,27 @@ with factor.
 
 ```bash
 factor --version
+```
+
+### Factor on FreeBSD
+
+Unfortunately, it does not have a formally supported FreeBSD version. We
+can try to build it from source with the Linux style if we want, but I am not
+going to include that here.
+
+### Factor on Windows
+
+Windows is not really well supported for this project. You can download the Zip,
+and extract it somewhere. Double click the `factor.exe` to open the GUI. The
+structure of this GUI and not really having a file run mechanism in Windows
+means that it does not work for our needs. However, you can play with it.
+
+You can add the factor directory to your PATH in `.bash_profile`, still.
+This example demonstrates it in your user profile.
+
+```bash
+export PATH="/c/Users/YOURUSER/factor:$PATH"
+alias factor="factor.exe"
 ```
 
 ## Forth
@@ -1218,6 +1333,12 @@ This is pretty easily available on pkg.
 sudo pkg install gforth
 gforth --version
 ```
+
+### Forth on Windows
+
+The way to move forward with forth on Windows is to build gforth yourself
+from the source code. I am not doing that, but Windows is an officially
+supported platform in the documentation.
 
 ## Fortran
 
@@ -1284,6 +1405,7 @@ export NM="$HOME/.local/bin/x86_64-w64-mingw32-gcc-nm.exe"
 export DLLTOOL="$HOME/.local/bin/dlltool.exe"
 export STRIP="$HOME/.local/bin/strip.exe"
 export PKG_CONFIG="$HOME/.local/bin/pkgconf.exe"
+export LD_ADDITIONAL_DIRECTORY="$HOME/.local/x86_64-w64-mingw32/lib/"
 ```
 
 We can then test this in a Git Bash.
@@ -1302,7 +1424,7 @@ We use the standard FreeBASIC tool on Linux.
 The FreeBASIC compiler is available on portage.
 
 ```bash
-emerge -av dev-lang-fbc
+emerge -av dev-lang/fbc
 fbc --version
 ```
 
@@ -1333,6 +1455,23 @@ tar xvf FreeBASIC-1.10.1-freebsd-x86_64.tar.gz
 cd FreeBASIC-1.10.1-freebsd-x86_64
 cp -Rfv ./* ~/.local/
 cd
+fbc --version
+```
+
+### FreeBASIC on Windows
+
+This is surprisingly similar to FreeBSD. Download the zip file from the
+[FreeBASIC Website](https://www.freebasic.net/). Extract it somewhere like
+C:/Users/YOURUSER and then add it with an alias to PATH in `.bash_profile`.
+
+```bash
+export PATH="/c/Users/derek/freeBASIC:$PATH"
+alias fbc="fbc64.exe"
+```
+
+And then we can access it in Git Bash.
+
+```bash
 fbc --version
 ```
 
@@ -1370,6 +1509,12 @@ sudo pkg install gleam
 gleam --version
 ```
 
+### Gleam on Windows
+
+Gleam is available on Windows, primarily through package managers. There are
+some binaries on GitHub releases you can also try. None of this works great
+for this project without some more work. It is just far easier on linux.
+
 ## Go
 
 We use the standard Go tool on Linux.
@@ -1400,6 +1545,13 @@ This is available on pkg.
 sudo pkg install go
 go --version
 ```
+
+### Go on Windows
+
+We just download Go from the Website for Windows.
+[Go Website](https://go.dev/dl/). Run the MSI and follow the
+instructions. This will add `go` to your PATH, you just need to restart
+any bash shells that you want to use it in immediately.
 
 ## Haskell
 
@@ -1432,6 +1584,20 @@ sudo pkg add ghc
 ghc --version
 ```
 
+### Haskell on Windows
+
+You can use package managers and things that do allow additional libraries
+and all that fun stuff.
+
+We download it from the [GHC Website](https://www.haskell.org/ghc/).
+Simply extract this somewhere and then add the bin directory to
+PATH in `.bash_profile`. This example extracts the inner folder into
+the `.local` directory immediately under the user profile.
+
+```bash
+export PATH="$HOME/.local/bin:$PATH"
+```
+
 ## Haxe
 
 We use the standard Haxe tool on Linux.
@@ -1461,10 +1627,20 @@ sudo apt install haxe
 mkdir ~/haxelib && haxelib setup ~/haxelib
 ```
 
-### Hax on FreeBSD
+### Haxe on FreeBSD
 
 You could try to build it from the source. It might work. I am not attempting
 it at this time.
+
+### Haxe on Windows
+
+Download the installer from the [Haxe Website](https://haxe.org/download/)
+and run it, installing it to the system. This should add the executable to
+PATH and be ready to use immediately.
+
+```bash
+haxe --version
+```
 
 ## Icon
 
@@ -1484,6 +1660,11 @@ make
 cp ./bin/* ~/.local/bin/
 icon
 ```
+
+### Icon on Windows
+
+There is an experimental build for Windows 7 and later available. You can
+try and play with this if you want, but I am not going any further.
 
 ## Idris2
 
@@ -1525,6 +1706,10 @@ yet attempted this. The
 [Install Instructions](https://github.com/idris-lang/Idris2/blob/main/INSTALL.md)
 on GitHub mention modifications for BSD. Feel free to give it a go.
 
+### Idris2 on Windows
+
+Generally, go with a VM or try WSL for this one.
+
 ## Java
 
 We use Java on Linux.
@@ -1559,6 +1744,17 @@ sudo pkg install openjdk25
 java --version
 ```
 
+### Java on Windows
+
+You can download the JDK from [the website](https://jdk.java.net).
+Simply extract this somewhere and then add the bin directory to
+PATH in `.bash_profile`. This example extracts the inner folder into
+the `.local` directory immediately under the user profile.
+
+```bash
+export PATH="$HOME/.local/bin:$PATH"
+```
+
 ## Javascript
 
 We use node on Linux.
@@ -1590,6 +1786,16 @@ sudo pkg install node
 node --version
 ```
 
+### Javascript on Windows
+
+For this, we download it from [The Node Website](https://nodejs.org).
+I just use the installer for this project. This creates a good install
+of node on the system and adds it to PATH.
+
+```bash
+node --version
+```
+
 ## Julia
 
 We use the standard Julia tools on Linux and FreeBSD.
@@ -1603,6 +1809,16 @@ juliaup
 julia --version
 ```
 
+### Julia on Windows
+
+Go to the [Julia Website](https://julialang.org/), where we are instructed to
+install it via the Microsoft Store.
+
+```powershell
+winget install --name Julia --id 9NJNWW8PVKMN -e -s msstore
+julia --version
+```
+
 ## Kit
 
 We use the standard Kit tools on Linux. You should install Zig first, regardless
@@ -1610,7 +1826,8 @@ of your distribution. Come back here when Zig is installed.
 
 The build script here requires bash, so I did not go further on FreeBSD. Assuming
 that you are okay with bash, it may work okay. Proceed with caution. There is
-also simply the whole source you can attempt to build.
+also simply the whole source you can attempt to build. Windows does not appear to
+have any support from Kit at this time.
 
 One other prerequisite is also required, libffi. On gentoo, this is an easy
 `emerge -av dev-libs/libffi`. On Ubuntu, you can `sudo apt install libffi-dev`.
@@ -1669,6 +1886,13 @@ sudo pkg install kotlin
 kotlinc -version
 ```
 
+### Kotlin on Windows
+
+You install Kotlin via one of the big IDEs you are never going to use again
+in your entire life. I did not bother. If I do more Android development,
+maybe I will come back and try to add how it works here. Basically, install
+Android Studio.
+
 ## LLVM IR
 
 We use the standard LLVM tools on Linux. In fact, we are specifically using
@@ -1705,6 +1929,28 @@ FreeBSD comes packaged with Clang installed!
 clang --version
 ```
 
+### LLVM on Windows
+
+You try this one from the Microsoft Store. This did work for me, but some
+newer syntax included in this code is not supported by the older compiler
+that was installed with this.
+
+```powershell
+winget install LLVM.LLVM
+```
+
+Otherwise, we download clang+llvm from
+[The GitHub Releases](https://github.com/llvm/llvm-project/releases/tag/llvmorg-18.1.8).
+This gives a tar.xz at the time of this writing, which we will open and
+extract onto our computer. This was painful and I needed to use a command
+line to extract it successfully. It is another case that we just extract
+it and add the executables to our PATH. This overlaps with some other packages
+I previously installed and stopped here, but it is available.
+
+```powershell
+tar xJvf clang+llvm-18.1.8-x86_64-pc-windows-msvc.tar.xz
+```
+
 ## Lua
 
 We use the standard Lua tools on Linux.
@@ -1736,6 +1982,19 @@ we can create a symlink to allow the run script etc. to call simply `lua`.
 ```sh
 sudo pkg install lua54
 lua54 -v
+```
+
+### Lua on Windows
+
+We install Lua from Lua for Windows, which makes a nice package for us on
+the [GitHub Releases](https://github.com/rjpcomputing/luaforwindows/releases).
+Download and run the installer.
+
+I still had to add an alias in `.bash_profile` so that `lua` worked as a simple
+command.
+
+```bash
+alias lua="lua.exe"
 ```
 
 ## Mercury
@@ -1783,6 +2042,11 @@ mmc --version
 You can download the source and try to build it from scratch. I have not
 attempted this at this time.
 
+### Mercury on Windows
+
+The release is a source based distribution. You can download it and try, I
+guess, but I have not even tried.
+
 ## MMIX
 
 We use the Knuth's MMIXware tools on Linux.sud
@@ -1815,6 +2079,13 @@ chmod a+x mmix mmixal mmmix mmotype
 There are no official binaries for MMIXAL. I have not gone further, but the
 source code is available, and GCC also has some support for MMIXAL if built
 correctly. I have not explored either of these on FreeBSD at this time.
+
+### MMIX on Windows
+
+Download the 4 exe files from
+[The MMIX Website](https://mmix.cs.hm.edu/exe/index.html).
+`mmix`, `mmmix`, `mmixal`, and `mmotype`. Save each of these somewhere in your
+PATH, and it should be accessible for this project.
 
 ## Modula-3
 
@@ -1895,9 +2166,16 @@ Now we can verify that the install is complete.
 cm3 --version
 ```
 
+### Modula-3 on Windows
+
+You have to build this. Ubuntu Server is my goto for this still. Feel free
+to try it. Windows is an officially supported language.
+[GitHub Instructions](https://github.com/modula3/cm3/wiki/Getting-Started%3A-Windows).
+
 ## Mojo
 
-We use the standard Mojo tools on Linux.
+We use the standard Mojo tools on Linux. FreeBSD and Windows are not officially
+supported, so a VM or WSL etc. are required.
 
 This is kind of annoying on all the platforms. We need to install this through
 the pixi package management system. Once that is installed, we navigate
@@ -1953,6 +2231,54 @@ The Netwide Assembler is available on pkg.
 pkg install nasm
 ```
 
+### NASM on Windows
+
+NASM comes along with mingw, which we can utilize immediately. You can start
+at the [MingW Website](https://www.mingw-w64.org/).
+
+We will go with a [WinLibs](https://winlibs.com/) route about this. We need
+both GCC 15 and GCC 13, and this is somewhat easier with the winlibs route.
+We just download zip files for version 15 and version 13. We can do the latest
+of both for Win64.
+
+Personally, I placed the contents of the version 15 package such that bin,
+etc. were directly in $HOME/.local. I also placed version 13 alongside in
+its own mingw13 folder within $HOME/.local. As long as you know where these are
+and can use both, you can use your own layout as you wish.
+
+You need to open $HOME/.bash_profile and add the following exports to the
+extracted binaries. This assumes the $HOME/.local layout; change as required
+for your own layout.
+
+Pay careful attention to the last variable, as this is used specifically
+with the assembly. You need to set this to the lib directory from mingw that
+contains libkernel32.a and other files that allow for linking to Windows OS.
+
+```bash
+export PATH="$HOME/.local/bin:$PATH"
+export CC="$HOME/.local/bin/x86_64-w64-mingw32-gcc.exe"
+export CXX="$HOME/.local/bin/x86_64-w64-mingw32-g++.exe"
+export FC="$HOME/.local/bin/x86_64-w64-mingw32-gfortran.exe"
+export F77="$HOME/.local/bin/x86_64-w64-mingw32-gfortran.exe"
+export LD="$HOME/.local/bin/ld.exe"
+export AR="$HOME/.local/bin/x86_64-w64-mingw32-gcc-ar.exe"
+export RANLIB="$HOME/.local/bin/x86_64-w64-mingw32-gcc-ranlib.exe"
+export WINDRES="$HOME/.local/bin/windres.exe"
+export RC="$HOME/.local/bin/windres.exe"
+export NM="$HOME/.local/bin/x86_64-w64-mingw32-gcc-nm.exe"
+export DLLTOOL="$HOME/.local/bin/dlltool.exe"
+export STRIP="$HOME/.local/bin/strip.exe"
+export PKG_CONFIG="$HOME/.local/bin/pkgconf.exe"
+export LD_ADDITIONAL_DIRECTORY="$HOME/.local/x86_64-w64-mingw32/lib/"
+```
+
+We can then test this in a Git Bash.
+
+```bash
+. ~/.bash_profile
+gcc --version
+```
+
 ## Nim
 
 We use the standard Nim tools on Linux.
@@ -1984,6 +2310,11 @@ binary was installed in "/usr/local/nim/bin" and this needed to be added to PATH
 sudo pkg install nim
 nim -v
 ```
+
+### Nim on Windows
+
+Go to [The Nim Language Website](https://nim-lang.org) and download the install
+package for Windows.
 
 ## Objective-C
 
@@ -2033,6 +2364,17 @@ sudo pkg install libobjc2 gnustep gnustep-make
 . /usr/local/GNUstep/System/Library/Makefiles/GNUstep.sh
 ```
 
+### Objective-C on Windows
+
+I stopped at file collisions installing Clang. However, continue with Clang
+and also look up GNUStep install for windows. You could also try it from
+the Microsoft Store. The GNUStep tools are available on
+[The GitHub](https://github.com/gnustep/tools-windows-msvc).
+
+```powershell
+winget install LLVM.LLVM
+```
+
 ## Ocaml
 
 We use the standard Ocaml tools on Linux.
@@ -2062,6 +2404,22 @@ Just install this via pkg as well.
 ```sh
 sudo pkg install ocaml
 ocaml --version
+```
+
+### OCaml on Windows
+
+We can install opam from Microsoft Store. I had to start a new Powershell
+after the initial install so that the alias to opam took effect. I then
+allowed it to install its own Cygwin instance. When opam init is done,
+we need to run `opam env` and copy these in a bash format into our
+`.bash_profile` file. You need to modify each line of the output into
+bash format that works right to add the appropriate variables to the
+environment for Git Bash.
+
+```powershell
+winget install Ocaml.opam
+opam init
+opam env
 ```
 
 ## Octave (MATLAB)
@@ -2095,6 +2453,19 @@ installed on FreeBSD, you may have less.
 ```sh
 sudo pkg install octave
 octave --version
+```
+
+### Octave on Windows
+
+Download the installer from [The Octave Website](https://octave.org/download).
+Run it and follow the instructions to install on the PC. After install,
+I had to find where the correct executables for octave were located on my
+machine. This installed yet another instance of mingw, so we need to be careful
+about the collisions yet again. I add the Octave path to the end of PATH,
+which allows anything else to take priority.
+
+```bash
+export PATH="$PATH:C:\Program Files\GNU Octave\Octave-11.1.0\mingw64\bin"
 ```
 
 ## Oberon
@@ -2175,6 +2546,13 @@ In our `~/.profile` we then export the installed bin directory.
 export PATH="/usr/local/share/voc/bin:$PATH"
 ```
 
+### Oberon on Windows
+
+You can try to follow the build instructions on
+[The GitHub](https://github.com/vishaps/voc).
+I have not pursued this any further than noting that Windows is a supported
+platform, but it takes some extra work.
+
 ## Pascal
 
 We use the standard Free Pascal tools on Linux.
@@ -2197,7 +2575,7 @@ sudo apt install fpc
 fpc -h
 ```
 
-### Pascal on FreeBASIC
+### Pascal on FreeBSD
 
 We install this via pkg as well.
 
@@ -2205,6 +2583,13 @@ We install this via pkg as well.
 sudo pkg install fpc
 fpc -h
 ```
+
+### Pascal on Windows
+
+We download the binaries from the
+[Free Pascal Website](https://www.freepascal.org). For windows, this comes
+with a visual installer. Simply follow the steps on screen.
+This should add `fpc` to your path, but you might need to restart bash shells.
 
 ## Perl
 
@@ -2238,6 +2623,13 @@ sudo pkg install perl5
 perl --version
 ```
 
+### Perl on Windows
+
+For this project, we use strawberry perl. You can also check out activeperl
+for Windows. We download the MSI from the
+[Strawberry Perl Website](https://strawberryperl.com). I did not even have
+to restart any bash shells to see this working.
+
 ## PHP
 
 We use the standard PHP tools on Linux.
@@ -2268,6 +2660,13 @@ We can install this via php85 on pkg.
 sudo pkg install php85
 php --version
 ```
+
+### PHP on Windows
+
+This was just downloaded from
+[the PHP Website](https://www.php.net/downloads.php?os=windows).
+I extracted this to a php folder in my profile directory and added that
+to PATH in `.bash_profile`.
 
 ## Prolog
 
@@ -2302,6 +2701,14 @@ This is also available on pkg
 sudo pkg install gprolog
 gplc --version
 ```
+
+### Prolog on Windows
+
+We can download an installer from
+[The GNU Prolog web site](https://gprolog.org/#download).
+After letting the installer go, I had to add `/c/GNU-Prolog/bin` to my
+PATH in `.bash_profile`. gplc ran for me after this, but I was unsuccessful
+in getting this to build the project code.
 
 ## Python
 
@@ -2338,6 +2745,16 @@ This is also available on pkg.
 ```sh
 sudo pkg install python
 python --version
+```
+
+### Python on Windows
+
+Python got automatically installed for me through another package that
+depended on it. [The Python Website](https://www.python.org) also has
+downloads that are fairly easy to install. Or via winget.
+
+```powershell
+winget install 9NQ7512CXL7T.
 ```
 
 ## R
@@ -2379,6 +2796,17 @@ sudo pkg install R
 R --version
 ```
 
+### R on Windows
+
+We get R on windows by following the CRAN server and downloading
+the installer from [The R Website](https://www.r-project.org). After
+the install, I needed to add `/c/Program Files/R/R-4.5.3/bin/x64` to
+my PATH in `.bash_profile` before it worked.
+
+```bash
+export PATH="/c/Program Files/R/R-4.5.3/bin/x64:$PATH"
+```
+
 ## Racket
 
 We use the standard Racket tools on Linux.
@@ -2408,6 +2836,17 @@ This is available on pkg.
 ```sh
 sudo pkg install racket
 racket --version
+```
+
+### Racket on Windows
+
+We download the installer from
+[The Racket Website](https://download.racket-lang.org) and run it. After
+the install, I needed to add `/c/Program Files/Racket` to
+my PATH in `.bash_profile` before it worked.
+
+```bash
+export PATH="/c/Program Files/Racket:$PATH"
 ```
 
 ## Ruby
@@ -2440,6 +2879,13 @@ This is available on pkg.
 sudo pkg install ruby
 ruby --version
 ```
+
+### Ruby on Windows
+
+For Windows, we use [RubyInstaller](https://rubyinstaller.org). This is
+a visual installer that will walk through the install, and it includes
+the option to add the executables to PATH in Windows. You may have to restart
+Bash shells to make this work.
 
 ## Rust
 
@@ -2474,6 +2920,12 @@ sudo pkg install rust
 rustc --version
 ```
 
+### Rust on Windows
+
+We just install rustup on Windows, too. Follow the
+[rustup Website](https://rustup.rs). I did have to restart Bash terminals
+after this, but it set PATH for me.
+
 ## Scala
 
 We use the standard Scala tools.
@@ -2497,6 +2949,20 @@ I just used pkg to install scala.
 ```sh
 sudo pkg install scala
 scala --version
+```
+
+### Scala on Windows
+
+We download the Windows installer from
+[The Scala Website](https://scala-lang.org/download/) and run it.
+I did not install a JVM when prompted, since it just failed to detect
+the one I already had. It will add executables for Scala to PATH for you.
+Except that did not work for me, and I needed to go into `.bash_profile`
+to add the PATH and an alias for scala.bat.
+
+```bash
+export PATH="/c/Users/USER/AppData/Local/Coursier/data/bin:$PATH"
+alias scala="scala.bat"
 ```
 
 ## Scheme
@@ -2553,11 +3019,20 @@ sudo pkg install chez-scheme
 chez-scheme --version
 ```
 
+### Scheme on Windows
+
+Guile is not supported on Windows, so the code in this project may not
+run successfully. You can get Chez Scheme from the
+[GitHub Releases](https://github.com/cisco/ChezScheme/releases). We do not
+use it in this project so far, but you can play with Scheme through that.
+
 ## Simula
 
 We use GNU cim. It is not always the easiest to get going, but I was able
 to figure it out on Gentoo and Ubuntu. This process did not work on FreeBSD,
-and I stopped and moved on without getting this going on FreeBSD yet.
+and I stopped and moved on without getting this going on FreeBSD yet. I did
+not even attempt cim on Windows. You can try portable simula if you want to
+play with Simula on Windows.
 
 I downloaded 5.1 tar.gz from
 [The GNU Cim Website](https://www.gnu.org/prep/ftp.html#north_america). Extract
@@ -2648,7 +3123,7 @@ offers, you can add the `-noPopup` argument.
 
 We use the GNU Smalltalk tools on Linux. I attempted this process on FreeBSD
 but got more build errors and did not pursue it further. With some
-determination, this may work.
+determination, this may work. I did not attempt this on Windows. Good luck.
 
 I was able to get Simula working on Gentoo and Ubuntu with GCC-13
 (see C or C++ section).
@@ -2728,6 +3203,20 @@ source ~/.bash_profile
 swift --version
 ```
 
+### Swift on FreeBSD
+
+You can try to get one of the builds to run on here if you want, but it is not
+officially supported on the website. I did not pursue it so far.
+
+### Swift on Windows
+
+Whe follow [The Swift Website](https://www.swift.org/install/windows/).
+
+```powershell
+winget install --id Microsoft.VisualStudio.2022.Community --exact --force --custom "--add Microsoft.VisualStudio.Component.Windows11SDK.22621 --add Microsoft.VisualStudio.Component.VC.Tools.x86.x64 --add Microsoft.VisualStudio.Component.VC.Tools.ARM64" --source winget
+winget install --id Swift.Toolchain -e --source winget
+```
+
 ## Tcl
 
 We use the standard Tcl tools on Linux.
@@ -2758,6 +3247,11 @@ We install this via pkg as version 9.
 sudo pkg install tcl90
 # tclsh9.0
 ```
+
+### Tcl on Windows
+
+So far, I have not pursued Tcl on Windows. There are some options you can
+pursue if this is something you want to play with.
 
 ## Typescript
 
@@ -2792,9 +3286,25 @@ sudo npm install -g typescript
 tsc --version
 ```
 
+### Typescript on Windows
+
+Install node (see Javascript), and then in a terminal, we just install
+typescript via NPM. You may have to set an ExecutionPolicy if doing this
+in powershell; if you get an error trying to run NPM after installing node,
+check the link in the error.
+
+```powershell
+npm install -g typescript
+tsc --version
+```
+
 ## V
 
-We use the standard V tools on Linux.
+We use the standard V tools.
+
+### V on Linux
+
+On linux, we just load the zip from the website and build it.
 
 ```bash
 wget https://github.com/vlang/v/releases/latest/download/v_linux.zip
@@ -2824,6 +3334,12 @@ cd .. && cp -Rfv ./v ~/v
 sudo /home/USER/v/v symlink
 v --version
 ```
+
+### V on Windows
+
+Navigate to the [V Website](https://vlang.io) and download the language pack
+for Windows. This will give a zip file. I just extract this into the user profile
+and add the directory to PATH in `.bash_profile` and it works.
 
 ## Visual Basic .Net
 
@@ -2900,9 +3416,10 @@ dotnet --info
 
 ## Web Assembly (WASM)
 
-We use the wabt tools and node on Linux. See the Javascript section
+We use the wabt tools and node. See the Javascript section
 for installing node. Assuming this is done, we just clone the git repository
-for wabt, import its submodules, make, and install it.
+for wabt, import its submodules, make, and install it. This was done
+on Linux and FreeBSD; with a mingw, it should work on Windows as well.
 
 ```bash
 git clone https://github.com/WebAssembly/wabt.git
@@ -2962,3 +3479,10 @@ This is available on pkg.
 sudo pkg install zig
 zig --version
 ```
+
+### Zig on Windows
+
+Navigate to the [Zig Website](https://ziglang.org/download/)
+and download the language pack for Windows. This will give a zip file.
+I just extract this into the user profile and add the directory to PATH in
+`.bash_profile` and it works.
