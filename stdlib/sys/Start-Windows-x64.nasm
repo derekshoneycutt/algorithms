@@ -13,8 +13,6 @@ extern main
 extern Exit
 
 extern GetCommandLineA
-extern GetCommandLineW
-extern CommandLineToArgvW
 extern LocalFree
 
 %define param1 rcx
