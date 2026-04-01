@@ -16,11 +16,23 @@ extern PrintString
 extern PrintNumber
 extern StringIsInt
 
-main:
+%ifidn __OUTPUT_FORMAT__, win64
+    %define param1 rcx
+    %define param2 rdx
+
+    %define argc rcx
+    %define argv rdx
+%else
+    %define param1 rdi
+    %define param2 rsi
+
     %define argc rdi
-    %define argvsp rsi 
-    %define argv rcx
-    %define argvp r9
+    %define argv rsi
+%endif
+
+main:
+    %define argvp r10
+    %define argp r9
     %define count r8
     push rbp
     mov rbp, rsp
@@ -31,27 +43,27 @@ main:
 
 ; if we have arguments, we will loop through, parsing each into an integer value
     .parseArgs:
-        mov argv, 0
+        mov argvp, 0
         mov count, 0
 
     .parseArgsLoop:
-        add argv, 8
-        mov argvp, [argvsp + argv]
+        add argvp, 8
+        mov argp, [argv + argvp]
 
         push argc
-        push argvsp
         push argv
-        push count
         push argvp
-        mov rdi, argvp
+        push count
+        push argp
+        mov param1, argp
         call StringIsInt
-        pop rdi
+        pop param1
         cmp rax, 0
         je .continueSkipping
         call ParseNumber
         pop count
+        pop argvp
         pop argv
-        pop argvsp
         pop argc
 
         push rax
@@ -60,8 +72,8 @@ main:
 
     .continueSkipping:
         pop count
+        pop argvp
         pop argv
-        pop argvsp
         pop argc
 
     .continueArgsLoop:
@@ -86,15 +98,15 @@ main:
     .print:
     ; We calculate the max of all entered values to start
         pop count
-        mov rdi, count
-        mov rsi, 0
+        mov param1, count
+        mov param2, 0
         call StackMax
         %define themax rax
 
     ; once we have the max, print the values, then the max
         push count
         push themax
-        lea rdi, valuesmsg
+        lea param1, valuesmsg
         call PrintString
         pop themax
         pop count
@@ -102,13 +114,13 @@ main:
         %define printCount r9
         mov printCount,0
     .printLoop:
-        pop rdi
+        pop param1
         push themax
         push count
         push printCount
-        mov rsi, 0
+        mov param2, 0
         call PrintNumber
-        lea rdi, endl
+        lea param1, endl
         call PrintString
         pop printCount
         pop count
@@ -118,12 +130,12 @@ main:
         jg .printLoop
 
         push themax
-        lea rdi, maxmsg
+        lea param1, maxmsg
         call PrintString
-        pop rdi
-        mov rsi, 0
+        pop param1
+        mov param2, 0
         call PrintNumber
-        lea rdi, endl
+        lea param1, endl
         call PrintString
 
         xor rax, rax
@@ -134,6 +146,10 @@ main:
 StackMax:
     %define n rdi
     %define curr rsi
+%ifidn __OUTPUT_FORMAT__, win64
+    mov n, rcx
+    mov curr, rdx
+%endif
     %define max rax
     %define test rcx
     mov max, 0

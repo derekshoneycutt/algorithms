@@ -22,7 +22,7 @@ extern PrintString
     %define fill rdx
     %define fillb dl
 %endif
-%define curr r8
+%define curr r11
 %define digit r9
 %define digitb r9b
 %define len r10
@@ -41,43 +41,45 @@ PrintNumber:
     push fill
 
     .loop:
-    mov rax, num
-    mov rcx, 10
-    mov rdx, 0
-    div rcx
-    mov num, rax
-    mov digit, rdx
+        push max
+        mov rax, num
+        mov rcx, 10
+        mov rdx, 0
+        div rcx
+        mov num, rax
+        mov digit, rdx
+        pop max
 
-    add digit, '0'
-    mov byte [curr], digitb
-    dec curr
-    inc len
+        add digit, '0'
+        mov byte [curr], digitb
+        dec curr
+        inc len
 
-    cmp num, 0
-    jle .testIfMax
+        cmp num, 0
+        jle .testIfMax
 
-    cmp max, 0
-    je .loop
-    cmp len, max
-    jg .printAndEnd
-    jmp .loop
+        cmp max, 0
+        je .loop
+        cmp len, max
+        jg .printAndEnd
+        jmp .loop
 
     .testIfMax:
-    cmp len, max
-    jge .printAndEnd
+        cmp len, max
+        jge .printAndEnd
 
-    pop fill
-    mov byte [curr], fillb
-    dec curr
-    inc len
-    push fill
-    jmp .testIfMax
+        pop fill
+        mov byte [curr], fillb
+        dec curr
+        inc len
+        push fill
+        jmp .testIfMax
 
     .printAndEnd:
-    pop fill
-    inc curr
-    mov param1, curr
-    call PrintString
+        pop fill
+        inc curr
+        mov param1, curr
+        call PrintString
 
-    leave
-    ret
+        leave
+        ret

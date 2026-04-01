@@ -18,6 +18,16 @@ extern PrintString
 extern PrintNumber
 extern StringIsInt
 
+%ifidn __OUTPUT_FORMAT__, win64
+    %define param1 rcx
+    %define param2 rdx
+    %define param3 r8
+%else
+    %define param1 rdi
+    %define param2 rsi
+    %define param3 rdx
+%endif
+
 main:
     %define currp r9
     %define tempp r11
@@ -81,7 +91,7 @@ main:
         jmp .stepSix
 
     .stepNine: ; [Print title.] Output title line and set m <- 1.
-        lea rdi, header
+        lea param1, header
         call PrintString
 
         %define i rcx
@@ -90,21 +100,21 @@ main:
 
     .stepTen: ; [Print line.] Output a line that contains PRIME[m], PRIME[50 + m], ..., PRIME[450 + m].
         push i
-        lea rdi, indent
+        lea param1, indent
         call PrintString
         pop i
 
     .stepTenSingle: ; print a single prime value
         push i
-        lea rdi, valuespace
         xor rax, rax
+        lea param1, valuespace
         call PrintString
         mov i, [rsp]
-        mov rdi, 0
+        ;mov rdi, 0
         lea currp, [array]
-        mov di, word [currp + i * 2]
-        mov rsi, 4
-        mov rdx, '0'
+        movzx param1, word [currp + i * 2]
+        mov param2, 4
+        mov param3, '0'
         call PrintNumber
         pop i
 
@@ -114,7 +124,7 @@ main:
 
         ; print endl to go to the next line (always end on endl, too)
         push i
-        lea rdi, endl
+        lea param1, endl
         call PrintString
         pop i
 

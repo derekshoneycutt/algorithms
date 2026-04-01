@@ -16,6 +16,16 @@ section .text
 extern PrintString
 extern PrintNumber
 
+%ifidn __OUTPUT_FORMAT__, win64
+    %define param1 rcx
+    %define param2 rdx
+    %define param3 r8
+%else
+    %define param1 rdi
+    %define param2 rsi
+    %define param3 rdx
+%endif
+
 main:
     %define coinp rsi
     %define cooutp rdi
@@ -46,7 +56,7 @@ CoIn:
 
         push endyear
         push cooutp
-        mov rdi, currdate
+        mov param1, currdate
         call getEaster
         pop cooutp
         pop endyear
@@ -74,7 +84,7 @@ CoOut:
     mov rbp, rsp
 
     push coinp
-    lea rdi, header
+    lea param1, header
     call PrintString
     pop coinp
 
@@ -92,30 +102,30 @@ CoOut:
         push yyyy
         push Mflag
         push day
-        lea rdi, indent
+        lea param1, indent
         call PrintString
 
-        pop rdi
-        mov rsi, 2
-        mov rdx, '0'
+        pop param1
+        mov param2, 2
+        mov param3, '0'
         call PrintNumber
 
         pop Mflag
         cmp Mflag, 0
         jne .printApril
-        lea rdi, march
+        lea param1, march
         jmp .finishPrint
     .printApril:
-        lea rdi, april
+        lea param1, april
     .finishPrint:
         call PrintString
 
-        pop rdi
-        mov rsi, 4
-        mov rdx, '0'
+        pop param1
+        mov param2, 4
+        mov param3, '0'
         call PrintNumber
 
-        lea rdi, endl
+        lea param1, endl
         call PrintString
         pop coinp
 
@@ -128,6 +138,9 @@ CoOut:
 getEaster:
     ; Parameters:
     %define Y rdi
+%ifidn __OUTPUT_FORMAT__, win64
+    mov Y, rcx
+%endif
     ; returns:
     %define day rax
     %define Mflag rcx

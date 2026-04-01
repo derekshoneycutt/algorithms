@@ -24,18 +24,21 @@ _start:
     sub rsp, 40
 
     call GetCommandLineW
-    lea param2, [argc]
     mov param1, main_return
+    lea param2, [argc]
     call CommandLineToArgvW
     mov [argv], main_return
 
     xor main_return, main_return
     mov param1, [argc]
-    mov param2, argv
+    mov param2, [argv]
     call main
-
-    mov param1, [argv]
+    push main_return
+    
+    lea param1, [argv]
     call LocalFree
 
-    mov param1, main_return
+    add rsp, 40
+
+    pop param1
     call Exit
