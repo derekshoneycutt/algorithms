@@ -1,3 +1,6 @@
+(*
+    Calculate the GCD of two values and print it all to the screen
+*)
 MODULE euclidgcd;
 IMPORT Args, Out;
 
@@ -5,6 +8,7 @@ VAR
     m, n, gcd, res: INTEGER;
     arg : ARRAY 22 OF CHAR;
 
+(* Performs the GCD calculation with Euclid's method *)
 PROCEDURE EuclidGcd(m, n: INTEGER) : INTEGER;
     VAR r : INTEGER;
 BEGIN
@@ -16,6 +20,7 @@ BEGIN
     RETURN m;
 END EuclidGcd;
 
+(* Attempt to convert a string from command line arguments to an integer *)
 PROCEDURE StringToInt(s: ARRAY OF CHAR; VAR value: INTEGER): BOOLEAN;
     VAR i, res: INTEGER;
 BEGIN
@@ -29,7 +34,9 @@ BEGIN
     RETURN (i > 0);
 END StringToInt;
 
+(* Main procedure of the application *)
 BEGIN
+    (* Try to get first 2 command lines, or use 15, 10 *)
     IF Args.argc > 2 THEN
         Args.Get(1, arg);
         IF ~StringToInt(arg, m) THEN

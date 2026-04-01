@@ -1,6 +1,11 @@
+%{
+  Calculate the GCD for two numbers and print it all to the screen
+%}
 
 m = 0;
 n = 0;
+
+% Calculates the GCD using Euclid's method
 function output = euclid_gcd(m, n)
   while n ~= 0
     r = mod(m, n);
@@ -10,6 +15,7 @@ function output = euclid_gcd(m, n)
   output = m;
 end
 
+% attempt to get 2 command line arguments or use 15, 10
 m = 15;
 n = 10;
 args = argv();

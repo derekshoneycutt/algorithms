@@ -1,12 +1,15 @@
+! This program takes 2 values and prints them with their GCD to the screen
+
 program EuclidGcdApp
     implicit none
 
     integer :: m, n, gcd, num_args
-    character(len=100) :: buffer
+    character(len=100) :: buffer ! need to manage our own string buffer for args
 
     m = 15
     n = 10
 
+    ! Parse the command lines instead of 15 and 10 if 2+ are given.
     num_args = command_argument_count()
     if (num_args > 1) then
         call get_command_argument(1, buffer)
@@ -22,6 +25,7 @@ program EuclidGcdApp
 
 contains
 
+    ! Calculate the GCD with Euclid's method
     function euclidgcd(m_in, n_in) result(m)
         integer, intent(in) :: m_in, n_in
         integer :: m, n, gcd

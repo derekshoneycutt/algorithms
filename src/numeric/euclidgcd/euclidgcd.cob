@@ -1,18 +1,23 @@
+      *    Get the GCD between two values and print it all to the screen
+       
        IDENTIFICATION DIVISION.
        PROGRAM-ID. MAIN.
 
        DATA DIVISION.
          WORKING-STORAGE SECTION.
+      /    The values from the command line; or 15, 10 default
          01 ARG-RAW PIC X(10).
          01 ARG-NUM PIC 9.
          01 M PIC 9(4) VALUE 15.
          01 N PIC 9(4) VALUE 10.
 
+      /    The values interacting with EUCLIDGCD
          01 M_OUT PIC Z(1)9.
          01 N_OUT PIC Z(1)9.
          01 GCD_OUT PIC Z(1)9.
 
        PROCEDURE DIVISION.
+      /    Try to get command line values
            ACCEPT ARG-NUM FROM ARGUMENT-NUMBER.
            IF ARG-NUM >= 2
              ACCEPT ARG-RAW FROM ARGUMENT-VALUE
@@ -26,6 +31,7 @@
              MOVE FUNCTION TRIM(N) TO N_OUT
            END-IF
            
+      /    Calculate GCD and print it all
            CALL 'EUCLIDGCD' USING M, N.
            MOVE FUNCTION TRIM(M) TO GCD_OUT.
            DISPLAY M_OUT ' ' N_OUT.
@@ -34,6 +40,7 @@
 
        END PROGRAM MAIN.
 
+      *    Calculate the GCD using Euclid's method
        IDENTIFICATION DIVISION.
        PROGRAM-ID. EUCLIDGCD.
 
@@ -49,6 +56,8 @@
            PERFORM LOOP UNTIL N <= 0.
            EXIT PROGRAM.
 
+      /    This uses a label and loops calling the label each iteration
+      /    This can also just be done as a body of the loop
          LOOP.
            DIVIDE M BY N GIVING D REMAINDER R.
            MOVE N TO M.

@@ -6,7 +6,7 @@ note
 class
 	EUCLIDGCD
 inherit
-    ARGUMENTS
+    ARGUMENTS -- We get command line arguments in this class
 
 create
 	make

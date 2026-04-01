@@ -68,7 +68,7 @@
         "dart": "cd $dir && ../../../run.sh $fileName",
         "erlang": "cd $dir && ../../../run.sh $fileName",
         "eiffel": "cd $dir && ../../../run.sh $fileName",
-        "elixir": "cd $dir && ELIXIR_ERL_OPTIONS=\"+fnu\" ../../../run.sh $fileName",
+        "elixir": "cd $dir && ../../../run.sh $fileName",
         "factor": "cd $dir && ../../../run.sh $fileName",
         "fsharp": "cd $dir && ../../../run.sh $fileName",
         "forth": "cd $dir && ../../../run.sh $fileName",

@@ -29,7 +29,7 @@ case "$CURRENT_PLATFORM" in
   "Linux"*) . ~/.bash_profile ;;
   "FreeBSD")
     DATE_CMD="gdate"
-    . ~/.profile
+    . ~/.profile >> /dev/null
     ;;
   *) ;;
 esac
@@ -539,7 +539,7 @@ modula3_compile() {
   cd ./output/
   cm3 "$fileName" >> ./modula3-build-last 2>&1
   retValue="$?"
-  echo "-- cm3 returned: $retValue" >> ./output/modula3-build-last
+  echo "-- cm3 returned: $retValue" >> ./modula3-build-last
   cd ..
 }
 modula3_run() {
@@ -608,7 +608,7 @@ oberon_compile() {
   cd ./output
   voc -m "$fileName" >> ./oberon-build-last 2>&1
   retValue="$?"
-  echo "-- voc returned: $retValue" >> ./output/oberon-build-last
+  echo "-- voc returned: $retValue" >> ./oberon-build-last
   cd ..
 }
 oberon_run() {
@@ -1035,7 +1035,7 @@ zig_run() {
 # Definitions done, we start by checking for a check for the "clean"
 # request.
 
-if [ "$fileName" == "clean" ]; then
+if [ "$fileName" = "clean" ]; then
   rm -Rf ./output >> /dev/null
   cd ../../../stdlib/
   ./build.sh clean
@@ -1123,7 +1123,7 @@ esac
 case " $DEREKALGOS_RUNONVM " in
   *" $lang "*)
     scp -P $DEREKALGOS_VMPORT "./$fileName" $DEREKALGOS_VMUSER@$DEREKALGOS_VMADDRESS:"${DEREKALGOS_VMCODEDIR}/${fileName}" >> /dev/null
-    ToRunOnVM="source \"$DEREKALGOS_VMSTARTDIR/.bash_profile\"; cd $DEREKALGOS_VMCODEDIR && "$DEREKALGOS_VMRUNSCRIPT" "$fileName" $other_params"
+    ToRunOnVM="cd $DEREKALGOS_VMCODEDIR && \"$DEREKALGOS_VMRUNSCRIPT\" \"$fileName\" $other_params"
     ssh -p $DEREKALGOS_VMPORT $DEREKALGOS_VMUSER@$DEREKALGOS_VMADDRESS $ToRunOnVM
     exit
     ;;
@@ -1135,7 +1135,7 @@ esac
 # if there are new updates to the code file.
 
 if [ -f "./output/last-lang" ]; then
-  if printf '%s' "$lang" | cmp -s "./output/last-lang" -; then
+  if printf '%s' "$lang" | cmp -s - "./output/last-lang"; then
     if [ -n "$(find "./$fileName" -prune -newer "$testFile" 2>/dev/null)" ]; then
       destroy_output=1
     fi
@@ -1179,14 +1179,17 @@ Build output:
     run_duration=$((after_run - before_run))
 
     if [ "$retValue" -eq 0 ]; then
-      echo -e "
-    ${BLUE}Compile Time ${compile_duration}ms; Run Time ${run_duration}ms; ${GREEN}Returned $retValue${NORMAL}"
+      printf "
+    ${BLUE}Compile Time ${compile_duration}ms; Run Time ${run_duration}ms; ${GREEN}Returned $retValue${NORMAL}
+"
     else
-      echo -e "
-    ${BLUE}Compile Time ${compile_duration}ms; Run Time ${run_duration}ms; ${RED}Returned $retValue${NORMAL}"
+      printf "
+    ${BLUE}Compile Time ${compile_duration}ms; Run Time ${run_duration}ms; ${RED}Returned $retValue${NORMAL}
+"
     fi
     if [ "$retValue" -eq 124 ]; then
-      echo -e "${YELLOW}Return value 124 typically signals a timeout.${NORMAL}"
+      printf "${YELLOW}Return value 124 typically signals a timeout.${NORMAL}
+"
     fi
   fi
 else

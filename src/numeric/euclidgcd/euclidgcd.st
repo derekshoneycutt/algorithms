@@ -1,5 +1,9 @@
+"
+    Calculate the GCD of two values and print it all to the screen
+"
 
 Integer extend [
+    " Calculate the GCD with Euclid's algorithm "
     euclidGcd: anInteger [
         | m n |
         m := self.
@@ -17,7 +21,7 @@ Integer extend [
 | m n gcd argc argv |
 m := 15.
 n := 10.
-
+" Attempt to use the command line arguments if they are available "
 argc := Smalltalk getArgc.
 (argc > 1)
     ifTrue: [ 

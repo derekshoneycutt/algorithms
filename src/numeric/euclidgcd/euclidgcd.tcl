@@ -1,4 +1,6 @@
+# Calculate the GCD of two values and print it all to the screen
 
+# Calculate the GCD with Euclid's algorithm
 proc euclidgcd {m n} {
     while {$n != 0} {
         set r [expr {$m % $n}]
@@ -8,6 +10,7 @@ proc euclidgcd {m n} {
     return $m
 }
 
+# Try to get the first two command line parameters or use 15, 10
 set m 15
 set n 10
 if {$argc > 1} {

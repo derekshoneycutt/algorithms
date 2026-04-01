@@ -1,6 +1,11 @@
+{
+    Calculates the GCD of two values and prints it all to the screen
+}
+
 program euclidgcd;
     uses SysUtils;
 
+    (* Calculate the GCD of the two numbers with Euclid's algorithm *)
     function gcd(m, n : integer) : integer;
         var r : integer;
     begin
@@ -14,6 +19,7 @@ program euclidgcd;
 
     var m, n, value : integer;
 begin
+    // try to get the first 2 command line arguments or use 15, 10
     if ParamCount >= 2 then begin
         m := StrToInt(ParamStr(1));
         n := StrToInt(ParamStr(2))

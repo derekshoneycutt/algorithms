@@ -1,4 +1,7 @@
 package main
+/*
+	Calculate the GCD between two values and print it all to the screen
+*/
 
 import (
 	"fmt"
@@ -6,6 +9,7 @@ import (
 	"strconv"
 )
 
+// Calculate the GCD between m and n using Euclid's method
 func euclidgcd(m int, n int) int {
 	var r int
 	for n != 0 {
@@ -16,6 +20,7 @@ func euclidgcd(m int, n int) int {
 	return m
 }
 
+// The main entry point of the application
 func main() {
 	var m int = 15
 	var n int = 10
@@ -27,6 +32,8 @@ func main() {
 	}
 
 	if err != nil {
+		// this is mostly a formality in this code, but
+		// informative if something went bad.
 		fmt.Println("An error happened")
 	}
 

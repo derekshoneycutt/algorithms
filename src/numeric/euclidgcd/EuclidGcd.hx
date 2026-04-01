@@ -1,5 +1,13 @@
-
+/**
+ * Calculates the GCD of two values and prints it all to the screen
+ */
 class EuclidGcd {
+    /**
+     * Calculates the GCD with Euclid's method
+     * @param m The first value to calculate GCD for
+     * @param n The second value to calculate GCD for
+     * @return The calculated GCD value
+     */
     static public function gcd(m: Int, n: Int): Int {
         var r:Int = 0;
         while (n != 0) {
@@ -10,6 +18,9 @@ class EuclidGcd {
         return m;
     }
 
+    /**
+     * The main entry point to the application
+     */
     static public function main():Void {
         var args:Array<String> = Sys.args();
         var m:Int = 15;

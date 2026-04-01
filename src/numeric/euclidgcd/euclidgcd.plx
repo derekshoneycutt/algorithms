@@ -1,6 +1,11 @@
+=for comment
+    Calculate the GCD of two values and print it all to the screen
+=cut comment
+
 use strict;
 use warnings;
 
+# Calculate the GCD using Euclid's algorithm
 sub euclidgcd {
     my $m = $_[0];
     my $n = $_[1];

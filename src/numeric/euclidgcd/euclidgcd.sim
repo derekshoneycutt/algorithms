@@ -1,4 +1,8 @@
+comment
+    Calculate the GCD of two values and print it all to the screen
+;
 begin
+    ! Calculate the GCD with Euclid's algorithm;
     integer procedure euclidgcd(m, n);
         integer m, n;
     begin
@@ -12,6 +16,7 @@ begin
         euclidgcd := m;
     end;
 
+    ! No command line arguments in Simula, so we just use our default 15, 10;
     integer m, n;
     m := 15; n := 10;
 

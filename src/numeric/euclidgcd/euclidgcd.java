@@ -1,8 +1,20 @@
+/*
+    Calculate the GCD for two values and print it all to the screen
+*/
 package numeric.euclidgcd;
 
+/**
+ * The main class for calculating and displaying GCD with Euclid's method
+ */
 public class euclidgcd
-{    
-    public static int perform(int m, int n)
+{
+    /**
+     * Performs the GCD calculation with Euclid's method
+     * @param m The first value to calculate GCD for
+     * @param n The second value to calculate GCD for
+     * @return The calculated GCD
+     */
+    private static int perform(int m, int n)
     {
         int r = 0;
         while (n != 0) 
@@ -14,6 +26,10 @@ public class euclidgcd
         return m;
     }
 
+    /**
+     * The main entry point to the application
+     * @param args The command line arguments passed to the application
+     */
     public static void main(String[] args)
     {
         int m = 15;

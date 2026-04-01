@@ -1,3 +1,5 @@
+# Calculates the GCD of two values and prints it all to the screen
+ 
         LOC	Data_Segment
         GREG	@
 m       OCTA    15
