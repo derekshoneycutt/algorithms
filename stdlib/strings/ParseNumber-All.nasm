@@ -5,9 +5,13 @@ global ParseNumber
 section .text
 
 ParseNumber:
-    %define str rdi
+    %ifidn __OUTPUT_FORMAT__, win64
+        %define str rcx
+    %else
+        %define str rdi
+    %endif
     %define PVal rax
-    %define digit rcx
+    %define digit r9
     %define t r8
     %define tb r8b
     push rbp

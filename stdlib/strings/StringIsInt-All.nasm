@@ -5,9 +5,13 @@ global StringIsInt
 section .text
 
 StringIsInt:
-    %define str rdi
+    %ifidn __OUTPUT_FORMAT__, win64
+        %define str rcx
+    %else
+        %define str rdi
+    %endif
     %define bret rax
-    %define digit rcx
+    %define digit r8
     %define t rdx
     %define tb dl
     %define v rsi

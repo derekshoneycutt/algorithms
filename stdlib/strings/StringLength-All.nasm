@@ -5,10 +5,14 @@ global StringLength
 section .text
 
 StringLength:
-    %define str rdi
+    %ifidn __OUTPUT_FORMAT__, win64
+        %define str rcx
+    %else
+        %define str rdi
+    %endif
     %define digit rax
-    %define t rcx
-    %define tb cl
+    %define t r8
+    %define tb r8b
     push rbp
     mov rbp, rsp
 

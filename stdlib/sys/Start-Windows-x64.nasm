@@ -35,6 +35,7 @@ _start:
     call main
 
     mov param1, [argv]
+    call LocalFree
 
     mov param1, main_return
     call Exit
