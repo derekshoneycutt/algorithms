@@ -23,6 +23,8 @@ section .text
 _start:
     sub rsp, 40
 
+    ; We don't handle unicode right now, but
+    ; this gives us the first character of each paramter
     call GetCommandLineW
     mov param1, main_return
     lea param2, [argc]
