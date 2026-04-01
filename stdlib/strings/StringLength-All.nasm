@@ -1,4 +1,7 @@
-DEFAULT REL
+; Determine the length of a string that terminates in a null char
+;   rdi/rcx (nix/win) is the address to the string to test
+;   rax will return the number of characters before null was found
+default rel
 
 global StringLength
 
@@ -20,13 +23,13 @@ StringLength:
     mov t, 0
 
     .loop:
-    mov tb, [str + digit]
-    cmp tb, 0
-    je .end
+        mov tb, [str + digit]
+        cmp tb, 0
+        je .end
 
-    inc digit
-    jmp .loop
+        inc digit
+        jmp .loop
 
     .end:
-    leave
-    ret
+        leave
+        ret

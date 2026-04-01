@@ -1,4 +1,7 @@
-DEFAULT REL
+; Determine if a string is an integer number
+;   rdi/rcx (nix/win) is the address to the string to test
+;   rax will return 1 if it is a string of all 0-9 characters
+default rel
 
 global StringIsInt
 
@@ -23,25 +26,25 @@ StringIsInt:
     mov v, 0
 
     .loop:
-    mov t, 0
-    mov tb, [str + digit]
-    cmp tb, 0
-    je .is_int
+        mov t, 0
+        mov tb, [str + digit]
+        cmp tb, 0
+        je .is_int
 
-    cmp tb, '0'
-    jl .not_int
-    cmp tb, '9'
-    jg .not_int
-    inc digit
-    jmp .loop
+        cmp tb, '0'
+        jl .not_int
+        cmp tb, '9'
+        jg .not_int
+        inc digit
+        jmp .loop
 
     .is_int:
-    mov bret, 1
-    jmp .end
+        mov bret, 1
+        jmp .end
 
     .not_int:
-    mov bret, 0
+        mov bret, 0
 
     .end:
-    leave
-    ret
+        leave
+        ret

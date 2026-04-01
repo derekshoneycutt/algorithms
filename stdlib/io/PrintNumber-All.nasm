@@ -1,3 +1,8 @@
+; Print a number algorithm
+;   rdi/rcx (nix/win) is the number value to print
+;   rsi/rdx (nix/win) is the number of digits to print, including padding;
+;       0 is automatic with no padding
+;   rdx/r8 (nix/win) is the character (ASCII) to pad with, when needed
 default rel
 
 section .bss

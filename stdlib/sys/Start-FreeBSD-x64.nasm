@@ -1,4 +1,4 @@
-
+; Defines the main entry point for FreeBSD applications
 default rel
 
 global _start
@@ -13,6 +13,7 @@ extern Exit
 section .text
 
 _start:
+    ; We can pass the same structure that we get on to main quite easily here
     xor main_return, main_return
     mov param1, [rsp]
     mov param2, rsp

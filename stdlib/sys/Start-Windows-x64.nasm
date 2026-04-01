@@ -13,13 +13,9 @@ extern main
 extern Exit
 
 extern GetCommandLineA
-extern GetCommandLineW
-extern CommandLineToArgvW
-extern LocalFree
 
 %define param1 rcx
 %define param2 rdx
-%define main_return rax
 
 section .text
 
@@ -105,11 +101,7 @@ _start:
         
     .callMainAndExit:
         call main
-        push main_return
-    
-        lea param1, [argv]
-        call LocalFree
+        mov param1, rax
 
         add rsp, 40
-        pop param1
         call Exit

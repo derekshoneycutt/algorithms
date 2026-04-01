@@ -1,3 +1,5 @@
+; Print a string; this is super easy in Windows...
+;   rcx is the string pointer to print
 default rel
 
 segment .bss

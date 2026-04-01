@@ -1,4 +1,6 @@
-DEFAULT REL
+; Parse a number from a string;
+;   rdi/rcx (nix/win) should contain the address of the string to parse
+default rel
 
 global ParseNumber
 

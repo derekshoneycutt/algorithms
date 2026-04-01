@@ -1,3 +1,5 @@
+# Defines the exit method for the application in MMIX
+
         PREFIX  std:sys:
 
 # Exit The Application

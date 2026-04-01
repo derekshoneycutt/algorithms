@@ -1,3 +1,5 @@
+; Print a string; this is super easy in Linux...
+;   rdi is the string pointer to print
 default rel
 
 global PrintString

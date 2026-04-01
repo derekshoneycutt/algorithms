@@ -110,7 +110,6 @@ main:
         lea param1, valuespace
         call PrintString
         mov i, [rsp]
-        ;mov rdi, 0
         lea currp, [array]
         movzx param1, word [currp + i * 2]
         mov param2, 4

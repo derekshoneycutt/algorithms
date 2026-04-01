@@ -1,4 +1,5 @@
-DEFAULT REL
+; Defines the exit method for the application in Linux
+default rel
 
 global Exit
 
