@@ -6,7 +6,7 @@ section .rodata
   indent: db "   ",0
   endl: db 10,0
 
-section .data
+section .bss
   array times 500 dw 0
 
 global main
