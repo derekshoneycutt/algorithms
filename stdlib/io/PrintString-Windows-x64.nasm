@@ -1,4 +1,4 @@
-DEFAULT REL
+default rel
 
 segment .bss
     bytesWrittenInPrintString resd 1
@@ -9,28 +9,34 @@ extern GetStdHandle
 extern WriteConsoleA
 
 %define STD_OUTPUT_HANDLE -11
+%define param1 rcx
+%define param2 rdx
+%define param3 r8
+%define param4 r9
 
 extern StringLength
 
 section .text
 
 PrintString:
-    %define str rdi
+    %define str rcx
     push rbp
+    mov rbp, rsp
+
     call StringLength
 
+    push str
     push rax
-    mov rcx, STD_OUTPUT_HANDLE
+    mov param1, STD_OUTPUT_HANDLE
     call GetStdHandle
-    mov rbx, rax
 
-    mov rcx, rbx
-    mov rdx, str
-    pop r8
-    lea r9, [bytesWrittenInPrintString]
+    mov param1, rax
+    pop param3
+    pop param2
+    lea param4, [bytesWrittenInPrintString]
     sub rsp, 32
     call WriteConsoleA
     add rsp, 32
 
-    pop rbp
+    leave
     ret

@@ -1,18 +1,29 @@
 ; Prints hello to the screen
-DEFAULT REL
+default rel
 
 section .rodata
-  msg: db "Hello, world!",10,0
+    msg: db "Hello, world!",10,0
 
-global _start
+global main
 
 extern PrintString
 extern Exit
 
+%ifidn __OUTPUT_FORMAT__, win64
+    %define param1 rcx
+%else
+    %define param1 rdi
+%endif
+
 section .text
 
-_start:           ; The main entry point to the application
-  mov rdi, msg
-  call PrintString
+main:           ; The main entry point to the application
+    push rbp
+    mov rbp, rsp
 
-  call Exit
+    mov param1, msg
+    call PrintString
+
+    xor rax, rax
+    leave
+    ret

@@ -1,24 +1,37 @@
-DEFAULT REL
+default rel
 
 section .bss
-    std_io_PrintNumber_buffer resb 21
+    std_io_PrintNumber_buffer resb 23
 
 global PrintNumber
 
 extern PrintString
 
-section .text
+%ifidn __OUTPUT_FORMAT__, win64
+    %define param1 rcx
 
-PrintNumber:
+    %define num rcx
+    %define max rdx
+    %define fill r8
+    %define fillb r8b
+%else
+    %define param1 rdi
+
     %define num rdi
     %define max rsi
     %define fill rdx
     %define fillb dl
-    %define curr r8
-    %define digit r9
-    %define digitb r9b
-    %define len r10
+%endif
+%define curr r8
+%define digit r9
+%define digitb r9b
+%define len r10
+
+section .text
+
+PrintNumber:
     push rbp
+    mov rbp, rsp
 
     mov curr, std_io_PrintNumber_buffer + 20
     mov digit, 0
@@ -63,8 +76,8 @@ PrintNumber:
     .printAndEnd:
     pop fill
     inc curr
-    mov rdi, curr
+    mov param1, curr
     call PrintString
 
-    pop rbp
+    leave
     ret

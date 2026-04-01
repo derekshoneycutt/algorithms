@@ -9,6 +9,9 @@ StringLength:
     %define digit rax
     %define t rcx
     %define tb cl
+    push rbp
+    mov rbp, rsp
+
     mov digit, 0
     mov t, 0
 
@@ -21,4 +24,5 @@ StringLength:
     jmp .loop
 
     .end:
+    leave
     ret

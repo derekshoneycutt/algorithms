@@ -1,9 +1,14 @@
-DEFAULT REL
+default rel
 
 global PrintString
 
 %define sys_write 4
 %define stdout 1
+
+%define syscall_num rax
+%define param1 rdi
+%define param2 rsi
+%define param3 rdx
 
 extern StringLength
 
@@ -12,11 +17,15 @@ section .text
 PrintString:
     %define str rdi
     push rbp
+    mov rbp, rsp
+
     call StringLength
-    mov rsi, str
-    mov rdx, rax
-    mov rax, sys_write
-    mov rdi, stdout
+
+    mov param2, str
+    mov param3, rax
+    mov syscall_num, sys_write
+    mov param1, stdout
     syscall
-    pop rbp
+    
+    leave
     ret

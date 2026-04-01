@@ -11,6 +11,9 @@ StringIsInt:
     %define t rdx
     %define tb dl
     %define v rsi
+    push rbp
+    mov rbp, rsp
+
     mov digit, 0
     mov t, 0
     mov v, 0
@@ -36,4 +39,5 @@ StringIsInt:
     mov bret, 0
 
     .end:
+    leave
     ret
