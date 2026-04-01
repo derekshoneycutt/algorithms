@@ -1,7 +1,7 @@
 
 default rel
 
-seciton .bss
+section .bss
     argc: resq 1
     argv: resq 1
 
