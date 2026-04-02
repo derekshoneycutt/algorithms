@@ -6,8 +6,10 @@
 MMIX_OUTPUT_FILE="io.mms"
 LINUX_X64_OUTPUT_FILE="io-Linux-x64.o"
 LINUX_X64_NASM_OUTPUT_FILE="io-Linux-x64-nasm.o"
+FREEBSD_X64_OUTPUT_FILE="io-FreeBSD-x64.o"
 FREEBSD_X64_NASM_OUTPUT_FILE="io-FreeBSD-x64-nasm.o"
 DARWIN_ARM64_OUTPUT_FILE="io-Darwin-arm64.o"
+WINDOWS_X64_OUTPUT_FILE="io-Windows-x64.o"
 WINDOWS_X64_NASM_OUTPUT_FILE="io-Windows-x64-nasm.o"
 
 BUILD_TARGET=$(echo "$1" | tr '[:lower:]' '[:upper:]')
@@ -17,19 +19,25 @@ case "$BUILD_TARGET" in
         ../build-local.sh mmix $MMIX_OUTPUT_FILE
     ;;
     "LINUX-X64")
-        ../build-local.sh linux-x64 $LINUX_X64_OUTPUT_FILE
+        ../build-local.sh Linux-x64 $LINUX_X64_OUTPUT_FILE
     ;;
     "LINUX-X64-NASM")
-        ../build-local.sh linux-x64-nasm $LINUX_X64_NASM_OUTPUT_FILE
+        ../build-local.sh Linux-x64-nasm $LINUX_X64_NASM_OUTPUT_FILE
+    ;;
+    "FREEBSD-X64")
+        ../build-local.sh FreeBSD-x64 $FREEBSD_X64_OUTPUT_FILE
     ;;
     "FREEBSD-X64-NASM")
-        ../build-local.sh freebsd-x64-nasm $FREEBSD_X64_NASM_OUTPUT_FILE
+        ../build-local.sh FreeBSD-x64-nasm $FREEBSD_X64_NASM_OUTPUT_FILE
     ;;
     "DARWIN-ARM64")
-        ../build-local.sh darwin-arm64 $DARWIN_ARM64_OUTPUT_FILE
+        ../build-local.sh Darwin-arm64 $DARWIN_ARM64_OUTPUT_FILE
+    ;;
+    "WINDOWS-X64")
+        ../build-local.sh Windows-x64 $WINDOWS_X64_OUTPUT_FILE
     ;;
     "WINDOWS-X64-NASM")
-        ../build-local.sh windows-x64-nasm $WINDOWS_X64_NASM_OUTPUT_FILE
+        ../build-local.sh Windows-x64-nasm $WINDOWS_X64_NASM_OUTPUT_FILE
     ;;
     "CLEAN")
         ../build-local.sh clean

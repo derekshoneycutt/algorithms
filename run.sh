@@ -913,11 +913,11 @@ nasm_compile() {
   case "$CURRENT_CPU_ARCH" in
     "x86_64")
       platform="${platform}-x64-nasm"
-      platform_output="${platform_output}x64"
+      platform_output="${platform_output}x64nasm"
       ;;
     "amd64")
       platform="${platform}-x64-nasm"
-      platform_output="${platform_output}x64"
+      platform_output="${platform_output}x64nasm"
       ;;
     *)
       echo "Unrecognized CPU Architecture for NASM Builds" > ./output/nasm-build-last
