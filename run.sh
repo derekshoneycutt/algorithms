@@ -82,6 +82,120 @@ ada_run() {
 }
 
 # =============================================
+#           ASSEMBLY (AT&T/GAS)
+# =============================================
+asm_compile() {
+  do_link=0
+  platform="$CURRENT_PLATFORM"
+  platform_output=
+  case "$platform" in
+    "MINGW64_NT"*)
+      platform="Windows"
+      platform_output="windows"
+    ;;
+    "Linux"*)
+      platform="Linux"
+      platform_output="linux"
+    ;;
+    "FreeBSD"*)
+      platform="FreeBSD"
+      platform_output="freebsd"
+    ;;
+    *)
+      echo "Unrecognized Platform for Assembly Builds" > ./output/asm-build-last
+      retValue=1
+      return 1
+    ;;
+  esac
+  case "$CURRENT_CPU_ARCH" in
+    "x86_64")
+      platform="${platform}-x64"
+      platform_output="${platform_output}x64"
+      ;;
+    "amd64")
+      platform="${platform}-x64"
+      platform_output="${platform_output}x64"
+      ;;
+    *)
+      echo "Unrecognized CPU Architecture for Assembly Builds" > ./output/asm-build-last
+      retValue=1
+      return 1
+      ;;
+  esac
+
+  # First go into stdlib and build the standard library ;)
+  #   Only build if there's new changes to be built
+  echo "Building Assembly..." > ./output/asm-build-last
+  echo "Building Assembly Standard Library..." >> ./output/asm-build-last
+  cp "./$fileName" ./output/
+  cd ../../../stdlib
+  ./build.sh "$platform" > "$start_dir/output/asm-build-last"
+  retValue="$?"
+  cd $start_dir
+  if [ $retValue -ne 0 ]; then
+    return $retValue
+  fi
+  cat "../../../stdlib/output/${platform_output}-build-last" >> ./output/asm-build-last
+  stdlib="../../../stdlib/output/stdlib-${platform}.o"
+
+  # Now we build our actual output, linking to the standard library
+  #   Only build if there's new changes to be built
+  echo "Building Assembly file..." >> ./output/asm-build-last
+  do_build=0
+  if [ ! -f "./output/$fileNameWithoutExt.o" ]; then
+    do_build=1
+  elif [ -n "$(find "$fileName" -prune -newer "./output/$fileNameWithoutExt.o" 2>/dev/null)" ]; then
+    do_build=1
+  fi
+  if [ "$do_build" -eq 1 ]; then
+    case "$platform" in
+      "Windows-x64")
+        echo "as --defsym WINDOWS=1 -o \"./output/$fileNameWithoutExt.o\" \"$fileName\"" >> ./output/asm-build-last
+        as --defsym WINDOWS=1 -o "./output/$fileNameWithoutExt.o" "$fileName" >> ./output/asm-build-last 2>&1
+        retValue="$?"
+      ;;
+      *)
+        echo "as --defsym WINDOWS=0-o \"./output/$fileNameWithoutExt.o\" \"$fileName\"" >> ./output/asm-build-last
+        as --defsym WINDOWS=0 -o "./output/$fileNameWithoutExt.o" "$fileName" >> ./output/asm-build-last 2>&1
+        retValue="$?"
+      ;;
+    esac
+    echo "-- as returned: $retValue" >> ./output/asm-build-last
+    if [ "$retValue" -ne 0 ]; then
+      return $retValue
+    fi
+    do_link=1
+  fi
+  if [ ! -f "./output/$fileNameWithoutExt" ]; then
+    do_link=1
+  elif [ -n "$(find "$stdlib" -prune -newer "./output/$fileNameWithoutExt" 2>/dev/null)" ]; then
+    do_link=1
+  fi
+  if [ "$do_link" -eq 1 ]; then
+    case "$platform" in
+      "Windows-x64")
+        echo "ld -e _start -o \"./output/$fileNameWithoutExt\" \"./output/$fileNameWithoutExt.o\" \"$stdlib\" -L \"$LD_ADDITIONAL_DIRECTORY\" -lkernel32 -lshell32" >> ./output/asm-build-last
+        ld -e _start -o "./output/$fileNameWithoutExt" "./output/$fileNameWithoutExt.o" "$stdlib" -L "$LD_ADDITIONAL_DIRECTORY" -lkernel32 -lshell32 >> ./output/asm-build-last 2>&1
+        retValue="$?"
+      ;;
+      *)
+        echo "ld -o \"./output/$fileNameWithoutExt\" \"./output/$fileNameWithoutExt.o\" \"$stdlib\"" >> ./output/asm-build-last
+        ld -o "./output/$fileNameWithoutExt" "./output/$fileNameWithoutExt.o" "$stdlib" >> ./output/asm-build-last 2>&1
+        retValue="$?"
+      ;;
+    esac
+    echo "-- ld returned: $retValue" >> ./output/asm-build-last
+    if [ "$retValue" -ne 0 ]; then
+      return $retValue
+    fi
+  fi
+}
+asm_run() {
+  timeout --foreground $DEREKALGOS_TIMEOUT "./output/$fileNameWithoutExt" $other_params
+  retValue="$?"
+}
+
+# =============================================
 #           Ballerina
 # =============================================
 ballerina_compile() {
@@ -673,11 +787,11 @@ nasm_compile() {
   esac
   case "$CURRENT_CPU_ARCH" in
     "x86_64")
-      platform="${platform}-x64"
+      platform="${platform}-x64-nasm"
       platform_output="${platform_output}x64"
       ;;
     "amd64")
-      platform="${platform}-x64"
+      platform="${platform}-x64-nasm"
       platform_output="${platform_output}x64"
       ;;
     *)
@@ -1054,6 +1168,7 @@ fi
 
 case "$fileExtension" in
   "adb") lang="ada"; testFile="./output/$fileNameWithoutExt";;
+  "asm") lang="asm"; testFile="./output/$fileNameWithoutExt";;
   "bal") lang="ballerina"; testFile="./output/$fileNameWithoutExt.jar";;
   "bas") lang="freebasic"; testFile="./output/$fileNameWithoutExt";;
   "c") lang="c"; testFile="./output/$fileNameWithoutExt";;

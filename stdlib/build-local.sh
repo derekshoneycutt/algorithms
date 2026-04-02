@@ -37,10 +37,77 @@ case "$BUILD_TARGET" in
     ;;
     
     "LINUX-X64")
-        # For Linux x86 64, we need to first loop through all of the files,
+        # For Linux x86 64 GAS, we need to first loop through all of the files,
         # building them with nasm. Then we have to link them all with ld
         mkdir -p ./output
         echo "STARTING LINUX-X64 BUILD..." > ./output/linuxx64-build-last
+        DO_LINUX_X64_BUILD=0
+        ALL_LINUX_X64_OUTPUTS=
+        for ASM_FILE in $(find . -maxdepth 1 -type f -name '*-Linux-x64.asm' -o -name '*-All.asm'); do
+            case "$ASM_FILE" in
+                *"-All.asm")
+                    NASM_WITHOUT_EXT="${ASM_FILE%-All.asm}-Linux-x64"
+                ;;
+                *) NASM_WITHOUT_EXT="${ASM_FILE%.*}" ;;
+            esac
+            ASM_OBJ_OUTPUT="${NASM_WITHOUT_EXT}.o"
+            ALL_LINUX_X64_OUTPUTS="$ALL_LINUX_X64_OUTPUTS $ASM_OBJ_OUTPUT"
+            DO_CURRENT_LINUX_X64_BUILD=0
+            if [ ! -f "./output/$ASM_OBJ_OUTPUT" ]; then
+                DO_LINUX_X64_BUILD=1
+                DO_CURRENT_LINUX_X64_BUILD=1
+            elif [ -n "$(find "./$ASM_FILE" -prune -newer "./output/$ASM_OBJ_OUTPUT" 2>/dev/null)" ]; then
+                DO_LINUX_X64_BUILD=1
+                DO_CURRENT_LINUX_X64_BUILD=1
+            fi
+            if [ "$DO_CURRENT_LINUX_X64_BUILD" -eq 1 ]; then
+                echo "as --defsym WINDOWS=0 -o \"./output/$ASM_OBJ_OUTPUT\" \"$ASM_FILE\"" >> ./output/linuxx64-build-last
+                as --defsym WINDOWS=0 -o "./output/$ASM_OBJ_OUTPUT" "$ASM_FILE" >> ./output/linuxx64-build-last 2>&1
+                LAST_RETURN_VALUE="$?"
+                echo "-- as returned: $LAST_RETURN_VALUE" >> "./output/linuxx64-build-last"
+
+                # We exit completely on any failures
+                if [ "$LAST_RETURN_VALUE" -ne 0 ]; then
+                    echo "FAILED BUILD."
+                    cat ./output/linuxx64-build-last
+                    exit 1
+                fi
+            fi
+        done
+
+        if [ ! -f "./output/$OUTPUT_FILE" ]; then
+            DO_LINUX_X64_BUILD=1
+        fi
+
+        echo "Initial building completed; $DO_LINUX_X64_BUILD; moving to linking..." >> ./output/linuxx64-build-last
+
+        # Build completed, we move to linking
+        if [ "$DO_LINUX_X64_BUILD" -eq 1 ]; then
+            cd ./output
+            echo "cd ./output" >> "./linuxx64-build-last"
+            echo "ld -r -o \"./$OUTPUT_FILE\" $ALL_LINUX_X64_OUTPUTS" >> "./linuxx64-build-last"
+            ld -r -o "./$OUTPUT_FILE" $ALL_LINUX_X64_OUTPUTS >> ./linuxx64-build-last 2>&1
+            LAST_RETURN_VALUE="$?"
+            echo "-- ld returned: $LAST_RETURN_VALUE" >> "./linuxx64-build-last"
+            echo "cd .." >> "./linuxx64-build-last"
+            cd ..
+
+            # We exit completely on any failures
+            if [ "$LAST_RETURN_VALUE" -ne 0 ]; then
+                echo "FAILED BUILD."
+                cat ./output/linuxx64-build-last
+                exit 1
+            fi
+        fi
+
+        echo "LINUX-X64 BUILD END" >> ./output/linuxx64-build-last
+    ;;
+    
+    "LINUX-X64-NASM")
+        # For Linux x86 64 NASM, we need to first loop through all of the files,
+        # building them with nasm. Then we have to link them all with ld
+        mkdir -p ./output
+        echo "STARTING LINUX-X64 NASM BUILD..." > ./output/linuxx64-build-last
         DO_LINUX_X64_BUILD=0
         ALL_LINUX_X64_OUTPUTS=
         for NASM_FILE in $(find . -maxdepth 1 -type f -name '*-Linux-x64.nasm' -o -name '*-All.nasm'); do
@@ -50,7 +117,7 @@ case "$BUILD_TARGET" in
                 ;;
                 *) NASM_WITHOUT_EXT="${NASM_FILE%.*}" ;;
             esac
-            NASM_OBJ_OUTPUT="${NASM_WITHOUT_EXT}.o"
+            NASM_OBJ_OUTPUT="${NASM_WITHOUT_EXT}-nasm.o"
             ALL_LINUX_X64_OUTPUTS="$ALL_LINUX_X64_OUTPUTS $NASM_OBJ_OUTPUT"
             DO_CURRENT_LINUX_X64_BUILD=0
             if [ ! -f "./output/$NASM_OBJ_OUTPUT" ]; then
@@ -103,11 +170,11 @@ case "$BUILD_TARGET" in
         echo "LINUX-X64 BUILD END" >> ./output/linuxx64-build-last
     ;;
     
-    "FREEBSD-X64")
+    "FREEBSD-X64-NASM")
         # For FreeBSD x86 64, we need to first loop through all of the files,
         # building them with nasm. Then we have to link them all with ld
         mkdir -p ./output
-        echo "STARTING FREEBSD-X64 BUILD..." > ./output/freebsdx64-build-last
+        echo "STARTING FREEBSD-X64 NASM BUILD..." > ./output/freebsdx64-build-last
         DO_FREEBSD_X64_BUILD=0
         ALL_FREEBSD_X64_OUTPUTS=
         for NASM_FILE in $(find . -maxdepth 1 -type f -name '*-FreeBSD-x64.nasm' -o -name '*-All.nasm'); do
@@ -117,7 +184,7 @@ case "$BUILD_TARGET" in
                 ;;
                 *) NASM_WITHOUT_EXT="${NASM_FILE%.*}" ;;
             esac
-            NASM_OBJ_OUTPUT="${NASM_WITHOUT_EXT}.o"
+            NASM_OBJ_OUTPUT="${NASM_WITHOUT_EXT}-nasm.o"
             ALL_FREEBSD_X64_OUTPUTS="$ALL_FREEBSD_X64_OUTPUTS $NASM_OBJ_OUTPUT"
             DO_CURRENT_FREEBSD_X64_BUILD=0
             if [ ! -f "./output/$NASM_OBJ_OUTPUT" ]; then
@@ -170,11 +237,11 @@ case "$BUILD_TARGET" in
         echo "FREEBSD-X64 BUILD END" >> ./output/freebsdx64-build-last
     ;;
 
-    "WINDOWS-X64")
+    "WINDOWS-X64-NASM")
         # For Windows x86 64, we need to first loop through all of the files,
         # building them with nasm. Then we have to link them all with ld
         mkdir -p ./output
-        echo "STARTING WINDOWS-X64 BUILD..." > ./output/windowsx64-build-last
+        echo "STARTING WINDOWS-X64 NASM BUILD..." > ./output/windowsx64-build-last
         DO_WINDOWS_X64_BUILD=0
         ALL_WINDOWS_X64_OUTPUTS=
         for NASM_FILE in $(find . -maxdepth 1 -type f -name '*-Windows-x64.nasm' -o -name '*-All.nasm'); do
@@ -184,7 +251,7 @@ case "$BUILD_TARGET" in
                 ;;
                 *) NASM_WITHOUT_EXT="${NASM_FILE%.*}" ;;
             esac
-            NASM_OBJ_OUTPUT="${NASM_WITHOUT_EXT}.o"
+            NASM_OBJ_OUTPUT="${NASM_WITHOUT_EXT}-nasm.o"
             ALL_WINDOWS_X64_OUTPUTS="$ALL_WINDOWS_X64_OUTPUTS $NASM_OBJ_OUTPUT"
             DO_CURRENT_WINDOWS_X64_BUILD=0
             if [ ! -f "./output/$NASM_OBJ_OUTPUT" ]; then

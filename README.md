@@ -93,13 +93,22 @@ Mostly it is unabashedly for my own entertainment, though.
 
 All algorithms are in `src/`
 
+**NOTE**: The current code is in progress with some algorithms further ahead
+than the formal current position. Mostly, this is because of unsure exactly
+what I was doing at first and have been solidifying it with further enhancements.
+Hello world is complete, and Euclid GCD is currently under progress. As I catch
+up, this should be reduced to a single algorithm ahead at times, perhaps with
+some MMIX (and NASM stdlib) exploring otherwise.
+
 ## Architectural Notes
 
 Initially, this was just a bunch of code files, but it has called for me to
 make a development environment and overall architectural decisions that make
 working with and identifying errors in the various languages easier. There are
 some 60 languages included in this project, and the development environment
-quickly becomes messy and difficult without a central management.
+quickly becomes messy and difficult without a central management. Any other
+algorithms at this time might be broken or not in the desired final position;
+Euclid GCD is approaching complete.
 
 ### Architectural Setup of the Project
 

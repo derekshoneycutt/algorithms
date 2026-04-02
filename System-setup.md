@@ -5,8 +5,10 @@ yourself if you try to follow the instructions here. The goal is to make it
 possible to run the code in this repository in a standard way, but it can
 be helpful for other means.
 
-This project is currently developed to build and run on Linux and FreeBSD
-computers. All the code is currently running on command line.
+This project is currently developed to build and run primarily on Linux computers.
+There is also built in support for FreeBSD, Windows, and MacOS, though the support
+per language is not as thorough on these other platforms. All the code is
+currently running on command line in all OSs.
 
 GCC is the major framework used for multiple languages, in terms of what the code
 is programmed to aim in this project. Specifically, the C++ is aimed at recent
@@ -19,10 +21,11 @@ to run for fun. However, it has some issues that require further setup. Namely,
 I could not get Modula-3 to run under Gentoo. This requires an Ubuntu Server
 or FreeBSD VM running SSH that can run that code.
 
-There are some languages that someone can probably get working under FreeBSD
-if they want to play with doing the builds and dependencies all well. I skipped
-this a number of times so far, but this document may be updated in the future
-if I find working solutions for the missing packages.
+There are some languages that someone can probably get working under OSs that
+support for is missing in this document if they want to play with doing the
+builds and dependencies all well. I skipped this a number of times so far, but
+this document may be updated in the future if I find working solutions for the
+missing packages.
 
 The Windows support here is kind of added on in a begrudging fun. You can do
 it, but mostly, I am just seeing if I can. Assuming I can, I will try to keep
@@ -62,7 +65,7 @@ I have created a [Gentoo setup resource](gentoo-setup.md) which describes the ge
 Gentoo process that I used to create systems that can run all of this code. This
 is basically just a supplement to the Gentoo Handbook and does not add anything
 unusual, really. There are no significant extra steps to add to a Gentoo setup,
-beyond just installing more language support, thanks to already be a source
+beyond just installing more language support, thanks to already being a source
 compiling distribution.
 
 I assume Gentoo users know how to critically evaluate the suggested paths in
@@ -113,6 +116,56 @@ that it takes to compile and run the algorithms.
 sudo pkg install gdate
 ```
 
+### MacOS
+
+The initial MacOS setup is basically as easy as Windows, but with the FreeBSD
+background, it is a little bit easier for us to get more packages working
+without major modification on MacOS. I use a Macbook Pro with an M5 chip,
+which may impact the exact setup of this project, but most MacOS setups should
+be pretty similar given the uniformity of them.
+
+Start by ensuring the device is running the latest version of MacOS. I then
+started the install with xcode. This prompted a GUI install of the development
+tools that get the system overall started for programming. Then, we install
+Homebrew, which will manage additional packages for us on MacOS. I had to launch
+a new terminal for brew to still then be available.
+
+```zsh
+xcode-select --install
+/bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
+brew update
+brew doctor
+```
+
+Once homebrew is installed, we use it to install coreutils and git, first of all.
+These will be the foundations for allowing us to work with the project in general.
+
+```zsh
+brew install coreutils
+brew install git
+git --version
+cd ~
+curl -O https://raw.githubusercontent.com/nicolashery/mac-dev-setup/master/.gitconfig
+git config --global user.name "Your Name Here"
+git config --global user.email "your_email@youremail.com"
+```
+
+For VS Code, simply download it from the VS Code website and install by opening
+the .dmg file from downloads and dragging the VS Code icon to the Applications
+folder on screen.
+
+The major point of the Mac OS part of this right now is to support assembly on
+MacOS. The other languages should follow pretty standard practice. Note that
+MacOS comes with Apple's version of clang installed and `gcc` pointing to it.
+This is sufficient for the C code in this project without further modification,
+but at the time of this writing, Apple's clang does not support features such
+as generators in C++ that are used here. The run script is set to try this anyway
+so that may change in the future.
+
+For now, I would recommend using a VM with Ubuntu Server to run most
+of the languages. If you decide to try moving forward, it will probably be
+closer to the FreeBSD notes, but MacOS is still unique in many respects.
+
 ### Windows
 
 I highly recommend starting a Windows setup for this project by installing Visual
@@ -143,9 +196,9 @@ I install MingW for C/C++ because we do use GCC for this project, and there is
 some point to reduce how much I have to change the run script for different
 platforms. I suggest starting there as well, in the C and C++ sections.
 
-Ultimately, Windows is a special kind of hell that does not play as well with the
-assembly, let alone trying to install all of these languages in a way that is
-easily accessible from a single central location. It is incredibly normal for
+Ultimately, Windows is a special kind of hell that does not play as well with
+multiplatform code, let alone trying to install all of these languages in a way that
+is easily accessible from a single central location. It is incredibly normal for
 languages to recommend and even require setting up some special package manager
 environment that you have to call into in order to use the tools. This would
 be completely different from the run bash script style on every other platform.
@@ -153,10 +206,6 @@ The instructions here try to avoid the special environments and everything,
 but the result is tons of painful overlap, and painful management of that
 overlap. I am not going heavily into it here. I recommend just doing an Ubuntu
 Server VM or WSL for a lot of the langauges on Windows.
-
-An initial support for assembly is added, but we mostly skip over any
-command line parameter processing in windows because it is a lot more involved
-than the unix OSs.
 
 ## Setting up an Unbuntu Server VM as a Code Runner
 
@@ -2229,6 +2278,15 @@ The Netwide Assembler is available on pkg.
 
 ```sh
 pkg install nasm
+```
+
+### NASM on MacOS
+
+We can install nasm via homebrew on Mac OS.
+
+```zsh
+brew install nasm
+nasm --version
 ```
 
 ### NASM on Windows

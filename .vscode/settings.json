@@ -57,7 +57,7 @@
     "liveServer.settings.root": "build/dist/",
     "code-runner.executorMap": {
         "ada": "cd $dir && ../../../run.sh $fileName",
-        "assembly": "cd $dir && ../../run.sh $fileName",
+        "assembly": "cd $dir && ../../../run.sh $fileName",
         "ballerina": "cd $dir && ../../../run.sh $fileName",
         "c": "cd $dir && ../../../run.sh $fileName",
         "clojure": "cd $dir && ../../../run.sh $fileName",
@@ -116,6 +116,7 @@
         "v": "cd $dir && ../../../run.sh $fileName",
         "vb": "cd $dir && ../../../run.sh $fileName",
         "wat": "cd $dir && ../../../run.sh $fileName",
+        "x86asm": "cd $dir && ../../../run.sh $fileName",
         "zig": "cd $dir && ../../../run.sh $fileName"
     }
 }

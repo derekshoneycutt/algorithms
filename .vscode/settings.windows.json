@@ -1,7 +1,7 @@
 {
     "code-runner.executorMap": {
         "ada": "cd $dir && C:/'Program Files'/Git/bin/bash.exe ../../../run.sh $fileName",
-        "assembly": "cd $dir && C:/'Program Files'/Git/bin/bash.exe ../../run.sh $fileName",
+        "assembly": "cd $dir && C:/'Program Files'/Git/bin/bash.exe ../../../run.sh $fileName",
         "ballerina": "cd $dir && C:/'Program Files'/Git/bin/bash.exe ../../../run.sh $fileName",
         "c": "cd $dir && C:/'Program Files'/Git/bin/bash.exe ../../../run.sh $fileName",
         "clojure": "cd $dir && C:/'Program Files'/Git/bin/bash.exe ../../../run.sh $fileName",
@@ -60,6 +60,7 @@
         "v": "cd $dir && C:/'Program Files'/Git/bin/bash.exe ../../../run.sh $fileName",
         "vb": "cd $dir && C:/'Program Files'/Git/bin/bash.exe ../../../run.sh $fileName",
         "wat": "cd $dir && C:/'Program Files'/Git/bin/bash.exe ../../../run.sh $fileName",
+        "x86asm": "cd $dir && C:/'Program Files'/Git/bin/bash.exe ../../../run.sh $fileName",
         "zig": "cd $dir && C:/'Program Files'/Git/bin/bash.exe ../../../run.sh $fileName"
     }
 }
