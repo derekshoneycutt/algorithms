@@ -7,6 +7,7 @@ MMIX_OUTPUT_FILE="strings.mms"
 LINUX_X64_OUTPUT_FILE="strings-Linux-x64.o"
 LINUX_X64_NASM_OUTPUT_FILE="strings-Linux-x64-nasm.o"
 FREEBSD_X64_NASM_OUTPUT_FILE="strings-FreeBSD-x64-nasm.o"
+DARWIN_ARM64_OUTPUT_FILE="strings-Darwin-arm64.o"
 WINDOWS_X64_NASM_OUTPUT_FILE="strings-Windows-x64-nasm.o"
 
 BUILD_TARGET=$(echo "$1" | tr '[:lower:]' '[:upper:]')
@@ -23,6 +24,9 @@ case "$BUILD_TARGET" in
     ;;
     "FREEBSD-X64-NASM")
         ../build-local.sh freebsd-x64-nasm $FREEBSD_X64_NASM_OUTPUT_FILE
+    ;;
+    "DARWIN-ARM64")
+        ../build-local.sh darwin-arm64 $DARWIN_ARM64_OUTPUT_FILE
     ;;
     "WINDOWS-X64-NASM")
         ../build-local.sh windows-x64-nasm $WINDOWS_X64_NASM_OUTPUT_FILE

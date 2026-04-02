@@ -24,6 +24,7 @@ StringIsInt:
     mov digit, 0
     mov t, 0
     mov v, 0
+    mov bret, 0
 
     .loop:
         mov t, 0
@@ -40,11 +41,7 @@ StringIsInt:
 
     .is_int:
         mov bret, 1
-        jmp .end
 
     .not_int:
-        mov bret, 0
-
-    .end:
         leave
         ret

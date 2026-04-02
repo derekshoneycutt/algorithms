@@ -236,6 +236,73 @@ case "$BUILD_TARGET" in
 
         echo "FREEBSD-X64 BUILD END" >> ./output/freebsdx64-build-last
     ;;
+    
+    "DARWIN-ARM64")
+        # For Darwin/MacOS ARM64, we need to first loop through all of the files,
+        # building them with nasm. Then we have to link them all with ld
+        mkdir -p ./output
+        echo "STARTING DARWIN-ARM64 NASM BUILD..." > ./output/darwinarm64-build-last
+        DO_DARWIN_ARM64_BUILD=0
+        ALL_DARWIN_ARM64_OUTPUTS=
+        for ASM_FILE in $(find . -maxdepth 1 -type f -name '*-Darwin-arm64.s' -o -name '*-All.s'); do
+            case "$ASM_FILE" in
+                *"-All.nasm")
+                    ASM_WITHOUT_EXT="${ASM_FILE%-All.nasm}-Darwin-arm64"
+                ;;
+                *) ASM_WITHOUT_EXT="${ASM_FILE%.*}" ;;
+            esac
+            ASM_OBJ_OUTPUT="${ASM_WITHOUT_EXT}.o"
+            ALL_DARWIN_ARM64_OUTPUTS="$ALL_DARWIN_ARM64_OUTPUTS $ASM_OBJ_OUTPUT"
+            DO_CURRENT_DARWIN_ARM64_BUILD=0
+            if [ ! -f "./output/$ASM_OBJ_OUTPUT" ]; then
+                DO_DARWIN_ARM64_BUILD=1
+                DO_CURRENT_DARWIN_ARM64_BUILD=1
+            elif [ -n "$(find "./$ASM_FILE" -prune -newer "./output/$ASM_OBJ_OUTPUT" 2>/dev/null)" ]; then
+                DO_DARWIN_ARM64_BUILD=1
+                DO_CURRENT_DARWIN_ARM64_BUILD=1
+            fi
+            if [ "$DO_CURRENT_DARWIN_ARM64_BUILD" -eq 1 ]; then
+                echo "as -arch arm64 -o \"./output/$ASM_OBJ_OUTPUT\" \"$ASM_FILE\"" >> ./output/darwinarm64-build-last
+                as -arch arm64 -o "./output/$ASM_OBJ_OUTPUT" "$ASM_FILE" >> ./output/darwinarm64-build-last 2>&1
+                LAST_RETURN_VALUE="$?"
+                echo "-- as returned: $LAST_RETURN_VALUE" >> "./output/darwinarm64-build-last"
+
+                # We exit completely on any failures
+                if [ "$LAST_RETURN_VALUE" -ne 0 ]; then
+                    echo "FAILED BUILD."
+                    cat ./output/darwinarm64-build-last
+                    exit 1
+                fi
+            fi
+        done
+
+        if [ ! -f "./output/$OUTPUT_FILE" ]; then
+            DO_DARWIN_ARM64_BUILD=1
+        fi
+
+        echo "Initial building completed; $DO_DARWIN_ARM64_BUILD; moving to linking..." >> ./output/darwinarm64-build-last
+
+        # Build completed, we move to linking
+        if [ "$DO_DARWIN_ARM64_BUILD" -eq 1 ]; then
+            cd ./output
+            echo "cd ./output" >> "./darwinarm64-build-last"
+            echo "ld -r -o \"./$OUTPUT_FILE\" $ALL_DARWIN_ARM64_OUTPUTS" >> "./darwinarm64-build-last"
+            ld -r -o "./$OUTPUT_FILE" $ALL_DARWIN_ARM64_OUTPUTS >> ./darwinarm64-build-last 2>&1
+            LAST_RETURN_VALUE="$?"
+            echo "-- ld returned: $LAST_RETURN_VALUE" >> "./darwinarm64-build-last"
+            echo "cd .." >> "./darwinarm64-build-last"
+            cd ..
+
+            # We exit completely on any failures
+            if [ "$LAST_RETURN_VALUE" -ne 0 ]; then
+                echo "FAILED BUILD."
+                cat ./output/darwinarm64-build-last
+                exit 1
+            fi
+        fi
+
+        echo "DARWIN-ARM64 BUILD END" >> ./output/darwinarm64-build-last
+    ;;
 
     "WINDOWS-X64-NASM")
         # For Windows x86 64, we need to first loop through all of the files,

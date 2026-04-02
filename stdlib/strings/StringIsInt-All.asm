@@ -24,6 +24,7 @@ StringIsInt:
     movq $0, digit
     movq $0, t
     movq $0, v
+    movq $0, bret
 
     .loop:
         movq $0, t
@@ -41,11 +42,7 @@ StringIsInt:
 
     .is_int:
         movq $1, bret
-        jmp .end
 
     .not_int:
-        movq $0, bret
-
-    .end:
         leave
         ret

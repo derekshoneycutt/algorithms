@@ -155,6 +155,46 @@ case "$BUILD_TARGET" in
         echo "ALL BUILD SUCCESS" >> ./output/freebsdx64-build-last
     ;;
 
+    "DARWIN-ARM64")
+        # Darwin/MacOS ARM64 requires us to loop through and build each of subdirectories,
+        # and then we have to link all of the packages together with ld
+        echo "STARTING DARWIN/MACOS ARM64 BUILD" > ./output/darwinarm64-build-last
+        ALL_TO_BUILD=
+        for SUBDIR_REL in $(find . -maxdepth 1 -type d ! -name '.'); do
+            SUBDIR="${SUBDIR_REL#./}"
+            if [ -f "./$SUBDIR/build.sh" ]; then
+                cd "./$SUBDIR"
+                echo "cd $SUBDIR && ./build.sh $1 && cd .." >> ../output/darwinarm64-build-last
+                ./build.sh $1 >> ../output/darwinarm64-build-last
+                cd ..
+            
+                # Exit immediately on any failed builds
+                LAST_RETURN_VALUE="$?"
+                if [ "$LAST_RETURN_VALUE" -ne 0 ]; then
+                    echo "FAILED BUILD."
+                    cat ./output/darwinarm64-build-last
+                    exit 1
+                fi
+                cat ./$SUBDIR/output/darwinarm64-build-last >> ./output/darwinarm64-build-last
+                ALL_TO_BUILD="$ALL_TO_BUILD ../$SUBDIR/output/$SUBDIR-Darwin-arm64.o"
+            fi
+        done
+
+        # If all the builds are successful, we link them together into a single object file
+        cd ./output
+        echo "ld -r -o \"./stdlib-Darwin-arm64.o\" $ALL_TO_BUILD" >> "./darwinarm64-build-last"
+        ld -r -o "./stdlib-Darwin-arm64.o" $ALL_TO_BUILD >> ./darwinarm64-build-last 2>&1
+        LAST_RETURN_VALUE="$?"
+        echo "-- ld returned: $LAST_RETURN_VALUE" >> "./darwinarm64-build-last"
+        cd ..
+        if [ "$LAST_RETURN_VALUE" -ne 0 ]; then
+            echo "FAILED BUILD."
+            cat ./output/darwin-arm64-build-last
+            exit 1
+        fi
+        echo "ALL BUILD SUCCESS" >> ./output/darwinarm64-build-last
+    ;;
+
     "WINDOWS-X64-NASM")
         # Windows x86 64 requires us to loop through and build each of subdirectories,
         # and then we have to link all of the packages together with ld
