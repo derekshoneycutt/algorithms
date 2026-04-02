@@ -2,6 +2,10 @@
 
 <p align="center">
 <img src="./icons/ada.svg" alt="Ada" title="Ada" width="30" height="30">
+<img src="./icons/assembly.svg" alt="ARM64 Assembly (Apple)"
+     title="ARM64 Assembly (Apple)" width="30" height="30">
+<img src="./icons/assembly.svg" alt="AT&T/GAS Assembly (x86_64)"
+     title="AT&T/GAS Assembly (x86_64)" width="30" height="30">
 <img src="./icons/ballerina.svg" alt="Ballerina" title="Ballerina" width="30" height="30">
 <img src="./icons/c.svg" alt="C" title="C" width="30" height="30">
 <img src="./icons/cpp.svg" alt="C++" title="C++" width="30" height="30">
@@ -38,8 +42,8 @@
 <img src="./icons/assembly.svg" alt="MMIXAL" title="MMIXAL" width="30" height="30">
 <img src="./icons/modula3.svg" alt="Modula-3" title="Modula-3" width="30" height="30">
 <img src="./icons/mojo.svg" alt="Mojo" title="Mojo" width="30" height="30">
-<img src="./icons/assembly.svg" alt="Assembly (x86_64 Linux)"
-     title="Assembly (x86_64 Linux)" width="30" height="30">
+<img src="./icons/assembly.svg" alt="NASM (x86_64)"
+     title="NASM (x86_64)" width="30" height="30">
 <img src="./icons/nim.svg" alt="Nim" title="Nim" width="30" height="30">
 <img src="./icons/oberon.svg" alt="Oberon" title="Oberon" width="30" height="30">
 <img src="./icons/objective-c.svg" alt="Objective-C"
@@ -89,7 +93,10 @@ the primary source for algorithms that appear in here. Instead of just doing
 the MMIXAL alone (although it is included), I have decided to add a bunch
 of other languages to learn the algorithms and techniques in even more
 depth. I figured I can make this public, maybe it will benefit someone.
-Mostly it is unabashedly for my own entertainment, though.
+Mostly it is unabashedly for my own entertainment, though. I will not try to
+do all of Knuth's examples and exercises, and I make not promises about doing
+them in Knuth's style, either. Reading Knuth is my guide, but I am totally
+free to do my own thing here as well.
 
 All algorithms are in `src/`
 
@@ -98,7 +105,7 @@ than the formal current position. Mostly, this is because of unsure exactly
 what I was doing at first and have been solidifying it with further enhancements.
 Hello world is complete, and Euclid GCD is currently under progress. As I catch
 up, this should be reduced to a single algorithm ahead at times, perhaps with
-some MMIX (and NASM stdlib) exploring otherwise.
+some MMIX (and assembly stdlib) exploring otherwise.
 
 ## Architectural Notes
 
@@ -145,17 +152,53 @@ Due to the fact that I was not able to get every langauge working
 directly on my Gentoo box due to build errors of compilers, etc.,
 I also have a VM with Ubuntu Server setup that runs some languages.
 
+With the addition of ARM64 assembly targeting Apple/MacOS, it is not easily
+possible to run every single code file on a single computer for this project.
+With support for Linux, FreeBSD, and Windows on x86-64, this was already
+stretched, but most code could run on any of those. Now, there is also the ARM64
+assembly for MacOS, which is nearly impossible to run well on x86-64 machines.
+This is ultimately a minor hiccup, and the languages not supported on any
+platform can just be ignored or sent to a VM/server via SSH. For example,
+it would be possible to have a MacOS computer with SSH daemon and the run script
+serve as a code host for the ARM64 assembly when developing on x86-64, and
+vice versa.
+
 The entire build environment setup can be viewed in the
 [System-setup](System-setup.md) document.
 
-NOTE: On FreeBSD, the run script uses `gdate`, which you can install simply
-via `sudo pkg install gdate`.
+NOTE: On FreeBSD and MacOS, the run script uses `gdate`, which you can
+install simply via `sudo pkg install gdate` or `brew install coreutils`.
 
 ### Standard Library
 
-For MMIX and NASM, I have decided to start collecting a small standard library
-of methods that can be linked in. This is in `stdlib/`. I am mostly favoring
-my own implementation including syscall routines instead of linking to libc.
+For MMIX and Assembly, I have decided to start collecting a small standard
+library of methods that can be linked in. This is in `stdlib/`. I am mostly
+favoring my own implementation including syscall routines instead of linking
+to libc.
+
+Native assembly follows the native platform's norms for parameters. For
+example, FreeBSD and Linux share a rdi, rsi, etc. register pattern for
+parameters, while Windows is rcx, rdx, etc. In NASM, assemble-time macros
+can be utilized with register aliases via `%define` to ensure correct ABI
+is being used in code. In GAS/AT&T assembly, a special assemble-time variable
+is passed to the assembler, WINDOWS, which is 1 if on Windows, or 0 otherwise.
+`.if` clauses are then used with `.equiv` clauses to alias the registers.
+As for ARM64, this follows the standard x0, x1, etc. pattern.
+
+Because this does not use libc, the standard library now includes a custom
+`_start` entry point for each assembly language (except MMIX). This creates a
+setup similar to C's `main` method where the first parameter is the number
+of command line arguments (including the exe name), and the second parameter
+is the array of command line argument strings. These should be treated as
+immutable system managed variables, even though, for example, in Windows
+this is actually managed by the standard library.
+
+This is mostly an educational project, so we can use the direct syscall
+type methods instead of libc. On Windows, we use kernel32, etc. type calls
+instead, for good practice. On Linux and FreeBSD, the syscalls are stable.
+On MacOS, we just use the potentially problematic syscalls. Apple does provide
+POSIX compatibility, which we follow, but considers the details private
+and recommends using libc.
 
 ## On Analysis
 
@@ -164,34 +207,21 @@ be me reading through Knuth and wanting to explore some of the algorithms
 and exercises myself in my own, fun way.
 
 That said, I am me. I have been writing code since I was something like 8
-or 10 years old. My memory is not awesome, so the exact date is fuzzy.
-I have never really thought it mattered at that point anyway, but it is
-a fun fact. I have been professionally writing code for most of my adult
-life. At the same time, my (BA) degree in psychology (and math), enjoy
+years old, professionally for most of my adult life.
+At the same time, my (BA) degree is in psychology (and math), I enjoy
 reading a lot, and I enjoy writing about my own experiences.
-
-Being me leads me to wanting to give a direction to this project that
+This all leads me to want to give a direction to this project that
 includes writing an analysis about my experience and what programmers
 are trying to tell each other with the different styles I am playing
-with. I could never outdo Knuth's mathematical analyses of the algorithms
-I am going through, and I would refer anyone interested in that analysis
-there. However, I think, through this project and my unique background,
-I can contribute something new and different in an analysis about the
-empirical, phenomenological experience of studying algorithms through
-60 different programming languages.
+with. Through this project and my unique background, I think that
+I can contribute something new and different in an analysis.
 
-This will give me an opportunity to explain what my thoughts are in
+This will also give me an opportunity to explain what my thoughts are in
 writing each piece of code the way I did. There are choices made
 along the way, some of which are not immediately obvious from the
-code alone. This gives an opportunity to discuss what programers
-are saying when we use these techniques that appear unnecessary in
-immediate perception, as well as give insight into my own thoughts
-writing the code itself.
+code alone.
 
 There are a few major principles that will be central to these analyses.
-Before those are stated, even more important to say: this project is
-done for fun. This kind of analysis being included in that fun. A lot
-of people do not get off on this kind of shit. That is known. But. Well. ...
 
 No langauge is **right**. No language is **wrong**. Each language lives in
 a historical moment and within a meaningful philosophy that can be
@@ -201,33 +231,41 @@ how people have misused languages in terms of bad code, and it is not
 overly concerned in whether this project misuses code in that negative sense.
 This analysis is more likely to be curious about how code is misused
 in society, although there is likely limited chance for it in this
-project. The benefit of working through the algorithms with another
-analysis, such as Knuth, is inherent in that anyone who reads along can
-learn a lot and be better programmers from doing so. However, the goal
-of these analyses is more of just a curious comparison of the different
-experiences.
-
-This analysis has a necessarily phenomenological basis. There is not
-an effort to make a major mathematical analysis of the languages in
-any regard here. There is ample space to explore that, as some have.
-Just comparing what a similar goal outputs in different languages
-brings unique value to itself. The interest in this analysis is in
-pointing out the differences and begining to explore some underlying
-semantic interests in how programmers use these different languages to
-construct and exercise different meanings to themselves and other
-programmers who employ the languages in reading and writing.
-Semantics often has a meaning within programming languages
-that somewhat escapes the goal of this analysis, however. Rather
-than the typical use within programming languages, this is going
-to come at a kind of social semantics of code that is more
-interested in the experience of making interpersonal meaning through
-code and the experience of perceiving the social meaning made by
-others in code. The computer is another actor that necessarily limits
-and acts upon part of this meaning, but there are many opportunities
-to explore the irrational human meaning over the inhuman and objective.
+project. The goal of these analyses is just a curious comparison of
+the different experiences of the languages. Principle number one is to have fun.
 
 If any time these principles seem to be clearly in violation or
 just incoherently applied, that is the entire fault of myself, the author.
+
+These analyses have a necessarily phenomenological basis.
+The interest in this project is in pointing out the experienced differences
+between the languages and beginning to explore some underlying semantic
+interests in how programmers use these different languages to construct and
+exercise different meanings between themselves and other programmers.
+Semantics often has a meaning within
+programming languages that somewhat escapes the goal of this project, but
+some traditional semantic speak will be apparent, especially early on. Rather
+than the typical "semantics" within programming languages, however, this is
+going to attempt to approach a kind of social semantics of code that is more
+interested in the experiences of making interpersonal meaning through
+code. Included in this is the experience of perceiving the social meaning
+made by others in code, including the perceived intent of the designers of
+the languages used. The computer is another actor that necessarily limits and
+acts upon part of this meaning, but there are many opportunities to explore
+the irrational human meaning in my analysis, which I hope to focus on more.
+
+There is not an effort to make an analytical or statistical analysis of
+the languages in this project. There is ample space to explore that, as is
+apparent in research literature. This is often focused on the semantics
+of what code intends to do on the computer, but some analysis of impact on
+development time and maintenance concerns also suggests some analytical
+and statistical techniques could be applied to the goals of this project. I am
+simply choosing to take a more simple route to begin. There is little truly
+rigorous about the analyses I wish to provide here, though I hope the empirical
+basis of the project adds more than I immediately seek to provide myself.
+As for analysis of the actual algorithms used, I would point firmly at reading
+Knuth, who does a masterclass of algorithmic analysis in *The Art of Computer
+Programming*, where I am picking the algorithms from.
 
 If someone derives some benefit or enjoyment out of my ramblings here,
 then that is quite wonderful. If we include myself, then the project
@@ -241,6 +279,8 @@ run.sh script.
 | Icon | Language | Extension | Code* | Build Tool | Etc |
 | --- | -------- | --------- | ----- | ---------- | --- |
 | <img src="./icons/ada.svg" alt="Ada" height="25" width="25"> | Ada | .adb | ada | GNAT toolchain, gnatmake | |
+| <img src="./icons/assembly.svg" alt="Assembly" height="25" width="25"> | ARM64 | .s | arm64asm | Apple Clang, Apple linker; as, ld | ARM64 Assembly, targeting Apple Hardware |
+| <img src="./icons/assembly.svg" alt="Assembly" height="25" width="25"> | AT&T/GAS | .asm | asm | GNU Assembler, GNU linker; as, ld | x86_64 Assembly (Linux, FreeBSD, Windows) |
 | <img src="./icons/ballerina.svg" alt="Ballerina" height="25" width="25"> | Ballerina | .bal | ballerina | Ballerina, bal; java | |
 | <img src="./icons/c.svg" alt="C" height="25" width="25"> | C | .c | c | GCC | |
 | <img src="./icons/cpp.svg" alt="C++" height="25" width="25"> | C++ | .cpp | cpp | GCC, g++ | |
@@ -274,7 +314,7 @@ run.sh script.
 | <img src="./icons/assembly.svg" alt="Assembly" width="15" height="15"> | MMIXAL | .mms | mmixal | Knuth's; mmixal, mmix | ASM for Knuth's MMIX simulated RISC CPU |
 | <img src="./icons/modula3.svg" alt="Modula-3" height="25" width="25"> | Modula-3 | .m3 | modula3 | Critical Mass Modula-3, cm3 | |
 | <img src="./icons/mojo.svg" alt="Mojo" height="25" width="25"> | Mojo | .mojo | mojo | pixi, mojo | mojo installed via pixi |
-| <img src="./icons/assembly.svg" alt="Assembly" height="25" width="25"> | NASM | .nasm | nasm | The Netwide Assembler, GNU linker; nasm, ld | x86_64 Linux Assembly |
+| <img src="./icons/assembly.svg" alt="Assembly" height="25" width="25"> | NASM | .nasm | nasm | The Netwide Assembler, GNU linker; nasm, ld | x86_64 Assembly (Linux, FreeBSD, Windows) |
 | <img src="./icons/nim.svg" alt="Nim" height="25" width="25"> | Nim | .nim | nim | nim | |
 | <img src="./icons/objective-c.svg" alt="Objective-C" height="25" width="25"> | Objective-C | .m | objectivec | clang | |
 | <img src="./icons/ocaml.svg" alt="Ocaml" height="25" width="25"> | Ocaml | .ml | ocaml | ocaml | |

@@ -1404,7 +1404,7 @@ dotnet --info
 We use the standard Factor tool. To get this, navigate to the
 [Factor website](https://factorcode.org) and download the tar.gz package.
 I assume that the tar.gz is downloaded to `~`. Adjust your own
-actions accordingly. 
+actions accordingly.
 
 ### Factor on Gentoo and Ubuntu
 
