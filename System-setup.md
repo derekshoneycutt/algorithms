@@ -32,6 +32,12 @@ it, but mostly, I am just seeing if I can. Assuming I can, I will try to keep
 up the assembly standard library for Windows. However, it is not a major
 priority for me to have everything working amazing under Windows.
 
+MMIXAL will run on any platform that supports the binaries from Knuth, or even
+potentially with GCC compilation--not used in this project. Otherwise, the NASM
+and GAS (*.nasm, *.asm) assembly will only work on x86-64, including Linux,
+FreeBSD, and Windows. The ARM64 assembly only works on MacOS with modern M*
+processors.
+
 ## Basic Setup
 
 For the most part, OS setup should follow general OS setup. I have provided some
@@ -493,6 +499,107 @@ get working on Linux, I do not want to move forward with the pain that is
 Windows. You can try some things to make this work if you want, including
 an Ubuntu Server VM or try one of the existing distribution methods and
 see if you can make it work.
+
+## Assembly
+
+We support 3 kinds of native assembly in this project (see also MMIXAL,
+WASM, and LLVM IR for other low level "assembly" type languages). This
+includes NASM and GAS/AT&T on x86-64 and ARM64 for Apple hardware.
+Linux, FreeBSD, and Windows will focus on NASM and GAS. Apple hardware will
+focus on the ARM64 assembly
+
+### Assembly on Gentoo
+
+NASM is one simple package in protage. Otherwise, `as` should be installed
+as part of gcc.
+
+```bash
+emerge -av dev-lang/nasm
+nasm -v
+as -v
+ld -v
+```
+
+### Assembly on Ubuntu
+
+This is also very easy on apt for nasm, and asm and ld will be installed
+as part of GCC (see C/C++).
+
+```bash
+sudo apt install nasm
+nasm -v
+```
+
+### Assembly on FreeBSD
+
+This is also very easy on pkg for nasm, and asm and ld will be installed
+as part of GCC (see C/C++).
+The Netwide Assembler is available on pkg.
+
+```sh
+pkg install nasm
+```
+
+### Assembly on MacOS
+
+Apple comes with a build of clang that includes `as` that we will use to
+assembly ARM64 code. No further action is required.
+
+You can also install NASM and GNU as/ld if you want to play with them,
+but they are not as well supported on Apple hardware.
+
+```zsh
+brew install nasm
+nasm --version
+```
+
+### Assembly on Windows
+
+NASM and GNU as come along with mingw, which we can utilize immediately.
+You can start at the [MingW Website](https://www.mingw-w64.org/).
+
+We will go with a [WinLibs](https://winlibs.com/) route about this. We need
+both GCC 15 and GCC 13, and this is somewhat easier with the winlibs route.
+We just download zip files for version 15 and version 13. We can do the latest
+of both for Win64.
+
+Personally, I placed the contents of the version 15 package such that bin,
+etc. were directly in $HOME/.local. I also placed version 13 alongside in
+its own mingw13 folder within $HOME/.local. As long as you know where these are
+and can use both, you can use your own layout as you wish.
+
+You need to open $HOME/.bash_profile and add the following exports to the
+extracted binaries. This assumes the $HOME/.local layout; change as required
+for your own layout.
+
+Pay careful attention to the last variable, as this is used specifically
+with the assembly. You need to set this to the lib directory from mingw that
+contains libkernel32.a and other files that allow for linking to Windows OS.
+
+```bash
+export PATH="$HOME/.local/bin:$PATH"
+export CC="$HOME/.local/bin/x86_64-w64-mingw32-gcc.exe"
+export CXX="$HOME/.local/bin/x86_64-w64-mingw32-g++.exe"
+export FC="$HOME/.local/bin/x86_64-w64-mingw32-gfortran.exe"
+export F77="$HOME/.local/bin/x86_64-w64-mingw32-gfortran.exe"
+export LD="$HOME/.local/bin/ld.exe"
+export AR="$HOME/.local/bin/x86_64-w64-mingw32-gcc-ar.exe"
+export RANLIB="$HOME/.local/bin/x86_64-w64-mingw32-gcc-ranlib.exe"
+export WINDRES="$HOME/.local/bin/windres.exe"
+export RC="$HOME/.local/bin/windres.exe"
+export NM="$HOME/.local/bin/x86_64-w64-mingw32-gcc-nm.exe"
+export DLLTOOL="$HOME/.local/bin/dlltool.exe"
+export STRIP="$HOME/.local/bin/strip.exe"
+export PKG_CONFIG="$HOME/.local/bin/pkgconf.exe"
+export LD_ADDITIONAL_DIRECTORY="$HOME/.local/x86_64-w64-mingw32/lib/"
+```
+
+We can then test this in a Git Bash.
+
+```bash
+. ~/.bash_profile
+gcc --version
+```
 
 ## Ballerina
 
@@ -2248,93 +2355,6 @@ pixi add mojo
 # run something in our repo
 cd algos-repo/src/random/hello_world/
 ../../../run.sh hello.mojo
-```
-
-## NASM
-
-We use the Netwide Assembler and GNU ld tools on Linux.
-
-### NASM on Gentoo
-
-This is one simple package in protage.
-
-```bash
-emerge -av dev-lang/nasm
-nasm -v
-```
-
-### NASM on Ubuntu
-
-This is also very easy on apt.
-
-```bash
-sudo apt install nasm
-nasm -v
-```
-
-### NASM on FreeBSD
-
-The Netwide Assembler is available on pkg.
-
-```sh
-pkg install nasm
-```
-
-### NASM on MacOS
-
-We can install nasm via homebrew on Mac OS.
-
-```zsh
-brew install nasm
-nasm --version
-```
-
-### NASM on Windows
-
-NASM comes along with mingw, which we can utilize immediately. You can start
-at the [MingW Website](https://www.mingw-w64.org/).
-
-We will go with a [WinLibs](https://winlibs.com/) route about this. We need
-both GCC 15 and GCC 13, and this is somewhat easier with the winlibs route.
-We just download zip files for version 15 and version 13. We can do the latest
-of both for Win64.
-
-Personally, I placed the contents of the version 15 package such that bin,
-etc. were directly in $HOME/.local. I also placed version 13 alongside in
-its own mingw13 folder within $HOME/.local. As long as you know where these are
-and can use both, you can use your own layout as you wish.
-
-You need to open $HOME/.bash_profile and add the following exports to the
-extracted binaries. This assumes the $HOME/.local layout; change as required
-for your own layout.
-
-Pay careful attention to the last variable, as this is used specifically
-with the assembly. You need to set this to the lib directory from mingw that
-contains libkernel32.a and other files that allow for linking to Windows OS.
-
-```bash
-export PATH="$HOME/.local/bin:$PATH"
-export CC="$HOME/.local/bin/x86_64-w64-mingw32-gcc.exe"
-export CXX="$HOME/.local/bin/x86_64-w64-mingw32-g++.exe"
-export FC="$HOME/.local/bin/x86_64-w64-mingw32-gfortran.exe"
-export F77="$HOME/.local/bin/x86_64-w64-mingw32-gfortran.exe"
-export LD="$HOME/.local/bin/ld.exe"
-export AR="$HOME/.local/bin/x86_64-w64-mingw32-gcc-ar.exe"
-export RANLIB="$HOME/.local/bin/x86_64-w64-mingw32-gcc-ranlib.exe"
-export WINDRES="$HOME/.local/bin/windres.exe"
-export RC="$HOME/.local/bin/windres.exe"
-export NM="$HOME/.local/bin/x86_64-w64-mingw32-gcc-nm.exe"
-export DLLTOOL="$HOME/.local/bin/dlltool.exe"
-export STRIP="$HOME/.local/bin/strip.exe"
-export PKG_CONFIG="$HOME/.local/bin/pkgconf.exe"
-export LD_ADDITIONAL_DIRECTORY="$HOME/.local/x86_64-w64-mingw32/lib/"
-```
-
-We can then test this in a Git Bash.
-
-```bash
-. ~/.bash_profile
-gcc --version
 ```
 
 ## Nim
