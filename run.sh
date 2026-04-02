@@ -31,6 +31,10 @@ case "$CURRENT_PLATFORM" in
     DATE_CMD="gdate"
     . ~/.profile >> /dev/null
     ;;
+  "Darwin")
+    DATE_CMD="gdate"
+    . ~/.zprofile >> /dev/null
+    ;;
   *) ;;
 esac
 
@@ -379,18 +383,28 @@ csharp_run() {
 # =============================================
 #           D
 # =============================================
-d_compile() { :; }
+d_compile() {
+  echo "dmd -od=./output -of=\"./output/$fileNameWithoutExt\" \"./$fileName\"" > ./output/d-build-last
+  dmd -od=./output -of="./output/$fileNameWithoutExt" "./$fileName" >> ./output/d-build-last 2>&1
+  retValue="$?"
+  echo "-- dmd returned: $retValue" >> ./output/d-build-last
+}
 d_run() {
-  timeout --foreground $DEREKALGOS_TIMEOUT dmd -run "./$fileName" $other_params
+  timeout --foreground $DEREKALGOS_TIMEOUT "./output/$fileNameWithoutExt" $other_params
   retValue="$?"
 }
 
 # =============================================
 #           Dart
 # =============================================
-dart_compile() { :; }
+dart_compile() {
+  echo "dart compile exe \"./$fileName\" -o \"./output/$fileNameWithoutExt\"" > ./output/dart-build-last
+  dart compile exe "./$fileName" -o "./output/$fileNameWithoutExt" >> ./output/dart-build-last 2>&1
+  retValue="$?"
+  echo "-- dart returned: $retValue" >> ./output/dart-build-last
+}
 dart_run() {
-  timeout --foreground $DEREKALGOS_TIMEOUT dart "./$fileName" $other_params
+  timeout --foreground $DEREKALGOS_TIMEOUT "./output/$fileNameWithoutExt" $other_params
   retValue="$?"
 }
 
@@ -570,18 +584,31 @@ gleam_run() {
 # =============================================
 #           Go
 # =============================================
-go_compile() { :; }
+go_compile() {
+  echo "go build -o \"./output/$fileNameWithoutExt\" \"./$fileName\"" > ./output/go-build-last
+  go build -o "./output/$fileNameWithoutExt" "./$fileName" >> ./output/go-build-last 2>&1
+  retValue="$?"
+  echo "-- go returned: $retValue" >> ./output/go-build-last
+}
 go_run() {
-  timeout --foreground $DEREKALGOS_TIMEOUT go run "./$fileName" $other_params
+  timeout --foreground $DEREKALGOS_TIMEOUT "./output/$fileNameWithoutExt" $other_params
   retValue="$?"
 }
 
 # =============================================
 #           Haskell
 # =============================================
-haskell_compile() { :; }
+haskell_compile() {
+  cp "./$fileName" ./output/
+  cd ./output
+  echo "ghc \"./$fileName\"" > ./haskell-build-last
+  ghc "./$fileName" >> ./haskell-build-last 2>&1
+  retValue="$?"
+  echo "-- ghc returned: $retValue" >> ./haskell-build-last
+  cd ..
+}
 haskell_run() {
-  timeout --foreground $DEREKALGOS_TIMEOUT runghc "./$fileName" $other_params
+  timeout --foreground $DEREKALGOS_TIMEOUT "./output/$fileNameWithoutExt" $other_params
   retValue="$?"
 }
 
@@ -597,9 +624,17 @@ haxe_run() {
 # =============================================
 #           Icon
 # =============================================
-icon_compile() { :; }
+icon_compile() {
+  cp "./$fileName" ./output/
+  cd ./output
+  echo "icont \"./$fileName\"" > ./icon-build-last
+  icont "./$fileName" >> ./icon-build-last 2>&1
+  retValue="$?"
+  echo "-- icont returned: $retValue" >> ./icon-build-last
+  cd ..
+}
 icon_run() {
-  timeout --foreground $DEREKALGOS_TIMEOUT icon "./$fileName" $other_params
+  timeout --foreground $DEREKALGOS_TIMEOUT "./output/$fileNameWithoutExt" $other_params
   retValue="$?"
 }
 
@@ -705,9 +740,14 @@ llvmir_run() {
 # =============================================
 #           Lua
 # =============================================
-lua_compile() { :; }
+lua_compile() {
+  echo "luac -o \"./output/$fileNameWithoutExt.luac\" \"./$fileName\"" > ./output/lua-build-last
+  luac -o "./output/$fileNameWithoutExt.luac" "./$fileName" >> ./output/lua-build-last 2>&1
+  retValue="$?"
+  echo "-- luac returned: $retValue" >> ./output/lua-build-last
+}
 lua_run() {
-  timeout --foreground $DEREKALGOS_TIMEOUT lua "./$fileName" $other_params
+  timeout --foreground $DEREKALGOS_TIMEOUT lua "./output/$fileNameWithoutExt.luac" $other_params
   retValue="$?"
 }
 
@@ -1138,9 +1178,14 @@ smalltalk_run() {
 # =============================================
 #           Swift
 # =============================================
-swift_compile() { :; }
+swift_compile() {
+  echo "swiftc \"./$fileName\" -o \"./output/$fileNameWithoutExt\"" > ./output/swift-build-last
+  swiftc "./$fileName" -o "./output/$fileNameWithoutExt" >> ./output/swift-build-last 2>&1
+  retValue="$?"
+  echo "-- swiftc returned: $retValue" >> ./output/swift-build-last
+}
 swift_run() {
-  timeout --foreground $DEREKALGOS_TIMEOUT swift "$fileName" $other_params
+  timeout --foreground $DEREKALGOS_TIMEOUT "./output/$fileNameWithoutExt" $other_params
   retValue="$?"
 }
 
@@ -1170,9 +1215,14 @@ typescript_run() {
 # =============================================
 #           V
 # =============================================
-v_compile() { :; }
+v_compile() {
+  echo "v \"./$fileName\" -o \"./output/$fileNameWithoutExt\"" > ./output/v-build-last
+  v "./$fileName" -o "./output/$fileNameWithoutExt" >> ./output/v-build-last 2>&1
+  retValue="$?"
+  echo "-- v returned: $retValue" >> ./output/v-build-last
+}
 v_run() {
-  timeout --foreground $DEREKALGOS_TIMEOUT v run "$fileName" $other_params
+  timeout --foreground $DEREKALGOS_TIMEOUT "./output/$fileNameWithoutExt" $other_params
   retValue="$?"
 }
 
@@ -1222,9 +1272,17 @@ wat_run() {
 # =============================================
 #           ZIG
 # =============================================
-zig_compile() { :; }
+zig_compile() {
+  cp "./$fileName" ./output/
+  cd ./output
+  echo "zig build-exe \"./$fileName\"" > ./zig-build-last
+  zig build-exe "./$fileName" >> ./zig-build-last 2>&1
+  retValue="$?"
+  echo "-- zig returned: $retValue" >> ./zig-build-last
+  cd  ..
+}
 zig_run() {
-  timeout --foreground $DEREKALGOS_TIMEOUT zig run "$fileName" -- $other_params
+  timeout --foreground $DEREKALGOS_TIMEOUT "./output/$fileNameWithoutExt" $other_params
   retValue="$?"
 }
 
@@ -1261,8 +1319,8 @@ case "$fileExtension" in
   "cob") lang="cobol"; testFile="./output/$fileNameWithoutExt";;
   "cpp") lang="cpp"; testFile="./output/$fileNameWithoutExt";;
   "cs") lang="csharp"; testFile="./$fileName";;
-  "d") lang="d"; testFile="./$fileName";;
-  "dart") lang="dart"; testFile="./$fileName";;
+  "d") lang="d"; testFile="./output/$fileNameWithoutExt";;
+  "dart") lang="dart"; testFile="./output/$fileNameWithoutExt";;
   "e") lang="eiffel"; testFile="./output/EIFGENs/$fileName/F_code/$fileName";;
   "erl") lang="erlang"; testFile="./output/$fileNameWithoutExt.beam";;
   "exs") lang="elixir"; testFile="./$fileName";;
@@ -1271,10 +1329,10 @@ case "$fileExtension" in
   "fsx") lang="fsharp"; testFile="./$fileName";;
   "fth") lang="forth"; testFile="./$fileName";;
   "gleam") lang="gleam"; testFile="./output/build/dev/erlang/$fileNameWithoutExt/ebin/$fileNameWithoutExt.beam";;
-  "go") lang="go"; testFile="./$fileName";;
-  "hs") lang="haskell"; testFile="./$fileName";;
+  "go") lang="go"; testFile="./output/$fileNameWithoutExt";;
+  "hs") lang="haskell"; testFile="./output/$fileNameWithoutExt";;
   "hx") lang="haxe"; testFile="./$fileName";;
-  "icn") lang="icon"; testFile="./$fileName";;
+  "icn") lang="icon"; testFile="./output/$fileNameWithoutExt";;
   "idr") lang="idris"; testFile="./output/build/exec/$fileNameWithoutExt";;
   "java") lang="java"; testFile="./output/$fileNameWithoutExt.jar";;
   "jl") lang="julia"; testFile="./$fileName";;
@@ -1282,7 +1340,7 @@ case "$fileExtension" in
   "kit") lang="kit"; testFile="./$fileName";;
   "kt") lang="kotlin"; testFile="./output/$fileNameWithoutExt.jar";;
   "ll") lang="llvmir"; testFile="./output/$fileNameWithoutExt";;
-  "lua") lang="lua"; testFile="./$fileName";;
+  "lua") lang="lua"; testFile="./output/$fileNameWithoutExt.luac";;
   "m") lang="objectivec"; testFile="./output/$fileNameWithoutExt";;
   "m3") lang="modula3"; testFile="./output/AMD64_LINUX/prog";;
   "mat") lang="octave"; testFile="./output/${fileNameWithoutExt}shaved.m";;
@@ -1307,13 +1365,13 @@ case "$fileExtension" in
   "scm") lang="scheme"; testFile="./$fileName";;
   "sim") lang="simula"; testFile="./output/$fileNameWithoutExt";;
   "st") lang="smalltalk"; testFile="./$fileName";;
-  "swift") lang="swift"; testFile="./$fileName";;
+  "swift") lang="swift"; testFile="./output/$fileNameWithoutExt";;
   "tcl") lang="tcl"; testFile="./$fileName";;
   "ts") lang="typescript"; testFile="./output/$fileNameWithoutExt.js";;
-  "v") lang="v"; testFile="./$fileName";;
+  "v") lang="v"; testFile="./output/$fileNameWithoutExt";;
   "vb") lang="visualbasic"; testFile="./output/bin/Debug/net10.0/$fileNameWithoutExt";;
   "wat") lang="wat"; testFile="./output/$fileNameWithoutExt.wasm";;
-  "zig") lang="zig"; testFile="./$fileName";;
+  "zig") lang="zig"; testFile="./output/$fileNameWithoutExt";;
   *) echo "Unrecognized file extension, not building!"; exit;;
 esac
 

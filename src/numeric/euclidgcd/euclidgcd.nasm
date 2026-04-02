@@ -1,6 +1,5 @@
 ; Calculate the GCD between 2 values and print it all to the screen.
-
-DEFAULT REL
+default rel
 
 section .rodata
     space: db " ",0
