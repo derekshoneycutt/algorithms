@@ -329,9 +329,41 @@ c_run() {
 # =============================================
 #           Clojure
 # =============================================
-clojure_compile() { :; }
+clojure_compile() {
+  mkdir -p ./output/src/algo ./output/resources
+  do_update_source=0
+  if [ ! -f "./output/src/algo/main.clj" ]; then
+    do_update_source=1
+  elif [ -n "$(find "./$fileName" -prune -newer "./output/src/algo/main.clj" 2>/dev/null)" ]; then
+    do_update_source=1
+  fi
+  if [ "$do_update_source" -eq 1 ]; then
+    printf '(ns algo.main (:gen-class))\n(defn -main [& args]\n  (binding [*command-line-args* (into ["%s"] args)]\n    (load-string (slurp (clojure.java.io/resource "%s")))))\n' "./$fileName" "$fileName" > "./output/src/algo/main.clj"
+    cp "./$fileName" ./output/resources/
+  fi
+
+  if [ ! -f "./output/project.clj" ]; then
+    template_content=$(cat ../../../templates/template.project.clj)
+    get_variabled_string "$template_content" > "./output/project.clj"
+  fi
+
+  do_lein_uberjar=0
+  if [ ! -f "./output/target/uberjar/$fileNameWithoutExt-1.0.0-standalone.jar" ]; then
+    do_lein_uberjar=1
+  elif [ -n "$(find "./$fileName" -prune -newer "./output/target/uberjar/$fileNameWithoutExt-1.0.0-standalone.jar" 2>/dev/null)" ]; then
+    do_lein_uberjar=1
+  fi
+  if [ "$do_lein_uberjar" -eq 1 ]; then
+    cd ./output
+    echo "lein uberjar" > ./clojure-build-last
+    lein uberjar >> ./clojure-build-last 2>&1
+    retValue="$?"
+    echo "-- lein returned: $retValue" >> ./clojure-build-last
+    cd ..
+  fi
+}
 clojure_run() {
-  timeout --foreground $DEREKALGOS_TIMEOUT lein exec "./$fileName" $other_params
+  timeout --foreground $DEREKALGOS_TIMEOUT java -cp "./output/target/uberjar/$fileNameWithoutExt-1.0.0-standalone.jar" clojure.main -m algo.main $other_params
   retValue="$?"
 }
 
@@ -1354,7 +1386,7 @@ case "$fileExtension" in
   "bal") lang="ballerina"; testFile="./output/$fileNameWithoutExt.jar";;
   "bas") lang="freebasic"; testFile="./output/$fileNameWithoutExt";;
   "c") lang="c"; testFile="./output/$fileNameWithoutExt";;
-  "clj") lang="clojure"; testFile="./$fileName";;
+  "clj") lang="clojure"; testFile="./output/target/uberjar/$fileNameWithoutExt-1.0.0-standalone.jar";;
   "cob") lang="cobol"; testFile="./output/$fileNameWithoutExt";;
   "cpp") lang="cpp"; testFile="./output/$fileNameWithoutExt";;
   "cs") lang="csharp"; testFile="./output/bin/Debug/net10.0/$fileNameWithoutExt";;
