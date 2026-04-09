@@ -4,9 +4,7 @@ The recommended way to setup the system is to first install git (on Windows,
 **do** install Git Bash) and clone this repository. Then call the init script.
 
 ```sh
-git clone https://github.com/derekshoneycutt/algorithms.git
-cd algorithms
-./init.sh
+wget -sSL https://raw.githubusercontent.com/derekshoneycutt/algorithms/refs/heads/main/init.sh | sh
 ```
 
 If you open the folder in VS Code, you should also get a recommendation list for
