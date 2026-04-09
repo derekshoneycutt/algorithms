@@ -3,6 +3,7 @@ import '@material/web/fab/fab.js';
 import '@material/web/icon/icon.js';
 import './style.scss';
 
+import SocialHeadPng from "socialhead.png";
 import IconAda from "../icons/ada.svg";
 import IconBallerina from "../icons/ballerina.svg";
 import IconC from "../icons/c.svg";
