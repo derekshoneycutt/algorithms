@@ -6,10 +6,11 @@ still here for reference, but it is harder to get a system going from scratch
 instead of just using a reproducible docker.
 
 Basically open the git folder and build the docker. Then update the environment
-variables according to Basic setup below.
+variables according to Basic setup below. You can basically skip the rest of this
+document if you take this route.
 
 ```sh
-docker build -t code-runner .
+docker buildx build --platform linux/amd64 -t code-runner:v0.1 --load .
 ```
 
 This project is currently developed to build and run primarily on Linux computers.

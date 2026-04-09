@@ -58,7 +58,7 @@ export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/usr/local/lib
 #export DEREKALGOS_GCC13="/usr/x86_64-pc-linux-gnu/gcc-bin/13/"
 #export DEREKALGOS_GCC13NAME="x86_64-pc-linux-gcc"
 #export DEREKALGOS_GXX13NAME="x86_64-pc-linux-g++"
-#export DEREKALGOS_RUNONDOCKER="ada=test-ubuntu asm=test-ubuntu ballerina=test-ubuntu freebasic=test-ubuntu c=test-ubuntu clojure=test-ubuntu cobol=test-ubuntu cpp=test-ubuntu csharp=test-ubuntu d=test-ubuntu dart=test-ubuntu eiffel=test-ubuntu erlang=test-ubuntu elixir=test-ubuntu fortran=test-ubuntu factor=test-ubuntu fsharp=test-ubuntu forth=test-ubuntu gleam=test-ubuntu go=test-ubuntu haskell=test-ubuntu haxe=test-ubuntu icon=test-ubuntu idris=test-ubuntu java=test-ubuntu julia=test-ubuntu javascript=test-ubuntu kit=test-ubuntu kotlin=test-ubuntu llvmir=test-ubuntu lua=test-ubuntu objectivec=test-ubuntu modula3=test-ubuntu octave=test-ubuntu ocaml=test-ubuntu mmixal=test-ubuntu oberon=test-ubuntu mojo=test-ubuntu mercury=test-ubuntu nasm=test-ubuntu nim=test-ubuntu pascal=test-ubuntu php=test-ubuntu prolog=test-ubuntu perl=test-ubuntu python=test-ubuntu r=test-ubuntu ruby=test-ubuntu racket=test-ubuntu rust=test-ubuntu scala=test-ubuntu scheme=test-ubuntu simula=test-ubuntu smalltalk=test-ubuntu swift=test-ubuntu tcl=test-ubuntu typescript=test-ubuntu v=test-ubuntu visualbasic=test-ubuntu wat=test-ubuntu zig=test-ubuntu"
+#export DEREKALGOS_RUNONDOCKER="ada=code-runner asm=code-runner ballerina=code-runner freebasic=code-runner c=code-runner clojure=code-runner cobol=code-runner cpp=code-runner csharp=code-runner d=code-runner dart=code-runner eiffel=code-runner erlang=code-runner elixir=code-runner fortran=code-runner factor=code-runner fsharp=code-runner forth=code-runner gleam=code-runner go=code-runner haskell=code-runner haxe=code-runner icon=code-runner idris=code-runner java=code-runner julia=code-runner javascript=code-runner kit=code-runner kotlin=code-runner llvmir=code-runner lua=code-runner objectivec=code-runner modula3=code-runner octave=code-runner ocaml=code-runner mmixal=code-runner oberon=code-runner mojo=code-runner mercury=code-runner nasm=code-runner nim=code-runner pascal=code-runner php=code-runner prolog=code-runner perl=code-runner python=code-runner r=code-runner ruby=code-runner racket=code-runner rust=code-runner scala=code-runner scheme=code-runner simula=code-runner smalltalk=code-runner swift=code-runner tcl=code-runner typescript=code-runner v=code-runner visualbasic=code-runner wat=code-runner zig=code-runner"
 #export DEREKALGOS_RUNONSSH="forth=UBUNTURUNNER modula3=UBUNTURUNNER oberon=UBUNTURUNNER"
 #export DEREKALGOS_SSH_UBUNTURUNNER_PORT="2222"
 #export DEREKALGOS_SSH_UBUNTURUNNER_USER="coderun"
@@ -1419,7 +1419,7 @@ esac
 RUN_ON_DOCKER=$(echo "$DEREKALGOS_RUNONDOCKER" | sed -n "s/.*[[:space:]]\{0,1\}$lang=\([^[:space:]]*\).*/\1/p")
 if [ -n "$RUN_ON_DOCKER" ]; then
     CURRENT_GIT_DIR=$(realpath ../../../)
-    docker run --rm -v "$CURRENT_GIT_DIR":/build -w "/build/src/$packName/$algoName/" $RUN_ON_DOCKER bash -c "DEREKALGOS_TIMEOUT=\"$DEREKALGOS_TIMEOUT\" /build/run.sh "$fileName" $other_params"
+    docker run --rm --platform linux/amd64 -v "$CURRENT_GIT_DIR":/build -w "/build/src/$packName/$algoName/" $RUN_ON_DOCKER bash -c "DEREKALGOS_TIMEOUT=\"$DEREKALGOS_TIMEOUT\" /build/run.sh "$fileName" $other_params"
     exit
 fi
 
