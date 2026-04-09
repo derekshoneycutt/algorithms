@@ -9,9 +9,12 @@ cd algorithms
 ./init.sh
 ```
 
-If you open the folder in VS Code, you should also get a recommendation for the
-extensions that are used throughout this project. This should be enough to
-have a basic environment to code in. What is missing is all the code compilers.
+If you open the folder in VS Code, you should also get a recommendation list for
+the extensions that are used throughout this project. This should be enough to
+have a basic environment to code in. To see this list, go to the Extensions tab
+and search for `@recommended`. You can select which to install from this list.
+
+What is missing to work with the project from there is just all the code compilers.
 
 I highly recommend setting up docker so that you can just build the Dockerfile.
 The rest of this is basically still here for reference, but it is harder to get
