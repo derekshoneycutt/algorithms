@@ -1475,5 +1475,5 @@ Build output:
 fi
 
 printf "$lang" > ./output/last-lang
-chmod -R a+rw ./output/
+chmod -R a+rwX ./output/
 exit
