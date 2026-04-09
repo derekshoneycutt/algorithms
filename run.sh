@@ -12,8 +12,8 @@ fileExtension="${fileName##*.}"
 className=$(echo "$fileNameWithoutExt" | tr '[:lower:]' '[:upper:]')
 shift 1
 other_params="$@"
-CURRENT_CPU_ARCH=$(uname -m)
-CURRENT_PLATFORM=$(uname -s)
+currentCpuArch=$(uname -m)
+currentPlatform=$(uname -s)
 start_dir=$PWD
 dir="${PWD%/*}"
 packName="${dir##*/}"
@@ -23,23 +23,29 @@ testFile=
 destroy_output=0
 retValue=0
 
-DATE_CMD="date"
-case "$CURRENT_PLATFORM" in
+dateCmd="date"
+case "$currentPlatform" in
   "MINGW64_NT"*) . ~/.bash_profile ;;
   "Linux"*) . ~/.bash_profile ;;
   "FreeBSD")
-    DATE_CMD="gdate"
+    dateCmd="gdate"
     . ~/.profile >> /dev/null
     ;;
   "Darwin")
-    DATE_CMD="gdate"
+    dateCmd="gdate"
     . ~/.zprofile >> /dev/null
     ;;
   *) ;;
 esac
 
 get_ms_time() {
-  $DATE_CMD +%s%3N | cut -b1-13
+  $dateCmd +%s%3N | cut -b1-13
+}
+
+get_variabled_string() {
+  eval "cat <<EOF
+$1
+EOF"
 }
 
 # Color variables
@@ -49,23 +55,7 @@ YELLOW='\033[0;33m'
 BLUE='\033[0;34m'
 NORMAL='\033[0m' # Resets the color to default
 
-# The following of environment variables may be best suited
-# in ~/.bash_profile ; as such many are commented out here.
-
 export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/usr/local/lib
-#export DEREKALGOS_TIMEOUT="-k 10s 1m"
-#export DEREKALGOS_EIFFEL="eiffelstudio"
-#export DEREKALGOS_GCC13="/usr/x86_64-pc-linux-gnu/gcc-bin/13/"
-#export DEREKALGOS_GCC13NAME="x86_64-pc-linux-gcc"
-#export DEREKALGOS_GXX13NAME="x86_64-pc-linux-g++"
-#export DEREKALGOS_RUNONDOCKER="ada=code-runner asm=code-runner ballerina=code-runner freebasic=code-runner c=code-runner clojure=code-runner cobol=code-runner cpp=code-runner csharp=code-runner d=code-runner dart=code-runner eiffel=code-runner erlang=code-runner elixir=code-runner fortran=code-runner factor=code-runner fsharp=code-runner forth=code-runner gleam=code-runner go=code-runner haskell=code-runner haxe=code-runner icon=code-runner idris=code-runner java=code-runner julia=code-runner javascript=code-runner kit=code-runner kotlin=code-runner llvmir=code-runner lua=code-runner objectivec=code-runner modula3=code-runner octave=code-runner ocaml=code-runner mmixal=code-runner oberon=code-runner mojo=code-runner mercury=code-runner nasm=code-runner nim=code-runner pascal=code-runner php=code-runner prolog=code-runner perl=code-runner python=code-runner r=code-runner ruby=code-runner racket=code-runner rust=code-runner scala=code-runner scheme=code-runner simula=code-runner smalltalk=code-runner swift=code-runner tcl=code-runner typescript=code-runner v=code-runner visualbasic=code-runner wat=code-runner zig=code-runner"
-#export DEREKALGOS_RUNONSSH="forth=UBUNTURUNNER modula3=UBUNTURUNNER oberon=UBUNTURUNNER"
-#export DEREKALGOS_SSH_UBUNTURUNNER_PORT="2222"
-#export DEREKALGOS_SSH_UBUNTURUNNER_USER="coderun"
-#export DEREKALGOS_SSH_UBUNTURUNNER_ADDRESS="127.0.0.1"
-#export DEREKALGOS_SSH_UBUNTURUNNER_CODEDIR="/home/coderun/codefiles"
-#export DEREKALGOS_SSH_UBUNTURUNNER_STARTDIR="/home/coderun"
-#export DEREKALGOS_SSH_UBUNTURUNNER_RUNSCRIPT="../run.sh"
 
 # The first section, each language that we support needs to have
 # a lang_compile and lang_run. This will be called when a file of
@@ -92,7 +82,7 @@ ada_run() {
 # =============================================
 arm64asm_compile() {
   do_link=0
-  platform="$CURRENT_PLATFORM"
+  platform="$currentPlatform"
   platform_output=
   case "$platform" in
     "Darwin"*)
@@ -105,7 +95,7 @@ arm64asm_compile() {
       return 1
     ;;
   esac
-  case "$CURRENT_CPU_ARCH" in
+  case "$currentCpuArch" in
     "arm64")
       platform="${platform}-arm64"
       platform_output="${platform_output}arm64"
@@ -177,7 +167,7 @@ arm64asm_run() {
 # =============================================
 asm_compile() {
   do_link=0
-  platform="$CURRENT_PLATFORM"
+  platform="$currentPlatform"
   platform_output=
   case "$platform" in
     "MINGW64_NT"*)
@@ -198,7 +188,7 @@ asm_compile() {
       return 1
     ;;
   esac
-  case "$CURRENT_CPU_ARCH" in
+  case "$currentCpuArch" in
     "x86_64")
       platform="${platform}-x64"
       platform_output="${platform_output}x64"
@@ -422,28 +412,10 @@ eiffel_compile() {
     cp ./eiffel_include/*.e ./output/ >> /dev/null 2>&1
     cd ./output/
 
-    echo "<?xml version=\"1.0\" encoding=\"ISO-8859-1\"?>
-<system xmlns=\"http://www.eiffel.com/developers/xml/configuration-1-23-0\"
-        xmlns:xsi=\"http://www.w3.org/2001/XMLSchema-instance\"
-        xsi:schemaLocation=\"http://www.eiffel.com/developers/xml/configuration-1-23-0 http://www.eiffel.com/developers/xml/configuration-1-23-0.xsd\"
-        name=\"$fileNameWithoutExt\" uuid=\"$new_uuid\">
-    <target name=\"$fileNameWithoutExt\">
-        <root feature=\"make\" class=\"$className\"/>
-        <file_rule>
-            <exclude>/EIFGENs$</exclude>
-            <exclude>/\..*$</exclude>
-        </file_rule>
-        <option warning=\"warning\">
-            <assertions precondition=\"true\" postcondition=\"true\"
-                        check=\"true\" invariant=\"true\" loop=\"true\"
-                        supplier_precondition=\"true\"/>
-        </option>
-        <setting name=\"console_application\" value=\"true\"/>
-        <precompile name=\"base_pre\" location=\"\$ISE_PRECOMP/base-scoop-safe.ecf\"/>
-        <library name=\"base\" location=\"\$ISE_LIBRARY/library/base/base.ecf\"/>
-        <cluster name=\"$fileNameWithoutExt\" location=\".\\\" recursive=\"true\"/>
-    </target>
-</system>" > "./$fileNameWithoutExt.ecf"
+    if [ ! -f "$fileNameWithoutExt.vbproj" ]; then
+      template_content=$(cat ../../../../templates/eiffel.ecf)
+      get_variabled_string "$template_content" > "./$fileNameWithoutExt.ecf"
+    fi
 
     echo "ec -batch -config \"./$fileNameWithoutExt.ecf\" -finalize" > ./eiffel-build-last
     ec -batch -config "./$fileNameWithoutExt.ecf" -finalize >> ./eiffel-build-last 2>&1
@@ -559,35 +531,12 @@ gleam_compile() {
   mkdir -p output/src
   cp "./$fileName" ./output/src/
 
-  echo "name = \"$fileNameWithoutExt\"
-version = \"1.0.0\"
-
-[dependencies]
-gleam_stdlib = \">= 0.71.0 and < 1.0.0\"
-argv = \">= 1.0.2 and < 2.0.0\"
-format = \">= 1.0.0 and < 2.0.0\"
-gleam_erlang = \">= 1.3.0 and < 2.0.0\"
-
-[dev-dependencies]
-gleeunit = \">= 1.0.0 and < 2.0.0\"
-  " > "./output/gleam.toml"
-
-  echo "
-packages = [
-  { name = \"argv\", version = \"1.0.2\", build_tools = [\"gleam\"], requirements = [], otp_app = \"argv\", source = \"hex\", outer_checksum = \"BA1FF0929525DEBA1CE67256E5ADF77A7CDDFE729E3E3F57A5BDCAA031DED09D\" },
-  { name = \"format\", version = \"1.0.0\", build_tools = [\"gleam\"], requirements = [\"gleam_stdlib\"], otp_app = \"format\", source = \"hex\", outer_checksum = \"7654EE35E01394BF558F364542F163941A66CBA1512AA7D53F2A794BBD90BD9D\" },
-  { name = \"gleam_erlang\", version = \"1.3.0\", build_tools = [\"gleam\"], requirements = [\"gleam_stdlib\"], otp_app = \"gleam_erlang\", source = \"hex\", outer_checksum = \"1124AD3AA21143E5AF0FC5CF3D9529F6DB8CA03E43A55711B60B6B7B3874375C\" },
-  { name = \"gleam_stdlib\", version = \"0.71.0\", build_tools = [\"gleam\"], requirements = [], otp_app = \"gleam_stdlib\", source = \"hex\", outer_checksum = \"702F3BC2A14793906880B1078B19A6165F87323AEE8D0C4A34085846336FCAAE\" },
-  { name = \"gleeunit\", version = \"1.9.0\", build_tools = [\"gleam\"], requirements = [\"gleam_stdlib\"], otp_app = \"gleeunit\", source = \"hex\", outer_checksum = \"DA9553CE58B67924B3C631F96FE3370C49EB6D6DC6B384EC4862CC4AAA718F3C\" },
-]
-
-[requirements]
-argv = { version = \">= 1.0.2 and < 2.0.0\" }
-format = { version = \">= 1.0.0 and < 2.0.0\" }
-gleam_erlang = { version = \">= 1.3.0 and < 2.0.0\" }
-gleam_stdlib = { version = \">= 0.71.0 and < 1.0.0\" }
-gleeunit = { version = \">= 1.0.0 and < 2.0.0\" }
-  " > "./output/manifest.toml"
+  if [ ! -f "$fileNameWithoutExt.vbproj" ]; then
+    template_content=$(cat ../../../templates/gleam-template.toml)
+    get_variabled_string "$template_content" > "./output/gleam.toml"
+    template_content=$(cat ../../../templates/gleam-manifest.toml)
+    get_variabled_string "$template_content" > "./output/manifest.toml"
+  fi
 
   echo "gleam build \"$fileNameWithoutExt\"" > ./output/gleam-build-last
   cd ./output
@@ -881,16 +830,26 @@ oberon_run() {
 #           Mojo
 # =============================================
 mojo_compile() {
+  if [ ! -f "$fileNameWithoutExt.vbproj" ]; then
+    template_content=$(cat ../../../templates/pixi.lock)
+    get_variabled_string "$template_content" > "./output/pixi.lock"
+    template_content=$(cat ../../../templates/pixi.toml)
+    get_variabled_string "$template_content" > "./output/pixi.toml"
+  fi
+  cp -f "./$fileName" ./output/
+
   echo "Attempting to ensure mojo is added..." > ./output/mojo-build-last
-  pixi add mojo >> ./output/mojo-build-last 2>&1
+  cd ./output
+  pixi add mojo >> ./mojo-build-last 2>&1
   retValue="$?"
-  echo "-- pixi returned: $retValue" >> ./output/mojo-build-last
-  chmod a+rw ../../../pixi.lock
-  chmod a+rw ../../../pixi.toml
+  echo "-- pixi returned: $retValue" >> ./mojo-build-last
+  cd ..
 }
 mojo_run() {
+  cd ./output
   timeout --foreground $DEREKALGOS_TIMEOUT pixi run mojo run "./$fileName" $other_params
   retValue="$?"
+  cd ..
 }
 
 # =============================================
@@ -918,7 +877,7 @@ mercury_run() {
 # =============================================
 nasm_compile() {
   do_link=0
-  platform="$CURRENT_PLATFORM"
+  platform="$currentPlatform"
   platform_output=
   case "$platform" in
     "MINGW64_NT"*)
@@ -939,7 +898,7 @@ nasm_compile() {
       return 1
     ;;
   esac
-  case "$CURRENT_CPU_ARCH" in
+  case "$currentCpuArch" in
     "x86_64")
       platform="${platform}-x64-nasm"
       platform_output="${platform_output}x64nasm"
@@ -1273,13 +1232,10 @@ visualbasic_compile() {
   cp "./$fileName" ./output/
   cd ./output
 
-  echo "<Project Sdk=\"Microsoft.NET.Sdk\">
-<PropertyGroup>
-  <OutputType>Exe</OutputType>
-  <RootNamespace>Main</RootNamespace>
-  <TargetFramework>net10.0</TargetFramework>
-</PropertyGroup>
-</Project>" > "$fileNameWithoutExt.vbproj"
+  if [ ! -f "$fileNameWithoutExt.vbproj" ]; then
+    template_content=$(cat ../../../../templates/template.vbproj)
+    get_variabled_string "$template_content" > "$fileNameWithoutExt.vbproj"
+  fi
 
   echo "cd ./output && echo [$fileNameWithoutExt.vbproj] && dotnet build && cd .." > ./visualbasic-build-last
   dotnet build >> ./visualbasic-build-last 2>&1
@@ -1387,7 +1343,7 @@ case "$fileExtension" in
   "ml") lang="ocaml"; testFile="./$fileName";;
   "mms") lang="mmixal"; testFile="./output/$fileNameWithoutExt.mmo";;
   "Mod") lang="oberon"; testFile="./output/$fileNameWithoutExt";;
-  "mojo") lang="mojo"; testFile="./$fileName";;
+  "mojo") lang="mojo"; testFile="./output/$fileName";;
   "moo") lang="mercury"; testFile="./output/$fileNameWithoutExt";;
   "nasm") lang="nasm"; testFile="./output/$fileNameWithoutExt";;
   "nim") lang="nim"; testFile="./output/$fileNameWithoutExt";;

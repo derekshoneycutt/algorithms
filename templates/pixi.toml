@@ -1,7 +1,7 @@
 [workspace]
 authors = ["Derek Honeycutt <derekshoneycutt@gmail.com>"]
 channels = ["https://conda.modular.com/max-nightly", "conda-forge"]
-name = "algorithms"
+name = "$fileNameWithoutExt"
 platforms = ["linux-64"]
 version = "0.1.0"
 
