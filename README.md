@@ -98,8 +98,6 @@ do all of Knuth's examples and exercises, and I make not promises about doing
 them in Knuth's style, either. Reading Knuth is my guide, but I am totally
 free to do my own thing here as well.
 
-All algorithms are in `src/`
-
 **NOTE**: The current code is in progress with some algorithms further ahead
 than the formal current position. Mostly, this is because of unsure exactly
 what I was doing at first and have been solidifying it with further enhancements.
@@ -156,9 +154,6 @@ The entire build environment setup can be viewed in the
 [System-setup](System-setup.md) document for deeper builds, but it is harder to get
 a system going from scratch instead of just using a reproducible docker.
 
-Basically open the git folder and build the docker. Then update the environment
-variables according to Basic setup below. You can basically skip the rest of this
-document if you take this route.
 
 ```sh
 docker buildx build --platform linux/amd64 -t code-runner:v0.1 --load .
