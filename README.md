@@ -135,42 +135,56 @@ favor more traditional procedural approaches.
 
 ### On the development environment
 
-I am using VS Code on Gentoo Linux to work on this project, using a
-long list of extensions that can be found in `.vscode/.extensions`
+The recommended way to setup the system for the first time is to just call the
+init script right off the git. This will clone the git and set up environment
+variables for you. You can review the environment variables in your
+`~/.bash_profile` or similar based on platform.
+
+```sh
+curl -sSL https://raw.githubusercontent.com/derekshoneycutt/algorithms/refs/heads/main/init.sh | sh
+```
+
+If you open the folder in VS Code, you should also get a recommendation list for
+the extensions that are used throughout this project. This should be enough to
+have a basic environment to code in. To see this list, go to the Extensions tab
+and search for `@recommended`. You can select which to install from this list.
+
+What is missing to work with the project from there is just all the code compilers.
+
+I highly recommend setting up docker so that you can just build the Dockerfile.
+The entire build environment setup can be viewed in the
+[System-setup](System-setup.md) document for deeper builds, but it is harder to get
+a system going from scratch instead of just using a reproducible docker.
+
+Basically open the git folder and build the docker. Then update the environment
+variables according to Basic setup below. You can basically skip the rest of this
+document if you take this route.
+
+```sh
+docker buildx build --platform linux/amd64 -t code-runner:v0.1 --load .
+```
+
+The docker built from this is quite sizable, as should probably be expected from
+containing the compiler and runtimes for 60 different programming languages. It
+tends to build fastest on a multicore linux machine in my experience, but then it
+is about 8.4GB saved into a .tar.gz to transfer to other computers.
 
 The `run.sh` is setup to be called from the Jun Han Code Runner
-extension with the same format. They can also be run from any old
-shell this way. The language to compile and run is based on the extension
-of the filename passed in. Any additional arguments will be passed to the
-application when it is run, as command line arguments.
+extension and can also be run from any old
+shell by navigating to a folder with code files and calling the run script
+pointed to the desired file. The language to compile and run is based on the
+extension of the filename passed in. Any additional arguments will be passed to
+the application when it is run, as command line arguments.
 
 ```bash
 cd $dir && ../../../run.sh $fileName [additional argments]
 ```
 
-Due to the fact that I was not able to get every language working
-directly on my Gentoo box due to build errors of compilers, etc.,
-I played with VMs and ultimately docker to compile and run code in some of the
-missing languages. Both of these can be configured by environment variables.
-A `Dockerfile` is included in this repository that can reproducibly create a
-compile environment that can be easily used with this project, essentially
-getting every language running with only the docker image creation and some
-setup in environment variables.
-
 With the addition of ARM64 assembly targeting Apple/MacOS, it is not easily
 possible to run every single code file on a single computer for this project.
 With support for Linux, FreeBSD, and Windows on x86-64, this was already
-stretched, but most code could run on any of those. Now, there is also the ARM64
-assembly for MacOS, which is nearly impossible to run well on x86-64 machines.
-This is ultimately a minor hiccup, and the languages not supported on any
-platform can just be ignored or sent to a VM/server via SSH, or even run on docker,
-in the case of Apple hardware. For example of how a VM could be theoretically used,
-it would be possible to have a MacOS computer with SSH daemon and the run script
-serve as a code host for the ARM64 assembly when developing on x86-64, and
-vice versa. I just use a docker any more and multiple computers.
-
-The entire build environment setup can be viewed in the
-[System-setup](System-setup.md) document.
+stretched, but most code could run on any of those. Now, I just use a docker
+and multiple computers.
 
 NOTE: On FreeBSD and MacOS, the run script uses `gdate`, which you can
 install simply via `sudo pkg install gdate` or `brew install coreutils`.
