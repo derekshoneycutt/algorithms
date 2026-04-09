@@ -412,7 +412,7 @@ eiffel_compile() {
     cp ./eiffel_include/*.e ./output/ >> /dev/null 2>&1
     cd ./output/
 
-    if [ ! -f "$fileNameWithoutExt.vbproj" ]; then
+    if [ ! -f "$fileNameWithoutExt.ecf" ]; then
       template_content=$(cat ../../../../templates/eiffel.ecf)
       get_variabled_string "$template_content" > "./$fileNameWithoutExt.ecf"
     fi
@@ -531,7 +531,7 @@ gleam_compile() {
   mkdir -p output/src
   cp "./$fileName" ./output/src/
 
-  if [ ! -f "$fileNameWithoutExt.vbproj" ]; then
+  if [ ! -f "./output/gleam.toml" ]; then
     template_content=$(cat ../../../templates/gleam-template.toml)
     get_variabled_string "$template_content" > "./output/gleam.toml"
     template_content=$(cat ../../../templates/gleam-manifest.toml)
@@ -830,20 +830,23 @@ oberon_run() {
 #           Mojo
 # =============================================
 mojo_compile() {
-  if [ ! -f "$fileNameWithoutExt.vbproj" ]; then
+  if [ ! -f "./output/pixi.toml" ]; then
     template_content=$(cat ../../../templates/pixi.lock)
     get_variabled_string "$template_content" > "./output/pixi.lock"
     template_content=$(cat ../../../templates/pixi.toml)
     get_variabled_string "$template_content" > "./output/pixi.toml"
-  fi
-  cp -f "./$fileName" ./output/
 
-  echo "Attempting to ensure mojo is added..." > ./output/mojo-build-last
-  cd ./output
-  pixi add mojo >> ./mojo-build-last 2>&1
-  retValue="$?"
-  echo "-- pixi returned: $retValue" >> ./mojo-build-last
-  cd ..
+    echo "Attempting to ensure mojo is added..." > ./output/mojo-build-last
+    cd ./output
+    pixi add mojo >> ./mojo-build-last 2>&1
+    retValue="$?"
+    echo "-- pixi returned: $retValue" >> ./mojo-build-last
+    cd ..
+  else
+    echo "pixi.toml exists in output, skipping setup..." > ./output/mojo-build-last
+  fi
+
+  cp -f "./$fileName" ./output/
 }
 mojo_run() {
   cd ./output
@@ -1471,6 +1474,6 @@ Build output:
   cat "./output/${lang}-build-last"
 fi
 
-echo "$lang" > ./output/last-lang
+printf "$lang" > ./output/last-lang
 chmod -R a+rw ./output/
 exit
