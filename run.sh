@@ -18,6 +18,7 @@ start_dir=$PWD
 dir="${PWD%/*}"
 packName="${dir##*/}"
 algoName="${PWD##*/}"
+moduleName="$(echo "$fileNameWithoutExt" | sed 's/./\u&/')"
 lang=
 testFile=
 destroy_output=0
@@ -527,9 +528,14 @@ erlang_run() {
 # =============================================
 #           Elixir
 # =============================================
-elixir_compile() { :; }
+elixir_compile() {
+  echo "elixirc -o "./output/" \"./$fileName\"" > ./output/elixir-build-last
+  elixirc -o "./output/" "./$fileName" >> ./output/elixir-build-last 2>&1
+  retValue="$?"
+  echo "-- elixirc returned: $retValue" >> ./output/elixir-build-last
+}
 elixir_run() {
-  timeout --foreground $DEREKALGOS_TIMEOUT elixir "./$fileName" $other_params
+  timeout --foreground $DEREKALGOS_TIMEOUT elixir --erl "-pa ./output/" -e "$moduleName.main(System.argv())" -- $other_params
   retValue="$?"
 }
 
@@ -733,10 +739,20 @@ julia_run() {
 # =============================================
 #           Javascript
 # =============================================
-javascript_compile() { :; }
+javascript_compile() {
+  cp "./$fileName" ./output/
+  cd ./output
+  echo "node --check \"./$fileName\"" > ./javascript-build-last
+  node --check "./$fileName" >> ./javascript-build-last 2>&1
+  retValue="$?"
+  echo "-- node returned: $retValue" >> ./javascript-build-last
+  cd ..
+}
 javascript_run() {
+  cd ./output
   timeout --foreground $DEREKALGOS_TIMEOUT node "./$fileName" $other_params
   retValue="$?"
+  cd ..
 }
 
 # =============================================
@@ -841,9 +857,17 @@ octave_run() {
 # =============================================
 #           Ocaml
 # =============================================
-ocaml_compile() { :; }
+ocaml_compile() {
+  cp "./$fileName" ./output/
+  cd ./output
+  echo "ocamlopt -o \"./$fileNameWithoutExt\" \"./$fileName\"" > ./ocaml-build-last
+  ocamlopt -o "./$fileNameWithoutExt" "./$fileName" >> ./ocaml-build-last 2>&1
+  retValue="$?"
+  echo "-- ocamlopt returned: $retValue" >> ./ocaml-build-last
+  cd ..
+}
 ocaml_run() {
-  timeout --foreground $DEREKALGOS_TIMEOUT ocaml "./$fileName" $other_params
+  timeout --foreground $DEREKALGOS_TIMEOUT "./output/$fileNameWithoutExt" $other_params
   retValue="$?"
 }
 
@@ -1093,10 +1117,20 @@ pascal_run() {
 # =============================================
 #           PHP
 # =============================================
-php_compile() { :; }
-php_run() {
-  timeout --foreground $DEREKALGOS_TIMEOUT php "$fileName" $other_params
+php_compile() {
+  cp "./$fileName" ./output/
+  cd ./output
+  echo "php -l \"./$fileName\"" > ./php-build-last
+  php -l "./$fileName" >> ./php-build-last 2>&1
   retValue="$?"
+  echo "-- php returned: $retValue" >> ./php-build-last
+  cd ..
+}
+php_run() {
+  cd output
+  timeout --foreground $DEREKALGOS_TIMEOUT php "./$fileName" $other_params
+  retValue="$?"
+  cd ..
 }
 
 # =============================================
@@ -1116,45 +1150,90 @@ prolog_run() {
 # =============================================
 #           Perl
 # =============================================
-perl_compile() { :; }
-perl_run() {
-  timeout --foreground $DEREKALGOS_TIMEOUT perl "$fileName" $other_params
+perl_compile() {
+  cp "./$fileName" ./output/
+  cd ./output
+  echo "perl -c \"./$fileName\"" > ./perl-build-last
+  perl -c "./$fileName" >> ./perl-build-last 2>&1
   retValue="$?"
+  echo "-- perl returned: $retValue" >> ./perl-build-last
+  cd ..
+}
+perl_run() {
+  cd ./output
+  timeout --foreground $DEREKALGOS_TIMEOUT perl "./$fileName" $other_params
+  retValue="$?"
+  cd ..
 }
 
 # =============================================
 #           Python
 # =============================================
-python_compile() { :; }
-python_run() {
-  timeout --foreground $DEREKALGOS_TIMEOUT python -u "$fileName" $other_params
+python_compile() {
+  cp "./$fileName" ./output/
+  cd ./output
+  echo "python -m py_compile \"./$fileName\"" > ./python-build-last
+  python -m py_compile "./$fileName" >> ./python-build-last 2>&1
   retValue="$?"
+  echo "-- python returned: $retValue" >> ./python-build-last
+  cd ..
+}
+python_run() {
+  cd ./output
+  timeout --foreground $DEREKALGOS_TIMEOUT python -u "./$fileName" $other_params
+  retValue="$?"
+  cd ..
 }
 
 # =============================================
 #           R
 # =============================================
-r_compile() { :; }
-r_run() {
-  timeout --foreground $DEREKALGOS_TIMEOUT Rscript "$fileName" $other_params
+r_compile() {
+  cp "./$fileName" ./output/
+  cd ./output
+  echo "Rscript --vanilla -e \"parse(file='$fileName')\"" > ./r-build-last
+  Rscript --vanilla -e "parse(file='$fileName')" >> ./r-build-last 2>&1
   retValue="$?"
+  echo "-- Rscript returned: $retValue" >> ./r-build-last
+  cd ..
+}
+r_run() {
+  cd ./output
+  timeout --foreground $DEREKALGOS_TIMEOUT Rscript "./$fileName" $other_params
+  retValue="$?"
+  cd ..
 }
 
 # =============================================
 #           Ruby
 # =============================================
-ruby_compile() { :; }
-ruby_run() {
-  timeout --foreground $DEREKALGOS_TIMEOUT ruby "$fileName" $other_params
+ruby_compile() {
+  cp "./$fileName" ./output/
+  cd ./output
+  echo "ruby -c \"./$fileName\"" > ./ruby-build-last
+  ruby -c "./$fileName" >> ./ruby-build-last 2>&1
   retValue="$?"
+  echo "-- ruby returned: $retValue" >> ./ruby-build-last
+  cd ..
+}
+ruby_run() {
+  cd ./output
+  timeout --foreground $DEREKALGOS_TIMEOUT ruby "./$fileName" $other_params
+  retValue="$?"
+  cd ..
 }
 
 # =============================================
 #           Racket
 # =============================================
-racket_compile() { :; }
+racket_compile() {
+  echo "raco exe -o \"./output/$fileNameWithoutExt\" \"./$fileName\"" > ./output/racket-build-last
+  raco exe -o "./output/$fileNameWithoutExt" "./$fileName" >> ./output/racket-build-last 2>&1
+  retValue="$?"
+  echo "-- raco exe returned: $retValue" >> ./output/racket-build-last
+}
 racket_run() {
-  timeout --foreground $DEREKALGOS_TIMEOUT racket "$fileName" $other_params
+  timeout --foreground $DEREKALGOS_TIMEOUT "./output/$fileNameWithoutExt" $other_params
   retValue="$?"
 }
 
@@ -1407,7 +1486,7 @@ case "$fileExtension" in
   "idr") lang="idris"; testFile="./output/build/exec/$fileNameWithoutExt";;
   "java") lang="java"; testFile="./output/$fileNameWithoutExt.jar";;
   "jl") lang="julia"; testFile="./$fileName";;
-  "js") lang="javascript"; testFile="./$fileName";;
+  "js") lang="javascript"; testFile="./output/$fileName";;
   "kit") lang="kit"; testFile="./$fileName";;
   "kt") lang="kotlin"; testFile="./output/$fileNameWithoutExt.jar";;
   "ll") lang="llvmir"; testFile="./output/$fileNameWithoutExt";;
@@ -1415,7 +1494,7 @@ case "$fileExtension" in
   "m") lang="objectivec"; testFile="./output/$fileNameWithoutExt";;
   "m3") lang="modula3"; testFile="./output/AMD64_LINUX/prog";;
   "mat") lang="octave"; testFile="./output/${fileNameWithoutExt}shaved.m";;
-  "ml") lang="ocaml"; testFile="./$fileName";;
+  "ml") lang="ocaml"; testFile="./output/$fileNameWithoutExt";;
   "mms") lang="mmixal"; testFile="./output/$fileNameWithoutExt.mmo";;
   "Mod") lang="oberon"; testFile="./output/$fileNameWithoutExt";;
   "mojo") lang="mojo"; testFile="./output/$fileName";;
@@ -1423,13 +1502,13 @@ case "$fileExtension" in
   "nasm") lang="nasm"; testFile="./output/$fileNameWithoutExt";;
   "nim") lang="nim"; testFile="./output/$fileNameWithoutExt";;
   "pas") lang="pascal"; testFile="./output/$fileNameWithoutExt";;
-  "php") lang="php"; testFile="./$fileName";;
+  "php") lang="php"; testFile="./output/$fileName";;
   "pl") lang="prolog"; testFile="./output/$fileNameWithoutExt";;
-  "plx") lang="perl"; testFile="./$fileName";;
-  "py") lang="python"; testFile="./$fileName";;
-  "r") lang="r"; testFile="./$fileName";;
-  "rb") lang="ruby"; testFile="./$fileName";;
-  "rkt") lang="racket"; testFile="./$fileName";;
+  "plx") lang="perl"; testFile="./output/$fileName";;
+  "py") lang="python"; testFile="./output/$fileName";;
+  "r") lang="r"; testFile="./output/$fileName";;
+  "rb") lang="ruby"; testFile="./output/$fileName";;
+  "rkt") lang="racket"; testFile="./output/$fileNameWithoutExt";;
   "rs") lang="rust"; testFile="./output/$fileNameWithoutExt";;
   "s") lang="arm64asm"; testFile="./output/$fileNameWithoutExt";;
   "scala") lang="scala"; testFile="./output/$fileName";;
