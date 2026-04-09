@@ -1,9 +1,16 @@
 # System Setup
 
-**CAUTION**: You are going to have to think critically and troubelshoot for
-yourself if you try to follow the instructions here. The goal is to make it
-possible to run the code in this repository in a standard way, but it can
-be helpful for other means.
+I highly recommend setting up docker so that you can just build the Dockerfile
+and then configure the system settings in Basic Setup. The rest of this is basically
+still here for reference, but it is harder to get a system going from scratch
+instead of just using a reproducible docker.
+
+Basically open the git folder and build the docker. Then update the environment
+variables according to Basic setup below.
+
+```sh
+docker build -t code-runner .
+```
 
 This project is currently developed to build and run primarily on Linux computers.
 There is also built in support for FreeBSD, Windows, and MacOS, though the support
@@ -46,23 +53,34 @@ languages given here.
 
 All Linux variants should export variables for use in the `~/.bash_profile`.
 FreeBSD should also have the same exports in `~/.profile`.
-The VM variables are described further below, but the TIMEOUT variable will
-be used on every call in `run.sh`. This sets how long the command is allowed
-to run before it is killed. This is especially important on headless VMs, but
-it is helpful generally.
+The TIMEOUT variable will be used on every call in `run.sh`. This sets how long the
+command is allowed to run before it is killed. This is especially important on headless
+VMs, but it is helpful generally. EIFFEL must be either `eiffelstudio` or `libertyeiffel`
+based on what is available on the system. All eiffel files will build based on which
+of these is entered. Simula uses the GCC13 to ensure that simula files are run on GCC13;
+the intermediate code fails on GCC15.
+
+If you use a docker, change the RUNONDOCKER to modify which languages run on which
+docker container. Separate each langauge by a space, and after the name of the desired
+language do an equal sign and then the name of the docker image to run the code with.
+`ada=code-runner` means that Ada code will build with the code-runner docker image.
 
 ```bash
-export DEREKALGOS_RUNONVM="forth modula3 oberon simula smalltalk"
-export DEREKALGOS_VMPORT="2222"
-export DEREKALGOS_VMUSER="coderun"
-export DEREKALGOS_VMADDRESS="127.0.0.1"
-export DEREKALGOS_VMCODEDIR="/home/coderun/codefiles"
-export DEREKALGOS_VMSTARTDIR="/home/coderun"
-export DEREKALGOS_VMRUNSCRIPT="../run.sh"
 export DEREKALGOS_TIMEOUT="-k 10s 1m"
+export DEREKALGOS_EIFFEL="eiffelstudio"
 export DEREKALGOS_GCC13="/usr/x86_64-pc-linux-gnu/gcc-bin/13/"
-export DEREKALGOS_GCC13NAME="x86_64-pc-linux-gnu-gcc"
-export DEREKALGOS_GXX13NAME="x86_64-pc-linux-gnu-g++"
+export DEREKALGOS_GCC13NAME="x86_64-pc-linux-gcc"
+export DEREKALGOS_GXX13NAME="x86_64-pc-linux-g++"
+
+export DEREKALGOS_RUNONDOCKER="ada=code-runner asm=code-runner ballerina=code-runner freebasic=code-runner c=code-runner clojure=code-runner cobol=code-runner cpp=code-runner csharp=code-runner d=code-runner dart=code-runner eiffel=code-runner erlang=code-runner elixir=code-runner fortran=code-runner factor=code-runner fsharp=code-runner forth=code-runner gleam=code-runner go=code-runner haskell=code-runner haxe=code-runner icon=code-runner idris=code-runner java=code-runner julia=code-runner javascript=code-runner kit=code-runner kotlin=code-runner llvmir=code-runner lua=code-runner objectivec=code-runner modula3=code-runner octave=code-runner ocaml=code-runner mmixal=code-runner oberon=code-runner mojo=code-runner mercury=code-runner nasm=code-runner nim=code-runner pascal=code-runner php=code-runner prolog=code-runner perl=code-runner python=code-runner r=code-runner ruby=code-runner racket=code-runner rust=code-runner scala=code-runner scheme=code-runner simula=code-runner smalltalk=code-runner swift=code-runner tcl=code-runner typescript=code-runner v=code-runner visualbasic=code-runner wat=code-runner zig=code-runner"
+
+export DEREKALGOS_RUNONSSH="forth=UBUNTURUNNER modula3=UBUNTURUNNER oberon=UBUNTURUNNER"
+export DEREKALGOS_SSH_UBUNTURUNNER_PORT="2222"
+export DEREKALGOS_SSH_UBUNTURUNNER_USER="coderun"
+export DEREKALGOS_SSH_UBUNTURUNNER_ADDRESS="127.0.0.1"
+export DEREKALGOS_SSH_UBUNTURUNNER_CODEDIR="/home/coderun/codefiles"
+export DEREKALGOS_SSH_UBUNTURUNNER_STARTDIR="/home/coderun"
+export DEREKALGOS_SSH_UBUNTURUNNER_RUNSCRIPT="../run.sh"
 ```
 
 ### Gentoo
@@ -307,15 +325,19 @@ ssh -p coderun@127.0.0.1 echo "test"
 ### Run.sh Environment Variables
 
 Once languages are set up in the guest OS, we can specify that the project should
-compile and run them on the VM by modifying the `DEREKALGOS_RUNONVM` variable. The
+compile and run them on the VM by modifying the `DEREKALGOS_RUNONSSH` variable. The
 best way to do this is by modifying your profile--`~/.bash_profile` on Linux and
 `~/.profile` on FreeBSD--with the following lines,
 and then running `source ~/.bash_profile` or `source ~/.profile`.
 
-Especially on the host, OS, pay attention to `DEREKALGOS_RUNONVM`. All
+Especially on the host, OS, pay attention to `DEREKALGOS_RUNONSSH`. All
 languages that should run on the VM are in this string in the host OS,
 separated by a single space. This should probably be an empty string on the
 guest OS, unless you want to setup a string of code running servers.
+Separate each langauge by a space, and after the name of the desired
+language do an equal sign and then the name of the VM to run the code with.
+`ada=UBUNTURUNNER` means that Ada code will build with the UBUNTURUNNER VM.
+The VMs are defined by the `DEREKALGOS_SSH_{VMNAME}_VAR` variables.
 
 Additionally, on the guest OS, you should at least export the `DEREKALGOS_TIMEOUT`
 environment variable in your profile.
@@ -327,23 +349,20 @@ to the directory that contains the gcc and g++ executables. Then
 and `DEREKALGOS_GXX13NAME` contains the name of the g++ 13 executable. This
 is required for e.g. Simula.
 
-In fact, there are several other variables you can modify, including the username,
-port, and other factors of the SSH server that will be connected to for running
-code. As per `DEREKALGOS_RUNONVM`, it is normal for the host OS and guest OS
-to set different values in their respective profile instances.
-
 ```bash
-export DEREKALGOS_RUNONVM="forth modula3 oberon simula smalltalk"
-export DEREKALGOS_VMPORT="2222"
-export DEREKALGOS_VMUSER="coderun"
-export DEREKALGOS_VMADDRESS="127.0.0.1"
-export DEREKALGOS_VMCODEDIR="/home/coderun/codefiles"
-export DEREKALGOS_VMSTARTDIR="/home/coderun"
-export DEREKALGOS_VMRUNSCRIPT="../run.sh"
 export DEREKALGOS_TIMEOUT="-k 10s 1m"
+export DEREKALGOS_EIFFEL="eiffelstudio"
 export DEREKALGOS_GCC13="/usr/x86_64-pc-linux-gnu/gcc-bin/13/"
 export DEREKALGOS_GCC13NAME="x86_64-pc-linux-gcc"
 export DEREKALGOS_GXX13NAME="x86_64-pc-linux-g++"
+export DEREKALGOS_RUNONDOCKER=""
+export DEREKALGOS_RUNONSSH="forth=UBUNTURUNNER modula3=UBUNTURUNNER oberon=UBUNTURUNNER"
+export DEREKALGOS_SSH_UBUNTURUNNER_PORT="2222"
+export DEREKALGOS_SSH_UBUNTURUNNER_USER="coderun"
+export DEREKALGOS_SSH_UBUNTURUNNER_ADDRESS="127.0.0.1"
+export DEREKALGOS_SSH_UBUNTURUNNER_CODEDIR="/home/coderun/codefiles"
+export DEREKALGOS_SSH_UBUNTURUNNER_STARTDIR="/home/coderun"
+export DEREKALGOS_SSH_UBUNTURUNNER_RUNSCRIPT="../run.sh"
 ```
 
 ### VM Hibernation
@@ -387,17 +406,6 @@ else
     VBoxManage startvm "${VM_NAME}" --type headless
 fi
 ```
-
-### Final notes
-
-As a final side note, it is technically possible to do a string of servers
-with different capabilities to run code. The same run script is on the
-host and guest OS. Technically, the guest VM could be replaced with a remote
-VM in the cloud, or something similar, and these could be extended over multiple
-code running servers. Unfortunately, such a string of servers would have a
-significant inefficiency of `run.sh` currently only supporting a single code
-running server, so a string of servers would be creating a long tunnel of ssh
-calls instead of directly to the final code server.
 
 ## VSCode
 

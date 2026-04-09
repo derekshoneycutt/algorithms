@@ -148,9 +148,14 @@ application when it is run, as command line arguments.
 cd $dir && ../../../run.sh $fileName [additional argments]
 ```
 
-Due to the fact that I was not able to get every langauge working
+Due to the fact that I was not able to get every language working
 directly on my Gentoo box due to build errors of compilers, etc.,
-I also have a VM with Ubuntu Server setup that runs some languages.
+I played with VMs and ultimately docker to compile and run code in some of the
+missing languages. Both of these can be configured by environment variables.
+A `Dockerfile` is included in this repository that can reproducibly create a
+compile environment that can be easily used with this project, essentially
+getting every language running with only the docker image creation and some
+setup in environment variables.
 
 With the addition of ARM64 assembly targeting Apple/MacOS, it is not easily
 possible to run every single code file on a single computer for this project.
@@ -158,10 +163,11 @@ With support for Linux, FreeBSD, and Windows on x86-64, this was already
 stretched, but most code could run on any of those. Now, there is also the ARM64
 assembly for MacOS, which is nearly impossible to run well on x86-64 machines.
 This is ultimately a minor hiccup, and the languages not supported on any
-platform can just be ignored or sent to a VM/server via SSH. For example,
+platform can just be ignored or sent to a VM/server via SSH, or even run on docker,
+in the case of Apple hardware. For example of how a VM could be theoretically used,
 it would be possible to have a MacOS computer with SSH daemon and the run script
 serve as a code host for the ARM64 assembly when developing on x86-64, and
-vice versa.
+vice versa. I just use a docker any more and multiple computers.
 
 The entire build environment setup can be viewed in the
 [System-setup](System-setup.md) document.

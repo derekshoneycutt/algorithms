@@ -25,22 +25,25 @@ fn euclidgcd(m_in: i32, n_in: i32) i32 {
 }
 
 /// The main entry point of the application
-pub fn main() !void {
+pub fn main(init: std.process.Init) !void {
     // We need an allocator to pull the command line arguments in Zig
-    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
+    var gpa = std.heap.DebugAllocator(.{}){};
     const allocator = gpa.allocator();
     defer _ = gpa.deinit();
 
     // pull the command line arguments into a new array
-    const args = try std.process.argsAlloc(allocator);
-    defer std.process.argsFree(allocator, args);
+    var args = try init.minimal.args.iterateAllocator(allocator);
+    defer args.deinit();
+    _ = args.next();
 
     // if we have 2+ arguments, try to parse them into m and n or fall back to 15, 10
     var m: i32 = 15;
     var n: i32 = 10;
-    if (args.len > 2) {
-        m = std.fmt.parseInt(i32, args[1], 10) catch 15;
-        n = std.fmt.parseInt(i32, args[2], 10) catch 10;
+    if (args.next()) |arg1| {
+        m = std.fmt.parseInt(i32, arg1, 10) catch 15;
+        if (args.next()) |arg2| {
+            n = std.fmt.parseInt(i32, arg2, 10) catch 10;
+        }
     }
 
     const gcd = euclidgcd(m, n);

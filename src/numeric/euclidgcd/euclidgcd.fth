@@ -29,10 +29,10 @@
     then ;
 
 \ The main entry point we used to house the application
-: main ( -- )
+: good ( -- )
     get-args
     2dup
     swap . ."  " . CR ." gcd: "
     euclidgcd . CR ;
 
-main bye
+good bye

@@ -53,17 +53,19 @@ NORMAL='\033[0m' # Resets the color to default
 # in ~/.bash_profile ; as such many are commented out here.
 
 export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/usr/local/lib
-#export DEREKALGOS_RUNONVM="forth modula3 oberon simula smalltalk"
-#export DEREKALGOS_VMPORT="2222"
-#export DEREKALGOS_VMUSER="coderun"
-#export DEREKALGOS_VMADDRESS="127.0.0.1"
-#export DEREKALGOS_VMCODEDIR="/home/coderun/codefiles"
-#export DEREKALGOS_VMSTARTDIR="/home/coderun"
-#export DEREKALGOS_VMRUNSCRIPT="../run.sh"
 #export DEREKALGOS_TIMEOUT="-k 10s 1m"
+#export DEREKALGOS_EIFFEL="eiffelstudio"
 #export DEREKALGOS_GCC13="/usr/x86_64-pc-linux-gnu/gcc-bin/13/"
 #export DEREKALGOS_GCC13NAME="x86_64-pc-linux-gcc"
 #export DEREKALGOS_GXX13NAME="x86_64-pc-linux-g++"
+#export DEREKALGOS_RUNONDOCKER="ada=test-ubuntu asm=test-ubuntu ballerina=test-ubuntu freebasic=test-ubuntu c=test-ubuntu clojure=test-ubuntu cobol=test-ubuntu cpp=test-ubuntu csharp=test-ubuntu d=test-ubuntu dart=test-ubuntu eiffel=test-ubuntu erlang=test-ubuntu elixir=test-ubuntu fortran=test-ubuntu factor=test-ubuntu fsharp=test-ubuntu forth=test-ubuntu gleam=test-ubuntu go=test-ubuntu haskell=test-ubuntu haxe=test-ubuntu icon=test-ubuntu idris=test-ubuntu java=test-ubuntu julia=test-ubuntu javascript=test-ubuntu kit=test-ubuntu kotlin=test-ubuntu llvmir=test-ubuntu lua=test-ubuntu objectivec=test-ubuntu modula3=test-ubuntu octave=test-ubuntu ocaml=test-ubuntu mmixal=test-ubuntu oberon=test-ubuntu mojo=test-ubuntu mercury=test-ubuntu nasm=test-ubuntu nim=test-ubuntu pascal=test-ubuntu php=test-ubuntu prolog=test-ubuntu perl=test-ubuntu python=test-ubuntu r=test-ubuntu ruby=test-ubuntu racket=test-ubuntu rust=test-ubuntu scala=test-ubuntu scheme=test-ubuntu simula=test-ubuntu smalltalk=test-ubuntu swift=test-ubuntu tcl=test-ubuntu typescript=test-ubuntu v=test-ubuntu visualbasic=test-ubuntu wat=test-ubuntu zig=test-ubuntu"
+#export DEREKALGOS_RUNONSSH="forth=UBUNTURUNNER modula3=UBUNTURUNNER oberon=UBUNTURUNNER"
+#export DEREKALGOS_SSH_UBUNTURUNNER_PORT="2222"
+#export DEREKALGOS_SSH_UBUNTURUNNER_USER="coderun"
+#export DEREKALGOS_SSH_UBUNTURUNNER_ADDRESS="127.0.0.1"
+#export DEREKALGOS_SSH_UBUNTURUNNER_CODEDIR="/home/coderun/codefiles"
+#export DEREKALGOS_SSH_UBUNTURUNNER_STARTDIR="/home/coderun"
+#export DEREKALGOS_SSH_UBUNTURUNNER_RUNSCRIPT="../run.sh"
 
 # The first section, each language that we support needs to have
 # a lang_compile and lang_run. This will be called when a file of
@@ -412,17 +414,20 @@ dart_run() {
 #           Eiffel
 # =============================================
 eiffel_compile() {
-  new_uuid=$(uuidgen)
+  case "$DEREKALGOS_EIFFEL" in
+  "eiffelstudio")
+    new_uuid=$(uuidgen)
 
-  cp "./$fileName" ./output/
-  cd ./output/
+    cp "./$fileName" ./output/
+    cp ./eiffel_include/*.e ./output/ >> /dev/null 2>&1
+    cd ./output/
 
-  echo "<?xml version=\"1.0\" encoding=\"ISO-8859-1\"?>
+    echo "<?xml version=\"1.0\" encoding=\"ISO-8859-1\"?>
 <system xmlns=\"http://www.eiffel.com/developers/xml/configuration-1-23-0\"
         xmlns:xsi=\"http://www.w3.org/2001/XMLSchema-instance\"
         xsi:schemaLocation=\"http://www.eiffel.com/developers/xml/configuration-1-23-0 http://www.eiffel.com/developers/xml/configuration-1-23-0.xsd\"
-        name=\"$fileName\" uuid=\"$new_uuid\">
-    <target name=\"$fileName\">
+        name=\"$fileNameWithoutExt\" uuid=\"$new_uuid\">
+    <target name=\"$fileNameWithoutExt\">
         <root feature=\"make\" class=\"$className\"/>
         <file_rule>
             <exclude>/EIFGENs$</exclude>
@@ -436,7 +441,7 @@ eiffel_compile() {
         <setting name=\"console_application\" value=\"true\"/>
         <precompile name=\"base_pre\" location=\"\$ISE_PRECOMP/base-scoop-safe.ecf\"/>
         <library name=\"base\" location=\"\$ISE_LIBRARY/library/base/base.ecf\"/>
-        <cluster name=\"$fileName\" location=\".\\\" recursive=\"true\"/>
+        <cluster name=\"$fileNameWithoutExt\" location=\".\\\" recursive=\"true\"/>
     </target>
 </system>" > "./$fileNameWithoutExt.ecf"
 
@@ -444,26 +449,40 @@ eiffel_compile() {
     ec -batch -config "./$fileNameWithoutExt.ecf" -finalize >> ./eiffel-build-last 2>&1
     retValue="$?"
     echo "-- ec returned: $retValue" >> ./eiffel-build-last
+    cd ..
     if [ "$retValue" -ne 0 ]; then
      return $retValue
     fi
 
-    cd "./EIFGENs/$fileName/F_code"
+    cd "./output/EIFGENs/$fileNameWithoutExt/F_code"
     echo "
 
 ===========================================================================
-FIRST COMPILE FINISHED. CALLING finish_freezing in EIFGENs/$fileName/F_code
+FIRST COMPILE FINISHED. CALLING finish_freezing in EIFGENs/$fileNameWithoutExt/F_code
 ===========================================================================
 
 " >> "../../../eiffel-build-last"
-  finish_freezing >> "../../../eiffel-build-last"
-  retValue="$?"
-  echo "-- finish_freezing returned: $retValue" >> ../../../eiffel-build-last
+    finish_freezing >> "../../../eiffel-build-last"
+    retValue="$?"
+    echo "-- finish_freezing returned: $retValue" >> ../../../eiffel-build-last
 
-  cd ../../../../
+    cd ../../../../
+  ;;
+  "libertyeiffel")
+    cp "./$fileName" ./output/
+    cp ./eiffel_include/*.e ./output/ >> /dev/null 2>&1
+    mkdir -p "./output/EIFGENs/$fileNameWithoutExt/F_code"
+    cd ./output/
+
+    echo "se compile \"$fileName\" -o \"./$fileNameWithoutExt\"" > ./eiffel-build-last
+    se compile "$fileName" -o "EIFGENs/$fileNameWithoutExt/F_code/$fileNameWithoutExt" >> ./eiffel-build-last 2>&1
+
+    cd ..
+  ;;
+  esac
 }
 eiffel_run() {
-  timeout --foreground $DEREKALGOS_TIMEOUT "./output/EIFGENs/$fileName/F_code/$fileName" $other_params
+  timeout --foreground $DEREKALGOS_TIMEOUT "./output/EIFGENs/$fileNameWithoutExt/F_code/$fileNameWithoutExt" $other_params
   retValue="$?"
 }
 
@@ -858,7 +877,14 @@ oberon_run() {
 # =============================================
 #           Mojo
 # =============================================
-mojo_compile() { :; }
+mojo_compile() {
+  echo "Attempting to ensure mojo is added..." > ./output/mojo-build-last
+  pixi add mojo >> ./output/mojo-build-last 2>&1
+  retValue="$?"
+  echo "-- pixi returned: $retValue" >> ./output/mojo-build-last
+  chmod a+rw ../../../pixi.lock
+  chmod a+rw ../../../pixi.toml
+}
 mojo_run() {
   timeout --foreground $DEREKALGOS_TIMEOUT pixi run mojo run "./$fileName" $other_params
   retValue="$?"
@@ -1139,9 +1165,20 @@ scala_run() {
 # =============================================
 #           Scheme
 # =============================================
-scheme_compile() { :; }
+scheme_compile() {
+  if command -v guild > /dev/null 2>&1; then
+    echo "guild compile -o \"./output/$fileNameWithoutExt.go\" \"./$fileName\"" > ./output/scheme-build-last
+    guild compile -o "./output/$fileNameWithoutExt.go" "./$fileName" >> ./output/scheme-build-last 2>&1
+    retValue="$?"
+  else
+    echo "guile -c \"(compile-file \\\"./$fileName\\\" #:output-file \\\"./output/$fileNameWithoutExt.go\\\")\"" > ./output/scheme-build-last
+    guile -c "(compile-file \"./$fileName\" #:output-file \"./output/$fileNameWithoutExt.go\")" >> ./output/scheme-build-last 2>&1
+    retValue="$?"
+  fi
+  echo "-- guild returned: $retValue" >> ./output/scheme-build-last
+}
 scheme_run() {
-  timeout --foreground $DEREKALGOS_TIMEOUT guile -s "$fileName" $other_params
+  timeout --foreground $DEREKALGOS_TIMEOUT guile -c "(load-compiled \"./output/$fileNameWithoutExt.go\")" $other_params
   retValue="$?"
 }
 
@@ -1202,8 +1239,8 @@ tcl_run() {
 #           Typescript
 # =============================================
 typescript_compile() {
-  echo "tsc \"$fileName\" --outDir output --target esnext --skipLibCheck true" > ./output/typescript-build-last
-  tsc "$fileName" --outDir output --target esnext --skipLibCheck true >> ./output/typescript-build-last 2>&1
+  echo "tsc \"$fileName\" --outDir output --target esnext --skipLibCheck true --types node" > ./output/typescript-build-last
+  tsc "$fileName" --outDir output --target esnext --skipLibCheck true --types node >> ./output/typescript-build-last 2>&1
   retValue="$?"
   echo "-- tsc returned: $retValue" >> ./output/typescript-build-last
 }
@@ -1321,7 +1358,7 @@ case "$fileExtension" in
   "cs") lang="csharp"; testFile="./$fileName";;
   "d") lang="d"; testFile="./output/$fileNameWithoutExt";;
   "dart") lang="dart"; testFile="./output/$fileNameWithoutExt";;
-  "e") lang="eiffel"; testFile="./output/EIFGENs/$fileName/F_code/$fileName";;
+  "e") lang="eiffel"; testFile="./output/EIFGENs/$fileNameWithoutExt/F_code/$fileNameWithoutExt";;
   "erl") lang="erlang"; testFile="./output/$fileNameWithoutExt.beam";;
   "exs") lang="elixir"; testFile="./$fileName";;
   "f90") lang="fortran"; testFile="./output/$fileNameWithoutExt";;
@@ -1376,17 +1413,33 @@ case "$fileExtension" in
 esac
 
 # Now, we should check if the environment wants our language
-# to run on a VM via ssh, in which case, we should go ahead
+# to run via a docker image, in which case, we should go ahead
 # and do that then exit.
 
-case " $DEREKALGOS_RUNONVM " in
-  *" $lang "*)
-    scp -P $DEREKALGOS_VMPORT "./$fileName" $DEREKALGOS_VMUSER@$DEREKALGOS_VMADDRESS:"${DEREKALGOS_VMCODEDIR}/${fileName}" >> /dev/null
-    ToRunOnVM="cd $DEREKALGOS_VMCODEDIR && \"$DEREKALGOS_VMRUNSCRIPT\" \"$fileName\" $other_params"
-    ssh -p $DEREKALGOS_VMPORT $DEREKALGOS_VMUSER@$DEREKALGOS_VMADDRESS $ToRunOnVM
+RUN_ON_DOCKER=$(echo "$DEREKALGOS_RUNONDOCKER" | sed -n "s/.*[[:space:]]\{0,1\}$lang=\([^[:space:]]*\).*/\1/p")
+if [ -n "$RUN_ON_DOCKER" ]; then
+    CURRENT_GIT_DIR=$(realpath ../../../)
+    docker run --rm -v "$CURRENT_GIT_DIR":/build -w "/build/src/$packName/$algoName/" $RUN_ON_DOCKER bash -c "DEREKALGOS_TIMEOUT=\"$DEREKALGOS_TIMEOUT\" /build/run.sh "$fileName" $other_params"
     exit
-    ;;
-esac
+fi
+
+# Now, we should check if the environment wants our language
+# to run on remotely via ssh, in which case, we should go ahead
+# and do that then exit.
+
+RUN_ON_SSH=$(echo "$DEREKALGOS_RUNONSSH" | sed -n "s/.*[[:space:]]\{0,1\}$lang=\([^[:space:]]*\).*/\1/p")
+if [ -n "$RUN_ON_SSH" ]; then
+    DEREKALGOS_SSH_PORT="DEREKALGOS_SSH_${RUN_ON_SSH}_PORT"
+    DEREKALGOS_SSH_USER="DEREKALGOS_SSH_${RUN_ON_SSH}_USER"
+    DEREKALGOS_SSH_ADDRESS="DEREKALGOS_SSH_${RUN_ON_SSH}_ADDRESS"
+    DEREKALGOS_SSH_CODEDIR="DEREKALGOS_SSH_${RUN_ON_SSH}_CODEDIR"
+    DEREKALGOS_SSH_STARTDIR="DEREKALGOS_SSH_${RUN_ON_SSH}_STARTDIR"
+    DEREKALGOS_SSH_RUNSCRIPT="DEREKALGOS_SSH_${RUN_ON_SSH}_RUNSCRIPT"
+    scp -P $DEREKALGOS_SSH_PORT "./$fileName" $DEREKALGOS_SSH_USER@$DEREKALGOS_SSH_ADDRESS:"${DEREKALGOS_SSH_CODEDIR}/${fileName}" >> /dev/null
+    ToRunOnSSH="cd $DEREKALGOS_SSH_CODEDIR && \"$DEREKALGOS_SSH_RUNSCRIPT\" \"$fileName\" $other_params"
+    ssh -p $DEREKALGOS_SSH_PORT $DEREKALGOS_SSH_USER@$DEREKALGOS_SSH_ADDRESS $ToRunOnSSH
+    exit
+fi
 
 # First thing, let's check to see if the output directory
 # needs to be cleaned. This is the case if a different language
@@ -1460,4 +1513,5 @@ Build output:
 fi
 
 echo "$lang" > ./output/last-lang
+chmod -R a+rw ./output/
 exit

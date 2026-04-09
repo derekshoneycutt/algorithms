@@ -1,0 +1,591 @@
+# Docker file for setting up a general development container for Derek's Algorithms project
+
+# We start with an Alpine Linux build and prerequisites; enter bash when we have it
+FROM ubuntu:noble as builder
+
+ENV DEBIAN_FRONTEND=noninteractive
+
+RUN apt update -y && apt install -y \
+        software-properties-common apt-transport-https && \
+    add-apt-repository -y ppa:ubuntu-toolchain-r/test && \
+    apt update -y && apt upgrade -y && \
+    apt install -y \
+        build-essential libtool libtool-bin cmake \
+        libstdc++-13-dev git wget rsync ca-certificates \
+        curl unzip xz-utils zip gawk \
+        flex bison ninja-build \
+        gnupg2 libcurl4-openssl-dev pkg-config
+
+# Setup a temp build directory 
+RUN mkdir -p /build
+WORKDIR /build
+
+# ============================================
+#               Setup Some Basics, including Python
+#
+#       This section precedes builds requiring GCC13...
+#       We will install GCC15 and other, more advanced options,
+#       after these builds
+# ============================================
+RUN apt install -y \
+        gnat nasm python3 python3-pip
+
+RUN ln -s /usr/bin/python3 /usr/bin/python
+
+# ============================================
+#               Critical Mass Modula-3 Compiler
+#       Release and source available at:
+#        https://github.com/vishaps/voc
+# ============================================
+ENV CM3_VERSION=d5.11.10
+ENV CM3_DISTVERSION=AMD64_LINUX-None
+ENV CM3_MIRROR=https://github.com/modula3/cm3/releases/download
+ENV CM3_ROOT=/build/cm3-dist-${CM3_DISTVERSION}
+RUN wget "${CM3_MIRROR}/${CM3_VERSION}/cm3-dist-${CM3_DISTVERSION}.tar.xz" && \
+    tar -xf cm3-dist-${CM3_DISTVERSION}.tar.xz && \
+    mkdir -p /build/cm3-build && \
+    mkdir -p /build/cm3-output
+WORKDIR /build/cm3-build
+RUN ${CM3_ROOT}/scripts/concierge.py install --prefix /build/cm3-output && \
+    rsync -av --ignore-existing --prune-empty-dirs /build/cm3-output/ /usr/local/
+
+WORKDIR /build
+RUN rm -rf *
+
+# ============================================
+#               Oberon
+#       Release and source available at:
+#        https://github.com/vishaps/voc
+# ============================================
+ENV OBERON_REPO=https://github.com/vishaps/voc
+RUN git clone ${OBERON_REPO} --depth 1
+WORKDIR /build/voc
+RUN make full && \
+    make install && \
+    test -d /opt/voc/bin
+
+ENV PATH=/opt/voc/bin:${PATH}
+
+WORKDIR /build
+RUN rm -rf *
+
+# ============================================
+#               Simula
+#       Release and source available at:
+#        https://www.gnu.org/software/cim/
+# ============================================
+ENV CIM_VERSION=5.1
+ENV CIM_MIRROR=https://ftpmirror.gnu.org/gnu/cim
+RUN wget "${CIM_MIRROR}/cim-${CIM_VERSION}.tar.gz" && \
+    tar -zxf "cim-${CIM_VERSION}.tar.gz" && \
+    sed -i 's|../../lib/cim\.h|cim.h|g' \
+        "/build/cim-${CIM_VERSION}/lib/simset.c" \
+        "/build/cim-${CIM_VERSION}/lib/simulation.c" && \
+    mkdir -p "/build/cim-${CIM_VERSION}-build"
+WORKDIR /build/cim-${CIM_VERSION}-build
+RUN "/build/cim-${CIM_VERSION}/configure" && \
+    make && \
+    make install && \
+    touch /etc/ld.so.conf.d/libc5.conf && \
+    echo "/usr/local/lib" | tee /etc/ld.so.conf.d/libc5.conf && \
+    ldconfig
+
+WORKDIR /build
+RUN rm -rf *
+
+# ============================================
+#               Smalltalk
+#       Release and source available at:
+#        https://www.gnu.org/software/smalltalk/
+# ============================================
+ENV GST_VERSION=3.2.5
+ENV GST_MIRROR=https://ftp.gnu.org/gnu/smalltalk
+RUN wget "${GST_MIRROR}/smalltalk-${GST_VERSION}.tar.gz" && \
+    tar -zxf "smalltalk-${GST_VERSION}.tar.gz" && \
+    mkdir -p "/build/smalltalk-${GST_VERSION}-build"
+WORKDIR /build/smalltalk-${GST_VERSION}-build
+RUN "/build/smalltalk-${GST_VERSION}/configure" && \
+    make && \
+    make install
+
+WORKDIR /build
+RUN rm -rf *
+
+# ============================================
+#               Zig
+#       Release and source available at:
+#        https://ziglang.org/download/
+# ============================================
+ENV ZIG_VERSION=x86_64-linux-0.16.0-dev.2973+06b85a4fd
+ENV ZIG_MIRROR=https://ziglang.org/builds
+ENV ZIG_ROOT=/usr/local/zig
+RUN wget ${ZIG_MIRROR}/zig-${ZIG_VERSION}.tar.xz && \
+    tar -xf zig-${ZIG_VERSION}.tar.xz && \
+    mkdir -p ${ZIG_ROOT} && \
+    rsync -av --delete "/build/zig-${ZIG_VERSION}/" ${ZIG_ROOT}/ && \
+    ln -sf ${ZIG_ROOT}/zig /usr/local/bin/zig && \
+    zig version
+
+WORKDIR /build
+RUN rm -rf *
+
+# ============================================
+#               Rust (system-wide)
+#       Release and source available at:
+#        https://www.rust-lang.org/
+# ============================================
+ENV RUSTUP_HOME=/usr/local/rustup
+ENV CARGO_HOME=/usr/local/cargo
+ENV PATH=${CARGO_HOME}/bin:${PATH}
+ENV RUSTUP_INIT_VERSION=1.28.2
+RUN wget -O /tmp/rustup-init "https://static.rust-lang.org/rustup/archive/${RUSTUP_INIT_VERSION}/x86_64-unknown-linux-gnu/rustup-init" && \
+    chmod +x /tmp/rustup-init && \
+    /tmp/rustup-init -y --no-modify-path --profile minimal --default-toolchain stable && \
+    rm -f /tmp/rustup-init && \
+    rustup --version && \
+    rustc --version && \
+    cargo --version
+
+WORKDIR /build
+RUN rm -rf *
+
+# ============================================
+#               G++ 15 - Included for extra C++ features
+# ============================================
+
+RUN add-apt-repository -y ppa:ubuntu-toolchain-r/test && \
+    apt update && apt install -y gcc-15 g++-15 \
+        clang gobjc-13 gobjc-15 libobjc-13-dev libobjc-15-dev gnustep gnustep-devel && \
+    update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-13 300 && \
+    update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-15 500 && \
+    update-alternatives --install /usr/bin/g++ g++ /usr/bin/g++-13 300 && \
+    update-alternatives --install /usr/bin/g++ g++ /usr/bin/g++-15 500 && \
+    update-alternatives --set gcc /usr/bin/gcc-15 && \
+    update-alternatives --set g++ /usr/bin/g++-15
+
+# ============================================
+#               Setup Some additional Basics, including Java, Erlang, LLVM
+#
+#       This section is about setting up some more advanced
+#       languages that may rely on cores like Java, Erlang, LLVM, etc.
+# ============================================
+RUN apt install -y \
+        default-jdk lua5.4 \
+        gnucobol gforth gfortran ghc fpc tcl \
+        erlang elixir \
+        guile-3.0 chezscheme racket \
+        nodejs npm perl ruby php \
+        kotlin \
+        dotnet-sdk-10.0 \
+        nim ocaml octave gprolog
+
+WORKDIR /build
+RUN rm -rf *
+
+# ============================================
+#               Idris2
+#       Release and source available at:
+#        https://www.idris-lang.org/pages/download.html
+# ============================================
+ENV XDG_CONFIG_HOME=/usr/local/etc
+ENV XDG_STATE_HOME=/usr/local/var
+ENV XDG_CACHE_HOME=/var/cache
+ENV PACK_BIN_DIR=/usr/local/bin
+RUN wget -O idris2-pack-install.bash https://raw.githubusercontent.com/stefan-hoeck/idris2-pack/main/install.bash && \
+    chmod +x idris2-pack-install.bash && \
+    yes '' | bash idris2-pack-install.bash && \
+    rm -f idris2-pack-install.bash && \
+    idris2 --version
+
+WORKDIR /build
+RUN rm -rf *
+
+# ============================================
+#               Icon
+#       Release and source available at:
+#        https://github.com/gtownsend/icon
+# ============================================
+ENV ICON_REPO=https://github.com/gtownsend/icon
+RUN git clone ${ICON_REPO}.git --depth 1
+WORKDIR /build/icon
+RUN make Configure name=linux && \
+    make && \
+    cp /build/icon/bin/* /usr/local/bin/ && \
+    icont -V
+
+WORKDIR /build
+RUN rm -rf *
+
+# ============================================
+#               Ballerina
+#       Release and source available at:
+#        https://ballerina.io/downloads/
+# ============================================
+ENV BALLERINA_VERSION=2201.13.2
+ENV BALLERINA_VERSION_NAME=swan-lake
+ENV BALLERINA_MIRROR=https://dist.ballerina.io/downloads
+RUN wget "${BALLERINA_MIRROR}/${BALLERINA_VERSION}/ballerina-${BALLERINA_VERSION}-${BALLERINA_VERSION_NAME}-linux-x64.deb" && \
+    apt install -y "/build/ballerina-${BALLERINA_VERSION}-${BALLERINA_VERSION_NAME}-linux-x64.deb" && \
+    bal version
+
+WORKDIR /build
+RUN rm -rf *
+
+# ============================================
+#               Clojure
+#       Release and source available at:
+#        https://leiningen.org/
+# ============================================
+ENV LEININGEN_MIRROR=https://raw.githubusercontent.com/technomancy/leiningen/stable/bin
+ENV LEIN_HOME=/usr/local/lib/lein
+RUN wget "${LEININGEN_MIRROR}/lein" && \
+    chmod a+x /build/lein && \
+    mv /build/lein /usr/local/bin/ && \
+    mkdir -p /etc/leiningen ${LEIN_HOME} && \
+    echo "{:user {:plugins [[lein-exec \"0.3.7\"]]}}" > /etc/leiningen/profiles.clj && \
+    lein -v
+
+WORKDIR /build
+RUN rm -rf *
+
+# ============================================
+#               Factor
+#       Release and source available at:
+#        https://factorcode.org/
+# ============================================
+ENV FACTOR_VERSION=0.101
+ENV FACTOR_MIRROR=https://downloads.factorcode.org/releases
+ENV FACTOR_ROOT=/usr/local/factor
+RUN wget "${FACTOR_MIRROR}/${FACTOR_VERSION}/factor-linux-x86-64-${FACTOR_VERSION}.tar.gz" && \
+    tar -zxf "factor-linux-x86-64-${FACTOR_VERSION}.tar.gz" && \
+    mkdir -p ${FACTOR_ROOT} && \
+    rsync -av --delete "/build/factor/" ${FACTOR_ROOT}/ && \
+    ln -sf ${FACTOR_ROOT}/factor /usr/local/bin/factor && \
+    test -x ${FACTOR_ROOT}/factor
+
+WORKDIR /build
+RUN rm -rf *
+
+# ============================================
+#               FreeBASIC
+#       Release and source available at:
+#        https://www.freebasic.net/
+# ============================================
+ENV FREEBASIC_VERSION=1.10.1
+ENV FREEBASIC_MIRROR=https://downloads.sourceforge.net/fbc
+
+RUN wget -O "/build/FreeBASIC-${FREEBASIC_VERSION}-ubuntu-22.04-x86_64.tar.gz" \
+    "${FREEBASIC_MIRROR}/FreeBASIC-${FREEBASIC_VERSION}-ubuntu-22.04-x86_64.tar.gz?download" && \
+    tar -zxf "/build/FreeBASIC-${FREEBASIC_VERSION}-ubuntu-22.04-x86_64.tar.gz"
+WORKDIR "/build/FreeBASIC-${FREEBASIC_VERSION}-ubuntu-22.04-x86_64"
+RUN "/build/FreeBASIC-${FREEBASIC_VERSION}-ubuntu-22.04-x86_64/install.sh" -i && \
+    fbc --version
+
+WORKDIR /build
+RUN rm -rf *
+
+# ============================================
+#               Haxe
+#       Release and source available at:
+#        https://haxe.org/download/
+# ============================================
+ENV HAXE_VERSION=4.3.7
+ENV HAXE_ROOT=/usr/local/haxe
+ENV HAXE_STD_PATH=${HAXE_ROOT}/std
+ENV HAXELIB_PATH=/usr/local/lib/haxelib
+ENV HAXE_SHA256=a156b3d039daa572f1f9329870ee753e3c39b7514fe8c818069323579659acca
+RUN wget "https://github.com/HaxeFoundation/haxe/releases/download/${HAXE_VERSION}/haxe-${HAXE_VERSION}-linux64.tar.gz" && \
+    echo "${HAXE_SHA256}  haxe-${HAXE_VERSION}-linux64.tar.gz" | sha256sum -c - && \
+    apt install -y neko && \
+    mkdir -p ${HAXE_ROOT} && \
+    tar -zxf "haxe-${HAXE_VERSION}-linux64.tar.gz" --strip-components=1 -C ${HAXE_ROOT} && \
+    ln -sf ${HAXE_ROOT}/haxe /usr/local/bin/haxe && \
+    ln -sf ${HAXE_ROOT}/haxelib /usr/local/bin/haxelib && \
+    mkdir -p ${HAXELIB_PATH} && \
+    haxelib setup ${HAXELIB_PATH} && \
+    haxe --version && \
+    haxelib version
+
+WORKDIR /build
+RUN rm -rf *
+
+# ============================================
+#               Julia
+#       Release and source available at:
+#        https://julialang.org/
+# ============================================
+ENV JULIA_VERSION=1.12.5
+ENV JULIA_SERIES=1.12
+ENV JULIA_ROOT=/usr/local/julia
+ENV JULIA_SHA256=41b84d727e4e96fbf3ed9e92fa195d773d247b9097f73fad688f8b699758bae7
+RUN wget "https://julialang-s3.julialang.org/bin/linux/x64/${JULIA_SERIES}/julia-${JULIA_VERSION}-linux-x86_64.tar.gz" && \
+    echo "${JULIA_SHA256}  julia-${JULIA_VERSION}-linux-x86_64.tar.gz" | sha256sum -c - && \
+    mkdir -p ${JULIA_ROOT} && \
+    tar -zxf "julia-${JULIA_VERSION}-linux-x86_64.tar.gz" --strip-components=1 -C ${JULIA_ROOT} && \
+    ln -sf ${JULIA_ROOT}/bin/julia /usr/local/bin/julia && \
+    julia --version
+
+WORKDIR /build 
+RUN rm -rf *
+
+# ============================================
+#               Mercury
+#       Release and source available at:
+#        https://www.mercurylang.org/
+# ============================================
+RUN wget https://paul.bone.id.au/paul.asc && \
+    cp paul.asc /etc/apt/trusted.gpg.d/paulbone.asc && \
+    echo "deb https://dl.mercurylang.org/deb/ noble main" >> /etc/apt/sources.list.d/mercury.list && \
+    echo "deb-src https://dl.mercurylang.org/deb/ noble main" >> /etc/apt/sources.list.d/mercury.list && \
+    apt update && \
+    apt install -y mercury-recommended
+
+WORKDIR /build
+RUN rm -rf *
+
+# ============================================
+#               D
+#       Release and source available at:
+#        https://dlang.org/
+# ============================================
+ENV DLANG_VERSION=2.112.0
+ENV DLANG_DISTVERSION=${DLANG_VERSION}-0_amd64
+ENV DLANG_MIRROR=https://downloads.dlang.org/releases/2.x
+RUN wget "${DLANG_MIRROR}/${DLANG_VERSION}/dmd_${DLANG_DISTVERSION}.deb" && \
+    apt install -y "/build/dmd_${DLANG_DISTVERSION}.deb"
+
+WORKDIR /build
+RUN rm -rf *
+
+# ============================================
+#               Go
+#       Release and source available at:
+#        https://go.dev/dl/
+# ============================================
+ENV GOLANG_VERSION=1.26.2
+ENV GOLANG_DISTVERSION=${GOLANG_VERSION}.linux-amd64
+ENV GOLANG_MIRROR=https://go.dev/dl
+ENV GOROOT=/usr/local/go
+ENV PATH=${GOROOT}/bin:${PATH}
+RUN wget "${GOLANG_MIRROR}/go${GOLANG_DISTVERSION}.tar.gz" && \
+    tar zxf "go${GOLANG_DISTVERSION}.tar.gz" && \
+    rsync -av --delete "/build/go/" ${GOROOT}/ && \
+    go version
+
+WORKDIR /build
+RUN rm -rf *
+
+# ============================================
+#               MMIXAL
+#       Release and source available at:
+#        https://www.mmix.cs.hm.edu/
+# ============================================
+ENV MMIXAL_MIRROR=https://mmix.cs.hm.edu/bin
+RUN wget "${MMIXAL_MIRROR}/mmix" -O /usr/local/bin/mmix && \
+    wget "${MMIXAL_MIRROR}/mmixal" -O /usr/local/bin/mmixal && \
+    wget "${MMIXAL_MIRROR}/mmmix" -O /usr/local/bin/mmmix && \
+    wget "${MMIXAL_MIRROR}/mmotype" -O /usr/local/bin/mmotype && \
+    chmod a+x /usr/local/bin/mmix /usr/local/bin/mmixal /usr/local/bin/mmmix /usr/local/bin/mmotype
+
+WORKDIR /build
+RUN rm -rf *
+
+# ============================================
+#               Mojo
+#       Release and source available at:
+#        https://www.modular.com/open-source/mojo
+# ============================================
+ENV PIXI_HOME=/usr/local/pixi
+ENV PATH=${PIXI_HOME}/bin:${PATH}
+RUN curl -fsSL https://pixi.sh/install.sh | PIXI_HOME=${PIXI_HOME} sh && \
+    pixi init hello-world \
+        -c https://conda.modular.com/max-nightly/ -c conda-forge && \
+    cd hello-world && pixi add mojo
+
+WORKDIR /build
+RUN rm -rf *
+
+# ============================================
+#               R
+#       Release and source available at:
+#        https://www.r-project.org/
+# ============================================
+RUN echo "deb https://cloud.r-project.org/bin/linux/ubuntu noble-cran40/" >> /etc/apt/sources.list.d/cran.list && \
+    wget -qO- https://cloud.r-project.org/bin/linux/ubuntu/marutter_pubkey.asc | tee /etc/apt/trusted.gpg.d/cran_ubuntu_key.asc && \
+    apt update && \
+    apt install -y r-base && \
+    R --version | head -n 1
+
+WORKDIR /build
+RUN rm -rf *
+
+# ============================================
+#               Scala
+#       Release and source available at:
+#        https://www.scala-lang.org/download/
+# ============================================
+ENV COURSIER_VERSION=2.1.24
+RUN curl -fL https://github.com/coursier/coursier/releases/download/v${COURSIER_VERSION}/cs-x86_64-pc-linux.gz | gzip -d > /usr/local/bin/cs && \
+    chmod +x /usr/local/bin/cs && \
+    cs install --dir /usr/local/bin scala scalac && \
+    scala -version && scalac -version && \
+    echo "Forcing initiation with initial build" && \
+    echo "@main" > /build/hello.scala && \
+    echo "def hello(): Unit =" >> /build/hello.scala && \
+    echo "  println(\"Hello, world!\")" >> /build/hello.scala && \
+    scala compile /build/hello.scala
+
+WORKDIR /build
+RUN rm -rf *
+
+# ============================================
+#               Swift
+#       Release and source available at:
+#        https://www.swift.org/
+# ============================================
+ENV SWIFTLY_VERSION=1.1.1
+ENV SWIFT_VERSION=6.3
+ENV SWIFTLY_HOME_DIR=/usr/local/swiftly
+ENV SWIFTLY_BIN_DIR=/usr/local/bin
+RUN curl -O https://download.swift.org/swiftly/linux/swiftly-${SWIFTLY_VERSION}-x86_64.tar.gz && \
+    tar zxf swiftly-${SWIFTLY_VERSION}-x86_64.tar.gz && \
+    ./swiftly init --quiet-shell-followup && \
+    swiftly install --use ${SWIFT_VERSION} && \
+    swiftly --version
+
+WORKDIR /build
+RUN rm -rf *
+
+# ============================================
+#               V
+#       Release and source available at:
+#        https://vlang.io/
+# ============================================
+ENV V_VERSION=0.5.1
+ENV V_ROOT=/usr/local/v
+RUN wget https://github.com/vlang/v/releases/download/${V_VERSION}/v_linux.zip && \
+    unzip v_linux.zip && \
+    mkdir -p ${V_ROOT} && \
+    rsync -av --delete "/build/v/" ${V_ROOT}/ && \
+    ln -sf ${V_ROOT}/v /usr/local/bin/v && \
+    chmod a+x /usr/local/bin/v && \
+    v version
+
+WORKDIR /build
+RUN rm -rf *
+
+# ============================================
+#               Typescript
+#       Release and source available at:
+#        https://www.typescriptlang.org/
+# ============================================
+ENV TYPESCRIPT_VERSION=6.0.2
+RUN npm install -g typescript@${TYPESCRIPT_VERSION} && \
+    npm i -g --save-dev @types/node && \
+    tsc --version
+
+WORKDIR /build
+RUN rm -rf *
+
+# ============================================
+#               WABT
+#       Release and source available at:
+#        https://github.com/WebAssembly/wabt
+# ============================================
+ENV WABT_VERSION=1.0.40
+RUN git clone https://github.com/WebAssembly/wabt.git --depth 1 --branch ${WABT_VERSION}
+WORKDIR /build/wabt
+RUN git submodule update --init &&\
+    make && \
+    make install && \
+    wasm2wat --version
+
+WORKDIR /build
+RUN rm -rf *
+
+# ============================================
+#               Kit
+#       Release and source available at:
+#        https://gitlab.com/kit-lang
+# ============================================
+ENV KIT_VERSION=2026.4.7
+ENV KIT_ROOT=/usr/local/kit
+ENV PATH=${KIT_ROOT}/bin:${PATH}
+ENV KIT_STD_PATH=${KIT_ROOT}/std
+RUN wget "https://gitlab.com/api/v4/projects/kit-lang%2Fkit-lang/packages/generic/kit/v${KIT_VERSION}/kit-v${KIT_VERSION}-linux-x86_64.tar.gz" && \
+    mkdir -p ${KIT_ROOT} && \
+    tar -zxf "kit-v${KIT_VERSION}-linux-x86_64.tar.gz" --strip-components=1 -C ${KIT_ROOT} && \
+    test -x ${KIT_ROOT}/bin/kit && \
+    ${KIT_ROOT}/bin/kit --help >/dev/null
+
+WORKDIR /build
+RUN rm -rf *
+
+# ============================================
+#               Gleam
+#       Release and source available at:
+#        https://gleam.run/
+# ============================================
+ENV GLEAM_VERSION=1.15.2
+ENV GLEAM_MIRROR=https://github.com/gleam-lang
+RUN git clone ${GLEAM_MIRROR}/gleam.git --depth 1 --branch v${GLEAM_VERSION}
+WORKDIR /build/gleam
+RUN cargo install --path gleam-bin --force --locked && \
+    gleam --version
+
+WORKDIR /build
+RUN rm -rf *
+
+# ============================================
+#               Dart
+#       Release and source available at:
+#        https://dart.dev/get-dart
+# ============================================
+RUN wget -qO- https://dl-ssl.google.com/linux/linux_signing_key.pub \
+        | gpg  --dearmor -o /usr/share/keyrings/dart.gpg && \
+    echo 'deb [signed-by=/usr/share/keyrings/dart.gpg arch=amd64] https://storage.googleapis.com/download.dartlang.org/linux/debian stable main' \
+        | tee /etc/apt/sources.list.d/dart_stable.list && \
+    apt-get update && apt-get install -y dart && \
+    dart --version
+
+WORKDIR /build
+RUN rm -rf *
+
+# ============================================
+#               Liberty Eiffel -- not shipping a commercial package in this docker, so here is libertyeiffel
+#       Release and source available at:
+#        http://www.eiffel.com/products/liberty-eiffel
+# ============================================
+ENV LIBERTY_EIFFEL_VERSION=2016.05~release
+ENV LIBERTY_EIFFEL_MIRROR=https://apt.liberty-eiffel.org/pool/main/libe/liberty-eiffel
+RUN apt install -y castxml libgc-dev && \
+    wget "${LIBERTY_EIFFEL_MIRROR}/liberty-eiffel-core-libs_${LIBERTY_EIFFEL_VERSION}_all.deb" && \
+    wget "${LIBERTY_EIFFEL_MIRROR}/liberty-eiffel-extra-libs_${LIBERTY_EIFFEL_VERSION}_all.deb" && \
+    wget "${LIBERTY_EIFFEL_MIRROR}/liberty-eiffel-tools_${LIBERTY_EIFFEL_VERSION}_amd64.deb" && \
+    dpkg-deb -x "liberty-eiffel-core-libs_${LIBERTY_EIFFEL_VERSION}_all.deb" / && \
+    dpkg-deb -x "liberty-eiffel-extra-libs_${LIBERTY_EIFFEL_VERSION}_all.deb" / && \
+    dpkg-deb -x "liberty-eiffel-tools_${LIBERTY_EIFFEL_VERSION}_amd64.deb" / && \
+    test -x /usr/bin/se && \
+    /usr/bin/se -help >/dev/null
+
+WORKDIR /build
+RUN rm -rf *
+
+# ============================================
+#               END -- Final cleanup and settings
+# ============================================
+RUN echo "Console.WriteLine(\"init\");" > init.cs && \
+    dotnet run init.cs >> /dev/null && \
+    rm -rf *
+WORKDIR /
+RUN rm -rf /build && rm -rf /var/lib/apt/lists/ && \
+    echo "DEREKALGOS_TIMEOUT=\"-k 10s 1m\"" >> /root/.bash_profile && \
+    echo "DEREKALGOS_EIFFEL=\"libertyeiffel\"" >> /root/.bash_profile && \
+    echo "DEREKALGOS_GCC13=\"/usr/bin/\"" >> /root/.bash_profile && \
+    echo "DEREKALGOS_GCC13NAME=\"gcc-13\"" >> /root/.bash_profile && \
+    echo "DEREKALGOS_GXX13NAME=\"g++-13\"" >> /root/.bash_profile && \
+    echo "DEREKALGOS_RUNONDOCKER=\"\"" >> /root/.bash_profile && \
+    echo "DEREKALGOS_RUNONSSH=\"\"" >> /root/.bash_profile
+ENV OBJC_INCLUDE_PATH="/usr/lib/gcc/x86_64-linux-gnu/15/include/:/usr/lib/gcc/x86_64-linux-gnu/13/include/:${OBJC_INCLUDE_PATH:-}"
+ENV OBJC_LIBRARY_PATH="/usr/lib/gcc/x86_64-linux-gnu/15:/usr/lib/gcc/x86_64-linux-gnu/13"
+ENV LIBRARY_PATH="${OBJC_LIBRARY_PATH}:${LIBRARY_PATH:-}"

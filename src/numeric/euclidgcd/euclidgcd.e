@@ -5,8 +5,6 @@ note
 
 class
 	EUCLIDGCD
-inherit
-    ARGUMENTS -- We get command line arguments in this class
 
 create
 	make
@@ -34,22 +32,17 @@ feature -- Euclid's GCD Algorithm
         end
 
 
-feature {NONE} -- Main application entry
+feature -- Main application entry
 
 	make
         local
             m, n, gcd: INTEGER
-            arg : STRING
+            parser: ARG_PARSER
 		do
-            m := 15
-            n := 10
-
-            if argument_count > 1 then
-                arg := argument (1)
-                m := arg.to_integer
-                arg := argument (2)
-                n := arg.to_integer
-            end
+            create parser
+            parser.parse
+            m := parser.first_integer
+            n := parser.second_integer
 
             gcd := euclidgcd (m, n)
             print (m.out + " " + n.out + "%Ngcd: " + gcd.out + "%N")
