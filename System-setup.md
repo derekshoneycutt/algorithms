@@ -1,10 +1,12 @@
 # System Setup
 
-The recommended way to setup the system is to first install git (on Windows,
-**do** install Git Bash) and clone this repository. Then call the init script.
+The recommended way to setup the system for the first time is to just call the
+init script right off the git. This will clone the git and set up environment
+variables for you. You can review the environment variables in your
+`~/.bash_profile` or similar based on platform.
 
 ```sh
-wget -sSL https://raw.githubusercontent.com/derekshoneycutt/algorithms/refs/heads/main/init.sh | sh
+curl -sSL https://raw.githubusercontent.com/derekshoneycutt/algorithms/refs/heads/main/init.sh | sh
 ```
 
 If you open the folder in VS Code, you should also get a recommendation list for
