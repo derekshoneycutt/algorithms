@@ -1,6 +1,6 @@
 # This prints hello to the screen
 
-fn main():
+def main():
     """
     The main entry point to the application.
     """

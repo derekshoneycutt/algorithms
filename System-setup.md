@@ -1,9 +1,21 @@
 # System Setup
 
-I highly recommend setting up docker so that you can just build the Dockerfile
-and then configure the system settings in Basic Setup. The rest of this is basically
-still here for reference, but it is harder to get a system going from scratch
-instead of just using a reproducible docker.
+The recommended way to setup the system is to first install git (on Windows,
+**do** install Git Bash) and clone this repository. Then call the init script.
+
+```sh
+git clone https://github.com/derekshoneycutt/algorithms.git
+cd algorithms
+./init.sh
+```
+
+If you open the folder in VS Code, you should also get a recommendation for the
+extensions that are used throughout this project. This should be enough to
+have a basic environment to code in. What is missing is all the code compilers.
+
+I highly recommend setting up docker so that you can just build the Dockerfile.
+The rest of this is basically still here for reference, but it is harder to get
+a system going from scratch instead of just using a reproducible docker.
 
 Basically open the git folder and build the docker. Then update the environment
 variables according to Basic setup below. You can basically skip the rest of this
@@ -13,9 +25,17 @@ document if you take this route.
 docker buildx build --platform linux/amd64 -t code-runner:v0.1 --load .
 ```
 
+The docker built from this is quite sizable, as should probably be expected from
+containing the compiler and runtimes for 60 different programming languages. It
+tends to build fastest on a multicore linux machine in my experience, but then it
+is about 8.4GB saved into a .tar.gz to transfer to other computers.
+
+## Head
+
 This project is currently developed to build and run primarily on Linux computers.
 There is also built in support for FreeBSD, Windows, and MacOS, though the support
-per language is not as thorough on these other platforms. All the code is
+per language is not as thorough on these other platforms, outside of using the
+Dockerfile included in this repository to make a container. All the code is
 currently running on command line in all OSs.
 
 GCC is the major framework used for multiple languages, in terms of what the code
@@ -1988,6 +2008,11 @@ julia --version
 
 We use the standard Kit tools on Linux. You should install Zig first, regardless
 of your distribution. Come back here when Zig is installed.
+
+For Kit in VS Code, you also have to use the
+[GitLab Repository](https://gitlab.com/kit-lang/kit-vscode-extension)
+and install it from there. The extension is otherwise not available for VSCode
+at the time of this writing.
 
 The build script here requires bash, so I did not go further on FreeBSD. Assuming
 that you are okay with bash, it may work okay. Proceed with caution. There is
