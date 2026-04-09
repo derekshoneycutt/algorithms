@@ -366,9 +366,27 @@ cpp_run() {
 # =============================================
 #           C#
 # =============================================
-csharp_compile() { :; }
+csharp_compile() {
+  if [ ! -f "./output/$fileName" ]; then
+    cp "./$fileName" ./output/
+  elif [ -n "$(find "./$fileName" -prune -newer "./output/$fileName" 2>/dev/null)" ]; then
+    cp "./$fileName" ./output/
+  fi
+  cd ./output
+
+  if [ ! -f "$fileNameWithoutExt.csproj" ]; then
+    template_content=$(cat ../../../../templates/template.csproj)
+    get_variabled_string "$template_content" > "$fileNameWithoutExt.csproj"
+  fi
+
+  echo "cd ./output && echo [$fileNameWithoutExt.csproj] && dotnet build && cd .." > ./csharp-build-last
+  dotnet build >> ./csharp-build-last 2>&1
+  retValue="$?"
+  echo "-- dotnet build returned: $retValue" >> ./csharp-build-last
+  cd ..
+}
 csharp_run() {
-  timeout --foreground $DEREKALGOS_TIMEOUT dotnet run "./$fileName" $other_params
+  timeout --foreground $DEREKALGOS_TIMEOUT "./output/bin/Debug/net10.0/$fileNameWithoutExt" $other_params
   retValue="$?"
 }
 
@@ -509,9 +527,27 @@ factor_run() {
 # =============================================
 #           FSharp
 # =============================================
-fsharp_compile() { :; }
+fsharp_compile() {
+  if [ ! -f "./output/$fileName" ]; then
+    cp "./$fileName" ./output/
+  elif [ -n "$(find "./$fileName" -prune -newer "./output/$fileName" 2>/dev/null)" ]; then
+    cp "./$fileName" ./output/
+  fi
+  cd ./output
+
+  if [ ! -f "$fileNameWithoutExt.fsproj" ]; then
+    template_content=$(cat ../../../../templates/template.fsproj)
+    get_variabled_string "$template_content" > "$fileNameWithoutExt.fsproj"
+  fi
+
+  echo "cd ./output && echo [$fileNameWithoutExt.fsproj] && dotnet build && cd .." > ./fsharp-build-last
+  dotnet build >> ./fsharp-build-last 2>&1
+  retValue="$?"
+  echo "-- dotnet build returned: $retValue" >> ./fsharp-build-last
+  cd ..
+}
 fsharp_run() {
-  timeout --foreground $DEREKALGOS_TIMEOUT dotnet fsi "./$fileName" $other_params
+  timeout --foreground $DEREKALGOS_TIMEOUT "./output/bin/Debug/net10.0/$fileNameWithoutExt" $other_params
   retValue="$?"
 }
 
@@ -1232,7 +1268,11 @@ v_run() {
 #           Visual Basic .Net
 # =============================================
 visualbasic_compile() {
-  cp "./$fileName" ./output/
+  if [ ! -f "./output/$fileName" ]; then
+    cp "./$fileName" ./output/
+  elif [ -n "$(find "./$fileName" -prune -newer "./output/$fileName" 2>/dev/null)" ]; then
+    cp "./$fileName" ./output/
+  fi
   cd ./output
 
   if [ ! -f "$fileNameWithoutExt.vbproj" ]; then
@@ -1317,7 +1357,7 @@ case "$fileExtension" in
   "clj") lang="clojure"; testFile="./$fileName";;
   "cob") lang="cobol"; testFile="./output/$fileNameWithoutExt";;
   "cpp") lang="cpp"; testFile="./output/$fileNameWithoutExt";;
-  "cs") lang="csharp"; testFile="./$fileName";;
+  "cs") lang="csharp"; testFile="./output/bin/Debug/net10.0/$fileNameWithoutExt";;
   "d") lang="d"; testFile="./output/$fileNameWithoutExt";;
   "dart") lang="dart"; testFile="./output/$fileNameWithoutExt";;
   "e") lang="eiffel"; testFile="./output/EIFGENs/$fileNameWithoutExt/F_code/$fileNameWithoutExt";;
@@ -1325,7 +1365,7 @@ case "$fileExtension" in
   "exs") lang="elixir"; testFile="./$fileName";;
   "f90") lang="fortran"; testFile="./output/$fileNameWithoutExt";;
   "factor") lang="factor"; testFile="./$fileName";;
-  "fsx") lang="fsharp"; testFile="./$fileName";;
+  "fs") lang="fsharp"; testFile="./output/bin/Debug/net10.0/$fileNameWithoutExt";;
   "fth") lang="forth"; testFile="./$fileName";;
   "gleam") lang="gleam"; testFile="./output/build/dev/erlang/$fileNameWithoutExt/ebin/$fileNameWithoutExt.beam";;
   "go") lang="go"; testFile="./output/$fileNameWithoutExt";;

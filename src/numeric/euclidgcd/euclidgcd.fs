@@ -13,21 +13,29 @@ let rec euclidgcd (m: int, n: int) =
     | 0 -> m
     | _ -> euclidgcd(n, m % n)
 
+// Type definition for the messages we will be sending to the mailbox process,
+// including a reply channel to wait for responses on
+type NumsMsg = ProcessTuple of (int * int) * AsyncReplyChannel<unit>
+
 // For fun with F#, we show using MailboxProcessor for messaging as well
 // This creates a background task that calculates and prints GCD from 2 values.
 let mailbox =
     MailboxProcessor.Start(fun inbox ->
         let rec receiver() = async {
-            let! (m, n) = inbox.Receive()
+            let! (ProcessTuple((m, n), replyChannel)) = inbox.Receive()
             printfn($"{m} {n}\ngcd: {euclidgcd(m, n)}")
+            replyChannel.Reply()
             return! receiver()
         }
         receiver()
     )
 
+async {
 // We either get the first two values from the command line or use 15, 10
 // and just send this pair to the mailbox
-mailbox.Post(
-    if fsi.CommandLineArgs.Length >= 3 then
-        (fsi.CommandLineArgs[1] |> int, fsi.CommandLineArgs[2] |> int)
-    else (15, 10))
+    mailbox.PostAndReply(fun reply ->
+        let args = System.Environment.GetCommandLineArgs()
+        if args.Length >= 3 then
+            ProcessTuple((args[1] |> int, args[2] |> int), reply)
+        else ProcessTuple((15, 10), reply))
+} |> Async.RunSynchronously

@@ -312,7 +312,7 @@ run.sh script.
 | <img src="./icons/eiffel.svg" alt="Eiffel" height="25" width="25"> | Eiffel | .e | eiffel | EiffelStudio | open source compiler can be used free only for open source code |
 | <img src="./icons/elixir.svg" alt="Elixir" height="25" width="25"> | Elixir | .exs | elixir | elixir | |
 | <img src="./icons/erlang.svg" alt="Erlang" height="25" width="25"> | Erlang | .erl | erlang | erlc, erl | |
-| <img src="./icons/fsharp.svg" alt="F#" height="25" width="25"> | F# | .fsx | fsharp | dotnet | |
+| <img src="./icons/fsharp.svg" alt="F#" height="25" width="25"> | F# | .fs | fsharp | dotnet | |
 | <img src="./icons/factor.svg" alt="Factor" height="25" width="25"> | Factor | .factor | factor | factor | |
 | <img src="./icons/freebasic.svg" alt="FreeBASIC" height="25" width="25"> | FreeBASIC | *.bas | freebasic | fbc | |
 | <img src="./icons/forth.svg" alt="Forth" height="25" width="25"> | Forth | .fth | forth | GNU Forth, gforth | |
