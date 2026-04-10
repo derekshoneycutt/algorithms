@@ -65,40 +65,11 @@ import IconVBNET from "../icons/visualstudio.svg";
 import IconWASM from "../icons/webassembly.svg";
 import IconZig from "../icons/zig.svg";
 
+import { ALGORITHMS_PAGES, Writings, WritingNode } from './pages';
 import { Imogene as $_, ImogeneArray } from './Imogene/Imogene';
 /** @jsx $_.make */
 
-/**
- * @typedef {Object} WritingNode Node describing a writing to display on the page
- * @property {string} title Title of the page to display for the node
- * @property {string} page The page to display this node on
- */
 
-/**
- * @typedef {Object} Writings A description of a collection of writings to display on the page
- * @property {string} title Title of the page to display
- * @property {string} page The page to display this book on
- * @property {WritingNode} definitions Definitions to display
-
- */
-const ALGORITHMS_PAGES = {
-    title: "Algorithms",
-    page: "index.html",
-    writings: [
-        {
-            title: "1. Hello world",
-            page: "random_helloworld.html"
-        },
-        {
-            title: "System Setup",
-            page: "System-setup.html"
-        },
-        {
-            title: "Gentoo Setup",
-            page: "Gentoo-setup.html"
-        },
-    ]
-};
 
 /**
  * Collect the current page hierarchy to create breadcrumbs for

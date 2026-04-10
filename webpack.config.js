@@ -2,6 +2,21 @@ const path = require('path');
 const webpack = require('webpack');
 const MiniCssExtractPlugin = require('mini-css-extract-plugin');
 const HtmlWebpackPlugin = require('html-webpack-plugin');
+const pagesModule = require('./web/pages.js');
+const ALGORITHMS_PAGES =
+    pagesModule.ALGORITHMS_PAGES
+    || (pagesModule.default && pagesModule.default.ALGORITHMS_PAGES)
+    || pagesModule.default
+    || pagesModule;
+
+const allPages = [
+    {
+        title: ALGORITHMS_PAGES.title,
+        page: ALGORITHMS_PAGES.page,
+        template: ALGORITHMS_PAGES.template
+    },
+    ...ALGORITHMS_PAGES.writings
+];
 
 const build_mode = 'production';
 
@@ -81,26 +96,12 @@ module.exports = {
             filename: 'bundle.css'
         }),
 
-        new HtmlWebpackPlugin({
-            template: `README.md`,
-            filename: `index.html`,
+        ...allPages.map(page => new HtmlWebpackPlugin({
+            title: `Derek's Algorithms Project: ${page.title}`,
+            template: page.template,
+            filename: page.page,
             inject: true
-        }),
-        new HtmlWebpackPlugin({
-            template: `System-setup.md`,
-            filename: `System-setup.html`,
-            inject: true
-        }),
-        new HtmlWebpackPlugin({
-            template: `gentoo-setup.md`,
-            filename: `Gentoo-setup.html`,
-            inject: true
-        }),
-        new HtmlWebpackPlugin({
-            template: `src/random/hello_world/README.md`,
-            filename: `random_helloworld.html`,
-            inject: true
-        })
+        }))
     ],
 
     mode: build_mode
