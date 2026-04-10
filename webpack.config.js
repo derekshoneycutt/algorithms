@@ -10,11 +10,7 @@ const ALGORITHMS_PAGES =
     || pagesModule;
 
 const allPages = [
-    {
-        title: ALGORITHMS_PAGES.title,
-        page: ALGORITHMS_PAGES.page,
-        template: ALGORITHMS_PAGES.template
-    },
+    ALGORITHMS_PAGES,
     ...ALGORITHMS_PAGES.writings
 ];
 

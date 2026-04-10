@@ -65,85 +65,8 @@ import IconVBNET from "../icons/visualstudio.svg";
 import IconWASM from "../icons/webassembly.svg";
 import IconZig from "../icons/zig.svg";
 
-import { ALGORITHMS_PAGES, Writings, WritingNode } from './pages';
 import { Imogene as $_, ImogeneArray } from './Imogene/Imogene';
 /** @jsx $_.make */
-
-
-
-/**
- * Collect the current page hierarchy to create breadcrumbs for
- * @param {string} forPage The page to get breadcrumbs for
- * @returns {(WritingNode|Writings)[]} Array of Writings and WritingNodes representing the current page hierarchy
- */
-function breadcrumb(forPage) {
-    return ALGORITHMS_PAGES.writings.reduce((arr, book) => {
-        if (arr.length > 1)
-            return arr;
-
-        if (book.page === forPage) {
-            arr.push(book);
-        }
-        return arr;
-    }, [ALGORITHMS_PAGES]);
-}
-
-/**
- * Update the breadcrumbs to respect a given path
- * @param {string} pathname The current path to update the breadcrumbs to
- */
-function updateBreadcrumbs(pathname) {
-    let crumbs = breadcrumb(pathname);
-    let crumbsList = $_.find('ol#breadcrumb-list');
-    crumbsList.emptyAndReplace(
-        ...(crumbs.map(crumb =>
-            <li>
-                <a href={crumb.page}>
-                    {crumb.title}
-                </a>
-            </li>)));
-}
-
-/**
- * Sets the breadcrumbs for the current page
- */
-function setBreadcrumbs() {
-    let currentPage = `${window.location.pathname}`;
-    if (currentPage.slice(-1) === '/') {
-        currentPage = currentPage + "index.html"
-    }
-    updateBreadcrumbs(currentPage);
-}
-
-/**
- * Load the sidebar based on the EUCLID_DATA structure
- */
-function loadSideBar() {
-    let currentPage = `${window.location.pathname}`;
-    if (currentPage.slice(-1) === '/') {
-        currentPage = currentPage + "index.html"
-    }
-
-    let navlist = $_.find('#side-navlist');
-    navlist.emptyAndReplace(
-        <li class={`home_item ${currentPage === `/${ALGORITHMS_PAGES.page}` ? 'on_page' : ''}`}>
-            <a href={currentPage === ALGORITHMS_PAGES.page ? undefined : ALGORITHMS_PAGES.page}
-               class="nav_link">
-                <span class="material-symbols-outlined home_icon">home</span>
-                {ALGORITHMS_PAGES.title}
-            </a>
-        </li>);
-
-    ALGORITHMS_PAGES.writings.forEach(writing => {
-        let listitem_element =
-            <li class={currentPage === `/${writing.page}` ? 'on_page' : ""}>
-                <a href={writing.page} class="nav_link">
-                    {writing.title}
-                </a>
-            </li>;
-        navlist.appendChildren(listitem_element);
-    });
-}
 
 /**
  * Toggle whether the sidebar is currently collapsed
@@ -161,9 +84,6 @@ When we load, we need to catch the handler for the side bar
 and create the event to toggle whether it is collapsed or expanded
 */
 $_.runOnLoad(() => {
-    setBreadcrumbs();
-    loadSideBar();
-
     const sidebarCollapser = $_.find('#sidebar-collapser');
     sidebarCollapser.addEvents({
         click: e => { toggleCollapsed(); }

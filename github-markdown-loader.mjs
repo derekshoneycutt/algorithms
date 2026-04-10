@@ -7,12 +7,13 @@ export default function(source) {
     const callback = this.async();
 
     (async () => {
+        // Read the file that we will be working wtih
+        const filetext = await fs.readFile('web/template.html', 'utf8');
+        const $ = cheerio.load(filetext);
+
         // Determine which page this markdown file belongs to
         const allPages = [
-            {
-                title: ALGORITHMS_PAGES.title,
-                template: ALGORITHMS_PAGES.template
-            },
+            ALGORITHMS_PAGES,
             ...ALGORITHMS_PAGES.writings
         ];
         
@@ -32,6 +33,7 @@ export default function(source) {
         
         const pageTitle = page ? `Derek's Algorithms Project: ${page.title}` : `Derek's Algorithms Project`;
 
+        // Get the markdown as html to embed directly into the page
         const octokit = new Octokit();
         const response = await octokit.request('POST /markdown', {
             text: source,
@@ -40,14 +42,47 @@ export default function(source) {
             }
         });
 
-        const filetext = await fs.readFile('web/template.html', 'utf8');
-        const $ = cheerio.load(filetext);
+        let sidebartext = `
+            <li class="home_item ${page.page === `${ALGORITHMS_PAGES.page}` ? 'on_page' : ''}">
+                <a href="${page.page === `${ALGORITHMS_PAGES.page}` ? "" : ALGORITHMS_PAGES.page}"
+                   class="nav_link">
+                    <span class="material-symbols-outlined home_icon">home</span>
+                    ${ALGORITHMS_PAGES.title}
+                </a>
+            </li>`;
+
+        for (const sidePage of ALGORITHMS_PAGES.writings) {
+            sidebartext += `
+                <li class=${page.page === `${sidePage.page}` ? 'on_page' : ""}>
+                    <a href=${sidePage.page} class="nav_link">
+                        ${sidePage.title}
+                    </a>
+                </li>`;
+        }
+
+        const breadcrumbs = ALGORITHMS_PAGES.writings.reduce((arr, book) => {
+            if (arr.length > 1)
+                return arr;
+    
+            if (book.page === page.page) {
+                arr.push(book);
+            }
+            return arr;
+        }, [ALGORITHMS_PAGES]).map(crumb => {
+            return `
+                <li>
+                    <a href="${crumb.page}">
+                        ${crumb.title}
+                    </a>
+                </li>`;
+        }).join('');
+
+        // Update tags that we retrieved above
         $('#main-article').html(response.data);
-        
-        // Update title and og:title meta tag
         $('title').text(pageTitle);
+        $('#side-navlist').html(sidebartext);
+        $('ol#breadcrumb-list').html(breadcrumbs);
         $('meta[property="og:title"]').attr('content', pageTitle);
-        
         $('a[href$=\'System-setup.md\']').attr('href', "System-setup.html");
         $('a[href$=\'gentoo-setup.md\']').attr('href', "Gentoo-setup.html");
 
