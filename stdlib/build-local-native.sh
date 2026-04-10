@@ -74,9 +74,15 @@ build_native_darwinarm64() {
 # building them with nasm. Then we have to link them all with ld
 mkdir -p ./output
 echo "STARTING $BUILD_TARGET BUILD..." > ./output/${DEBUG_FILE}-build-last
+echo "CONFIG: TARGET=$TARGET BUILD_TARGET=$BUILD_TARGET" >> ./output/${DEBUG_FILE}-build-last
+echo "CONFIG: SEARCH_TARGET=$SEARCH_TARGET FILE_EXTENSION=$FILE_EXTENSION OUT_FORMAT=$OUT_FORMAT BUILD_FUNCTION=$BUILD_FUNCTION" >> ./output/${DEBUG_FILE}-build-last
 DO_BUILD=0
 ALL_OUTPUTS=
-for ASM_FILE in $(find . -maxdepth 1 -type f -name "*-${SEARCH_TARGET}.${FILE_EXTENSION}" -o -name "*-All.${FILE_EXTENSION}"); do
+MATCH_COUNT=0
+for ASM_FILE in ./*-"$SEARCH_TARGET"."$FILE_EXTENSION" ./*-All."$FILE_EXTENSION"; do
+    [ -f "$ASM_FILE" ] || continue
+    MATCH_COUNT=$((MATCH_COUNT + 1))
+    echo "SCAN: matched source $ASM_FILE" >> ./output/${DEBUG_FILE}-build-last
     case "$ASM_FILE" in
         *"-All.${FILE_EXTENSION}")
             ASM_WITHOUT_EXT="${ASM_FILE%-All.${FILE_EXTENSION}}-${TARGET}"
@@ -89,11 +95,14 @@ for ASM_FILE in $(find . -maxdepth 1 -type f -name "*-${SEARCH_TARGET}.${FILE_EX
     if [ ! -f "./output/$ASM_OBJ_OUTPUT" ]; then
         DO_BUILD=1
         DO_CURRENT_BUILD=1
+        echo "DECISION: build required; missing ./output/$ASM_OBJ_OUTPUT" >> ./output/${DEBUG_FILE}-build-last
     elif [ -n "$(find "./$ASM_FILE" -prune -newer "./output/$ASM_OBJ_OUTPUT" 2>/dev/null)" ]; then
         DO_BUILD=1
         DO_CURRENT_BUILD=1
+        echo "DECISION: build required; source newer than ./output/$ASM_OBJ_OUTPUT" >> ./output/${DEBUG_FILE}-build-last
     fi
     if [ "$DO_CURRENT_BUILD" -eq 1 ]; then
+        echo "BUILDING: $ASM_FILE -> ./output/$ASM_OBJ_OUTPUT" >> ./output/${DEBUG_FILE}-build-last
         "$BUILD_FUNCTION"
         
         # We exit completely on any failures
@@ -102,14 +111,21 @@ for ASM_FILE in $(find . -maxdepth 1 -type f -name "*-${SEARCH_TARGET}.${FILE_EX
             cat ./output/${DEBUG_FILE}-build-last
             exit 1
         fi
+    else
+        echo "SKIP: up-to-date ./output/$ASM_OBJ_OUTPUT" >> ./output/${DEBUG_FILE}-build-last
     fi
 done
 
-if [ ! -f "./output/$OUTPUT_FILE" ]; then
-    DO_BUILD=1
+if [ "$MATCH_COUNT" -eq 0 ]; then
+    echo "SCAN: no assembly sources matched pattern" >> ./output/${DEBUG_FILE}-build-last
 fi
 
-echo "Initial building completed; $DO_BUILD; moving to linking..." >> ./output/${DEBUG_FILE}-build-last
+if [ ! -f "./output/$OUTPUT_FILE" ]; then
+    DO_BUILD=1
+    echo "DECISION: link required; missing ./output/$OUTPUT_FILE" >> ./output/${DEBUG_FILE}-build-last
+fi
+
+echo "Initial building completed; DO_BUILD=$DO_BUILD; moving to linking..." >> ./output/${DEBUG_FILE}-build-last
 
 # Build completed, we move to linking
 if [ "$DO_BUILD" -eq 1 ]; then
@@ -128,6 +144,8 @@ if [ "$DO_BUILD" -eq 1 ]; then
         cat ./output/${DEBUG_FILE}-build-last
         exit 1
     fi
+else
+    echo "SKIP: link step; output already up-to-date" >> ./output/${DEBUG_FILE}-build-last
 fi
 
 echo "---- BUILD END" >> ./output/${DEBUG_FILE}-build-last

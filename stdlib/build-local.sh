@@ -16,23 +16,39 @@ case "$BUILD_TARGET" in
         # and merge them into the single file given in the second parameter
         mkdir -p ./output
         echo "STARTING MMIXAL BUILD..." > ./output/mmixal-build-last
+        echo "CONFIG: TARGET=$TARGET BUILD_TARGET=$BUILD_TARGET OUTPUT_FILE=$OUTPUT_FILE" >> ./output/mmixal-build-last
         DO_MMIX_BUILD=0
-        for MMIX_FILE_REL in $(find . -maxdepth 1 -type f -name '*.mms'); do
-            MMIX_FILE="${MMIX_FILE_REL#./}"
+        MMIX_MATCH_COUNT=0
+        for MMIX_FILE_PATH in ./*.mms; do
+            [ -f "$MMIX_FILE_PATH" ] || continue
+            MMIX_FILE="${MMIX_FILE_PATH#./}"
+            MMIX_MATCH_COUNT=$((MMIX_MATCH_COUNT + 1))
+            echo "SCAN: matched source ./$MMIX_FILE" >> ./output/mmixal-build-last
             if [ ! -f "./output/$OUTPUT_FILE" ]; then
                 DO_MMIX_BUILD=1
+                echo "DECISION: combine required; missing ./output/$OUTPUT_FILE" >> ./output/mmixal-build-last
             elif [ -n "$(find "./$MMIX_FILE" -prune -newer "./output/$OUTPUT_FILE" 2>/dev/null)" ]; then
                 DO_MMIX_BUILD=1
+                echo "DECISION: combine required; source newer than ./output/$OUTPUT_FILE (./$MMIX_FILE)" >> ./output/mmixal-build-last
             fi
         done
 
+        if [ "$MMIX_MATCH_COUNT" -eq 0 ]; then
+            echo "SCAN: no MMIX sources matched (*.mms)" >> ./output/mmixal-build-last
+        fi
+
         if [ "$DO_MMIX_BUILD" -eq 1 ]; then
+            echo "BUILDING: refreshing ./output/$OUTPUT_FILE" >> ./output/mmixal-build-last
             rm -f "./output/$OUTPUT_FILE"
-            for MMIX_FILE_REL in $(find . -maxdepth 1 -type f -name '*.mms'); do
-                MMIX_FILE="${MMIX_FILE_REL#./}"
+            for MMIX_FILE_PATH in ./*.mms; do
+                [ -f "$MMIX_FILE_PATH" ] || continue
+                MMIX_FILE="${MMIX_FILE_PATH#./}"
                 echo "cat \"./$MMIX_FILE\" >> \"./output/$OUTPUT_FILE\"" >> ./output/mmixal-build-last
                 cat "./$MMIX_FILE" >> "./output/$OUTPUT_FILE"
             done
+            echo "BUILD COMPLETE: wrote ./output/$OUTPUT_FILE" >> ./output/mmixal-build-last
+        else
+            echo "SKIP: MMIX combine step; ./output/$OUTPUT_FILE is up-to-date" >> ./output/mmixal-build-last
         fi
         echo "MMIXAL COMPLETE $DO_MMIX_BUILD" >> ./output/mmixal-build-last
     ;;
@@ -70,5 +86,5 @@ case "$BUILD_TARGET" in
         rm -Rf ./output
     ;;
 
-    *) echo "Unknown target specified '$BUILD_TARGET'" ;;
+    *) echo "Unknown target specified '$BUILD_TARGET'"; exit 2 ;;
 esac

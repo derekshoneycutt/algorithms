@@ -6,41 +6,110 @@
 # to compile the file specified, passing in any other
 # arguments to the code as command line arguments
 
+if [ $# -lt 1 ]; then
+  echo "Usage: $0 <filename|clean> [args...]"
+  exit 1
+fi
+
 fileName=$1
 fileNameWithoutExt="${fileName%.*}"
 fileExtension="${fileName##*.}"
 className=$(echo "$fileNameWithoutExt" | tr '[:lower:]' '[:upper:]')
 shift 1
-other_params="$@"
 currentCpuArch=$(uname -m)
 currentPlatform=$(uname -s)
 start_dir=$PWD
 dir="${PWD%/*}"
 packName="${dir##*/}"
 algoName="${PWD##*/}"
-moduleName="$(echo "$fileNameWithoutExt" | sed 's/./\u&/')"
+moduleName="$(echo "$fileNameWithoutExt" | awk '{print toupper(substr($0,1,1)) substr($0,2)}')"
 lang=
 testFile=
 destroy_output=0
 retValue=0
+last_command_output_log="${DEREKALGOS_LAST_COMMAND_OUTPUT_LOG:-./output/last-command-output}"
+useTimeout="${useTimeout}"
+if [ -z "$useTimeout" ]; then
+  useTimeout="-k 10s 1m"
+fi
+timeout_runner=
+timeout_runner_checked=0
+timeout_supports_foreground=0
+time_precision_unit="ms"
 
+# Compile a run header for the run output
+if [ -z "$DEREKALGOS_LAST_COMMAND_OUTPUT_ACTIVE" ]; then
+  mkdir -p ./output
+  : > "$last_command_output_log"
+  if command -v date > /dev/null 2>&1; then
+    run_header_time=$(date '+%Y-%m-%d %H:%M:%S %Z')
+  else
+    run_header_time="unknown-time"
+  fi
+  run_header_route="native"
+  if [ -n "$DEREKALGOS_RUNONDOCKER" ]; then
+    run_header_route="docker-candidate"
+  fi
+  if [ -n "$DEREKALGOS_RUNONSSH" ]; then
+    run_header_route="ssh-candidate"
+  fi
+  {
+    echo "==== RUN START ===="
+    echo "time: $run_header_time"
+    echo "cwd: $PWD"
+    echo "file: $fileName"
+    echo "ext: $fileExtension"
+    echo "cpu: $currentCpuArch"
+    echo "platform: $currentPlatform"
+    echo "route: $run_header_route"
+    echo "timeout: $useTimeout"
+    echo "==================="
+  } >> "$last_command_output_log"
+  export DEREKALGOS_LAST_COMMAND_OUTPUT_ACTIVE=1
+fi
+export DEREKALGOS_LAST_COMMAND_OUTPUT_LOG="$last_command_output_log"
+
+# Decide what date command we're going to use
+# and refresh the profile (we should re-address this later, but fine for now)
 dateCmd="date"
 case "$currentPlatform" in
   "MINGW64_NT"*) . ~/.bash_profile ;;
   "Linux"*) . ~/.bash_profile ;;
   "FreeBSD")
-    dateCmd="gdate"
+    if command -v gdate > /dev/null 2>&1; then
+      dateCmd="gdate"
+    fi
     . ~/.profile >> /dev/null
     ;;
   "Darwin")
-    dateCmd="gdate"
+    if command -v gdate > /dev/null 2>&1; then
+      dateCmd="gdate"
+    fi
     . ~/.zprofile >> /dev/null
     ;;
   *) ;;
 esac
 
+detect_time_precision() {
+  ms_sample=$($dateCmd +%s%3N 2>/dev/null)
+  case "$ms_sample" in
+    ''|*[!0-9]*)
+      time_precision_unit="s"
+      ;;
+    *)
+      time_precision_unit="ms"
+      ;;
+  esac
+}
+
+detect_time_precision
+
 get_ms_time() {
-  $dateCmd +%s%3N | cut -b1-13
+  if [ "$time_precision_unit" = "ms" ]; then
+    $dateCmd +%s%3N
+  else
+    $dateCmd +%s
+  fi
 }
 
 get_variabled_string() {
@@ -49,14 +118,156 @@ $1
 EOF"
 }
 
+is_valid_env_name() {
+  case "$1" in
+    ''|*[!A-Za-z0-9_]*|[0-9]*) return 1 ;;
+    *) return 0 ;;
+  esac
+}
+
+get_env_value() {
+  var_name="$1"
+  if ! is_valid_env_name "$var_name"; then
+    return 1
+  fi
+  eval "printf '%s' \"\${$var_name}\""
+}
+
+shell_quote() {
+  # Return a single shell token safe for POSIX sh parsing.
+  quoted=$(printf '%s' "$1" | sed "s/'/'\\\\''/g")
+  printf "'%s'" "$quoted"
+}
+
+resolve_abs_path() {
+  if command -v realpath > /dev/null 2>&1; then
+    realpath "$1"
+  else
+    (
+      cd "$1" 2>/dev/null && pwd -P
+    )
+  fi
+}
+
+run_and_log_output() {
+  relay_log_file="$1"
+  shift
+  (
+    if command -v mktemp > /dev/null 2>&1; then
+      relay_tmp_file=$(mktemp "${TMPDIR:-/tmp}/derekalgos-relay.XXXXXX")
+    else
+      relay_tmp_file="${TMPDIR:-/tmp}/derekalgos-relay.$$"
+      : > "$relay_tmp_file"
+    fi
+
+    trap 'rm -f "$relay_tmp_file"' INT TERM HUP EXIT
+
+    "$@" > "$relay_tmp_file" 2>&1
+    relay_ret="$?"
+
+    cat "$relay_tmp_file"
+    cat "$relay_tmp_file" >> "$relay_log_file"
+    if [ -n "$last_command_output_log" ] && [ "$relay_log_file" != "$last_command_output_log" ]; then
+      cat "$relay_tmp_file" >> "$last_command_output_log"
+    fi
+
+    exit "$relay_ret"
+  )
+  return "$?"
+}
+
+init_timeout_runner() {
+  if [ "$timeout_runner_checked" -eq 1 ]; then
+    return
+  fi
+
+  timeout_runner_checked=1
+  if command -v gtimeout > /dev/null 2>&1; then
+    timeout_runner="gtimeout"
+  elif command -v timeout > /dev/null 2>&1; then
+    timeout_runner="timeout"
+  else
+    timeout_runner=
+    return
+  fi
+
+  if "$timeout_runner" --foreground 1s sh -c 'exit 0' > /dev/null 2>&1; then
+    timeout_supports_foreground=1
+  fi
+}
+
+run_with_timeout() {
+  init_timeout_runner
+  if [ -z "$timeout_runner" ]; then
+    "$@"
+    return "$?"
+  fi
+
+  # useTimeout intentionally expands into multiple args (e.g. "-k 10s 1m")
+  if [ "$timeout_supports_foreground" -eq 1 ]; then
+    $timeout_runner --foreground $useTimeout "$@"
+  else
+    $timeout_runner $useTimeout "$@"
+  fi
+}
+
+run_function_with_timeout() {
+  run_func_name="$1"
+  shift
+
+  timeout_main=$(printf '%s\n' "$useTimeout" | awk '{print $NF}')
+  timeout_kill_after=$(printf '%s\n' "$useTimeout" | awk '{for(i=1;i<=NF;i++) if($i=="-k") {print $(i+1); exit}}')
+
+  if [ -z "$timeout_main" ]; then
+    "$run_func_name" "$@"
+    return "$?"
+  fi
+
+  if command -v mktemp > /dev/null 2>&1; then
+    timeout_flag_file=$(mktemp "${TMPDIR:-/tmp}/derekalgos-timeout.XXXXXX")
+  else
+    timeout_flag_file="${TMPDIR:-/tmp}/derekalgos-timeout.$$"
+    : > "$timeout_flag_file"
+  fi
+  rm -f "$timeout_flag_file"
+
+  "$run_func_name" "$@" &
+  run_pid="$!"
+
+  (
+    sleep "$timeout_main"
+    if kill -0 "$run_pid" 2>/dev/null; then
+      : > "$timeout_flag_file"
+      kill -TERM "$run_pid" 2>/dev/null
+      if [ -n "$timeout_kill_after" ]; then
+        sleep "$timeout_kill_after"
+      fi
+      kill -KILL "$run_pid" 2>/dev/null
+    fi
+  ) &
+  timeout_watcher_pid="$!"
+
+  wait "$run_pid"
+  run_rc="$?"
+
+  kill "$timeout_watcher_pid" 2>/dev/null
+  wait "$timeout_watcher_pid" 2>/dev/null
+
+  if [ -f "$timeout_flag_file" ]; then
+    rm -f "$timeout_flag_file"
+    return 124
+  fi
+
+  rm -f "$timeout_flag_file"
+  return "$run_rc"
+}
+
 # Color variables
 RED='\033[0;31m'
 GREEN='\033[0;32m'
 YELLOW='\033[0;33m'
 BLUE='\033[0;34m'
 NORMAL='\033[0m' # Resets the color to default
-
-export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/usr/local/lib
 
 # The first section, each language that we support needs to have
 # a lang_compile and lang_run. This will be called when a file of
@@ -73,9 +284,11 @@ ada_compile() {
   gnatmake -q -D output -o "./output/$fileNameWithoutExt" "$fileName" >> ./output/ada-build-last  2>&1
   retValue="$?"
   echo "-- GNAT returned: $retValue" >> ./output/ada-build-last
+  return "$retValue"
 }
 ada_run() {
-  timeout --foreground $DEREKALGOS_TIMEOUT "./output/$fileNameWithoutExt" $other_params
+  "./output/$fileNameWithoutExt" "$@"
+  return "$?"
 }
 
 # =============================================
@@ -94,7 +307,6 @@ arm64asm_compile() {
       echo "Unrecognized Platform for Assembly Builds" > ./output/arm64asm-build-last
       retValue=1
       return 1
-    ;;
   esac
   case "$currentCpuArch" in
     "arm64")
@@ -114,9 +326,9 @@ arm64asm_compile() {
   echo "Building Assembly Standard Library..." >> ./output/arm64asm-build-last
   cp "./$fileName" ./output/
   cd ../../../stdlib
-  ./build.sh "$platform" > "$start_dir/output/arm64asm-build-last"
+  ./build.sh "$platform" >> "$start_dir/output/arm64asm-build-last" 2>&1
   retValue="$?"
-  cd $start_dir
+  cd "$start_dir"
   if [ $retValue -ne 0 ]; then
     return $retValue
   fi
@@ -157,10 +369,11 @@ arm64asm_compile() {
       return $retValue
     fi
   fi
+  return "$retValue"
 }
 arm64asm_run() {
-  timeout --foreground $DEREKALGOS_TIMEOUT "./output/$fileNameWithoutExt" $other_params
-  retValue="$?"
+  "./output/$fileNameWithoutExt" "$@"
+  return "$?"
 }
 
 # =============================================
@@ -211,9 +424,9 @@ asm_compile() {
   echo "Building Assembly Standard Library..." >> ./output/asm-build-last
   cp "./$fileName" ./output/
   cd ../../../stdlib
-  ./build.sh "$platform" > "$start_dir/output/asm-build-last"
+  ./build.sh "$platform" >> "$start_dir/output/asm-build-last" 2>&1
   retValue="$?"
-  cd $start_dir
+  cd "$start_dir"
   if [ $retValue -ne 0 ]; then
     return $retValue
   fi
@@ -237,7 +450,7 @@ asm_compile() {
         retValue="$?"
       ;;
       *)
-        echo "as --defsym WINDOWS=0-o \"./output/$fileNameWithoutExt.o\" \"$fileName\"" >> ./output/asm-build-last
+        echo "as --defsym WINDOWS=0 -o \"./output/$fileNameWithoutExt.o\" \"$fileName\"" >> ./output/asm-build-last
         as --defsym WINDOWS=0 -o "./output/$fileNameWithoutExt.o" "$fileName" >> ./output/asm-build-last 2>&1
         retValue="$?"
       ;;
@@ -271,10 +484,11 @@ asm_compile() {
       return $retValue
     fi
   fi
+  return "$retValue"
 }
 asm_run() {
-  timeout --foreground $DEREKALGOS_TIMEOUT "./output/$fileNameWithoutExt" $other_params
-  retValue="$?"
+  "./output/$fileNameWithoutExt" "$@"
+  return "$?"
 }
 
 # =============================================
@@ -290,9 +504,11 @@ ballerina_compile() {
   echo "-- bal returned: $retValue" >> ./ballerina-build-last
 
   cd ..
+  return "$retValue"
 }
 ballerina_run() {
-  timeout --foreground $DEREKALGOS_TIMEOUT java -jar "./output/$fileNameWithoutExt.jar" $other_params
+  java -jar "./output/$fileNameWithoutExt.jar" "$@"
+  return "$?"
 }
 
 # =============================================
@@ -308,23 +524,26 @@ freebasic_compile() {
   echo "-- fbc returned: $retValue" >> ./freebasic-build-last
 
   cd ..
+  return "$retValue"
 }
 freebasic_run() {
-  timeout --foreground $DEREKALGOS_TIMEOUT "./output/$fileNameWithoutExt" $other_params
+  "./output/$fileNameWithoutExt" "$@"
+  return "$?"
 }
 
 # =============================================
 #           C
 # =============================================
 c_compile() {
-  echo "gcc "./$fileName" -o "./output/$fileNameWithoutExt"" > ./output/c-build-last
+  echo "gcc \"./$fileName\" -o \"./output/$fileNameWithoutExt\"" > ./output/c-build-last
   gcc "./$fileName" -o "./output/$fileNameWithoutExt" >> ./output/c-build-last 2>&1
   retValue="$?"
   echo "-- GCC returned: $retValue" >> ./output/c-build-last
+  return "$retValue"
 }
 c_run() {
-  timeout --foreground $DEREKALGOS_TIMEOUT "./output/$fileNameWithoutExt" $other_params
-  retValue="$?"
+  "./output/$fileNameWithoutExt" "$@"
+  return "$?"
 }
 
 # =============================================
@@ -362,10 +581,11 @@ clojure_compile() {
     echo "-- lein returned: $retValue" >> ./clojure-build-last
     cd ..
   fi
+  return "$retValue"
 }
 clojure_run() {
-  timeout --foreground $DEREKALGOS_TIMEOUT java -cp "./output/target/uberjar/$fileNameWithoutExt-1.0.0-standalone.jar" clojure.main -m algo.main $other_params
-  retValue="$?"
+  java -cp "./output/target/uberjar/$fileNameWithoutExt-1.0.0-standalone.jar" clojure.main -m algo.main "$@"
+  return "$?"
 }
 
 # =============================================
@@ -376,10 +596,11 @@ cobol_compile() {
   cobc -x -o "./output/$fileNameWithoutExt" "./$fileName" >> ./output/cobol-build-last 2>&1
   retValue="$?"
   echo "-- cobc returned: $retValue" >> ./output/cobol-build-last
+  return "$retValue"
 }
 cobol_run() {
-  timeout --foreground $DEREKALGOS_TIMEOUT "./output/$fileNameWithoutExt" $other_params
-  retValue="$?"
+  "./output/$fileNameWithoutExt" "$@"
+  return "$?"
 }
 
 # =============================================
@@ -390,10 +611,11 @@ cpp_compile() {
   g++ "./$fileName" -o "./output/$fileNameWithoutExt" --std=c++23 -lstdc++exp >> ./output/cpp-build-last 2>&1
   retValue="$?"
   echo "-- G++ returned: $retValue" >> ./output/cpp-build-last
+  return "$retValue"
 }
 cpp_run() {
-  timeout --foreground $DEREKALGOS_TIMEOUT "./output/$fileNameWithoutExt" $other_params
-  retValue="$?"
+  "./output/$fileNameWithoutExt" "$@"
+  return "$?"
 }
 
 # =============================================
@@ -417,10 +639,11 @@ csharp_compile() {
   retValue="$?"
   echo "-- dotnet build returned: $retValue" >> ./csharp-build-last
   cd ..
+  return "$retValue"
 }
 csharp_run() {
-  timeout --foreground $DEREKALGOS_TIMEOUT "./output/bin/Debug/net10.0/$fileNameWithoutExt" $other_params
-  retValue="$?"
+  "./output/bin/Debug/net10.0/$fileNameWithoutExt" "$@"
+  return "$?"
 }
 
 # =============================================
@@ -431,10 +654,11 @@ d_compile() {
   dmd -od=./output -of="./output/$fileNameWithoutExt" "./$fileName" >> ./output/d-build-last 2>&1
   retValue="$?"
   echo "-- dmd returned: $retValue" >> ./output/d-build-last
+  return "$retValue"
 }
 d_run() {
-  timeout --foreground $DEREKALGOS_TIMEOUT "./output/$fileNameWithoutExt" $other_params
-  retValue="$?"
+  "./output/$fileNameWithoutExt" "$@"
+  return "$?"
 }
 
 # =============================================
@@ -445,10 +669,11 @@ dart_compile() {
   dart compile exe "./$fileName" -o "./output/$fileNameWithoutExt" >> ./output/dart-build-last 2>&1
   retValue="$?"
   echo "-- dart returned: $retValue" >> ./output/dart-build-last
+  return "$retValue"
 }
 dart_run() {
-  timeout --foreground $DEREKALGOS_TIMEOUT "./output/$fileNameWithoutExt" $other_params
-  retValue="$?"
+  "./output/$fileNameWithoutExt" "$@"
+  return "$?"
 }
 
 # =============================================
@@ -503,10 +728,11 @@ FIRST COMPILE FINISHED. CALLING finish_freezing in EIFGENs/$fileNameWithoutExt/F
     cd ..
   ;;
   esac
+  return "$retValue"
 }
 eiffel_run() {
-  timeout --foreground $DEREKALGOS_TIMEOUT "./output/EIFGENs/$fileNameWithoutExt/F_code/$fileNameWithoutExt" $other_params
-  retValue="$?"
+  "./output/EIFGENs/$fileNameWithoutExt/F_code/$fileNameWithoutExt" "$@"
+  return "$?"
 }
 
 # =============================================
@@ -517,26 +743,29 @@ erlang_compile() {
   erlc -o ./output/ "./$fileName" >> ./output/erlang-build-last 2>&1
   retValue="$?"
   echo "-- erlc returned: $retValue" >> ./output/erlang-build-last
+  return "$retValue"
 }
 erlang_run() {
   cd ./output
-  timeout --foreground $DEREKALGOS_TIMEOUT erl -noshell -s "$fileNameWithoutExt" main -s init stop -- $other_params
+  erl -noshell -s "$fileNameWithoutExt" main -s init stop -- "$@"
   retValue="$?"
   cd ..
+  return "$retValue"
 }
 
 # =============================================
 #           Elixir
 # =============================================
 elixir_compile() {
-  echo "elixirc -o "./output/" \"./$fileName\"" > ./output/elixir-build-last
-  elixirc -o "./output/" "./$fileName" >> ./output/elixir-build-last 2>&1
+  echo "elixirc -o ./output/ \"./$fileName\"" > ./output/elixir-build-last
+  elixirc -o ./output/ "./$fileName" >> ./output/elixir-build-last 2>&1
   retValue="$?"
   echo "-- elixirc returned: $retValue" >> ./output/elixir-build-last
+  return "$retValue"
 }
 elixir_run() {
-  timeout --foreground $DEREKALGOS_TIMEOUT elixir --erl "-pa ./output/" -e "$moduleName.main(System.argv())" -- $other_params
-  retValue="$?"
+  elixir --erl "-pa ./output/" -e "$moduleName.main(System.argv())" -- "$@"
+  return "$?"
 }
 
 # =============================================
@@ -547,19 +776,23 @@ fortran_compile() {
   gfortran "./$fileName" -o "./output/$fileNameWithoutExt" >> ./output/fortran-build-last 2>&1
   retValue="$?"
   echo "-- gfortran returned: $retValue" >> ./output/fortran-build-last
+  return "$retValue"
 }
 fortran_run() {
-  timeout --foreground $DEREKALGOS_TIMEOUT "./output/$fileNameWithoutExt" $other_params
-  retValue="$?"
+  "./output/$fileNameWithoutExt" "$@"
+  return "$?"
 }
 
 # =============================================
 #           Factor
 # =============================================
-factor_compile() { :; }
+factor_compile() {
+  retValue=0
+  return "$retValue"
+}
 factor_run() {
-  timeout --foreground $DEREKALGOS_TIMEOUT factor -run "./$fileName" $other_params
-  retValue="$?"
+  factor -run "./$fileName" "$@"
+  return "$?"
 }
 
 # =============================================
@@ -583,19 +816,23 @@ fsharp_compile() {
   retValue="$?"
   echo "-- dotnet build returned: $retValue" >> ./fsharp-build-last
   cd ..
+  return "$retValue"
 }
 fsharp_run() {
-  timeout --foreground $DEREKALGOS_TIMEOUT "./output/bin/Debug/net10.0/$fileNameWithoutExt" $other_params
-  retValue="$?"
+  "./output/bin/Debug/net10.0/$fileNameWithoutExt" "$@"
+  return "$?"
 }
 
 # =============================================
 #           Forth
 # =============================================
-forth_compile() { :; }
+forth_compile() {
+  retValue=0
+  return "$retValue"
+}
 forth_run() {
-  timeout --foreground $DEREKALGOS_TIMEOUT gforth "./$fileName" -- $other_params
-  retValue="$?"
+  gforth "./$fileName" -- "$@"
+  return "$?"
 }
 
 # =============================================
@@ -618,12 +855,14 @@ gleam_compile() {
   retValue="$?"
   echo "-- gleam returned: $retValue" >> ./gleam-build-last
   cd ../
+  return "$retValue"
 }
 gleam_run() {
   cd ./output
-  timeout --foreground $DEREKALGOS_TIMEOUT gleam run --no-print-progress -m "$fileNameWithoutExt" -- $other_params 2>> ./gleam-build-last
+  gleam run --no-print-progress -m "$fileNameWithoutExt" -- "$@" 2>> ./gleam-build-last
   retValue="$?"
   cd ..
+  return "$retValue"
 }
 
 # =============================================
@@ -634,10 +873,11 @@ go_compile() {
   go build -o "./output/$fileNameWithoutExt" "./$fileName" >> ./output/go-build-last 2>&1
   retValue="$?"
   echo "-- go returned: $retValue" >> ./output/go-build-last
+  return "$retValue"
 }
 go_run() {
-  timeout --foreground $DEREKALGOS_TIMEOUT "./output/$fileNameWithoutExt" $other_params
-  retValue="$?"
+  "./output/$fileNameWithoutExt" "$@"
+  return "$?"
 }
 
 # =============================================
@@ -651,19 +891,23 @@ haskell_compile() {
   retValue="$?"
   echo "-- ghc returned: $retValue" >> ./haskell-build-last
   cd ..
+  return "$retValue"
 }
 haskell_run() {
-  timeout --foreground $DEREKALGOS_TIMEOUT "./output/$fileNameWithoutExt" $other_params
-  retValue="$?"
+  "./output/$fileNameWithoutExt" "$@"
+  return "$?"
 }
 
 # =============================================
 #           Haxe
 # =============================================
-haxe_compile() { :; }
+haxe_compile() {
+  retValue=0
+  return "$retValue"
+}
 haxe_run() {
-  timeout --foreground $DEREKALGOS_TIMEOUT haxe --run "$fileName" $other_params
-  retValue="$?"
+  haxe --run "$fileName" "$@"
+  return "$?"
 }
 
 # =============================================
@@ -677,10 +921,11 @@ icon_compile() {
   retValue="$?"
   echo "-- icont returned: $retValue" >> ./icon-build-last
   cd ..
+  return "$retValue"
 }
 icon_run() {
-  timeout --foreground $DEREKALGOS_TIMEOUT "./output/$fileNameWithoutExt" $other_params
-  retValue="$?"
+  "./output/$fileNameWithoutExt" "$@"
+  return "$?"
 }
 
 # =============================================
@@ -696,10 +941,11 @@ idris_compile() {
   echo "-- idris2 returned: $retValue" >> ./idris-build-last
 
   cd ..
+  return "$retValue"
 }
 idris_run() {
-  timeout --foreground $DEREKALGOS_TIMEOUT "./output/build/exec/$fileNameWithoutExt" $other_params
-  retValue="$?"
+  "./output/build/exec/$fileNameWithoutExt" "$@"
+  return "$?"
 }
 
 # =============================================
@@ -719,21 +965,26 @@ java_compile() {
   retValue="$?"
   echo "-- jar cvfe returned: $retValue" >> ./java-build-last
   cd ..
+  return "$retValue"
 }
 java_run() {
   cd ./output
-  timeout --foreground $DEREKALGOS_TIMEOUT java -jar "$fileNameWithoutExt.jar" -- $other_params
+  java -jar "$fileNameWithoutExt.jar" -- "$@"
   retValue="$?"
   cd ..
+  return "$retValue"
 }
 
 # =============================================
 #           Julia
 # =============================================
-julia_compile() { :; }
+julia_compile() {
+  retValue=0
+  return "$retValue"
+}
 julia_run() {
-  timeout --foreground $DEREKALGOS_TIMEOUT julia "./$fileName" $other_params
-  retValue="$?"
+  julia "./$fileName" "$@"
+  return "$?"
 }
 
 # =============================================
@@ -747,21 +998,26 @@ javascript_compile() {
   retValue="$?"
   echo "-- node returned: $retValue" >> ./javascript-build-last
   cd ..
+  return "$retValue"
 }
 javascript_run() {
   cd ./output
-  timeout --foreground $DEREKALGOS_TIMEOUT node "./$fileName" $other_params
+  node "./$fileName" "$@"
   retValue="$?"
   cd ..
+  return "$retValue"
 }
 
 # =============================================
 #           Kit
 # =============================================
-kit_compile() { :; }
+kit_compile() {
+  retValue=0
+  return "$retValue"
+}
 kit_run() {
-  timeout --foreground $DEREKALGOS_TIMEOUT kit run "./$fileName" $other_params
-  retValue="$?"
+  kit run "./$fileName" "$@"
+  return "$?"
 }
 
 # =============================================
@@ -772,10 +1028,11 @@ kotlin_compile() {
   kotlinc "./$fileName" -include-runtime -d "./output/$fileNameWithoutExt.jar" >> ./output/kotlin-build-last 2>&1
   retValue="$?"
   echo "-- kotlinc returned: $retValue" >> ./output/kotlin-build-last
+  return "$retValue"
 }
 kotlin_run() {
-  timeout --foreground $DEREKALGOS_TIMEOUT java -jar "./output/$fileNameWithoutExt.jar" $other_params
-  retValue="$?"
+  java -jar "./output/$fileNameWithoutExt.jar" "$@"
+  return "$?"
 }
 
 # =============================================
@@ -786,10 +1043,11 @@ llvmir_compile() {
   clang "./$fileName" -O2 -Wall -o "./output/$fileNameWithoutExt" >> ./output/llvmir-build-last 2>&1
   retValue="$?"
   echo "-- clang returned: $retValue" >> ./output/llvmir-build-last
+  return "$retValue"
 }
 llvmir_run() {
-  timeout --foreground $DEREKALGOS_TIMEOUT "./output/$fileNameWithoutExt" $other_params
-  retValue="$?"
+  "./output/$fileNameWithoutExt" "$@"
+  return "$?"
 }
 
 # =============================================
@@ -800,24 +1058,26 @@ lua_compile() {
   luac -o "./output/$fileNameWithoutExt.luac" "./$fileName" >> ./output/lua-build-last 2>&1
   retValue="$?"
   echo "-- luac returned: $retValue" >> ./output/lua-build-last
+  return "$retValue"
 }
 lua_run() {
-  timeout --foreground $DEREKALGOS_TIMEOUT lua "./output/$fileNameWithoutExt.luac" $other_params
-  retValue="$?"
+  lua "./output/$fileNameWithoutExt.luac" "$@"
+  return "$?"
 }
 
 # =============================================
 #           Objective-C
 # =============================================
 objectivec_compile() {
-  echo "clang -lobjc -lgnustep-base \`gnustep-config --objc-flags\` \`gnustep-config --objc-libs\` -L/usr/local/lib  \"./$fileName\" -o \"./output/$fileNameWithoutExt\"" > ./output/objectivec-last-build
+  echo "clang -lobjc -lgnustep-base \`gnustep-config --objc-flags\` \`gnustep-config --objc-libs\` -L/usr/local/lib  \"./$fileName\" -o \"./output/$fileNameWithoutExt\"" > ./output/objectivec-build-last
   clang -lobjc -lgnustep-base `gnustep-config --objc-flags` `gnustep-config --objc-libs` -L/usr/local/lib  "./$fileName" -o "./output/$fileNameWithoutExt" >> ./output/objectivec-build-last 2>&1
   retValue="$?"
   echo "-- clang returned: $retValue" >> ./output/objectivec-build-last
+  return "$retValue"
 }
 objectivec_run() {
-  timeout --foreground $DEREKALGOS_TIMEOUT "./output/$fileNameWithoutExt" $other_params
-  retValue="$?"
+  "./output/$fileNameWithoutExt" "$@"
+  return "$?"
 }
 
 # =============================================
@@ -835,10 +1095,11 @@ modula3_compile() {
   retValue="$?"
   echo "-- cm3 returned: $retValue" >> ./modula3-build-last
   cd ..
+  return "$retValue"
 }
 modula3_run() {
-  timeout --foreground $DEREKALGOS_TIMEOUT "./output/AMD64_LINUX/prog" $other_params
-  retValue="$?"
+  "./output/AMD64_LINUX/prog" "$@"
+  return "$?"
 }
 
 # =============================================
@@ -846,12 +1107,14 @@ modula3_run() {
 # =============================================
 octave_compile() {
   cp "./$fileName" "./output/${fileNameWithoutExt}shaved.m"
+  return "$?"
 }
 octave_run() {
   cd ./output
-  timeout --foreground $DEREKALGOS_TIMEOUT octave --quiet "${fileNameWithoutExt}shaved.m" $other_params
+  octave --quiet "${fileNameWithoutExt}shaved.m" "$@"
   retValue="$?"
   cd ..
+  return "$retValue"
 }
 
 # =============================================
@@ -865,39 +1128,87 @@ ocaml_compile() {
   retValue="$?"
   echo "-- ocamlopt returned: $retValue" >> ./ocaml-build-last
   cd ..
+  return "$retValue"
 }
 ocaml_run() {
-  timeout --foreground $DEREKALGOS_TIMEOUT "./output/$fileNameWithoutExt" $other_params
-  retValue="$?"
+  "./output/$fileNameWithoutExt" "$@"
+  return "$?"
 }
 
 # =============================================
 #           MMIXAL
 # =============================================
 mmixal_compile() {
-  cp "./$fileName" ./output/
+  echo "Building MMIX standard library..." > ./output/mmixal-build-last
   cd ../../../stdlib
-  ./build.sh mmix > "$start_dir/output/mmixal-build-last"
+  ./build.sh mmix >> "$start_dir/output/mmixal-build-last" 2>&1
   retValue="$?"
-  cd $start_dir
+  cd "$start_dir"
   if [ $retValue -ne 0 ]; then
     return $retValue
   fi
 
-  cat ../../../stdlib/output/stdlib.mms >> "./output/$fileName"
+  stdlib_mms="../../../stdlib/output/stdlib.mms"
+  combined_source="./output/$fileName"
+  do_refresh_combined=0
+
+  if [ ! -f "$stdlib_mms" ]; then
+    echo "Missing MMIX standard library output: $stdlib_mms" >> ./output/mmixal-build-last
+    retValue=1
+    return 1
+  fi
+
+  if [ ! -f "$combined_source" ]; then
+    do_refresh_combined=1
+    echo "Combined MMIX source missing; creating $combined_source" >> ./output/mmixal-build-last
+  elif [ -n "$(find "./$fileName" -prune -newer "$combined_source" 2>/dev/null)" ]; then
+    do_refresh_combined=1
+    echo "Source file changed; refreshing combined MMIX source" >> ./output/mmixal-build-last
+  elif [ -n "$(find "$stdlib_mms" -prune -newer "$combined_source" 2>/dev/null)" ]; then
+    do_refresh_combined=1
+    echo "MMIX stdlib changed; refreshing combined MMIX source" >> ./output/mmixal-build-last
+  else
+    echo "Combined MMIX source is up-to-date; reusing $combined_source" >> ./output/mmixal-build-last
+  fi
+
+  if [ "$do_refresh_combined" -eq 1 ]; then
+    echo "Copying source: cp \"./$fileName\" \"$combined_source\"" >> ./output/mmixal-build-last
+    cp "./$fileName" "$combined_source" >> ./output/mmixal-build-last 2>&1
+    retValue="$?"
+    echo "-- cp returned: $retValue" >> ./output/mmixal-build-last
+    if [ "$retValue" -ne 0 ]; then
+      return $retValue
+    fi
+
+    echo "Combining stdlib: cat \"$stdlib_mms\" >> \"$combined_source\"" >> ./output/mmixal-build-last
+    cat "$stdlib_mms" >> "$combined_source" 2>> ./output/mmixal-build-last
+    retValue="$?"
+    echo "-- cat returned: $retValue" >> ./output/mmixal-build-last
+    if [ "$retValue" -ne 0 ]; then
+      return $retValue
+    fi
+  fi
+
+  if [ ! -s "$combined_source" ]; then
+    echo "Combined MMIX source missing or empty: $combined_source" >> ./output/mmixal-build-last
+    retValue=1
+    return 1
+  fi
 
   cd ./output
-  echo "cd ./output/ && mmixal \"./$fileName\" & cd .." >> ./mmixal-build-last
+  echo "cd ./output/ && mmixal \"./$fileName\" && cd .." >> ./mmixal-build-last
   mmixal "./$fileName" >> ./mmixal-build-last 2>&1
   retValue="$?"
   echo "-- mmixal returned: $retValue" >> ./mmixal-build-last
   cd ..
+  return "$retValue"
 }
 mmixal_run() {
   cd ./output
-  timeout --foreground $DEREKALGOS_TIMEOUT mmix "./$fileNameWithoutExt.mmo" $other_params
+  mmix "./$fileNameWithoutExt.mmo" "$@"
   retValue="$?"
   cd ..
+  return "$retValue"
 }
 
 # =============================================
@@ -906,16 +1217,17 @@ mmixal_run() {
 oberon_compile() {
   echo "Copying $fileName to output..." > ./output/oberon-build-last
   cp "./$fileName" ./output/
-  echo "cd ./output && voc -m \"./$fileName\" && cd .." > ./output/oberon-build-last
+  echo "cd ./output && voc -m \"./$fileName\" && cd .." >> ./output/oberon-build-last
   cd ./output
   voc -m "$fileName" >> ./oberon-build-last 2>&1
   retValue="$?"
   echo "-- voc returned: $retValue" >> ./oberon-build-last
   cd ..
+  return "$retValue"
 }
 oberon_run() {
-  timeout --foreground $DEREKALGOS_TIMEOUT "./output/$fileNameWithoutExt" $other_params
-  retValue="$?"
+  "./output/$fileNameWithoutExt" "$@"
+  return "$?"
 }
 
 # =============================================
@@ -939,12 +1251,14 @@ mojo_compile() {
   fi
 
   cp -f "./$fileName" ./output/
+  return "$retValue"
 }
 mojo_run() {
   cd ./output
-  timeout --foreground $DEREKALGOS_TIMEOUT pixi run mojo run "./$fileName" $other_params
+  pixi run mojo run "./$fileName" "$@"
   retValue="$?"
   cd ..
+  return "$retValue"
 }
 
 # =============================================
@@ -961,10 +1275,11 @@ mercury_compile() {
   echo "-- mmc returned: $retValue" >> ./mercury-build-last
 
   cd ..
+  return "$retValue"
 }
 mercury_run() {
-  timeout --foreground $DEREKALGOS_TIMEOUT "./output/$fileNameWithoutExt" $other_params
-  retValue="$?"
+  "./output/$fileNameWithoutExt" "$@"
+  return "$?"
 }
 
 # =============================================
@@ -1015,9 +1330,9 @@ nasm_compile() {
   echo "Building NASM Standard Library..." >> ./output/nasm-build-last
   cp "./$fileName" ./output/
   cd ../../../stdlib
-  ./build.sh "$platform" > "$start_dir/output/nasm-build-last"
+  ./build.sh "$platform" >> "$start_dir/output/nasm-build-last" 2>&1
   retValue="$?"
-  cd $start_dir
+  cd "$start_dir"
   if [ $retValue -ne 0 ]; then
     return $retValue
   fi
@@ -1075,10 +1390,11 @@ nasm_compile() {
       return $retValue
     fi
   fi
+  return "$retValue"
 }
 nasm_run() {
-  timeout --foreground $DEREKALGOS_TIMEOUT "./output/$fileNameWithoutExt" $other_params
-  retValue="$?"
+  "./output/$fileNameWithoutExt" "$@"
+  return "$?"
 }
 
 # =============================================
@@ -1089,10 +1405,11 @@ nim_compile() {
   nim compile --out:"./output/$fileNameWithoutExt" "./$fileName" >> ./output/nim-build-last 2>&1
   retValue="$?"
   echo "-- nim returned: $retValue" >> ./output/nim-build-last
+  return "$retValue"
 }
 nim_run() {
-  timeout --foreground $DEREKALGOS_TIMEOUT "./output/$fileNameWithoutExt" $other_params
-  retValue="$?"
+  "./output/$fileNameWithoutExt" "$@"
+  return "$?"
 }
 
 # =============================================
@@ -1102,16 +1419,17 @@ pascal_compile() {
   echo "Copying $fileName to output..." > ./output/pascal-build-last
   cp "./$fileName" ./output
 
-  echo "cd ./output && fpc \"$fileName\" & cd .." >> ./output/pascal-build-last
+  echo "cd ./output && fpc \"$fileName\" && cd .." >> ./output/pascal-build-last
   cd ./output
   fpc "$fileName" >> ./pascal-build-last 2>&1
   retValue="$?"
   echo "-- fpc returned: $retValue" >> ./pascal-build-last
   cd ..
+  return "$retValue"
 }
 pascal_run() {
-  timeout --foreground $DEREKALGOS_TIMEOUT "./output/$fileNameWithoutExt" $other_params
-  retValue="$?"
+  "./output/$fileNameWithoutExt" "$@"
+  return "$?"
 }
 
 # =============================================
@@ -1125,12 +1443,14 @@ php_compile() {
   retValue="$?"
   echo "-- php returned: $retValue" >> ./php-build-last
   cd ..
+  return "$retValue"
 }
 php_run() {
   cd output
-  timeout --foreground $DEREKALGOS_TIMEOUT php "./$fileName" $other_params
+  php "./$fileName" "$@"
   retValue="$?"
   cd ..
+  return "$retValue"
 }
 
 # =============================================
@@ -1141,10 +1461,11 @@ prolog_compile() {
   gplc "$fileName" -o "./output/$fileNameWithoutExt" >> ./output/prolog-build-last 2>&1
   retValue="$?"
   echo "-- gplc returned: $retValue" >> ./output/prolog-build-last
+  return "$retValue"
 }
 prolog_run() {
-  timeout --foreground $DEREKALGOS_TIMEOUT "./output/$fileNameWithoutExt" $other_params
-  retValue="$?"
+  "./output/$fileNameWithoutExt" "$@"
+  return "$?"
 }
 
 # =============================================
@@ -1158,12 +1479,14 @@ perl_compile() {
   retValue="$?"
   echo "-- perl returned: $retValue" >> ./perl-build-last
   cd ..
+  return "$retValue"
 }
 perl_run() {
   cd ./output
-  timeout --foreground $DEREKALGOS_TIMEOUT perl "./$fileName" $other_params
+  perl "./$fileName" "$@"
   retValue="$?"
   cd ..
+  return "$retValue"
 }
 
 # =============================================
@@ -1177,12 +1500,14 @@ python_compile() {
   retValue="$?"
   echo "-- python returned: $retValue" >> ./python-build-last
   cd ..
+  return "$retValue"
 }
 python_run() {
   cd ./output
-  timeout --foreground $DEREKALGOS_TIMEOUT python -u "./$fileName" $other_params
+  python -u "./$fileName" "$@"
   retValue="$?"
   cd ..
+  return "$retValue"
 }
 
 # =============================================
@@ -1196,12 +1521,14 @@ r_compile() {
   retValue="$?"
   echo "-- Rscript returned: $retValue" >> ./r-build-last
   cd ..
+  return "$retValue"
 }
 r_run() {
   cd ./output
-  timeout --foreground $DEREKALGOS_TIMEOUT Rscript "./$fileName" $other_params
+  Rscript "./$fileName" "$@"
   retValue="$?"
   cd ..
+  return "$retValue"
 }
 
 # =============================================
@@ -1215,12 +1542,14 @@ ruby_compile() {
   retValue="$?"
   echo "-- ruby returned: $retValue" >> ./ruby-build-last
   cd ..
+  return "$retValue"
 }
 ruby_run() {
   cd ./output
-  timeout --foreground $DEREKALGOS_TIMEOUT ruby "./$fileName" $other_params
+  ruby "./$fileName" "$@"
   retValue="$?"
   cd ..
+  return "$retValue"
 }
 
 # =============================================
@@ -1231,10 +1560,11 @@ racket_compile() {
   raco exe -o "./output/$fileNameWithoutExt" "./$fileName" >> ./output/racket-build-last 2>&1
   retValue="$?"
   echo "-- raco exe returned: $retValue" >> ./output/racket-build-last
+  return "$retValue"
 }
 racket_run() {
-  timeout --foreground $DEREKALGOS_TIMEOUT "./output/$fileNameWithoutExt" $other_params
-  retValue="$?"
+  "./output/$fileNameWithoutExt" "$@"
+  return "$?"
 }
 
 # =============================================
@@ -1245,10 +1575,11 @@ rust_compile() {
   rustc "./$fileName" -o "./output/$fileNameWithoutExt" >> ./output/rust-build-last 2>&1
   retValue="$?"
   echo "-- rustc returned: $retValue" >> ./output/rust-build-last
+  return "$retValue"
 }
 rust_run() {
-  timeout --foreground $DEREKALGOS_TIMEOUT "./output/$fileNameWithoutExt" $other_params
-  retValue="$?"
+  "./output/$fileNameWithoutExt" "$@"
+  return "$?"
 }
 
 # =============================================
@@ -1262,36 +1593,41 @@ scala_compile() {
   retValue="$?"
   echo "-- scala returned: $retValue" >> ./scala-build-last
   cd ..
+  return "$retValue"
 }
 scala_run() {
-  if [ "$#" -lt 2 ]; then
-      other_params="15 10"
+  if [ "$#" -eq 0 ]; then
+      set -- 15 10
   fi
 
   cd ./output
-  timeout --foreground $DEREKALGOS_TIMEOUT scala run "$fileName" -- $other_params
+  scala run "$fileName" -- "$@"
   retValue="$?"
   cd ..
+  return "$retValue"
 }
 
 # =============================================
 #           Scheme
 # =============================================
 scheme_compile() {
+  scheme_compiler_name="guild"
   if command -v guild > /dev/null 2>&1; then
     echo "guild compile -o \"./output/$fileNameWithoutExt.go\" \"./$fileName\"" > ./output/scheme-build-last
     guild compile -o "./output/$fileNameWithoutExt.go" "./$fileName" >> ./output/scheme-build-last 2>&1
     retValue="$?"
   else
+    scheme_compiler_name="guile"
     echo "guile -c \"(compile-file \\\"./$fileName\\\" #:output-file \\\"./output/$fileNameWithoutExt.go\\\")\"" > ./output/scheme-build-last
     guile -c "(compile-file \"./$fileName\" #:output-file \"./output/$fileNameWithoutExt.go\")" >> ./output/scheme-build-last 2>&1
     retValue="$?"
   fi
-  echo "-- guild returned: $retValue" >> ./output/scheme-build-last
+  echo "-- $scheme_compiler_name returned: $retValue" >> ./output/scheme-build-last
+  return "$retValue"
 }
 scheme_run() {
-  timeout --foreground $DEREKALGOS_TIMEOUT guile -c "(load-compiled \"./output/$fileNameWithoutExt.go\")" $other_params
-  retValue="$?"
+  guile -c "(load-compiled \"./output/$fileNameWithoutExt.go\")" "$@"
+  return "$?"
 }
 
 # =============================================
@@ -1300,7 +1636,7 @@ scheme_run() {
 simula_compile() {
   echo "Copying $fileName to output..." > ./output/simula-build-last
   cp "./$fileName" ./output/
-  echo "cd ./output && cim \"./$fileName\" && cd .." > ./output/simula-build-last
+  echo "cd ./output && cim \"./$fileName\" && cd .." >> ./output/simula-build-last
   cd ./output/
   rm -f ./gcc ./g++
   ln -s "${DEREKALGOS_GCC13}${DEREKALGOS_GCC13NAME}" ./gcc
@@ -1309,19 +1645,23 @@ simula_compile() {
   retValue="$?"
   echo "-- cim returned: $retValue" >> ./simula-build-last
   cd ..
+  return "$retValue"
 }
 simula_run() {
-  timeout --foreground $DEREKALGOS_TIMEOUT "./output/$fileNameWithoutExt" $other_params
-  retValue="$?"
+  "./output/$fileNameWithoutExt" "$@"
+  return "$?"
 }
 
 # =============================================
 #           SmallTalk
 # =============================================
-smalltalk_compile() { :; }
+smalltalk_compile() {
+  retValue=0
+  return "$retValue"
+}
 smalltalk_run() {
-  timeout --foreground $DEREKALGOS_TIMEOUT gst "./$fileName" -a $other_params
-  retValue="$?"
+  gst "./$fileName" -a "$@"
+  return "$?"
 }
 
 # =============================================
@@ -1332,19 +1672,23 @@ swift_compile() {
   swiftc "./$fileName" -o "./output/$fileNameWithoutExt" >> ./output/swift-build-last 2>&1
   retValue="$?"
   echo "-- swiftc returned: $retValue" >> ./output/swift-build-last
+  return "$retValue"
 }
 swift_run() {
-  timeout --foreground $DEREKALGOS_TIMEOUT "./output/$fileNameWithoutExt" $other_params
-  retValue="$?"
+  "./output/$fileNameWithoutExt" "$@"
+  return "$?"
 }
 
 # =============================================
 #           Tcl
 # =============================================
-tcl_compile() { :; }
+tcl_compile() {
+  retValue=0
+  return "$retValue"
+}
 tcl_run() {
-  timeout --foreground $DEREKALGOS_TIMEOUT tclsh "$fileName" $other_params
-  retValue="$?"
+  tclsh "$fileName" "$@"
+  return "$?"
 }
 
 # =============================================
@@ -1355,10 +1699,11 @@ typescript_compile() {
   tsc "$fileName" --outDir output --target esnext --skipLibCheck true --types node >> ./output/typescript-build-last 2>&1
   retValue="$?"
   echo "-- tsc returned: $retValue" >> ./output/typescript-build-last
+  return "$retValue"
 }
 typescript_run() {
-  timeout --foreground $DEREKALGOS_TIMEOUT node ./output/$fileNameWithoutExt.js $other_params
-  retValue="$?"
+  node ./output/$fileNameWithoutExt.js "$@"
+  return "$?"
 }
 
 # =============================================
@@ -1369,10 +1714,11 @@ v_compile() {
   v "./$fileName" -o "./output/$fileNameWithoutExt" >> ./output/v-build-last 2>&1
   retValue="$?"
   echo "-- v returned: $retValue" >> ./output/v-build-last
+  return "$retValue"
 }
 v_run() {
-  timeout --foreground $DEREKALGOS_TIMEOUT "./output/$fileNameWithoutExt" $other_params
-  retValue="$?"
+  "./output/$fileNameWithoutExt" "$@"
+  return "$?"
 }
 
 # =============================================
@@ -1396,10 +1742,11 @@ visualbasic_compile() {
   retValue="$?"
   echo "-- dotnet build returned: $retValue" >> ./visualbasic-build-last
   cd ..
+  return "$retValue"
 }
 visualbasic_run() {
-  timeout --foreground $DEREKALGOS_TIMEOUT "./output/bin/Debug/net10.0/$fileNameWithoutExt" $other_params
-  retValue="$?"
+  "./output/bin/Debug/net10.0/$fileNameWithoutExt" "$@"
+  return "$?"
 }
 
 # =============================================
@@ -1413,10 +1760,11 @@ wat_compile() {
   retValue="$?"
   echo "-- wat2wasm returned: $retValue" >> ./wat-build-last
   cd ..
+  return "$retValue"
 }
 wat_run() {
-  timeout --foreground $DEREKALGOS_TIMEOUT node ../../../run-wasm.js "./output/$fileNameWithoutExt.wasm" $other_params
-  retValue="$?"
+  node ../../../run-wasm.js "./output/$fileNameWithoutExt.wasm" "$@"
+  return "$?"
 }
 
 # =============================================
@@ -1430,10 +1778,11 @@ zig_compile() {
   retValue="$?"
   echo "-- zig returned: $retValue" >> ./zig-build-last
   cd  ..
+  return "$retValue"
 }
 zig_run() {
-  timeout --foreground $DEREKALGOS_TIMEOUT "./output/$fileNameWithoutExt" $other_params
-  retValue="$?"
+  "./output/$fileNameWithoutExt" "$@"
+  return "$?"
 }
 
 # =============================================
@@ -1446,7 +1795,7 @@ if [ "$fileName" = "clean" ]; then
   rm -Rf ./output >> /dev/null
   cd ../../../stdlib/
   ./build.sh clean
-  cd $start_dir
+  cd "$start_dir"
   exit
 fi
 
@@ -1529,29 +1878,127 @@ esac
 # to run via a docker image, in which case, we should go ahead
 # and do that then exit.
 
-RUN_ON_DOCKER=$(echo "$DEREKALGOS_RUNONDOCKER" | sed -n "s/.*[[:space:]]\{0,1\}$lang=\([^[:space:]]*\).*/\1/p")
+RUN_ON_DOCKER=$(printf '%s\n' "$DEREKALGOS_RUNONDOCKER" | awk -v key="$lang" '{
+  for (i = 1; i <= NF; i++) {
+    split($i, pair, "=")
+    if (pair[1] == key) {
+      print substr($i, length(key) + 2)
+      exit
+    }
+  }
+}')
 if [ -n "$RUN_ON_DOCKER" ]; then
-    CURRENT_GIT_DIR=$(realpath ../../../)
-    docker run --rm --platform linux/amd64 -v "$CURRENT_GIT_DIR":/build -w "/build/src/$packName/$algoName/" $RUN_ON_DOCKER bash -c "DEREKALGOS_TIMEOUT=\"$DEREKALGOS_TIMEOUT\" /build/run.sh "$fileName" $other_params"
-    exit
+  mkdir -p ./output
+  docker_log="./output/${lang}-build-last"
+  echo "STARTING DOCKER RELAY BUILD..." > "$docker_log"
+  echo "ROUTE: Docker image $RUN_ON_DOCKER" >> "$docker_log"
+
+  if ! command -v docker > /dev/null 2>&1; then
+    echo "Docker relay aborted: docker command not found in PATH" >> "$docker_log"
+    cat "$docker_log"
+    exit 127
+  fi
+
+  CURRENT_GIT_DIR=$(resolve_abs_path ../../../)
+  if [ -z "$CURRENT_GIT_DIR" ] || [ ! -d "$CURRENT_GIT_DIR" ]; then
+    echo "Docker relay aborted: unable to resolve repository root directory" >> "$docker_log"
+    cat "$docker_log"
+    exit 2
+  fi
+  if [ ! -f "$CURRENT_GIT_DIR/run.sh" ]; then
+    echo "Docker relay aborted: missing runner script at $CURRENT_GIT_DIR/run.sh" >> "$docker_log"
+    cat "$docker_log"
+    exit 2
+  fi
+  if [ ! -r "$CURRENT_GIT_DIR/run.sh" ]; then
+    echo "Docker relay aborted: runner script is not readable at $CURRENT_GIT_DIR/run.sh" >> "$docker_log"
+    cat "$docker_log"
+    exit 2
+  fi
+
+  echo "docker run --rm --platform linux/amd64 -v \"<repo>\":/build -w \"/build/src/$packName/$algoName/\" $RUN_ON_DOCKER sh -c 'useTimeout=\"\$1\"; shift; sh /build/run.sh \"\$@\"' sh \"$useTimeout\" \"$fileName\" <args>" >> "$docker_log"
+  run_and_log_output "$docker_log" docker run --rm --platform linux/amd64 -v "$CURRENT_GIT_DIR":/build -w "/build/src/$packName/$algoName/" $RUN_ON_DOCKER sh -c 'useTimeout="$1"; DEREKALGOS_LAST_COMMAND_OUTPUT_ACTIVE="$2"; DEREKALGOS_LAST_COMMAND_OUTPUT_LOG="$3"; shift 3; sh /build/run.sh "$@"' sh "$useTimeout" "1" "$last_command_output_log" "$fileName" "$@"
+  retValue="$?"
+  echo "-- docker returned: $retValue" >> "$docker_log"
+  echo "---- DOCKER RELAY BUILD END" >> "$docker_log"
+  exit "$retValue"
 fi
 
 # Now, we should check if the environment wants our language
 # to run on remotely via ssh, in which case, we should go ahead
 # and do that then exit.
 
-RUN_ON_SSH=$(echo "$DEREKALGOS_RUNONSSH" | sed -n "s/.*[[:space:]]\{0,1\}$lang=\([^[:space:]]*\).*/\1/p")
+RUN_ON_SSH=$(printf '%s\n' "$DEREKALGOS_RUNONSSH" | awk -v key="$lang" '{
+  for (i = 1; i <= NF; i++) {
+    split($i, pair, "=")
+    if (pair[1] == key) {
+      print substr($i, length(key) + 2)
+      exit
+    }
+  }
+}')
 if [ -n "$RUN_ON_SSH" ]; then
-    DEREKALGOS_SSH_PORT="DEREKALGOS_SSH_${RUN_ON_SSH}_PORT"
-    DEREKALGOS_SSH_USER="DEREKALGOS_SSH_${RUN_ON_SSH}_USER"
-    DEREKALGOS_SSH_ADDRESS="DEREKALGOS_SSH_${RUN_ON_SSH}_ADDRESS"
-    DEREKALGOS_SSH_CODEDIR="DEREKALGOS_SSH_${RUN_ON_SSH}_CODEDIR"
-    DEREKALGOS_SSH_STARTDIR="DEREKALGOS_SSH_${RUN_ON_SSH}_STARTDIR"
-    DEREKALGOS_SSH_RUNSCRIPT="DEREKALGOS_SSH_${RUN_ON_SSH}_RUNSCRIPT"
-    scp -P $DEREKALGOS_SSH_PORT "./$fileName" $DEREKALGOS_SSH_USER@$DEREKALGOS_SSH_ADDRESS:"${DEREKALGOS_SSH_CODEDIR}/${fileName}" >> /dev/null
-    ToRunOnSSH="cd $DEREKALGOS_SSH_CODEDIR && \"$DEREKALGOS_SSH_RUNSCRIPT\" \"$fileName\" $other_params"
-    ssh -p $DEREKALGOS_SSH_PORT $DEREKALGOS_SSH_USER@$DEREKALGOS_SSH_ADDRESS $ToRunOnSSH
-    exit
+  mkdir -p ./output
+  ssh_log="./output/${lang}-build-last"
+  echo "STARTING SSH RELAY BUILD..." > "$ssh_log"
+  echo "ROUTE: SSH target $RUN_ON_SSH" >> "$ssh_log"
+
+  ssh_cfg_prefix="DEREKALGOS_SSH_${RUN_ON_SSH}"
+  ssh_port=$(get_env_value "${ssh_cfg_prefix}_PORT")
+  ssh_user=$(get_env_value "${ssh_cfg_prefix}_USER")
+  ssh_address=$(get_env_value "${ssh_cfg_prefix}_ADDRESS")
+  ssh_codedir=$(get_env_value "${ssh_cfg_prefix}_CODEDIR")
+  ssh_runscript=$(get_env_value "${ssh_cfg_prefix}_RUNSCRIPT")
+
+  missing_ssh_config=0
+  if [ -z "$ssh_port" ]; then
+    echo "Missing SSH config: ${ssh_cfg_prefix}_PORT" >> "$ssh_log"
+    missing_ssh_config=1
+  fi
+  if [ -z "$ssh_user" ]; then
+    echo "Missing SSH config: ${ssh_cfg_prefix}_USER" >> "$ssh_log"
+    missing_ssh_config=1
+  fi
+  if [ -z "$ssh_address" ]; then
+    echo "Missing SSH config: ${ssh_cfg_prefix}_ADDRESS" >> "$ssh_log"
+    missing_ssh_config=1
+  fi
+  if [ -z "$ssh_codedir" ]; then
+    echo "Missing SSH config: ${ssh_cfg_prefix}_CODEDIR" >> "$ssh_log"
+    missing_ssh_config=1
+  fi
+  if [ -z "$ssh_runscript" ]; then
+    echo "Missing SSH config: ${ssh_cfg_prefix}_RUNSCRIPT" >> "$ssh_log"
+    missing_ssh_config=1
+  fi
+  if [ "$missing_ssh_config" -ne 0 ]; then
+    echo "SSH relay aborted: incomplete SSH target configuration for $RUN_ON_SSH" >> "$ssh_log"
+    cat "$ssh_log"
+    exit 2
+  fi
+
+  echo "scp -P \"$ssh_port\" \"./$fileName\" \"$ssh_user@$ssh_address:$ssh_codedir/$fileName\"" >> "$ssh_log"
+  run_and_log_output "$ssh_log" scp -P "$ssh_port" "./$fileName" "$ssh_user@$ssh_address:$ssh_codedir/$fileName"
+  retValue="$?"
+  echo "-- scp returned: $retValue" >> "$ssh_log"
+  if [ "$retValue" -ne 0 ]; then
+    echo "---- SSH RELAY BUILD END" >> "$ssh_log"
+    exit "$retValue"
+  fi
+
+  ToRunOnSSH="cd $(shell_quote "$ssh_codedir") && $(shell_quote "$ssh_runscript") $(shell_quote "$fileName")"
+  for arg in "$@"; do
+    ToRunOnSSH="$ToRunOnSSH $(shell_quote "$arg")"
+  done
+  echo "ssh -p \"$ssh_port\" \"$ssh_user@$ssh_address\" \"$ToRunOnSSH\"" >> "$ssh_log"
+  run_and_log_output "$ssh_log" ssh -p "$ssh_port" "$ssh_user@$ssh_address" "$ToRunOnSSH"
+  retValue="$?"
+  echo "-- ssh returned: $retValue" >> "$ssh_log"
+  echo "---- SSH RELAY BUILD END" >> "$ssh_log"
+  if [ "$ssh_log" != "$last_command_output_log" ]; then
+    cat "$ssh_log" >> "$last_command_output_log"
+  fi
+  exit "$retValue"
 fi
 
 # First thing, let's check to see if the output directory
@@ -1572,7 +2019,7 @@ else
 fi
 
 if [ "$destroy_output" -eq 1 ]; then
-  rm -Rf ./output >> ./clean-output
+  rm -Rf ./output >> ./clean-output 2>&1
   mkdir -p ./output
   mv ./clean-output ./output/
 else
@@ -1584,10 +2031,17 @@ fi
 # if the build fails, try to output the last build output
 
 before_compile=$(get_ms_time)
-"${lang}_compile"
+echo "STARTING COMPILE: ${lang}_compile" >> "$last_command_output_log"
+run_and_log_output "$last_command_output_log" "${lang}_compile"
+compile_rc="$?"
 after_compile=$(get_ms_time)
+final_rc="$compile_rc"
+if [ -f "./output/${lang}-build-last" ]; then
+  echo "---- ${lang}-build-last ----" >> "$last_command_output_log"
+  cat "./output/${lang}-build-last" >> "$last_command_output_log"
+fi
 
-if [ "$retValue" -eq 0 ]; then
+if [ "$compile_rc" -eq 0 ]; then
   if [ ! -f "$testFile" ]; then
     echo "Build returned successful for $lang, but output file not found.
 Build output:
@@ -1595,24 +2049,31 @@ Build output:
 "
     cat "./output/${lang}-build-last"
   else
-    retValue=0
     before_run=$(get_ms_time)
-    "${lang}_run"
+    echo "STARTING RUN: ${lang}_run" >> "$last_command_output_log"
+    run_and_log_output "$last_command_output_log" run_function_with_timeout "${lang}_run" "$@"
+    run_rc="$?"
+    final_rc="$run_rc"
     after_run=$(get_ms_time)
 
     compile_duration=$((after_compile - before_compile))
     run_duration=$((after_run - before_run))
+    if [ "$time_precision_unit" = "s" ]; then
+      timing_precision_note=" (second-level precision)"
+    else
+      timing_precision_note=
+    fi
 
-    if [ "$retValue" -eq 0 ]; then
+    if [ "$run_rc" -eq 0 ]; then
       printf "
-    ${BLUE}Compile Time ${compile_duration}ms; Run Time ${run_duration}ms; ${GREEN}Returned $retValue${NORMAL}
+    ${BLUE}Compile Time ${compile_duration}${time_precision_unit}; Run Time ${run_duration}${time_precision_unit}${timing_precision_note}; ${GREEN}Returned $run_rc${NORMAL}
 "
     else
       printf "
-    ${BLUE}Compile Time ${compile_duration}ms; Run Time ${run_duration}ms; ${RED}Returned $retValue${NORMAL}
+    ${BLUE}Compile Time ${compile_duration}${time_precision_unit}; Run Time ${run_duration}${time_precision_unit}${timing_precision_note}; ${RED}Returned $run_rc${NORMAL}
 "
     fi
-    if [ "$retValue" -eq 124 ]; then
+    if [ "$run_rc" -eq 124 ]; then
       printf "${YELLOW}Return value 124 typically signals a timeout.${NORMAL}
 "
     fi
@@ -1627,4 +2088,4 @@ fi
 
 printf "$lang" > ./output/last-lang
 chmod -R a+rwX ./output/
-exit
+exit "$final_rc"
