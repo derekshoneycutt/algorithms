@@ -20,7 +20,6 @@ const allPages = [
 
 const build_mode = 'production';
 
-
 module.exports = {
     entry: './web/algorithms.jsx',
 
@@ -74,7 +73,7 @@ module.exports = {
                 test: /\.(png|svg)$/,
                 type: 'asset/resource',
                 generator: {
-                    filename: 'icons/[name].[ext]'
+                    filename: 'icons/[name][ext]'
                 }
             },
             {
