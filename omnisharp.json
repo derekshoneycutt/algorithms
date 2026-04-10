@@ -1,0 +1,11 @@
+{
+  "msbuild": {
+    "EnablePackageAutoRestore": false,
+    "loadProjectsOnDemand": true
+  },
+  "fileOptions": {
+    "excludeSearchPatterns": [
+      "**/templates/**/*"
+    ]
+  }
+}

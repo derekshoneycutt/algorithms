@@ -54,5 +54,19 @@
         "oberon": "../../icons/oberon",
         "smalltalk": "../../icons/smalltalk"
     },
+    "dotnet.automaticallyCreateSolutionInWorkspace": false,
+    "FSharp.showExplorerOnStartup": false,
+    "files.exclude": {
+        "**/templates/bin": true,
+        "**/templates/obj": true
+    },
+    "files.watcherExclude": {
+        "**/templates/bin/**": true,
+        "**/templates/obj/**": true
+    },
+    "search.exclude": {
+        "**/templates/bin/**": true,
+        "**/templates/obj/**": true
+    },
     "liveServer.settings.root": "build/dist/"
 }

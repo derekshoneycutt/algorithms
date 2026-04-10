@@ -5,7 +5,20 @@ from std.collections.string import atol
 
 def euclidgcd(m_in: Int, n_in: Int) raises -> Int:
     """
-    Calculates the GCD of m_in and n_in.
+    Calculates the greatest common denominator between 2 numbers.
+
+    This utilizes Euclid's algorithm to find and return GCD.
+
+    Parameters
+    ----------
+    m
+        The first number to calculate GCD for.
+    n
+        The second number to calculate GCD for.
+
+    Returns
+    --------
+        The greatest common denominator for the 2 numbers.
     """
     var r: Int
     var m = m_in

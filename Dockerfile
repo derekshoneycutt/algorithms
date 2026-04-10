@@ -1,6 +1,6 @@
 # Docker file for setting up a general development container for Derek's Algorithms project
 
-# We start with an Alpine Linux build and prerequisites; enter bash when we have it
+# We start with an Ubuntu Linux build and prerequisites; enter bash when we have it
 FROM ubuntu:noble AS builder
 
 ENV DEBIAN_FRONTEND=noninteractive

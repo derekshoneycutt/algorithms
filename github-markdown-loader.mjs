@@ -42,40 +42,29 @@ export default function(source) {
             }
         });
 
-        let sidebartext = `
+        // Get the sidebar
+        const sidebartext = `
             <li class="home_item ${page.page === `${ALGORITHMS_PAGES.page}` ? 'on_page' : ''}">
                 <a href="${page.page === `${ALGORITHMS_PAGES.page}` ? "" : ALGORITHMS_PAGES.page}"
                    class="nav_link">
                     <span class="material-symbols-outlined home_icon">home</span>
                     ${ALGORITHMS_PAGES.title}
                 </a>
-            </li>`;
+            </li> ${ALGORITHMS_PAGES.writings.map(sidePage => `
+            <li class=${page.page === `${sidePage.page}` ? 'on_page' : ""}>
+                <a href=${sidePage.page} class="nav_link">
+                    ${sidePage.title}
+                </a>
+            </li>`).join('')}`;
 
-        for (const sidePage of ALGORITHMS_PAGES.writings) {
-            sidebartext += `
-                <li class=${page.page === `${sidePage.page}` ? 'on_page' : ""}>
-                    <a href=${sidePage.page} class="nav_link">
-                        ${sidePage.title}
-                    </a>
-                </li>`;
-        }
-
-        const breadcrumbs = ALGORITHMS_PAGES.writings.reduce((arr, book) => {
-            if (arr.length > 1)
-                return arr;
-    
-            if (book.page === page.page) {
-                arr.push(book);
-            }
-            return arr;
-        }, [ALGORITHMS_PAGES]).map(crumb => {
-            return `
-                <li>
-                    <a href="${crumb.page}">
-                        ${crumb.title}
-                    </a>
-                </li>`;
-        }).join('');
+        // Get the breadcrumbs
+        const breadcrumbs = ALGORITHMS_PAGES.writings.reduce((arr, book) =>
+            (book.page === page.page) ? [...arr, book] : arr, [ALGORITHMS_PAGES]).map(crumb => `
+            <li>
+                <a href="${crumb.page}">
+                    ${crumb.title}
+                </a>
+            </li>`).join('');
 
         // Update tags that we retrieved above
         $('#main-article').html(response.data);

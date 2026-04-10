@@ -1,4 +1,4 @@
-; Defines the main entry point for FreeBSD applications
+; Defines the main entry point for Linux applications
 default rel
 
 global _start

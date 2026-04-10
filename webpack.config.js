@@ -9,11 +9,6 @@ const ALGORITHMS_PAGES =
     || pagesModule.default
     || pagesModule;
 
-const allPages = [
-    ALGORITHMS_PAGES,
-    ...ALGORITHMS_PAGES.writings
-];
-
 const build_mode = 'production';
 
 module.exports = {
@@ -91,11 +86,12 @@ module.exports = {
             filename: 'bundle.css'
         }),
 
-        ...allPages.map(page => new HtmlWebpackPlugin({
-            title: `Derek's Algorithms Project: ${page.title}`,
-            template: page.template,
-            filename: page.page,
-            inject: true
+        ...[ALGORITHMS_PAGES, ...ALGORITHMS_PAGES.writings].map(page =>
+            new HtmlWebpackPlugin({
+                title: `Derek's Algorithms Project: ${page.title}`,
+                template: page.template,
+                filename: page.page,
+                inject: true
         }))
     ],
 

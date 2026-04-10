@@ -1,7 +1,7 @@
 comment
     Calculate the GCD of two values and print it all to the screen
 ;
-begin
+simulation begin
     ! Calculate the GCD with Euclid's algorithm;
     integer procedure euclidgcd(m, n);
         integer m, n;
