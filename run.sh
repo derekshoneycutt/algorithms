@@ -514,7 +514,15 @@ resolve_abs_path() {
   fi
 }
 
-# Archive the final last-command-output log to repository-level logs.
+repoRootPath=$(resolve_abs_path "$startDir/../../../")
+startDirFromRepo=
+case "$startDir" in
+  "$repoRootPath") startDirFromRepo="" ;;
+  "$repoRootPath"/*) startDirFromRepo=${startDir#"$repoRootPath"/} ;;
+  *) startDirFromRepo="" ;;
+esac
+
+# Archive the final run inputs and output log to repository-level logs.
 generate_random_hex_suffix() {
   if [ -r /dev/urandom ] && command -v od > /dev/null 2>&1; then
     randomHex=$(od -An -N4 -tx4 /dev/urandom 2>/dev/null | tr -d '[:space:]')
@@ -526,17 +534,154 @@ generate_random_hex_suffix() {
   printf '%s\n' "$$"
 }
 
+# Add one relative path to the source archive list when present.
+add_archive_input_if_exists() {
+  archiveListFile="$1"
+  archiveRepoRelPath="$2"
+
+  archiveRepoRelPath=${archiveRepoRelPath#./}
+  case "$archiveRepoRelPath" in
+    ''|/*) return 0 ;;
+  esac
+  case "/$archiveRepoRelPath/" in
+    */../*) return 0 ;;
+  esac
+
+  if [ -e "$repoRootPath/$archiveRepoRelPath" ]; then
+    printf '%s\n' "$archiveRepoRelPath" >> "$archiveListFile"
+  fi
+}
+
+# Add the active run log to the archive input list.
+add_last_command_log_to_archive() {
+  archiveListFile="$1"
+  if [ -z "$lastCommandOutputLog" ]; then
+    return 0
+  fi
+
+  archiveLogRepoRel=
+  case "$lastCommandOutputLog" in
+    /*)
+      case "$lastCommandOutputLog" in
+        "$repoRootPath"/*) archiveLogRepoRel=${lastCommandOutputLog#"$repoRootPath"/} ;;
+        *) archiveLogRepoRel= ;;
+      esac
+      ;;
+    *)
+      archiveLogRel=${lastCommandOutputLog#./}
+      if [ -n "$startDirFromRepo" ]; then
+        archiveLogRepoRel="$startDirFromRepo/$archiveLogRel"
+      else
+        archiveLogRepoRel="$archiveLogRel"
+      fi
+      ;;
+  esac
+
+  if [ -n "$archiveLogRepoRel" ]; then
+    add_archive_input_if_exists "$archiveListFile" "$archiveLogRepoRel"
+  fi
+}
+
+# Default source archive rule: include only the requested source file.
+default_lang_archive() {
+  archiveListFile="$1"
+  if [ -n "$startDirFromRepo" ]; then
+    add_archive_input_if_exists "$archiveListFile" "$startDirFromRepo/$fileName"
+  else
+    add_archive_input_if_exists "$archiveListFile" "$fileName"
+  fi
+}
+
+# Include all stdlib source files with the requested extension.
+add_stdlib_archive_sources_by_extension() {
+  archiveListFile="$1"
+  archiveFileExtension="$2"
+  if [ -z "$archiveFileExtension" ] || [ ! -d "$repoRootPath/stdlib" ]; then
+    return 0
+  fi
+
+  find "$repoRootPath/stdlib" -type f -name "*.$archiveFileExtension" 2>/dev/null | while IFS= read -r stdlibAbsFile; do
+    stdlibRepoRel=${stdlibAbsFile#"$repoRootPath"/}
+    add_archive_input_if_exists "$archiveListFile" "$stdlibRepoRel"
+  done
+}
+
+# Include stdlib sources for one target tag (and optionally shared -All files).
+add_stdlib_archive_sources_for_target_tag() {
+  archiveListFile="$1"
+  archiveFileExtension="$2"
+  archiveTargetTag="$3"
+  archiveIncludeAll="$4"
+  if [ -z "$archiveFileExtension" ] || [ -z "$archiveTargetTag" ] || [ ! -d "$repoRootPath/stdlib" ]; then
+    return 0
+  fi
+
+  find "$repoRootPath/stdlib" -type f -name "*.$archiveFileExtension" 2>/dev/null | while IFS= read -r stdlibAbsFile; do
+    stdlibBaseName=$(basename "$stdlibAbsFile")
+    case "$stdlibBaseName" in
+      *-"$archiveTargetTag"."$archiveFileExtension")
+        stdlibRepoRel=${stdlibAbsFile#"$repoRootPath"/}
+        add_archive_input_if_exists "$archiveListFile" "$stdlibRepoRel"
+        ;;
+      *-All."$archiveFileExtension")
+        if [ "$archiveIncludeAll" = "1" ]; then
+          stdlibRepoRel=${stdlibAbsFile#"$repoRootPath"/}
+          add_archive_input_if_exists "$archiveListFile" "$stdlibRepoRel"
+        fi
+        ;;
+      *) ;;
+    esac
+  done
+}
+
+# Collect archive inputs by invoking the language-specific archive hook.
+collect_lang_archive_inputs() {
+  archiveListFile="$1"
+  archiveMethod="${lang}_archive"
+  if command -v "$archiveMethod" > /dev/null 2>&1; then
+    "$archiveMethod" "$archiveListFile"
+  else
+    default_lang_archive "$archiveListFile"
+  fi
+}
+
+# Create a .tar.gz from the collected source inputs.
+create_lang_input_archive() {
+  archiveDestination="$1"
+  archiveListFile=$(make_tmp_file "source-archive") || return 1
+  : > "$archiveListFile"
+
+  add_last_command_log_to_archive "$archiveListFile"
+  collect_lang_archive_inputs "$archiveListFile"
+  if [ ! -s "$archiveListFile" ]; then
+    rm -f "$archiveListFile"
+    return 1
+  fi
+
+  if command -v sort > /dev/null 2>&1; then
+    sort -u "$archiveListFile" -o "$archiveListFile"
+  fi
+
+  (
+    cd "$repoRootPath" 2>/dev/null || exit 1
+    tar -czf "$archiveDestination" -T "$archiveListFile"
+  )
+  archiveRet="$?"
+  rm -f "$archiveListFile"
+  return "$archiveRet"
+}
+
 archive_last_command_output_log() {
   if [ -n "$DEREKALGOS_LAST_COMMAND_OUTPUT_ARCHIVED" ]; then
     return 0
   fi
   DEREKALGOS_LAST_COMMAND_OUTPUT_ARCHIVED=1
 
-  if [ -z "$DEREKALGOS_LAST_COMMAND_OUTPUT_ACTIVE" ] || [ -z "$lastCommandOutputLog" ] || [ ! -f "$lastCommandOutputLog" ]; then
+  if [ -z "$lastCommandOutputLog" ] || [ ! -f "$lastCommandOutputLog" ]; then
     return 0
   fi
 
-  logsDir="../../../logs"
+  logsDir="$repoRootPath/archive"
   if ! mkdir -p "$logsDir" 2>/dev/null; then
     return 0
   fi
@@ -559,10 +704,17 @@ archive_last_command_output_log() {
     archiveLang="unknown"
   fi
   randomSuffix=$(generate_random_hex_suffix)
-  archivedLogPath="$logsDir/last-command-output-${archiveTimestamp}-${archiveLang}-${randomSuffix}.log"
+  archivedInputPath="$logsDir/last-command-archive-${archiveTimestamp}-${archiveLang}-${randomSuffix}.tar.gz"
 
-  if cp "$lastCommandOutputLog" "$archivedLogPath" 2>/dev/null; then
-    ln -sfn "$(basename "$archivedLogPath")" "$logsDir/last-build.log" 2>/dev/null || true
+  didArchiveWrite=0
+
+  if create_lang_input_archive "$archivedInputPath"; then
+    ln -sfn "$(basename "$archivedInputPath")" "$logsDir/last-build.tar.gz" 2>/dev/null || true
+    didArchiveWrite=1
+  else
+    echo "WARNING: failed to create source archive at $archivedInputPath" >&2
+  fi
+  if [ "$didArchiveWrite" -eq 1 ]; then
     chmod -R a+rwX "$logsDir" 2>/dev/null || true
   fi
 }
@@ -800,6 +952,9 @@ ada_run() {
   "./output/$fileNameWithoutExt" "$@"
   return "$?"
 }
+ada_archive() {
+  default_lang_archive "$@"
+}
 
 # =============================================
 #           ASSEMBLY (ARM64)
@@ -886,6 +1041,10 @@ arm64asm_compile() {
 arm64asm_run() {
   "./output/$fileNameWithoutExt" "$@"
   return "$?"
+}
+arm64asm_archive() {
+  default_lang_archive "$@"
+  add_stdlib_archive_sources_for_target_tag "$1" "s" "Darwin-arm64" "0"
 }
 
 # =============================================
@@ -1004,6 +1163,24 @@ asm_run() {
   "./output/$fileNameWithoutExt" "$@"
   return "$?"
 }
+asm_archive() {
+  default_lang_archive "$@"
+  asmArchivePlatformTag=
+  case "$currentPlatform" in
+    "Linux"*) asmArchivePlatformTag="Linux" ;;
+    "FreeBSD"*) asmArchivePlatformTag="FreeBSD" ;;
+    "MINGW64_NT"*) asmArchivePlatformTag="Windows" ;;
+    *) asmArchivePlatformTag= ;;
+  esac
+  asmArchiveArchTag=
+  case "$currentCpuArch" in
+    "x86_64"|"amd64") asmArchiveArchTag="x64" ;;
+    *) asmArchiveArchTag= ;;
+  esac
+  if [ -n "$asmArchivePlatformTag" ] && [ -n "$asmArchiveArchTag" ]; then
+    add_stdlib_archive_sources_for_target_tag "$1" "asm" "${asmArchivePlatformTag}-${asmArchiveArchTag}" "1"
+  fi
+}
 
 # =============================================
 #           Ballerina
@@ -1024,6 +1201,9 @@ ballerina_run() {
   java -jar "./output/$fileNameWithoutExt.jar" "$@"
   return "$?"
 }
+ballerina_archive() {
+  default_lang_archive "$@"
+}
 
 # =============================================
 #           C
@@ -1038,6 +1218,9 @@ c_compile() {
 c_run() {
   "./output/$fileNameWithoutExt" "$@"
   return "$?"
+}
+c_archive() {
+  default_lang_archive "$@"
 }
 
 # =============================================
@@ -1082,6 +1265,9 @@ clojure_run() {
   java -cp "./output/target/uberjar/$fileNameWithoutExt-1.0.0-standalone.jar" clojure.main -m algo.main "$@"
   return "$?"
 }
+clojure_archive() {
+  default_lang_archive "$@"
+}
 
 # =============================================
 #           COBOL
@@ -1097,6 +1283,9 @@ cobol_run() {
   "./output/$fileNameWithoutExt" "$@"
   return "$?"
 }
+cobol_archive() {
+  default_lang_archive "$@"
+}
 
 # =============================================
 #           C++
@@ -1111,6 +1300,10 @@ cpp_compile() {
 cpp_run() {
   "./output/$fileNameWithoutExt" "$@"
   return "$?"
+}
+
+cpp_archive() {
+  default_lang_archive "$@"
 }
 
 # =============================================
@@ -1143,6 +1336,9 @@ csharp_run() {
   "./output/bin/Debug/net10.0/$fileNameWithoutExt" "$@"
   return "$?"
 }
+csharp_archive() {
+  default_lang_archive "$@"
+}
 
 # =============================================
 #           D
@@ -1158,6 +1354,9 @@ d_run() {
   "./output/$fileNameWithoutExt" "$@"
   return "$?"
 }
+d_archive() {
+  default_lang_archive "$@"
+}
 
 # =============================================
 #           Dart
@@ -1172,6 +1371,9 @@ dart_compile() {
 dart_run() {
   "./output/$fileNameWithoutExt" "$@"
   return "$?"
+}
+dart_archive() {
+  default_lang_archive "$@"
 }
 
 # =============================================
@@ -1244,6 +1446,19 @@ eiffel_run() {
   "./output/EIFGENs/$fileNameWithoutExt/F_code/$fileNameWithoutExt" "$@"
   return "$?"
 }
+eiffel_archive() {
+  default_lang_archive "$@"
+
+  for eiffelIncludeFile in "$startDir"/eiffel_include/*.e; do
+    [ -f "$eiffelIncludeFile" ] || continue
+    eiffelIncludeBase=$(basename "$eiffelIncludeFile")
+    if [ -n "$startDirFromRepo" ]; then
+      add_archive_input_if_exists "$1" "$startDirFromRepo/eiffel_include/$eiffelIncludeBase"
+    else
+      add_archive_input_if_exists "$1" "eiffel_include/$eiffelIncludeBase"
+    fi
+  done
+}
 
 # =============================================
 #           Elixir
@@ -1258,6 +1473,9 @@ elixir_compile() {
 elixir_run() {
   elixir --erl "-pa ./output/" -e "$moduleName.main(System.argv())" -- "$@"
   return "$?"
+}
+elixir_archive() {
+  default_lang_archive "$@"
 }
 
 # =============================================
@@ -1277,6 +1495,9 @@ erlang_run() {
   cd ..
   return "$retValue"
 }
+erlang_archive() {
+  default_lang_archive "$@"
+}
 
 # =============================================
 #           Factor
@@ -1288,6 +1509,9 @@ factor_run() {
   factor -run "./$fileName" "$@"
   return "$?"
 }
+factor_archive() {
+  default_lang_archive "$@"
+}
 
 # =============================================
 #           Forth
@@ -1298,6 +1522,9 @@ forth_compile() {
 forth_run() {
   gforth "./$fileName" -- "$@"
   return "$?"
+}
+forth_archive() {
+  default_lang_archive "$@"
 }
 
 # =============================================
@@ -1313,6 +1540,9 @@ fortran_compile() {
 fortran_run() {
   "./output/$fileNameWithoutExt" "$@"
   return "$?"
+}
+fortran_archive() {
+  default_lang_archive "$@"
 }
 
 # =============================================
@@ -1333,6 +1563,9 @@ freebasic_compile() {
 freebasic_run() {
   "./output/$fileNameWithoutExt" "$@"
   return "$?"
+}
+freebasic_archive() {
+  default_lang_archive "$@"
 }
 
 # =============================================
@@ -1365,6 +1598,9 @@ fsharp_run() {
   "./output/bin/Debug/net10.0/$fileNameWithoutExt" "$@"
   return "$?"
 }
+fsharp_archive() {
+  default_lang_archive "$@"
+}
 
 # =============================================
 #           Gleam
@@ -1395,6 +1631,9 @@ gleam_run() {
   cd ..
   return "$retValue"
 }
+gleam_archive() {
+  default_lang_archive "$@"
+}
 
 # =============================================
 #           Go
@@ -1409,6 +1648,9 @@ go_compile() {
 go_run() {
   "./output/$fileNameWithoutExt" "$@"
   return "$?"
+}
+go_archive() {
+  default_lang_archive "$@"
 }
 
 # =============================================
@@ -1428,6 +1670,9 @@ haskell_run() {
   "./output/$fileNameWithoutExt" "$@"
   return "$?"
 }
+haskell_archive() {
+  default_lang_archive "$@"
+}
 
 # =============================================
 #           Haxe
@@ -1438,6 +1683,9 @@ haxe_compile() {
 haxe_run() {
   haxe --run "$fileName" "$@"
   return "$?"
+}
+haxe_archive() {
+  default_lang_archive "$@"
 }
 
 # =============================================
@@ -1456,6 +1704,9 @@ icon_compile() {
 icon_run() {
   "./output/$fileNameWithoutExt" "$@"
   return "$?"
+}
+icon_archive() {
+  default_lang_archive "$@"
 }
 
 # =============================================
@@ -1476,6 +1727,9 @@ idris_compile() {
 idris_run() {
   "./output/build/exec/$fileNameWithoutExt" "$@"
   return "$?"
+}
+idris_archive() {
+  default_lang_archive "$@"
 }
 
 # =============================================
@@ -1504,6 +1758,9 @@ java_run() {
   cd ..
   return "$retValue"
 }
+java_archive() {
+  default_lang_archive "$@"
+}
 
 # =============================================
 #           Javascript
@@ -1525,6 +1782,9 @@ javascript_run() {
   cd ..
   return "$retValue"
 }
+javascript_archive() {
+  default_lang_archive "$@"
+}
 
 # =============================================
 #           Julia
@@ -1536,6 +1796,9 @@ julia_run() {
   julia "./$fileName" "$@"
   return "$?"
 }
+julia_archive() {
+  default_lang_archive "$@"
+}
 
 # =============================================
 #           Kit
@@ -1546,6 +1809,9 @@ kit_compile() {
 kit_run() {
   kit run "./$fileName" "$@"
   return "$?"
+}
+kit_archive() {
+  default_lang_archive "$@"
 }
 
 # =============================================
@@ -1562,6 +1828,9 @@ kotlin_run() {
   java -jar "./output/$fileNameWithoutExt.jar" "$@"
   return "$?"
 }
+kotlin_archive() {
+  default_lang_archive "$@"
+}
 
 # =============================================
 #           LLVM IR
@@ -1577,6 +1846,9 @@ llvmir_run() {
   "./output/$fileNameWithoutExt" "$@"
   return "$?"
 }
+llvmir_archive() {
+  default_lang_archive "$@"
+}
 
 # =============================================
 #           Lua
@@ -1591,6 +1863,9 @@ lua_compile() {
 lua_run() {
   lua "./output/$fileNameWithoutExt.luac" "$@"
   return "$?"
+}
+lua_archive() {
+  default_lang_archive "$@"
 }
 
 # =============================================
@@ -1614,6 +1889,9 @@ mercury_compile() {
 mercury_run() {
   "./output/$fileNameWithoutExt" "$@"
   return "$?"
+}
+mercury_archive() {
+  default_lang_archive "$@"
 }
 
 # =============================================
@@ -1691,6 +1969,10 @@ mmixal_run() {
   cd ..
   return "$retValue"
 }
+mmixal_archive() {
+  default_lang_archive "$@"
+  add_stdlib_archive_sources_by_extension "$1" "mms"
+}
 
 # =============================================
 #           Modula-3
@@ -1713,6 +1995,9 @@ modula3_compile() {
 modula3_run() {
   "./output/AMD64_LINUX/prog" "$@"
   return "$?"
+}
+modula3_archive() {
+  default_lang_archive "$@"
 }
 
 # =============================================
@@ -1746,6 +2031,9 @@ mojo_run() {
   retValue="$?"
   cd ..
   return "$retValue"
+}
+mojo_archive() {
+  default_lang_archive "$@"
 }
 
 # =============================================
@@ -1864,6 +2152,24 @@ nasm_run() {
   "./output/$fileNameWithoutExt" "$@"
   return "$?"
 }
+nasm_archive() {
+  default_lang_archive "$@"
+  nasmArchivePlatformTag=
+  case "$currentPlatform" in
+    "Linux"*) nasmArchivePlatformTag="Linux" ;;
+    "FreeBSD"*) nasmArchivePlatformTag="FreeBSD" ;;
+    "MINGW64_NT"*) nasmArchivePlatformTag="Windows" ;;
+    *) nasmArchivePlatformTag= ;;
+  esac
+  nasmArchiveArchTag=
+  case "$currentCpuArch" in
+    "x86_64"|"amd64") nasmArchiveArchTag="x64" ;;
+    *) nasmArchiveArchTag= ;;
+  esac
+  if [ -n "$nasmArchivePlatformTag" ] && [ -n "$nasmArchiveArchTag" ]; then
+    add_stdlib_archive_sources_for_target_tag "$1" "nasm" "${nasmArchivePlatformTag}-${nasmArchiveArchTag}" "1"
+  fi
+}
 
 # =============================================
 #           Nim
@@ -1878,6 +2184,9 @@ nim_compile() {
 nim_run() {
   "./output/$fileNameWithoutExt" "$@"
   return "$?"
+}
+nim_archive() {
+  default_lang_archive "$@"
 }
 
 # =============================================
@@ -1900,6 +2209,9 @@ oberon_run() {
   "./output/$fileNameWithoutExt" "$@"
   return "$?"
 }
+oberon_archive() {
+  default_lang_archive "$@"
+}
 
 # =============================================
 #           Objective-C
@@ -1914,6 +2226,9 @@ objectivec_compile() {
 objectivec_run() {
   "./output/$fileNameWithoutExt" "$@"
   return "$?"
+}
+objectivec_archive() {
+  default_lang_archive "$@"
 }
 
 # =============================================
@@ -1933,6 +2248,9 @@ ocaml_run() {
   "./output/$fileNameWithoutExt" "$@"
   return "$?"
 }
+ocaml_archive() {
+  default_lang_archive "$@"
+}
 
 # =============================================
 #           Octave
@@ -1947,6 +2265,9 @@ octave_run() {
   retValue="$?"
   cd ..
   return "$retValue"
+}
+octave_archive() {
+  default_lang_archive "$@"
 }
 
 # =============================================
@@ -1970,6 +2291,9 @@ pascal_run() {
   "./output/$fileNameWithoutExt" "$@"
   return "$?"
 }
+pascal_archive() {
+  default_lang_archive "$@"
+}
 
 # =============================================
 #           Perl
@@ -1990,6 +2314,9 @@ perl_run() {
   retValue="$?"
   cd ..
   return "$retValue"
+}
+perl_archive() {
+  default_lang_archive "$@"
 }
 
 # =============================================
@@ -2012,6 +2339,9 @@ php_run() {
   cd ..
   return "$retValue"
 }
+php_archive() {
+  default_lang_archive "$@"
+}
 
 # =============================================
 #           Prolog
@@ -2026,6 +2356,9 @@ prolog_compile() {
 prolog_run() {
   "./output/$fileNameWithoutExt" "$@"
   return "$?"
+}
+prolog_archive() {
+  default_lang_archive "$@"
 }
 
 # =============================================
@@ -2048,6 +2381,9 @@ python_run() {
   cd ..
   return "$retValue"
 }
+python_archive() {
+  default_lang_archive "$@"
+}
 
 # =============================================
 #           R
@@ -2069,6 +2405,9 @@ r_run() {
   cd ..
   return "$retValue"
 }
+r_archive() {
+  default_lang_archive "$@"
+}
 
 # =============================================
 #           Racket
@@ -2083,6 +2422,9 @@ racket_compile() {
 racket_run() {
   "./output/$fileNameWithoutExt" "$@"
   return "$?"
+}
+racket_archive() {
+  default_lang_archive "$@"
 }
 
 # =============================================
@@ -2105,6 +2447,9 @@ ruby_run() {
   cd ..
   return "$retValue"
 }
+ruby_archive() {
+  default_lang_archive "$@"
+}
 
 # =============================================
 #           Rust
@@ -2119,6 +2464,9 @@ rust_compile() {
 rust_run() {
   "./output/$fileNameWithoutExt" "$@"
   return "$?"
+}
+rust_archive() {
+  default_lang_archive "$@"
 }
 
 # =============================================
@@ -2148,6 +2496,9 @@ scala_run() {
   cd ..
   return "$retValue"
 }
+scala_archive() {
+  default_lang_archive "$@"
+}
 
 # =============================================
 #           Scheme
@@ -2170,6 +2521,9 @@ scheme_compile() {
 scheme_run() {
   guile -c "(load-compiled \"./output/$fileNameWithoutExt.go\")" "$@"
   return "$?"
+}
+scheme_archive() {
+  default_lang_archive "$@"
 }
 
 # =============================================
@@ -2198,6 +2552,9 @@ simula_run() {
   "./output/$fileNameWithoutExt" "$@"
   return "$?"
 }
+simula_archive() {
+  default_lang_archive "$@"
+}
 
 # =============================================
 #           SmallTalk
@@ -2208,6 +2565,9 @@ smalltalk_compile() {
 smalltalk_run() {
   gst "./$fileName" -a "$@"
   return "$?"
+}
+smalltalk_archive() {
+  default_lang_archive "$@"
 }
 
 # =============================================
@@ -2224,6 +2584,9 @@ swift_run() {
   "./output/$fileNameWithoutExt" "$@"
   return "$?"
 }
+swift_archive() {
+  default_lang_archive "$@"
+}
 
 # =============================================
 #           Tcl
@@ -2234,6 +2597,9 @@ tcl_compile() {
 tcl_run() {
   tclsh "$fileName" "$@"
   return "$?"
+}
+tcl_archive() {
+  default_lang_archive "$@"
 }
 
 # =============================================
@@ -2250,6 +2616,9 @@ typescript_run() {
   node "./output/$fileNameWithoutExt.js" "$@"
   return "$?"
 }
+typescript_archive() {
+  default_lang_archive "$@"
+}
 
 # =============================================
 #           V
@@ -2264,6 +2633,9 @@ v_compile() {
 v_run() {
   "./output/$fileNameWithoutExt" "$@"
   return "$?"
+}
+v_archive() {
+  default_lang_archive "$@"
 }
 
 # =============================================
@@ -2296,6 +2668,9 @@ visualbasic_run() {
   "./output/bin/Debug/net10.0/$fileNameWithoutExt" "$@"
   return "$?"
 }
+visualbasic_archive() {
+  default_lang_archive "$@"
+}
 
 # =============================================
 #           WASM (wat)
@@ -2317,6 +2692,9 @@ wat_run() {
   node ../../../run-wasm.js "./output/$fileNameWithoutExt.wasm" "$@"
   return "$?"
 }
+wat_archive() {
+  default_lang_archive "$@"
+}
 
 # =============================================
 #           ZIG
@@ -2334,6 +2712,9 @@ zig_compile() {
 zig_run() {
   "./output/$fileNameWithoutExt" "$@"
   return "$?"
+}
+zig_archive() {
+  default_lang_archive "$@"
 }
 
 # =============================================
@@ -2355,7 +2736,7 @@ if [ "$fileName" = "clean" ]; then
     retValue=0
   fi
   cd ..
-  rm -Rf ./logs >> /dev/null 2>&1
+  rm -Rf ./archive >> /dev/null 2>&1
   cd "$startDir"
   exit $retValue
 fi
