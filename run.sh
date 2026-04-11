@@ -392,7 +392,7 @@ if [ -n "$DEREKALGOS_TIMEOUT" ]; then
   timeoutFromHost=1
 fi
 if [ -z "$timeoutConfig" ]; then
-  timeoutConfig="-k 10s 1m"
+  timeoutConfig="-k 10s 2m"
 fi
 export DEREKALGOS_TIMEOUT="$timeoutConfig"
 

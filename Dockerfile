@@ -589,13 +589,13 @@ RUN echo "Console.WriteLine(\"init\");" > init.cs && \
 # for these specific variables, this is what we want.
 WORKDIR /
 RUN rm -rf /build && rm -rf /var/lib/apt/lists/ && \
-    echo "DEREKALGOS_TIMEOUT=\"-k 10s 1m\"" >> /root/.bash_profile && \
-    echo "DEREKALGOS_EIFFEL=\"libertyeiffel\"" >> /root/.bash_profile && \
-    echo "DEREKALGOS_GCC13=\"/usr/bin/\"" >> /root/.bash_profile && \
-    echo "DEREKALGOS_GCC13NAME=\"gcc-13\"" >> /root/.bash_profile && \
-    echo "DEREKALGOS_GXX13NAME=\"g++-13\"" >> /root/.bash_profile && \
-    echo "DEREKALGOS_RUNONDOCKER=\"\"" >> /root/.bash_profile && \
-    echo "DEREKALGOS_RUNONSSH=\"\"" >> /root/.bash_profile
+    echo "[ -z \"\$DEREKALGOS_TIMEOUT\" ] && export DEREKALGOS_TIMEOUT=\"-k 10s 2m\"" >> /root/.bash_profile && \
+    echo "[ -z \"\$DEREKALGOS_EIFFEL\" ] && export DEREKALGOS_EIFFEL=\"libertyeiffel\"" >> /root/.bash_profile && \
+    echo "[ -z \"\$DEREKALGOS_GCC13\" ] && export DEREKALGOS_GCC13=\"/usr/bin/\"" >> /root/.bash_profile && \
+    echo "[ -z \"\$DEREKALGOS_GCC13NAME\" ] && export DEREKALGOS_GCC13NAME=\"gcc-13\"" >> /root/.bash_profile && \
+    echo "[ -z \"\$DEREKALGOS_GXX13NAME\" ] && export DEREKALGOS_GXX13NAME=\"g++-13\"" >> /root/.bash_profile && \
+    echo "[ -z \"\$DEREKALGOS_RUNONDOCKER\" ] && export DEREKALGOS_RUNONDOCKER=\"\"" >> /root/.bash_profile && \
+    echo "[ -z \"\$DEREKALGOS_RUNONSSH\" ] && export DEREKALGOS_RUNONSSH=\"\"" >> /root/.bash_profile
 ENV OBJC_INCLUDE_PATH="/usr/lib/gcc/x86_64-linux-gnu/15/include/:/usr/lib/gcc/x86_64-linux-gnu/13/include/:${OBJC_INCLUDE_PATH:-}"
 ENV OBJC_LIBRARY_PATH="/usr/lib/gcc/x86_64-linux-gnu/15:/usr/lib/gcc/x86_64-linux-gnu/13"
 ENV LIBRARY_PATH="${OBJC_LIBRARY_PATH}:${LIBRARY_PATH:-}"
