@@ -1486,6 +1486,7 @@ if [ "$doPrompt" -eq 1 ] && [ "$setUseOnly" -eq 0 ]; then
         [Nn]* ) copyIcons=0 ;;
         * ) ;;
     esac
+    echo ""
 fi
 
 # Optionally copy icon assets to the VS Code icon directory.
@@ -1501,6 +1502,7 @@ if [ "$copyIcons" -eq 1 ]; then
         mkdir -p "$copyIconsTo"
         cp -fv ./icons/*.svg "$copyIconsTo"
     fi
+    echo ""
 fi
 
 # Potentially prompt if we should update the environment variables
@@ -1516,6 +1518,7 @@ if [ "$doPrompt" -eq 1 ] && [ "$setUseOnly" -eq 0 ]; then
         [Nn]* ) updateEnvironment=0 ;;
         * ) ;;
     esac
+    echo ""
 fi
 
 # Environment updates follow one pipeline: gather final values from profile,
@@ -1526,10 +1529,15 @@ if [ "$updateEnvironment" -eq 1 ]; then
     if [ "$doPrompt" -eq 1 ]; then
         if [ "$runOnDockerMode" -eq 0 ] && [ "$runOnSshMode" -eq 0 ]; then
             useTimeout=$(prompt_with_default "Enter a timeout" "$useTimeout")
+            echo ""
             useEiffel=$(prompt_with_default "Enter Eiffel compiler (eiffelstudio/libertyeiffel; case-insensitive)" "$useEiffel")
+            echo ""
             useGcc13=$(prompt_with_default "Enter the GCC 13 path" "$useGcc13")
+            echo ""
             useGcc13Name=$(prompt_with_default "Enter the GCC 13 executable name" "$useGcc13Name")
+            echo ""
             useGxx13Name=$(prompt_with_default "Enter the G++ 13 executable name" "$useGxx13Name")
+            echo ""
         fi
 
         if [ "$setUseOnly" -eq 0 ] && [ "$runOnDockerMode" -eq 0 ] && [ "$runOnDockerCliModify" -eq 0 ]; then
@@ -1539,9 +1547,11 @@ if [ "$updateEnvironment" -eq 1 ]; then
             case "$yn" in
                 [Yy]* ) edit_runondocker_interactive ;;
                 * )
+                    echo ""
                     useRunOnDocker=$(prompt_with_default "Enter the string of languages to run on docker" "$useRunOnDocker")
                     ;;
             esac
+            echo ""
         fi
 
         if [ "$setUseOnly" -eq 0 ] && [ "$runOnSshMode" -eq 0 ] && [ "$runOnSshCliModify" -eq 0 ]; then
@@ -1551,9 +1561,11 @@ if [ "$updateEnvironment" -eq 1 ]; then
             case "$yn" in
                 [Yy]* ) edit_runonssh_interactive ;;
                 * )
+                    echo ""
                     useRunOnSsh=$(prompt_with_default "Enter SSH routes as lang=ssh-destination|code-dir|run-script or lang=ssh-address|ssh-user|ssh-port|code-dir|run-script" "$useRunOnSsh")
                     ;;
             esac
+            echo ""
         fi
     fi
 
