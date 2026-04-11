@@ -289,7 +289,7 @@ moduleName="$(echo "$fileNameWithoutExt" | awk '{print toupper(substr($0,1,1)) s
 lang=
 testFile=
 destroyOutput=0
-lastCommandOutputLog="${DEREKALGOS_LAST_COMMAND_OUTPUT_LOG:-./output/last-command-output}"
+lastCommandOutputLog="${DEREKALGOS_LAST_COMMAND_OUTPUT_LOG:-./output/last-command-output.log}"
 timeoutConfig="${DEREKALGOS_TIMEOUT}"
 timeoutFromHost=0
 if [ -n "$timeoutConfig" ]; then
@@ -511,6 +511,59 @@ resolve_abs_path() {
     (
       cd "$1" 2>/dev/null && pwd -P
     )
+  fi
+}
+
+# Archive the final last-command-output log to repository-level logs.
+generate_random_hex_suffix() {
+  if [ -r /dev/urandom ] && command -v od > /dev/null 2>&1; then
+    randomHex=$(od -An -N4 -tx4 /dev/urandom 2>/dev/null | tr -d '[:space:]')
+    if [ -n "$randomHex" ]; then
+      printf '%s\n' "$randomHex"
+      return 0
+    fi
+  fi
+  printf '%s\n' "$$"
+}
+
+archive_last_command_output_log() {
+  if [ -n "$DEREKALGOS_LAST_COMMAND_OUTPUT_ARCHIVED" ]; then
+    return 0
+  fi
+  DEREKALGOS_LAST_COMMAND_OUTPUT_ARCHIVED=1
+
+  if [ -z "$DEREKALGOS_LAST_COMMAND_OUTPUT_ACTIVE" ] || [ -z "$lastCommandOutputLog" ] || [ ! -f "$lastCommandOutputLog" ]; then
+    return 0
+  fi
+
+  logsDir="../../../logs"
+  if ! mkdir -p "$logsDir" 2>/dev/null; then
+    return 0
+  fi
+  chmod -R a+rwX "$logsDir" 2>/dev/null || true
+
+  if archiveTimestamp=$($dateCmd +%Y%m%d-%H%M%S 2>/dev/null); then
+    :
+  elif archiveTimestamp=$(date +%Y%m%d-%H%M%S 2>/dev/null); then
+    :
+  else
+    archiveTimestamp="unknown-time"
+  fi
+  archiveLang="$lang"
+  if [ -z "$archiveLang" ]; then
+    archiveLang="unknown"
+  fi
+  archiveLang=$(printf '%s' "$archiveLang" | tr '[:upper:]' '[:lower:]' | tr -c 'a-z0-9._-' '-')
+  archiveLang=$(printf '%s' "$archiveLang" | sed 's/^-*//; s/-*$//')
+  if [ -z "$archiveLang" ]; then
+    archiveLang="unknown"
+  fi
+  randomSuffix=$(generate_random_hex_suffix)
+  archivedLogPath="$logsDir/last-command-output-${archiveTimestamp}-${archiveLang}-${randomSuffix}.log"
+
+  if cp "$lastCommandOutputLog" "$archivedLogPath" 2>/dev/null; then
+    ln -sfn "$(basename "$archivedLogPath")" "$logsDir/last-build.log" 2>/dev/null || true
+    chmod -R a+rwX "$logsDir" 2>/dev/null || true
   fi
 }
 
@@ -2289,8 +2342,10 @@ zig_run() {
 # Definitions done, we start by checking for a check for the "clean"
 # request.
 
+trap 'archive_last_command_output_log' EXIT
+
 if [ "$fileName" = "clean" ]; then
-  rm -Rf ./output >> /dev/null
+  rm -Rf ./output >> /dev/null 2>&1
   cd ../../../stdlib/ || { echo "Failed to cd to stdlib directory."; exit 1; }
   ./build.sh clean
   retValue=$?
@@ -2299,6 +2354,8 @@ if [ "$fileName" = "clean" ]; then
   else
     retValue=0
   fi
+  cd ..
+  rm -Rf ./logs >> /dev/null 2>&1
   cd "$startDir"
   exit $retValue
 fi
