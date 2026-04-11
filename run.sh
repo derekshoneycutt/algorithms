@@ -681,6 +681,11 @@ archive_last_command_output_log() {
     return 0
   fi
 
+  # Relay children (docker-relay, ssh-relay) must not archive; only the host does.
+  case "${DEREKALGOS_EXECUTION_ROUTE:-native}" in
+    *-relay) return 0 ;;
+  esac
+
   logsDir="$repoRootPath/archive"
   if ! mkdir -p "$logsDir" 2>/dev/null; then
     return 0
@@ -704,7 +709,7 @@ archive_last_command_output_log() {
     archiveLang="unknown"
   fi
   randomSuffix=$(generate_random_hex_suffix)
-  archivedInputPath="$logsDir/last-command-archive-${archiveTimestamp}-${archiveLang}-${randomSuffix}.tar.gz"
+  archivedInputPath="$logsDir/build-${archiveTimestamp}-${archiveLang}-${randomSuffix}.tar.gz"
 
   didArchiveWrite=0
 
@@ -2725,18 +2730,53 @@ zig_archive() {
 
 trap 'archive_last_command_output_log' EXIT
 
+
 if [ "$fileName" = "clean" ]; then
   rm -Rf ./output >> /dev/null 2>&1
-  cd ../../../stdlib/ || { echo "Failed to cd to stdlib directory."; exit 1; }
-  ./build.sh clean
-  retValue=$?
-  if [ "$retValue" -ne 0 ]; then
-    echo "${red}Failed to clean stdlib. Returned $retValue.${normal}"
+
+  do_clean_stdlib=1
+  do_clean_archive=1
+  if [ -t 0 ] || [ -t 1 ]; then
+    # Interactive terminal: prompt before cleaning stdlib and archive
+    printf "${yellow}About to clean stdlib (this will remove all stdlib build artifacts). Continue? [Y/n] ${normal}"
+    read ans
+    case "$ans" in
+      ""|[Yy]*) do_clean_stdlib=1 ;;
+      *) do_clean_stdlib=0 ;;
+    esac
+    printf "${yellow}About to remove ./archive (all build archives will be deleted). Continue? [Y/n] ${normal}"
+    read ans
+    case "$ans" in
+      ""|[Yy]*) do_clean_archive=1 ;;
+      *) do_clean_archive=0 ;;
+    esac
   else
+    # Not interactive: proceed without prompt
+    do_clean_stdlib=1
+    do_clean_archive=1
+  fi
+
+  if [ $do_clean_stdlib -eq 1 ]; then
+    cd ../../../stdlib/ || { echo "Failed to cd to stdlib directory."; exit 1; }
+    ./build.sh clean
+    retValue=$?
+    if [ "$retValue" -ne 0 ]; then
+      echo "${red}Failed to clean stdlib. Returned $retValue.${normal}"
+    else
+      retValue=0
+    fi
+    cd ..
+  else
+    echo "Skipped cleaning stdlib."
     retValue=0
   fi
-  cd ..
-  rm -Rf ./archive >> /dev/null 2>&1
+
+  if [ $do_clean_archive -eq 1 ]; then
+    rm -Rf ./archive >> /dev/null 2>&1
+  else
+    echo "Skipped removing ./archive."
+  fi
+
   cd "$startDir"
   exit $retValue
 fi
