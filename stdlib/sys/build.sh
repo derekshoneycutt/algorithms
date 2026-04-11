@@ -3,47 +3,44 @@
 # The goal here is basically just a proxy to the build-local script,
 # handling any metadata and folder specific info for sys
 
-MMIX_OUTPUT_FILE="sys.mms"
-LINUX_X64_OUTPUT_FILE="sys-Linux-x64.o"
-LINUX_X64_NASM_OUTPUT_FILE="sys-Linux-x64-nasm.o"
-FREEBSD_X64_OUTPUT_FILE="sys-FreeBSD-x64.o"
-FREEBSD_X64_NASM_OUTPUT_FILE="sys-FreeBSD-x64-nasm.o"
-DARWIN_ARM64_OUTPUT_FILE="sys-Darwin-arm64.o"
-WINDOWS_X64_OUTPUT_FILE="sys-Windows-x64.o"
-WINDOWS_X64_NASM_OUTPUT_FILE="sys-Windows-x64-nasm.o"
+mmixOutputFile="sys.mms"
+linuxX64OutputFile="sys-Linux-x64.o"
+linuxX64NasmOutputFile="sys-Linux-x64-nasm.o"
+freebsdX64OutputFile="sys-FreeBSD-x64.o"
+freebsdX64NasmOutputFile="sys-FreeBSD-x64-nasm.o"
+darwinArm64OutputFile="sys-Darwin-arm64.o"
+windowsX64OutputFile="sys-Windows-x64.o"
+windowsX64NasmOutputFile="sys-Windows-x64-nasm.o"
 
-BUILD_TARGET=$(echo "$1" | tr '[:lower:]' '[:upper:]')
+buildTarget=$(echo "$1" | tr '[:lower:]' '[:upper:]')
 
-case "$BUILD_TARGET" in
+case "$buildTarget" in
     "MMIX")
-        ../build-local.sh mmix $MMIX_OUTPUT_FILE
+        ../build-local.sh mmix "$mmixOutputFile"
     ;;
     "LINUX-X64")
-        ../build-local.sh Linux-x64 $LINUX_X64_OUTPUT_FILE
+        ../build-local.sh Linux-x64 "$linuxX64OutputFile"
     ;;
     "LINUX-X64-NASM")
-        ../build-local.sh Linux-x64-nasm $LINUX_X64_NASM_OUTPUT_FILE
+        ../build-local.sh Linux-x64-nasm "$linuxX64NasmOutputFile"
     ;;
     "FREEBSD-X64")
-        ../build-local.sh FreeBSD-x64 $FREEBSD_X64_OUTPUT_FILE
+        ../build-local.sh FreeBSD-x64 "$freebsdX64OutputFile"
     ;;
     "FREEBSD-X64-NASM")
-        ../build-local.sh FreeBSD-x64-nasm $FREEBSD_X64_NASM_OUTPUT_FILE
+        ../build-local.sh FreeBSD-x64-nasm "$freebsdX64NasmOutputFile"
     ;;
     "DARWIN-ARM64")
-        ../build-local.sh Darwin-arm64 $DARWIN_ARM64_OUTPUT_FILE
+        ../build-local.sh Darwin-arm64 "$darwinArm64OutputFile"
     ;;
     "WINDOWS-X64")
-        ../build-local.sh Windows-x64 $WINDOWS_X64_OUTPUT_FILE
+        ../build-local.sh Windows-x64 "$windowsX64OutputFile"
     ;;
     "WINDOWS-X64-NASM")
-        ../build-local.sh Windows-x64-nasm $WINDOWS_X64_NASM_OUTPUT_FILE
+        ../build-local.sh Windows-x64-nasm "$windowsX64NasmOutputFile"
     ;;
     "CLEAN")
         ../build-local.sh clean
     ;;
-    *) echo "Unknown target specified '$BUILD_TARGET'" ;;
+    *) echo "Unknown target specified '$buildTarget'"; exit 2 ;;
 esac
-if [ $? -ne 0 ]; then
-    exit 1
-fi

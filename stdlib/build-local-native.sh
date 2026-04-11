@@ -6,12 +6,21 @@
 # This script is intended to be called by build-local.sh for native type
 # assembly. This is basically everything except MMIXAL.
 
-TARGET=$1
-OUTPUT_FILE=$2
-DEBUG_FILE=$3
-BUILD_TARGET=$(printf '%s' "$TARGET" | tr '[:lower:]' '[:upper:]')
+# WARNING: Intentionally keep stdlib output writable by all users,
+# especially because Docker-based runs can create root-owned artifacts.
+ensure_output_permissions() {
+    if [ -d ./output ]; then
+        chmod -R a+rwX ./output/ > /dev/null 2>&1
+    fi
+}
+trap 'ensure_output_permissions' EXIT
 
-case "$BUILD_TARGET" in
+target=$1
+outputFile=$2
+debugFile=$3
+buildTarget=$(printf '%s' "$target" | tr '[:lower:]' '[:upper:]')
+
+case "$buildTarget" in
     "WINDOWS-X64")
         SEARCH_TARGET="Windows-x64"
         FILE_EXTENSION="asm"
@@ -27,10 +36,10 @@ case "$BUILD_TARGET" in
         BUILD_FUNCTION="build_native_nasm"
         ;;
     *"-NASM")
-        case "$BUILD_TARGET" in
+        case "$buildTarget" in
             "LINUX-X64-NASM") SEARCH_TARGET="Linux-x64" ;;
             "FREEBSD-X64-NASM") SEARCH_TARGET="FreeBSD-x64" ;;
-            *) SEARCH_TARGET=$(printf '%s' "$TARGET" | sed 's/-[Nn][Aa][Ss][Mm]$//') ;;
+            *) SEARCH_TARGET=$(printf '%s' "$target" | sed 's/-[Nn][Aa][Ss][Mm]$//') ;;
         esac
         FILE_EXTENSION="nasm"
         OUT_FORMAT="elf64"
@@ -45,7 +54,9 @@ case "$BUILD_TARGET" in
         BUILD_FUNCTION="build_native_darwinarm64"
         ;;
     *)
-        SEARCH_TARGET="$TARGET"
+        # WARNING: This default path assumes build-local.sh mediated calls.
+        # Direct invocation with non-canonical target casing may not match sources.
+        SEARCH_TARGET="$target"
         FILE_EXTENSION="asm"
         OUT_FORMAT="elf64"
         IS_WINDOWS=0
@@ -54,108 +65,108 @@ case "$BUILD_TARGET" in
 esac
 
 build_native_asm() {
-    echo "as --defsym WINDOWS=$IS_WINDOWS -o \"./output/$ASM_OBJ_OUTPUT\" \"$ASM_FILE\"" >> ./output/${DEBUG_FILE}-build-last
-    as --defsym WINDOWS=$IS_WINDOWS -o "./output/$ASM_OBJ_OUTPUT" "$ASM_FILE" >> ./output/${DEBUG_FILE}-build-last 2>&1
+    echo "as --defsym WINDOWS=$IS_WINDOWS -o \"./output/$ASM_OBJ_OUTPUT\" \"$ASM_FILE\"" >> ./output/${debugFile}-build-last
+    as --defsym WINDOWS=$IS_WINDOWS -o "./output/$ASM_OBJ_OUTPUT" "$ASM_FILE" >> ./output/${debugFile}-build-last 2>&1
     LAST_RETURN_VALUE="$?"
-    echo "-- as returned: $LAST_RETURN_VALUE" >> "./output/${DEBUG_FILE}-build-last"
+    echo "-- as returned: $LAST_RETURN_VALUE" >> "./output/${debugFile}-build-last"
 }
 
 build_native_nasm() {
-    echo "nasm -f $OUT_FORMAT -o \"./output/$ASM_OBJ_OUTPUT\" \"$ASM_FILE\"" >> ./output/${DEBUG_FILE}-build-last
-    nasm -f $OUT_FORMAT -o "./output/$ASM_OBJ_OUTPUT" "$ASM_FILE" >> ./output/${DEBUG_FILE}-build-last 2>&1
+    echo "nasm -f $OUT_FORMAT -o \"./output/$ASM_OBJ_OUTPUT\" \"$ASM_FILE\"" >> ./output/${debugFile}-build-last
+    nasm -f $OUT_FORMAT -o "./output/$ASM_OBJ_OUTPUT" "$ASM_FILE" >> ./output/${debugFile}-build-last 2>&1
     LAST_RETURN_VALUE="$?"
-    echo "-- nasm returned: $LAST_RETURN_VALUE" >> "./output/${DEBUG_FILE}-build-last"
+    echo "-- nasm returned: $LAST_RETURN_VALUE" >> "./output/${debugFile}-build-last"
 }
 
 build_native_darwinarm64() {
-    echo "as -arch arm64 -o \"./output/$ASM_OBJ_OUTPUT\" \"$ASM_FILE\"" >> ./output/${DEBUG_FILE}-build-last
-    as -arch arm64 -o "./output/$ASM_OBJ_OUTPUT" "$ASM_FILE" >> ./output/${DEBUG_FILE}-build-last 2>&1
+    echo "as -arch arm64 -o \"./output/$ASM_OBJ_OUTPUT\" \"$ASM_FILE\"" >> ./output/${debugFile}-build-last
+    as -arch arm64 -o "./output/$ASM_OBJ_OUTPUT" "$ASM_FILE" >> ./output/${debugFile}-build-last 2>&1
     LAST_RETURN_VALUE="$?"
-    echo "-- as returned: $LAST_RETURN_VALUE" >> "./output/${DEBUG_FILE}-build-last"
+    echo "-- as returned: $LAST_RETURN_VALUE" >> "./output/${debugFile}-build-last"
 }
 
 # For native assembly, we need to first loop through all of the files,
 # building them with nasm. Then we have to link them all with ld
 mkdir -p ./output
-echo "STARTING $BUILD_TARGET BUILD..." > ./output/${DEBUG_FILE}-build-last
-echo "CONFIG: TARGET=$TARGET BUILD_TARGET=$BUILD_TARGET" >> ./output/${DEBUG_FILE}-build-last
-echo "CONFIG: SEARCH_TARGET=$SEARCH_TARGET FILE_EXTENSION=$FILE_EXTENSION OUT_FORMAT=$OUT_FORMAT BUILD_FUNCTION=$BUILD_FUNCTION" >> ./output/${DEBUG_FILE}-build-last
-DO_BUILD=0
-ALL_OUTPUTS=
-MATCH_COUNT=0
+echo "STARTING $buildTarget BUILD..." > ./output/${debugFile}-build-last
+echo "CONFIG: target=$target buildTarget=$buildTarget" >> ./output/${debugFile}-build-last
+echo "CONFIG: SEARCH_TARGET=$SEARCH_TARGET FILE_EXTENSION=$FILE_EXTENSION OUT_FORMAT=$OUT_FORMAT BUILD_FUNCTION=$BUILD_FUNCTION" >> ./output/${debugFile}-build-last
+doBuild=0
+allOutputs=
+matchCount=0
 for ASM_FILE in ./*-"$SEARCH_TARGET"."$FILE_EXTENSION" ./*-All."$FILE_EXTENSION"; do
     [ -f "$ASM_FILE" ] || continue
-    MATCH_COUNT=$((MATCH_COUNT + 1))
-    echo "SCAN: matched source $ASM_FILE" >> ./output/${DEBUG_FILE}-build-last
+    matchCount=$((matchCount + 1))
+    echo "SCAN: matched source $ASM_FILE" >> ./output/${debugFile}-build-last
     case "$ASM_FILE" in
         *"-All.${FILE_EXTENSION}")
-            ASM_WITHOUT_EXT="${ASM_FILE%-All.${FILE_EXTENSION}}-${TARGET}"
+            ASM_WITHOUT_EXT="${ASM_FILE%-All.${FILE_EXTENSION}}-${target}"
         ;;
         *) ASM_WITHOUT_EXT="${ASM_FILE%.*}" ;;
     esac
     ASM_OBJ_OUTPUT="${ASM_WITHOUT_EXT}.o"
-    ALL_OUTPUTS="$ALL_OUTPUTS $ASM_OBJ_OUTPUT"
+    allOutputs="$allOutputs $ASM_OBJ_OUTPUT"
     DO_CURRENT_BUILD=0
     if [ ! -f "./output/$ASM_OBJ_OUTPUT" ]; then
-        DO_BUILD=1
+        doBuild=1
         DO_CURRENT_BUILD=1
-        echo "DECISION: build required; missing ./output/$ASM_OBJ_OUTPUT" >> ./output/${DEBUG_FILE}-build-last
+        echo "DECISION: build required; missing ./output/$ASM_OBJ_OUTPUT" >> ./output/${debugFile}-build-last
     elif [ -n "$(find "./$ASM_FILE" -prune -newer "./output/$ASM_OBJ_OUTPUT" 2>/dev/null)" ]; then
-        DO_BUILD=1
+        doBuild=1
         DO_CURRENT_BUILD=1
-        echo "DECISION: build required; source newer than ./output/$ASM_OBJ_OUTPUT" >> ./output/${DEBUG_FILE}-build-last
+        echo "DECISION: build required; source newer than ./output/$ASM_OBJ_OUTPUT" >> ./output/${debugFile}-build-last
     fi
     if [ "$DO_CURRENT_BUILD" -eq 1 ]; then
-        echo "BUILDING: $ASM_FILE -> ./output/$ASM_OBJ_OUTPUT" >> ./output/${DEBUG_FILE}-build-last
+        echo "BUILDING: $ASM_FILE -> ./output/$ASM_OBJ_OUTPUT" >> ./output/${debugFile}-build-last
         "$BUILD_FUNCTION"
         
         # We exit completely on any failures
         if [ "$LAST_RETURN_VALUE" -ne 0 ]; then
             echo "FAILED BUILD."
-            cat ./output/${DEBUG_FILE}-build-last
+            cat ./output/${debugFile}-build-last
             exit 1
         fi
     else
-        echo "SKIP: up-to-date ./output/$ASM_OBJ_OUTPUT" >> ./output/${DEBUG_FILE}-build-last
+        echo "SKIP: up-to-date ./output/$ASM_OBJ_OUTPUT" >> ./output/${debugFile}-build-last
     fi
 done
 
-if [ "$MATCH_COUNT" -eq 0 ]; then
-    echo "SCAN: no assembly sources matched pattern" >> ./output/${DEBUG_FILE}-build-last
+if [ "$matchCount" -eq 0 ]; then
+    echo "SCAN: no assembly sources matched pattern" >> ./output/${debugFile}-build-last
 fi
 
-if [ ! -f "./output/$OUTPUT_FILE" ]; then
-    DO_BUILD=1
-    echo "DECISION: link required; missing ./output/$OUTPUT_FILE" >> ./output/${DEBUG_FILE}-build-last
+if [ ! -f "./output/$outputFile" ]; then
+    doBuild=1
+    echo "DECISION: link required; missing ./output/$outputFile" >> ./output/${debugFile}-build-last
 fi
 
-echo "Initial building completed; DO_BUILD=$DO_BUILD; moving to linking..." >> ./output/${DEBUG_FILE}-build-last
+echo "Initial building completed; doBuild=$doBuild; moving to linking..." >> ./output/${debugFile}-build-last
 
 # Build completed, we move to linking
-if [ "$DO_BUILD" -eq 1 ]; then
-    if [ -z "$ALL_OUTPUTS" ]; then
-        echo "FAILED BUILD. No object files to link; ALL_OUTPUTS is empty." >> ./output/${DEBUG_FILE}-build-last
+if [ "$doBuild" -eq 1 ]; then
+    if [ -z "$allOutputs" ]; then
+        echo "FAILED BUILD. No object files to link; allOutputs is empty." >> ./output/${debugFile}-build-last
         echo "FAILED BUILD. No object files to link."
-        cat ./output/${DEBUG_FILE}-build-last
+        cat ./output/${debugFile}-build-last
         exit 1
     fi
     cd ./output
-    echo "cd ./output" >> "./${DEBUG_FILE}-build-last"
-    echo "ld -r -o \"./$OUTPUT_FILE\" $ALL_OUTPUTS" >> "./${DEBUG_FILE}-build-last"
-    ld -r -o "./$OUTPUT_FILE" $ALL_OUTPUTS >> ./${DEBUG_FILE}-build-last 2>&1
+    echo "cd ./output" >> "./${debugFile}-build-last"
+    echo "ld -r -o \"./$outputFile\" $allOutputs" >> "./${debugFile}-build-last"
+    ld -r -o "./$outputFile" $allOutputs >> ./${debugFile}-build-last 2>&1
     LAST_RETURN_VALUE="$?"
-    echo "-- ld returned: $LAST_RETURN_VALUE" >> "./${DEBUG_FILE}-build-last"
-    echo "cd .." >> "./${DEBUG_FILE}-build-last"
+    echo "-- ld returned: $LAST_RETURN_VALUE" >> "./${debugFile}-build-last"
+    echo "cd .." >> "./${debugFile}-build-last"
     cd ..
 
     # We exit completely on any failures
     if [ "$LAST_RETURN_VALUE" -ne 0 ]; then
         echo "FAILED BUILD."
-        cat ./output/${DEBUG_FILE}-build-last
+        cat ./output/${debugFile}-build-last
         exit 1
     fi
 else
-    echo "SKIP: link step; output already up-to-date" >> ./output/${DEBUG_FILE}-build-last
+    echo "SKIP: link step; output already up-to-date" >> ./output/${debugFile}-build-last
 fi
 
-echo "---- BUILD END" >> ./output/${DEBUG_FILE}-build-last
+echo "---- BUILD END" >> ./output/${debugFile}-build-last

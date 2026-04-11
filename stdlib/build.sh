@@ -3,10 +3,19 @@
 # This builds the standard library. A first parameter is required, which
 # must be the build target.
 
+# WARNING: Intentionally keep stdlib output writable by all users,
+# especially because Docker-based runs can create root-owned artifacts.
+ensure_output_permissions() {
+    if [ -d ./output ]; then
+        chmod -R a+rwX ./output/ > /dev/null 2>&1
+    fi
+}
+trap 'ensure_output_permissions' EXIT
+
 mkdir -p ./output
 
-BUILD_TARGET=$(printf '%s' "$1" | tr '[:lower:]' '[:upper:]')
-case "$BUILD_TARGET" in
+buildTarget=$(printf '%s' "$1" | tr '[:lower:]' '[:upper:]')
+case "$buildTarget" in
     "MMIX")
         # MMIX is just looping through each subdirectory, running build
         # in that directory, and then appending its compiled output to the
@@ -140,5 +149,5 @@ case "$BUILD_TARGET" in
         exit "$clean_ret"
     ;;
 
-    *) echo "Unknown target specified '$BUILD_TARGET'"; exit 2 ;;
+    *) echo "Unknown target specified '$buildTarget'"; exit 2 ;;
 esac

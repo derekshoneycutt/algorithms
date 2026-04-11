@@ -6,107 +6,353 @@
 # to compile the file specified, passing in any other
 # arguments to the code as command line arguments
 
-# Print CLI usage and option notes.
-print_usage() {
-  echo "Usage: $0 [--source-profile=<profile-path>] <filename|clean> [args...]"
-  echo "       $0 --help"
+# Print compact examples first so most users can scan quickly.
+print_usage_examples() {
+  echo "Examples:"
+  echo "  $0 main.py"
+  echo "  $0 --check-only main.py"
+  echo "  $0 --check-only=docker main.py"
+  echo "  $0 --compile-only main.py arg1 arg2"
+  echo "  $0 --source-profile=~/.bash_profile main.py"
+  echo "  $0 clean"
   echo ""
-  echo "--help as the first parameter will display this usage information."
-  echo ""
-  echo "This is intended to be run from the command line in the directory of the filename specified as the working directory."
-  echo ""
-  echo "filename must be a supported source file. This will be compiled where possible and run immediately."
-  echo "Build and run artifacts and logs will be placed in the output directory."
-  echo ""
-  echo "This only supports optional parameters in the first argument position, if any given."
-  echo "If the first parameter is not recognized, it will be treated as a filename."
-  echo "All following parameters will be passed as command line arguments to the final executable."
-  echo ""
-  echo "If --source-profile=<profile-path> is specified, the script will source the given profile."
-  echo "If --source-profile= (empty) is specified, profile sourcing will be disabled."
-  echo "  Otherwise, the default profile for the platform will be sourced."
-  echo "  If the sourced file does not exist or contains an error, the script will continue without notice."
-  echo "  All output from sourcing the profile will be logged to $HOME/.cache/derekalgos/profile.log."
-  echo "  If that cache directory is unavailable, logging falls back to ${TMPDIR:-/tmp}/derekalgos-profile.log."
-  echo ""
-  echo "Please configure your local profile file to set environment variables to control this script otherwise."
-  echo ""
-  echo "Entering 'clean' instead of a filename will erase the local output directory, clean the stdlib, and exit."
 }
 
-source_profile_override_set=0
-source_profile_override_path=
-if [ $# -ge 1 ]; then
+# Print profile-sourcing options and logging behavior.
+print_usage_profile_section() {
+  echo "Profile sourcing:"
+  echo "  --source-profile=<profile-path>   Source this profile before running"
+  echo "  --source-profile=                 Disable profile sourcing"
+  echo "  Otherwise, the default profile for the platform is sourced."
+  echo "  If the sourced file does not exist or contains an error, the script continues."
+  echo "  Profile source output is logged to $HOME/.cache/derekalgos/profile.log."
+  echo "  If unavailable, logging falls back to ${TMPDIR:-/tmp}/derekalgos-profile.log."
+  echo ""
+}
+
+# Print check-only and compile-only controls.
+print_usage_execution_section() {
+  echo "Execution controls:"
+  echo "  --check-only[=native|docker|ssh] Skip compile/run after setup; optionally simulate one route"
+  echo "  --compile-only                    Compile only; skip runtime execution"
+  echo ""
+  echo "Behavior notes:"
+  echo "  --check-only skips both compile and run."
+  echo "  --check-only=docker or --check-only=ssh simulates that relay path only."
+  echo "  --check-only= or --check-only=native uses native simulation."
+  echo ""
+}
+
+# Print general invocation and argument forwarding behavior.
+print_usage_general_section() {
+  echo "General behavior:"
+  echo "  This is intended to be run from the command line in the directory of the source file."
+  echo "  If first parameter is not a recognized option, it is treated as filename."
+  echo "  Following parameters are passed to the final executable as argv."
+  echo "  Supported filename input compiles and runs where possible."
+  echo "  Build and run artifacts/logs are written to ./output."
+  echo "  clean erases local output, cleans stdlib, and exits."
+  echo ""
+}
+
+# Print compact, first-screen help for common usage.
+print_usage_short() {
+  echo "Usage: $0 [--source-profile=<profile-path>] [--check-only[=native|docker|ssh]] [--compile-only] <filename|clean> [args...]"
+  echo "       $0 --help"
+  echo ""
+  print_usage_examples
+  echo "Common options:"
+  echo "  --help                 Show this compact help and exit"
+  echo "  --help-all             Show full help and exit"
+  echo "  --help=<topic>         Show one topic (examples, profile, execution, general)"
+  echo "  --source-profile=<p>   Source profile before running"
+  echo "  --check-only[=route]   Dry-run/setup simulation"
+  echo "  --compile-only         Compile but do not run"
+  echo ""
+  echo "For full details: $0 --help-all"
+}
+
+# Print complete help with all sections.
+print_usage_full() {
+  echo "Usage: $0 [--source-profile=<profile-path>] [--check-only[=native|docker|ssh]] [--compile-only] <filename|clean> [args...]"
+  echo "       $0 --help"
+  echo ""
+  echo "Help options:"
+  echo "  --help                 Show compact help and exit"
+  echo "  --help-all             Show full help and exit"
+  echo "  --help=<topic>         Show one topic (examples, profile, execution, general)"
+  echo ""
+  print_usage_examples
+  print_usage_profile_section
+  print_usage_execution_section
+  print_usage_general_section
+  echo "Please configure your local profile file to set environment variables to control this script otherwise."
+}
+
+# Print one focused help section selected by topic.
+print_usage_topic() {
   case "$1" in
-    --source-profile=*)
-      source_profile_override_set=1
-      source_profile_override_path=${1#--source-profile=}
-      shift 1
-      ;;
-    --help)
-      print_usage
-      exit 0
+    examples) print_usage_examples ;;
+    profile) print_usage_profile_section ;;
+    execution) print_usage_execution_section ;;
+    general) print_usage_general_section ;;
+    *)
+      echo "Unknown help topic: $1" >&2
+      topicSuggestion=$(suggest_help_topic_for_unknown "$1")
+      if [ -n "$topicSuggestion" ]; then
+        echo "Did you mean: $topicSuggestion" >&2
+      fi
+      echo "Supported topics: examples, profile, execution, general" >&2
+      return 1
       ;;
   esac
-fi
+}
+
+# Backward-compatible default help entry point.
+print_usage() {
+  print_usage_short
+}
+
+# Print supported option keys for did-you-mean matching.
+print_option_catalog() {
+  cat <<'EOF'
+--source-profile=
+--check-only
+--check-only=
+--compile-only
+--help
+-h
+--help-all
+--help=
+EOF
+}
+
+# Print supported help topics for did-you-mean matching.
+print_help_topic_catalog() {
+  cat <<'EOF'
+examples
+profile
+execution
+general
+EOF
+}
+
+# Normalize one option token for matching by dropping values after '='.
+normalize_option_token() {
+  case "$1" in
+    --*=*) printf '%s\n' "${1%%=*}=" ;;
+    *) printf '%s\n' "$1" ;;
+  esac
+}
+
+# Suggest one closest token from a newline-separated catalog.
+suggest_from_catalog() {
+  suggestTarget="$1"
+  suggestCatalog="$2"
+  printf '%s\n' "$suggestCatalog" | awk -v target="$suggestTarget" '
+    function min3(a, b, c, m) { m = a; if (b < m) m = b; if (c < m) m = c; return m }
+    function dist(s, t, i, j, ls, lt, cost, prev, tmp, cur) {
+      ls = length(s); lt = length(t)
+      for (j = 0; j <= lt; j++) d[j] = j
+      for (i = 1; i <= ls; i++) {
+        prev = d[0]
+        d[0] = i
+        for (j = 1; j <= lt; j++) {
+          tmp = d[j]
+          cost = (substr(s, i, 1) == substr(t, j, 1)) ? 0 : 1
+          cur = min3(d[j] + 1, d[j - 1] + 1, prev + cost)
+          d[j] = cur
+          prev = tmp
+        }
+      }
+      return d[lt]
+    }
+    {
+      if ($0 == "") next
+      if (index($0, target) == 1 || index(target, $0) == 1) {
+        print $0
+        exit
+      }
+      score = dist(target, $0)
+      if (best == "" || score < bestScore) {
+        best = $0
+        bestScore = score
+      }
+    }
+    END {
+      if (best != "" && bestScore <= 4) print best
+    }'
+}
+
+# Suggest the closest option for an unknown option token.
+suggest_option_for_unknown() {
+  unknownOption="$1"
+  normalizedOption=$(normalize_option_token "$unknownOption")
+  optionCatalog=$(print_option_catalog)
+  suggest_from_catalog "$normalizedOption" "$optionCatalog" | head -n 1
+}
+
+# Suggest the closest help topic for unknown topic values.
+suggest_help_topic_for_unknown() {
+  unknownTopic="$1"
+  topicCatalog=$(print_help_topic_catalog)
+  suggest_from_catalog "$unknownTopic" "$topicCatalog" | head -n 1
+}
+
+sourceProfileOverrideSet=0
+sourceProfileOverridePath=
+checkOnlyMode=0
+checkOnlyRoute="native"
+compileOnlyMode=0
+
+while [ $# -ge 1 ]; do
+  case "$1" in
+    --source-profile=*)
+      sourceProfileOverrideSet=1
+      sourceProfileOverridePath=${1#--source-profile=}
+      shift 1
+      ;;
+    --check-only)
+      checkOnlyMode=1
+      checkOnlyRoute="native"
+      shift 1
+      ;;
+    --check-only=*)
+      checkOnlyMode=1
+      checkOnlyRoute=${1#--check-only=}
+      if [ -z "$checkOnlyRoute" ]; then
+        checkOnlyRoute="native"
+      fi
+      shift 1
+      ;;
+    --compile-only)
+      compileOnlyMode=1
+      shift 1
+      ;;
+    --help|-h)
+      print_usage_short
+      exit 0
+      ;;
+    --help-all)
+      print_usage_full
+      exit 0
+      ;;
+    --help=*)
+      helpTopic=${1#--help=}
+      if ! print_usage_topic "$helpTopic"; then
+        exit 64
+      fi
+      exit 0
+      ;;
+    *)
+      if [ "${1#--}" != "$1" ]; then
+        echo "Unknown option: $1" >&2
+        optionSuggestion=$(suggest_option_for_unknown "$1")
+        if [ -n "$optionSuggestion" ]; then
+          echo "Did you mean: $optionSuggestion" >&2
+        fi
+        exit 64
+      fi
+      break
+      ;;
+  esac
+done
 
 if [ $# -lt 1 ]; then
   print_usage
   exit 64
 fi
 
+case "$checkOnlyRoute" in
+  "native"|"docker"|"ssh") ;;
+  *)
+    echo "Unsupported check-only route '$checkOnlyRoute' (expected: native, docker, or ssh)." >&2
+    exit 64
+    ;;
+esac
+if [ "$checkOnlyMode" -eq 1 ]; then
+  compileOnlyMode=0
+fi
+
 fileName=$1
 fileNameWithoutExt="${fileName%.*}"
 fileExtension="${fileName##*.}"
+className=$(echo "$fileNameWithoutExt" | tr '[:lower:]' '[:upper:]')
 shift 1
 currentCpuArch=$(uname -m)
 currentPlatform=$(uname -s)
-start_dir=$PWD
+startDir=$PWD
 dir="${PWD%/*}"
 packName="${dir##*/}"
 algoName="${PWD##*/}"
 moduleName="$(echo "$fileNameWithoutExt" | awk '{print toupper(substr($0,1,1)) substr($0,2)}')"
 lang=
 testFile=
-destroy_output=0
-last_command_output_log="${DEREKALGOS_LAST_COMMAND_OUTPUT_LOG:-./output/last-command-output}"
-useTimeout="${useTimeout}"
-if [ -z "$useTimeout" ]; then
-  useTimeout="-k 10s 1m"
+destroyOutput=0
+lastCommandOutputLog="${DEREKALGOS_LAST_COMMAND_OUTPUT_LOG:-./output/last-command-output}"
+timeoutConfig="${DEREKALGOS_TIMEOUT}"
+timeoutFromHost=0
+if [ -n "$timeoutConfig" ]; then
+  timeoutFromHost=1
 fi
-time_precision_unit="ms"
+timePrecisionUnit="ms"
+hostCpuArch="$currentCpuArch"
+hostPlatform="$currentPlatform"
+hostTranslation="n/a"
+if [ "$currentPlatform" = "Darwin" ] && command -v sysctl > /dev/null 2>&1; then
+  rosetta_state=$(sysctl -in sysctl.proc_translated 2>/dev/null)
+  case "$rosetta_state" in
+    1) hostTranslation="rosetta-translated" ;;
+    0) hostTranslation="native" ;;
+    *) hostTranslation="unknown" ;;
+  esac
+fi
 
-# Compile a run header for the run output
-if [ -z "$DEREKALGOS_LAST_COMMAND_OUTPUT_ACTIVE" ]; then
+# Initialize and write the run header to the command output log.
+init_last_command_output_log() {
   mkdir -p ./output
-  : > "$last_command_output_log"
+  : > "$lastCommandOutputLog"
   if command -v date > /dev/null 2>&1; then
     run_header_time=$(date '+%Y-%m-%d %H:%M:%S %Z')
   else
     run_header_time="unknown-time"
   fi
-  run_header_route="native"
-  if [ -n "$DEREKALGOS_RUNONDOCKER" ]; then
-    run_header_route="docker-candidate"
-  fi
-  if [ -n "$DEREKALGOS_RUNONSSH" ]; then
-    run_header_route="ssh-candidate"
+  run_header_route="${DEREKALGOS_EXECUTION_ROUTE:-native}"
+  run_header_cwd="$PWD"
+  if [ -n "$DEREKALGOS_HOST_CWD" ]; then
+    run_header_cwd="$DEREKALGOS_HOST_CWD"
   fi
   {
     echo "==== RUN START ===="
     echo "time: $run_header_time"
-    echo "cwd: $PWD"
+    echo "cwd: $run_header_cwd"
+    if [ -n "$DEREKALGOS_HOST_CWD" ]; then
+      echo "container-cwd: $PWD"
+    fi
+    if [ -n "$DEREKALGOS_HOST_CPUARCH" ]; then
+      echo "host-cpu: $DEREKALGOS_HOST_CPUARCH"
+    fi
+    if [ -n "$DEREKALGOS_HOST_PLATFORM" ]; then
+      echo "host-platform: $DEREKALGOS_HOST_PLATFORM"
+    fi
+    if [ -n "$DEREKALGOS_HOST_TRANSLATION" ]; then
+      echo "host-translation: $DEREKALGOS_HOST_TRANSLATION"
+    fi
     echo "file: $fileName"
     echo "ext: $fileExtension"
     echo "cpu: $currentCpuArch"
     echo "platform: $currentPlatform"
     echo "route: $run_header_route"
-    echo "timeout: $useTimeout"
+    echo "timeout: $timeoutConfig"
+    echo "check-only: $checkOnlyMode"
+    echo "check-only-route: $checkOnlyRoute"
+    echo "compile-only: $compileOnlyMode"
     echo "==================="
-  } >> "$last_command_output_log"
+  } >> "$lastCommandOutputLog"
   export DEREKALGOS_LAST_COMMAND_OUTPUT_ACTIVE=1
-fi
-export DEREKALGOS_LAST_COMMAND_OUTPUT_LOG="$last_command_output_log"
+}
+
+export DEREKALGOS_LAST_COMMAND_OUTPUT_LOG="$lastCommandOutputLog"
 
 # Decide what date command we're going to use.
 dateCmd="date"
@@ -126,10 +372,10 @@ esac
 profileOutCacheDir="$HOME/.cache/derekalgos"
 profileOutCache="$profileOutCacheDir/profile.log"
 mkdir -p "$profileOutCacheDir" || profileOutCache="${TMPDIR:-/tmp}/derekalgos-profile.log"
-if [ "$source_profile_override_set" -eq 1 ]; then
-  if [ -n "$source_profile_override_path" ]; then
+if [ "$sourceProfileOverrideSet" -eq 1 ]; then
+  if [ -n "$sourceProfileOverridePath" ]; then
     # If profile sourcing fails (missing file, parse error, etc), continue anyway by design.
-    . "$source_profile_override_path" >> "$profileOutCache" 2>&1
+    . "$sourceProfileOverridePath" >> "$profileOutCache" 2>&1
   fi
 else
   case "$currentPlatform" in
@@ -141,15 +387,24 @@ else
   esac
 fi
 
+if [ -n "$DEREKALGOS_TIMEOUT" ]; then
+  timeoutConfig="$DEREKALGOS_TIMEOUT"
+  timeoutFromHost=1
+fi
+if [ -z "$timeoutConfig" ]; then
+  timeoutConfig="-k 10s 1m"
+fi
+export DEREKALGOS_TIMEOUT="$timeoutConfig"
+
 # Detect whether the local date command supports millisecond precision.
 detect_time_precision() {
   ms_sample=$($dateCmd +%s%3N 2>/dev/null)
   case "$ms_sample" in
     ''|*[!0-9]*)
-      time_precision_unit="s"
+      timePrecisionUnit="s"
       ;;
     *)
-      time_precision_unit="ms"
+      timePrecisionUnit="ms"
       ;;
   esac
 }
@@ -157,7 +412,7 @@ detect_time_precision
 
 # Return current time in detected precision units.
 get_ms_time() {
-  if [ "$time_precision_unit" = "ms" ]; then
+  if [ "$timePrecisionUnit" = "ms" ]; then
     $dateCmd +%s%3N
   else
     $dateCmd +%s
@@ -172,22 +427,50 @@ $1
 EOF"
 }
 
-# Validate a variable name for safe indirect expansion.
-is_valid_env_name() {
-  case "$1" in
-    ''|*[!A-Za-z0-9_]*|[0-9]*) return 1 ;;
-    *) return 0 ;;
-  esac
+# Resolve a language route from a space-separated lang=value map.
+get_lang_route_value() {
+  route_map="$1"
+  route_lang="$2"
+  printf '%s\n' "$route_map" | awk -v key="$route_lang" '{
+    for (i = 1; i <= NF; i++) {
+      split($i, pair, "=")
+      if (pair[1] == key) {
+        print substr($i, length(key) + 2)
+        exit
+      }
+    }
+  }'
 }
 
-# Safely read an environment variable by name.
-get_env_value() {
-  var_name="$1"
-  if ! is_valid_env_name "$var_name"; then
+# Parse one SSH route value as: ssh-destination|code-dir|run-script.
+parse_ssh_route_definition() {
+  ssh_target_def="$1"
+
+  ssh_destination=
+  ssh_codedir=
+  ssh_runscript=
+
+  if [ -z "$ssh_target_def" ]; then
     return 1
   fi
-  # WARNING: eval-based templating is intentionally retained for now; replace with safer rendering when practical.
-  eval "printf '%s' \"\${$var_name}\""
+
+  case "$ssh_target_def" in
+    *'|'*'|'*) ;;
+    *)
+      return 1
+      ;;
+  esac
+
+  ssh_destination=${ssh_target_def%%|*}
+  ssh_target_rest=${ssh_target_def#*|}
+  ssh_codedir=${ssh_target_rest%%|*}
+  ssh_runscript=${ssh_target_rest#*|}
+
+  if [ -z "$ssh_destination" ] || [ -z "$ssh_codedir" ] || [ -z "$ssh_runscript" ]; then
+    return 1
+  fi
+
+  return 0
 }
 
 # Quote one argument so it is safe in POSIX sh commands.
@@ -213,7 +496,10 @@ run_and_log_output() {
   relay_log_file="$1"
   shift
   (
-    relay_tmp_file=$(make_tmp_file "relay")
+    relay_tmp_file=$(make_tmp_file "relay") || {
+      echo "ERROR: unable to create relay temp file" >&2
+      exit 1
+    }
 
     trap 'rm -f "$relay_tmp_file"' INT TERM HUP EXIT
 
@@ -230,12 +516,18 @@ run_and_log_output() {
 # Create a temp file path with a predictable derekalgos prefix.
 make_tmp_file() {
   tmp_label="$1"
+  max_tmp_tries=128
   if command -v mktemp > /dev/null 2>&1; then
     mktemp "${TMPDIR:-/tmp}/derekalgos-${tmp_label}.XXXXXX"
   else
-    tmp_file="${TMPDIR:-/tmp}/derekalgos-${tmp_label}.$$"
-    : > "$tmp_file"
-    printf '%s\n' "$tmp_file"
+    tmp_idx=0
+    while [ "$tmp_idx" -lt "$max_tmp_tries" ]; do
+      tmp_file="${TMPDIR:-/tmp}/derekalgos-${tmp_label}.$$.$tmp_idx"
+      ( set -C; : > "$tmp_file" ) 2>/dev/null && { printf '%s\n' "$tmp_file"; return 0; }
+      tmp_idx=$((tmp_idx + 1))
+    done
+    echo "ERROR: unable to create temp file in ${TMPDIR:-/tmp} after $max_tmp_tries attempts" >&2
+    return 1
   fi
 }
 
@@ -252,11 +544,11 @@ flush_output_to_logs() {
     echo "WARNING: failed to append $flush_label to $flush_log_file (returned $flush_append_ret)" >&2
   fi
 
-  if [ -n "$last_command_output_log" ] && [ "$flush_log_file" != "$last_command_output_log" ]; then
-    cat "$flush_tmp_file" >> "$last_command_output_log"
+  if [ -z "$RUN_AND_LOG_SKIP_SHARED_APPEND" ] && [ -n "$lastCommandOutputLog" ] && [ "$flush_log_file" != "$lastCommandOutputLog" ]; then
+    cat "$flush_tmp_file" >> "$lastCommandOutputLog"
     flush_last_ret="$?"
     if [ "$flush_last_ret" -ne 0 ]; then
-      echo "WARNING: failed to append $flush_label to $last_command_output_log (returned $flush_last_ret)" >&2
+      echo "WARNING: failed to append $flush_label to $lastCommandOutputLog (returned $flush_last_ret)" >&2
     fi
   fi
 }
@@ -289,14 +581,14 @@ duration_to_seconds() {
   esac
 }
 
-# Parse useTimeout into main timeout and optional kill-after timeout.
+# Parse timeoutConfig into main timeout and optional kill-after timeout.
 parse_timeout_config() {
   parsed_timeout_main="1m"
   parsed_timeout_kill=
 
-  case "$useTimeout" in
+  case "$timeoutConfig" in
     '-k '*)
-      timeout_tokens="${useTimeout#-k }"
+      timeout_tokens="${timeoutConfig#-k }"
       timeout_kill_token="${timeout_tokens%% *}"
       timeout_main_token="${timeout_tokens##* }"
       if [ "${timeout_kill_token} ${timeout_main_token}" = "$timeout_tokens" ] && \
@@ -305,17 +597,17 @@ parse_timeout_config() {
         parsed_timeout_kill="$timeout_kill_token"
         parsed_timeout_main="$timeout_main_token"
       else
-        if [ -n "$last_command_output_log" ]; then
-          echo "WARNING: invalid timeout '$useTimeout'; falling back to '1m'" >> "$last_command_output_log"
+        if [ -n "$lastCommandOutputLog" ]; then
+          echo "WARNING: invalid timeout '$timeoutConfig'; falling back to '1m'" >> "$lastCommandOutputLog"
         fi
       fi
       ;;
     *)
-      if is_valid_duration_token "$useTimeout"; then
-        parsed_timeout_main="$useTimeout"
+      if is_valid_duration_token "$timeoutConfig"; then
+        parsed_timeout_main="$timeoutConfig"
       else
-        if [ -n "$last_command_output_log" ]; then
-          echo "WARNING: invalid timeout '$useTimeout'; falling back to '1m'" >> "$last_command_output_log"
+        if [ -n "$lastCommandOutputLog" ]; then
+          echo "WARNING: invalid timeout '$timeoutConfig'; falling back to '1m'" >> "$lastCommandOutputLog"
         fi
       fi
       ;;
@@ -339,16 +631,15 @@ run_with_timeout_watcher() {
   watcher_flag_file="$2"
   watcher_main_seconds="$3"
   watcher_kill_seconds="$4"
+  watcher_force_kill_seconds="${watcher_kill_seconds:-1}"
 
   (
     sleep "$watcher_main_seconds"
     if kill -0 "$watcher_pid" 2>/dev/null; then
       : > "$watcher_flag_file"
       kill -TERM "$watcher_pid" 2>/dev/null
-      if [ -n "$watcher_kill_seconds" ]; then
-        sleep "$watcher_kill_seconds"
-        kill -KILL "$watcher_pid" 2>/dev/null
-      fi
+      sleep "$watcher_force_kill_seconds"
+      kill -KILL "$watcher_pid" 2>/dev/null
     fi
   ) &
   started_watcher_pid="$!"
@@ -376,8 +667,14 @@ run_with_log_and_timeout() {
   parse_timeout_seconds
 
   (
-    _tmp=$(make_tmp_file "relay")
-    _flag=$(make_tmp_file "timeout")
+    _tmp=$(make_tmp_file "relay") || {
+      echo "ERROR: unable to create run output temp file" >&2
+      exit 1
+    }
+    _flag=$(make_tmp_file "timeout") || {
+      echo "ERROR: unable to create timeout flag file" >&2
+      exit 1
+    }
     rm -f "$_flag"
     trap 'rm -f "$_tmp" "$_flag"' INT TERM HUP EXIT
 
@@ -400,11 +697,11 @@ run_with_log_and_timeout() {
 }
 
 # Color variables
-RED='\033[0;31m'
-GREEN='\033[0;32m'
-YELLOW='\033[0;33m'
-BLUE='\033[0;34m'
-NORMAL='\033[0m' # Resets the color to default
+red='\033[0;31m'
+green='\033[0;32m'
+yellow='\033[0;33m'
+blue='\033[0;34m'
+normal='\033[0m' # Resets the color to default
 
 # The first section, each language that we support needs to have
 # a lang_compile and lang_run. This will be called when a file of
@@ -460,10 +757,10 @@ arm64asm_compile() {
   echo "Building Assembly..." > ./output/arm64asm-build-last
   echo "Building Assembly Standard Library..." >> ./output/arm64asm-build-last
   cp "./$fileName" ./output/
-  cd ../../../stdlib || { echo "Failed to cd into stdlib for arm64asm build" >> "$start_dir/output/arm64asm-build-last"; return 1; }
-  ./build.sh "$platform" >> "$start_dir/output/arm64asm-build-last" 2>&1
+  cd ../../../stdlib || { echo "Failed to cd into stdlib for arm64asm build" >> "$startDir/output/arm64asm-build-last"; return 1; }
+  ./build.sh "$platform" >> "$startDir/output/arm64asm-build-last" 2>&1
   retValue="$?"
-  cd "$start_dir" || { echo "Failed to return to start directory: $start_dir" >> "$start_dir/output/arm64asm-build-last"; return 1; }
+  cd "$startDir" || { echo "Failed to return to start directory: $startDir" >> "$startDir/output/arm64asm-build-last"; return 1; }
   if [ $retValue -ne 0 ]; then
     return $retValue
   fi
@@ -560,10 +857,10 @@ asm_compile() {
   echo "Building Assembly..." > ./output/asm-build-last
   echo "Building Assembly Standard Library..." >> ./output/asm-build-last
   cp "./$fileName" ./output/
-  cd ../../../stdlib || { echo "Failed to cd into stdlib for asm build" >> "$start_dir/output/asm-build-last"; return 1; }
-  ./build.sh "$platform" >> "$start_dir/output/asm-build-last" 2>&1
+  cd ../../../stdlib || { echo "Failed to cd into stdlib for asm build" >> "$startDir/output/asm-build-last"; return 1; }
+  ./build.sh "$platform" >> "$startDir/output/asm-build-last" 2>&1
   retValue="$?"
-  cd "$start_dir" || { echo "Failed to return to start directory: $start_dir" >> "$start_dir/output/asm-build-last"; return 1; }
+  cd "$startDir" || { echo "Failed to return to start directory: $startDir" >> "$startDir/output/asm-build-last"; return 1; }
   if [ $retValue -ne 0 ]; then
     return $retValue
   fi
@@ -803,7 +1100,8 @@ dart_run() {
 # =============================================
 eiffel_compile() {
   retValue=0
-  case "$DEREKALGOS_EIFFEL" in
+  eiffel_compiler=$(printf '%s' "$DEREKALGOS_EIFFEL" | tr '[:upper:]' '[:lower:]')
+  case "$eiffel_compiler" in
   "eiffelstudio")
     #WARNING: This new_uuid is currently evaluated via eval. We should
     # address this better in the future.
@@ -853,6 +1151,12 @@ FIRST COMPILE FINISHED. CALLING finish_freezing in EIFGENs/$fileNameWithoutExt/F
     echo "-- se compile returned: $retValue" >> ./eiffel-build-last
 
     cd ..
+  ;;
+  *)
+    mkdir -p ./output
+    echo "Unsupported DEREKALGOS_EIFFEL value: $DEREKALGOS_EIFFEL" > ./output/eiffel-build-last
+    echo "Accepted values (case-insensitive): eiffelstudio, libertyeiffel" >> ./output/eiffel-build-last
+    retValue=64
   ;;
   esac
   return "$retValue"
@@ -1233,10 +1537,10 @@ mercury_run() {
 # =============================================
 mmixal_compile() {
   echo "Building MMIX standard library..." > ./output/mmixal-build-last
-  cd ../../../stdlib || { echo "Failed to cd into stdlib for mmixal build" >> "$start_dir/output/mmixal-build-last"; return 1; }
-  ./build.sh mmix >> "$start_dir/output/mmixal-build-last" 2>&1
+  cd ../../../stdlib || { echo "Failed to cd into stdlib for mmixal build" >> "$startDir/output/mmixal-build-last"; return 1; }
+  ./build.sh mmix >> "$startDir/output/mmixal-build-last" 2>&1
   retValue="$?"
-  cd "$start_dir" || { echo "Failed to return to start directory: $start_dir" >> "$start_dir/output/mmixal-build-last"; return 1; }
+  cd "$startDir" || { echo "Failed to return to start directory: $startDir" >> "$startDir/output/mmixal-build-last"; return 1; }
   if [ $retValue -ne 0 ]; then
     return $retValue
   fi
@@ -1402,10 +1706,10 @@ nasm_compile() {
   echo "Building NASM..." > ./output/nasm-build-last
   echo "Building NASM Standard Library..." >> ./output/nasm-build-last
   cp "./$fileName" ./output/
-  cd ../../../stdlib || { echo "Failed to cd into stdlib for nasm build" >> "$start_dir/output/nasm-build-last"; return 1; }
-  ./build.sh "$platform" >> "$start_dir/output/nasm-build-last" 2>&1
+  cd ../../../stdlib || { echo "Failed to cd into stdlib for nasm build" >> "$startDir/output/nasm-build-last"; return 1; }
+  ./build.sh "$platform" >> "$startDir/output/nasm-build-last" 2>&1
   retValue="$?"
-  cd "$start_dir" || { echo "Failed to return to start directory: $start_dir" >> "$start_dir/output/nasm-build-last"; return 1; }
+  cd "$startDir" || { echo "Failed to return to start directory: $startDir" >> "$startDir/output/nasm-build-last"; return 1; }
   if [ $retValue -ne 0 ]; then
     return $retValue
   fi
@@ -1939,11 +2243,11 @@ if [ "$fileName" = "clean" ]; then
   ./build.sh clean
   retValue=$?
   if [ "$retValue" -ne 0 ]; then
-    echo "${RED}Failed to clean stdlib. Returned $retValue.${NORMAL}"
+    echo "${red}Failed to clean stdlib. Returned $retValue.${normal}"
   else
     retValue=0
   fi
-  cd "$start_dir"
+  cd "$startDir"
   exit $retValue
 fi
 
@@ -2026,23 +2330,65 @@ esac
 # to run via a docker image, in which case, we should go ahead
 # and do that then exit.
 
-RUN_ON_DOCKER=$(printf '%s\n' "$DEREKALGOS_RUNONDOCKER" | awk -v key="$lang" '{
-  for (i = 1; i <= NF; i++) {
-    split($i, pair, "=")
-    if (pair[1] == key) {
-      print substr($i, length(key) + 2)
-      exit
-    }
-  }
-}')
-if [ -n "$RUN_ON_DOCKER" ]; then
+runOnDocker=$(get_lang_route_value "$DEREKALGOS_RUNONDOCKER" "$lang")
+if [ "$checkOnlyMode" -eq 1 ]; then
+  case "$checkOnlyRoute" in
+    native|ssh)
+      runOnDocker=""
+      ;;
+    docker)
+      if [ -z "$runOnDocker" ]; then
+        runOnDocker="check-only-docker"
+      fi
+      ;;
+  esac
+fi
+if [ -n "$runOnDocker" ]; then
   mkdir -p ./output
   docker_log="./output/${lang}-build-last"
   echo "STARTING DOCKER RELAY BUILD..." > "$docker_log"
-  echo "ROUTE: Docker image $RUN_ON_DOCKER" >> "$docker_log"
+  echo "ROUTE: Docker image $runOnDocker" >> "$docker_log"
+  echo "HOST: platform=$hostPlatform cpu=$hostCpuArch translation=$hostTranslation" >> "$docker_log"
+
+  if [ "$checkOnlyMode" -eq 1 ] && [ "$checkOnlyRoute" = "docker" ]; then
+    echo "CHECK-ONLY ROUTE: docker relay simulated" >> "$docker_log"
+    echo "CHECK-ONLY: would relay via docker image '$runOnDocker'" >> "$docker_log"
+    echo "CHECK-ONLY: would run sh /build/run.sh --check-only $fileName <args>" >> "$docker_log"
+    if [ -n "$lastCommandOutputLog" ]; then
+      {
+        echo "---- docker-check-only-simulated ----"
+        cat "$docker_log"
+      } >> "$lastCommandOutputLog"
+    fi
+    echo "CHECK-ONLY: docker relay simulated for $lang"
+    exit 0
+  fi
+
+  if [ "$hostPlatform" = "Darwin" ] && [ "$hostCpuArch" = "arm64" ]; then
+    echo "NOTE: Docker run uses --platform linux/amd64 on arm64 host; CPU emulation may apply." >> "$docker_log"
+  fi
+
+  append_docker_relay_fallback_log() {
+    if [ -z "$lastCommandOutputLog" ] || [ ! -f "$docker_log" ]; then
+      return
+    fi
+    if [ ! -f "$lastCommandOutputLog" ]; then
+      DEREKALGOS_EXECUTION_ROUTE="docker-relay"
+      DEREKALGOS_HOST_CWD="$startDir"
+      DEREKALGOS_HOST_CPUARCH="$hostCpuArch"
+      DEREKALGOS_HOST_PLATFORM="$hostPlatform"
+      DEREKALGOS_HOST_TRANSLATION="$hostTranslation"
+      init_last_command_output_log
+    fi
+    {
+      echo "---- docker-relay-fallback-log ----"
+      cat "$docker_log"
+    } >> "$lastCommandOutputLog"
+  }
 
   if ! command -v docker > /dev/null 2>&1; then
     echo "Docker relay aborted: docker command not found in PATH" >> "$docker_log"
+    append_docker_relay_fallback_log
     cat "$docker_log"
     exit 127
   fi
@@ -2050,25 +2396,50 @@ if [ -n "$RUN_ON_DOCKER" ]; then
   CURRENT_GIT_DIR=$(resolve_abs_path ../../../)
   if [ -z "$CURRENT_GIT_DIR" ] || [ ! -d "$CURRENT_GIT_DIR" ]; then
     echo "Docker relay aborted: unable to resolve repository root directory" >> "$docker_log"
+    append_docker_relay_fallback_log
     cat "$docker_log"
     exit 2
   fi
   if [ ! -f "$CURRENT_GIT_DIR/run.sh" ]; then
     echo "Docker relay aborted: missing runner script at $CURRENT_GIT_DIR/run.sh" >> "$docker_log"
+    append_docker_relay_fallback_log
     cat "$docker_log"
     exit 2
   fi
   if [ ! -r "$CURRENT_GIT_DIR/run.sh" ]; then
     echo "Docker relay aborted: runner script is not readable at $CURRENT_GIT_DIR/run.sh" >> "$docker_log"
+    append_docker_relay_fallback_log
     cat "$docker_log"
     exit 2
   fi
 
-  echo "docker run --rm --platform linux/amd64 -v \"<repo>\":/build -w \"/build/src/$packName/$algoName/\" $RUN_ON_DOCKER sh -c 'useTimeout=\"\$1\"; shift; sh /build/run.sh \"\$@\"' sh \"$useTimeout\" \"$fileName\" <args>" >> "$docker_log"
-  run_and_log_output "$docker_log" docker run --rm --platform linux/amd64 -v "$CURRENT_GIT_DIR":/build -w "/build/src/$packName/$algoName/" $RUN_ON_DOCKER sh -c 'useTimeout="$1"; DEREKALGOS_LAST_COMMAND_OUTPUT_ACTIVE="$2"; DEREKALGOS_LAST_COMMAND_OUTPUT_LOG="$3"; shift 3; sh /build/run.sh "$@"' sh "$useTimeout" "1" "$last_command_output_log" "$fileName" "$@"
+  docker_timeout_arg=""
+  if [ "$timeoutFromHost" -eq 1 ]; then
+    docker_timeout_arg="$timeoutConfig"
+    echo "TIMEOUT SOURCE: host ($timeoutConfig)" >> "$docker_log"
+  else
+    echo "TIMEOUT SOURCE: container-profile-or-default" >> "$docker_log"
+  fi
+
+  if [ "$checkOnlyMode" -eq 1 ]; then
+    echo "RUN_AND_LOG_SKIP_SHARED_APPEND=1 docker run --rm --platform linux/amd64 -v \"<repo>\":/build -w \"/build/src/$packName/$algoName/\" $runOnDocker sh -c 'if [ -n \"\$1\" ]; then DEREKALGOS_TIMEOUT=\"\$1\"; export DEREKALGOS_TIMEOUT; fi; DEREKALGOS_LAST_COMMAND_OUTPUT_ACTIVE=\"\$2\"; DEREKALGOS_LAST_COMMAND_OUTPUT_LOG=\"\$3\"; DEREKALGOS_EXECUTION_ROUTE=\"\$4\"; DEREKALGOS_HOST_CWD=\"\$5\"; DEREKALGOS_HOST_CPUARCH=\"\$6\"; DEREKALGOS_HOST_PLATFORM=\"\$7\"; DEREKALGOS_HOST_TRANSLATION=\"\$8\"; export DEREKALGOS_LAST_COMMAND_OUTPUT_ACTIVE DEREKALGOS_LAST_COMMAND_OUTPUT_LOG DEREKALGOS_EXECUTION_ROUTE DEREKALGOS_HOST_CWD DEREKALGOS_HOST_CPUARCH DEREKALGOS_HOST_PLATFORM DEREKALGOS_HOST_TRANSLATION; shift 8; sh /build/run.sh \"\$@\"' sh \"$docker_timeout_arg\" \"\" \"$lastCommandOutputLog\" \"docker-relay\" \"$startDir\" \"$hostCpuArch\" \"$hostPlatform\" \"$hostTranslation\" --check-only \"$fileName\" <args>" >> "$docker_log"
+    RUN_AND_LOG_SKIP_SHARED_APPEND=1 run_and_log_output "$docker_log" docker run --rm --platform linux/amd64 -v "$CURRENT_GIT_DIR":/build -w "/build/src/$packName/$algoName/" $runOnDocker sh -c 'if [ -n "$1" ]; then DEREKALGOS_TIMEOUT="$1"; export DEREKALGOS_TIMEOUT; fi; DEREKALGOS_LAST_COMMAND_OUTPUT_ACTIVE="$2"; DEREKALGOS_LAST_COMMAND_OUTPUT_LOG="$3"; DEREKALGOS_EXECUTION_ROUTE="$4"; DEREKALGOS_HOST_CWD="$5"; DEREKALGOS_HOST_CPUARCH="$6"; DEREKALGOS_HOST_PLATFORM="$7"; DEREKALGOS_HOST_TRANSLATION="$8"; export DEREKALGOS_LAST_COMMAND_OUTPUT_ACTIVE DEREKALGOS_LAST_COMMAND_OUTPUT_LOG DEREKALGOS_EXECUTION_ROUTE DEREKALGOS_HOST_CWD DEREKALGOS_HOST_CPUARCH DEREKALGOS_HOST_PLATFORM DEREKALGOS_HOST_TRANSLATION; shift 8; sh /build/run.sh "$@"' sh "$docker_timeout_arg" "" "$lastCommandOutputLog" "docker-relay" "$startDir" "$hostCpuArch" "$hostPlatform" "$hostTranslation" --check-only "$fileName" "$@"
+  elif [ "$compileOnlyMode" -eq 1 ]; then
+    echo "RUN_AND_LOG_SKIP_SHARED_APPEND=1 docker run --rm --platform linux/amd64 -v \"<repo>\":/build -w \"/build/src/$packName/$algoName/\" $runOnDocker sh -c 'if [ -n \"\$1\" ]; then DEREKALGOS_TIMEOUT=\"\$1\"; export DEREKALGOS_TIMEOUT; fi; DEREKALGOS_LAST_COMMAND_OUTPUT_ACTIVE=\"\$2\"; DEREKALGOS_LAST_COMMAND_OUTPUT_LOG=\"\$3\"; DEREKALGOS_EXECUTION_ROUTE=\"\$4\"; DEREKALGOS_HOST_CWD=\"\$5\"; DEREKALGOS_HOST_CPUARCH=\"\$6\"; DEREKALGOS_HOST_PLATFORM=\"\$7\"; DEREKALGOS_HOST_TRANSLATION=\"\$8\"; export DEREKALGOS_LAST_COMMAND_OUTPUT_ACTIVE DEREKALGOS_LAST_COMMAND_OUTPUT_LOG DEREKALGOS_EXECUTION_ROUTE DEREKALGOS_HOST_CWD DEREKALGOS_HOST_CPUARCH DEREKALGOS_HOST_PLATFORM DEREKALGOS_HOST_TRANSLATION; shift 8; sh /build/run.sh \"\$@\"' sh \"$docker_timeout_arg\" \"\" \"$lastCommandOutputLog\" \"docker-relay\" \"$startDir\" \"$hostCpuArch\" \"$hostPlatform\" \"$hostTranslation\" --compile-only \"$fileName\" <args>" >> "$docker_log"
+    RUN_AND_LOG_SKIP_SHARED_APPEND=1 run_and_log_output "$docker_log" docker run --rm --platform linux/amd64 -v "$CURRENT_GIT_DIR":/build -w "/build/src/$packName/$algoName/" $runOnDocker sh -c 'if [ -n "$1" ]; then DEREKALGOS_TIMEOUT="$1"; export DEREKALGOS_TIMEOUT; fi; DEREKALGOS_LAST_COMMAND_OUTPUT_ACTIVE="$2"; DEREKALGOS_LAST_COMMAND_OUTPUT_LOG="$3"; DEREKALGOS_EXECUTION_ROUTE="$4"; DEREKALGOS_HOST_CWD="$5"; DEREKALGOS_HOST_CPUARCH="$6"; DEREKALGOS_HOST_PLATFORM="$7"; DEREKALGOS_HOST_TRANSLATION="$8"; export DEREKALGOS_LAST_COMMAND_OUTPUT_ACTIVE DEREKALGOS_LAST_COMMAND_OUTPUT_LOG DEREKALGOS_EXECUTION_ROUTE DEREKALGOS_HOST_CWD DEREKALGOS_HOST_CPUARCH DEREKALGOS_HOST_PLATFORM DEREKALGOS_HOST_TRANSLATION; shift 8; sh /build/run.sh "$@"' sh "$docker_timeout_arg" "" "$lastCommandOutputLog" "docker-relay" "$startDir" "$hostCpuArch" "$hostPlatform" "$hostTranslation" --compile-only "$fileName" "$@"
+  else
+    echo "RUN_AND_LOG_SKIP_SHARED_APPEND=1 docker run --rm --platform linux/amd64 -v \"<repo>\":/build -w \"/build/src/$packName/$algoName/\" $runOnDocker sh -c 'if [ -n \"\$1\" ]; then DEREKALGOS_TIMEOUT=\"\$1\"; export DEREKALGOS_TIMEOUT; fi; DEREKALGOS_LAST_COMMAND_OUTPUT_ACTIVE=\"\$2\"; DEREKALGOS_LAST_COMMAND_OUTPUT_LOG=\"\$3\"; DEREKALGOS_EXECUTION_ROUTE=\"\$4\"; DEREKALGOS_HOST_CWD=\"\$5\"; DEREKALGOS_HOST_CPUARCH=\"\$6\"; DEREKALGOS_HOST_PLATFORM=\"\$7\"; DEREKALGOS_HOST_TRANSLATION=\"\$8\"; export DEREKALGOS_LAST_COMMAND_OUTPUT_ACTIVE DEREKALGOS_LAST_COMMAND_OUTPUT_LOG DEREKALGOS_EXECUTION_ROUTE DEREKALGOS_HOST_CWD DEREKALGOS_HOST_CPUARCH DEREKALGOS_HOST_PLATFORM DEREKALGOS_HOST_TRANSLATION; shift 8; sh /build/run.sh \"\$@\"' sh \"$docker_timeout_arg\" \"\" \"$lastCommandOutputLog\" \"docker-relay\" \"$startDir\" \"$hostCpuArch\" \"$hostPlatform\" \"$hostTranslation\" \"$fileName\" <args>" >> "$docker_log"
+    RUN_AND_LOG_SKIP_SHARED_APPEND=1 run_and_log_output "$docker_log" docker run --rm --platform linux/amd64 -v "$CURRENT_GIT_DIR":/build -w "/build/src/$packName/$algoName/" $runOnDocker sh -c 'if [ -n "$1" ]; then DEREKALGOS_TIMEOUT="$1"; export DEREKALGOS_TIMEOUT; fi; DEREKALGOS_LAST_COMMAND_OUTPUT_ACTIVE="$2"; DEREKALGOS_LAST_COMMAND_OUTPUT_LOG="$3"; DEREKALGOS_EXECUTION_ROUTE="$4"; DEREKALGOS_HOST_CWD="$5"; DEREKALGOS_HOST_CPUARCH="$6"; DEREKALGOS_HOST_PLATFORM="$7"; DEREKALGOS_HOST_TRANSLATION="$8"; export DEREKALGOS_LAST_COMMAND_OUTPUT_ACTIVE DEREKALGOS_LAST_COMMAND_OUTPUT_LOG DEREKALGOS_EXECUTION_ROUTE DEREKALGOS_HOST_CWD DEREKALGOS_HOST_CPUARCH DEREKALGOS_HOST_PLATFORM DEREKALGOS_HOST_TRANSLATION; shift 8; sh /build/run.sh "$@"' sh "$docker_timeout_arg" "" "$lastCommandOutputLog" "docker-relay" "$startDir" "$hostCpuArch" "$hostPlatform" "$hostTranslation" "$fileName" "$@"
+  fi
   retValue="$?"
   echo "-- docker returned: $retValue" >> "$docker_log"
   echo "---- DOCKER RELAY BUILD END" >> "$docker_log"
+
+  # If docker failed, append relay diagnostics to shared output.
+  if [ "$retValue" -ne 0 ] && [ -n "$lastCommandOutputLog" ] && [ -f "$docker_log" ]; then
+    append_docker_relay_fallback_log
+  fi
+
   exit "$retValue"
 fi
 
@@ -2076,20 +2447,38 @@ fi
 # to run on remotely via ssh, in which case, we should go ahead
 # and do that then exit.
 
-RUN_ON_SSH=$(printf '%s\n' "$DEREKALGOS_RUNONSSH" | awk -v key="$lang" '{
-  for (i = 1; i <= NF; i++) {
-    split($i, pair, "=")
-    if (pair[1] == key) {
-      print substr($i, length(key) + 2)
-      exit
-    }
-  }
-}')
-if [ -n "$RUN_ON_SSH" ]; then
+runOnSsh=$(get_lang_route_value "$DEREKALGOS_RUNONSSH" "$lang")
+if [ "$checkOnlyMode" -eq 1 ]; then
+  case "$checkOnlyRoute" in
+    native|docker)
+      runOnSsh=""
+      ;;
+    ssh)
+      if [ -z "$runOnSsh" ]; then
+        runOnSsh="check-only-ssh"
+      fi
+      ;;
+  esac
+fi
+if [ -n "$runOnSsh" ]; then
   mkdir -p ./output
   ssh_log="./output/${lang}-build-last"
   echo "STARTING SSH RELAY BUILD..." > "$ssh_log"
-  echo "ROUTE: SSH target $RUN_ON_SSH" >> "$ssh_log"
+  echo "ROUTE: SSH target $runOnSsh" >> "$ssh_log"
+
+  if [ "$checkOnlyMode" -eq 1 ] && [ "$checkOnlyRoute" = "ssh" ]; then
+    echo "CHECK-ONLY ROUTE: ssh relay simulated" >> "$ssh_log"
+    echo "CHECK-ONLY: would relay via SSH target '$runOnSsh'" >> "$ssh_log"
+    echo "CHECK-ONLY: would run remote run.sh --check-only $fileName <args>" >> "$ssh_log"
+    if [ -n "$lastCommandOutputLog" ]; then
+      {
+        echo "---- ssh-check-only-simulated ----"
+        cat "$ssh_log"
+      } >> "$lastCommandOutputLog"
+    fi
+    echo "CHECK-ONLY: ssh relay simulated for $lang"
+    exit 0
+  fi
 
   if ! command -v scp > /dev/null 2>&1; then
     echo "SSH relay aborted: scp command not found in PATH" >> "$ssh_log"
@@ -2102,42 +2491,17 @@ if [ -n "$RUN_ON_SSH" ]; then
     exit 127
   fi
 
-  ssh_cfg_prefix="DEREKALGOS_SSH_${RUN_ON_SSH}"
-  ssh_port=$(get_env_value "${ssh_cfg_prefix}_PORT")
-  ssh_user=$(get_env_value "${ssh_cfg_prefix}_USER")
-  ssh_address=$(get_env_value "${ssh_cfg_prefix}_ADDRESS")
-  ssh_codedir=$(get_env_value "${ssh_cfg_prefix}_CODEDIR")
-  ssh_runscript=$(get_env_value "${ssh_cfg_prefix}_RUNSCRIPT")
-
-  missing_ssh_config=0
-  if [ -z "$ssh_port" ]; then
-    echo "Missing SSH config: ${ssh_cfg_prefix}_PORT" >> "$ssh_log"
-    missing_ssh_config=1
-  fi
-  if [ -z "$ssh_user" ]; then
-    echo "Missing SSH config: ${ssh_cfg_prefix}_USER" >> "$ssh_log"
-    missing_ssh_config=1
-  fi
-  if [ -z "$ssh_address" ]; then
-    echo "Missing SSH config: ${ssh_cfg_prefix}_ADDRESS" >> "$ssh_log"
-    missing_ssh_config=1
-  fi
-  if [ -z "$ssh_codedir" ]; then
-    echo "Missing SSH config: ${ssh_cfg_prefix}_CODEDIR" >> "$ssh_log"
-    missing_ssh_config=1
-  fi
-  if [ -z "$ssh_runscript" ]; then
-    echo "Missing SSH config: ${ssh_cfg_prefix}_RUNSCRIPT" >> "$ssh_log"
-    missing_ssh_config=1
-  fi
-  if [ "$missing_ssh_config" -ne 0 ]; then
-    echo "SSH relay aborted: incomplete SSH target configuration for $RUN_ON_SSH" >> "$ssh_log"
+  if ! parse_ssh_route_definition "$runOnSsh"; then
+    echo "Missing or invalid SSH config in DEREKALGOS_RUNONSSH for language '$lang'" >> "$ssh_log"
+    echo "Expected value format: language=ssh-destination|code-dir|run-script" >> "$ssh_log"
+    echo "Example: forth=coderun-vm|/home/coderun/codefiles|../run.sh" >> "$ssh_log"
+    echo "Tip: use an SSH config host alias for destination so port/user/key setup lives in ~/.ssh/config" >> "$ssh_log"
     cat "$ssh_log"
     exit 2
   fi
 
-  echo "scp -P \"$ssh_port\" \"./$fileName\" \"$ssh_user@$ssh_address:$ssh_codedir/$fileName\"" >> "$ssh_log"
-  run_and_log_output "$ssh_log" scp -P "$ssh_port" "./$fileName" "$ssh_user@$ssh_address:$ssh_codedir/$fileName"
+  echo "scp \"./$fileName\" \"$ssh_destination:$ssh_codedir/$fileName\"" >> "$ssh_log"
+  run_and_log_output "$ssh_log" scp "./$fileName" "$ssh_destination:$ssh_codedir/$fileName"
   retValue="$?"
   echo "-- scp returned: $retValue" >> "$ssh_log"
   if [ "$retValue" -ne 0 ]; then
@@ -2145,12 +2509,18 @@ if [ -n "$RUN_ON_SSH" ]; then
     exit "$retValue"
   fi
 
-  ToRunOnSSH="cd $(shell_quote "$ssh_codedir") && $(shell_quote "$ssh_runscript") $(shell_quote "$fileName")"
+  ToRunOnSSH="cd $(shell_quote "$ssh_codedir") && $(shell_quote "$ssh_runscript")"
+  if [ "$checkOnlyMode" -eq 1 ]; then
+    ToRunOnSSH="$ToRunOnSSH --check-only"
+  elif [ "$compileOnlyMode" -eq 1 ]; then
+    ToRunOnSSH="$ToRunOnSSH --compile-only"
+  fi
+  ToRunOnSSH="$ToRunOnSSH $(shell_quote "$fileName")"
   for arg in "$@"; do
     ToRunOnSSH="$ToRunOnSSH $(shell_quote "$arg")"
   done
-  echo "ssh -p \"$ssh_port\" \"$ssh_user@$ssh_address\" \"$ToRunOnSSH\"" >> "$ssh_log"
-  run_and_log_output "$ssh_log" ssh -p "$ssh_port" "$ssh_user@$ssh_address" "$ToRunOnSSH"
+  echo "ssh \"$ssh_destination\" \"$ToRunOnSSH\"" >> "$ssh_log"
+  run_and_log_output "$ssh_log" ssh "$ssh_destination" "$ToRunOnSSH"
   retValue="$?"
   echo "-- ssh returned: $retValue" >> "$ssh_log"
   echo "---- SSH RELAY BUILD END" >> "$ssh_log"
@@ -2165,16 +2535,16 @@ fi
 if [ -f "./output/last-lang" ]; then
   if printf '%s' "$lang" | cmp -s - "./output/last-lang"; then
     if [ -n "$(find "./$fileName" -prune -newer "$testFile" 2>/dev/null)" ]; then
-      destroy_output=1
+      destroyOutput=1
     fi
   else
-    destroy_output=1
+    destroyOutput=1
   fi
 else
-  destroy_output=1
+  destroyOutput=1
 fi
 
-if [ "$destroy_output" -eq 1 ]; then
+if [ "$destroyOutput" -eq 1 ]; then
   rm -Rf ./output >> ./clean-output 2>&1
   mkdir -p ./output
   mv ./clean-output ./output/
@@ -2182,59 +2552,85 @@ else
   mkdir -p ./output
 fi
 
+# For local runs, initialize once after output cleanup/setup.
+# Docker child handles its own header; SSH is remote-native.
+if [ -z "$runOnDocker" ] && [ -z "$runOnSsh" ]; then
+  if [ -z "$DEREKALGOS_LAST_COMMAND_OUTPUT_ACTIVE" ] || [ "$destroyOutput" -eq 1 ] || [ ! -f "$lastCommandOutputLog" ]; then
+    init_last_command_output_log
+  fi
+fi
+
 # Finally, run the compile for the specified language,
 # and if successful, run it immediately.
 # if the build fails, try to output the last build output
 
-before_compile=$(get_ms_time)
-echo "STARTING COMPILE: ${lang}_compile" >> "$last_command_output_log"
-run_and_log_output "$last_command_output_log" "${lang}_compile"
-compile_rc="$?"
-after_compile=$(get_ms_time)
-final_rc="$compile_rc"
+beforeCompile=$(get_ms_time)
+echo "STARTING COMPILE: ${lang}_compile" >> "$lastCommandOutputLog"
+if [ "$checkOnlyMode" -eq 1 ]; then
+  echo "CHECK-ONLY: skipping compile and run for $lang" >> "$lastCommandOutputLog"
+  echo "CHECK-ONLY: would run ${lang}_compile" >> "$lastCommandOutputLog"
+  echo "CHECK-ONLY: would run ${lang}_run $*" >> "$lastCommandOutputLog"
+  printf "\n    ${yellow}CHECK-ONLY: compile/run skipped for $lang.${normal}\n"
+  printf "$lang" > ./output/last-lang
+  chmod -R a+rwX ./output/
+  exit 0
+fi
+
+run_and_log_output "$lastCommandOutputLog" "${lang}_compile"
+compileRc="$?"
+afterCompile=$(get_ms_time)
+finalRc="$compileRc"
 if [ -f "./output/${lang}-build-last" ]; then
-  echo "---- ${lang}-build-last ----" >> "$last_command_output_log"
-  cat "./output/${lang}-build-last" >> "$last_command_output_log"
+  echo "---- ${lang}-build-last ----" >> "$lastCommandOutputLog"
+  cat "./output/${lang}-build-last" >> "$lastCommandOutputLog"
   lang_log_append_ret="$?"
   if [ "$lang_log_append_ret" -ne 0 ]; then
-    echo "WARNING: failed to append ./output/${lang}-build-last to $last_command_output_log (returned $lang_log_append_ret)" >&2
+    echo "WARNING: failed to append ./output/${lang}-build-last to $lastCommandOutputLog (returned $lang_log_append_ret)" >&2
   fi
 fi
 
-if [ "$compile_rc" -eq 0 ]; then
+if [ "$compileRc" -eq 0 ]; then
+  compile_duration=$((afterCompile - beforeCompile))
   if [ ! -f "$testFile" ]; then
     echo "Build returned successful for $lang, but output file not found.
 Build output:
 
 "
     cat "./output/${lang}-build-last"
+  elif [ "$compileOnlyMode" -eq 1 ]; then
+    timing_summary="Compile Time ${compile_duration}${timePrecisionUnit}; Run skipped (compile-only); Returned 0"
+    echo "$timing_summary" >> "$lastCommandOutputLog"
+    printf "\n    ${blue}Compile Time ${compile_duration}${timePrecisionUnit}; ${yellow}Run skipped (compile-only); ${green}Returned 0${normal}\n"
+    finalRc=0
   else
     before_run=$(get_ms_time)
-    echo "STARTING RUN: ${lang}_run" >> "$last_command_output_log"
-    run_with_log_and_timeout "$last_command_output_log" "${lang}_run" "$@"
+    echo "STARTING RUN: ${lang}_run" >> "$lastCommandOutputLog"
+    run_with_log_and_timeout "$lastCommandOutputLog" "${lang}_run" "$@"
     run_rc="$?"
-    final_rc="$run_rc"
+    finalRc="$run_rc"
     after_run=$(get_ms_time)
 
-    compile_duration=$((after_compile - before_compile))
     run_duration=$((after_run - before_run))
-    if [ "$time_precision_unit" = "s" ]; then
+    if [ "$timePrecisionUnit" = "s" ]; then
       timing_precision_note=" (second-level precision)"
     else
       timing_precision_note=
     fi
+    timing_summary="Compile Time ${compile_duration}${timePrecisionUnit}; Run Time ${run_duration}${timePrecisionUnit}${timing_precision_note}; Returned $run_rc"
+    echo "$timing_summary" >> "$lastCommandOutputLog"
 
     if [ "$run_rc" -eq 0 ]; then
       printf "
-    ${BLUE}Compile Time ${compile_duration}${time_precision_unit}; Run Time ${run_duration}${time_precision_unit}${timing_precision_note}; ${GREEN}Returned $run_rc${NORMAL}
+    ${blue}Compile Time ${compile_duration}${timePrecisionUnit}; Run Time ${run_duration}${timePrecisionUnit}${timing_precision_note}; ${green}Returned $run_rc${normal}
 "
     else
       printf "
-    ${BLUE}Compile Time ${compile_duration}${time_precision_unit}; Run Time ${run_duration}${time_precision_unit}${timing_precision_note}; ${RED}Returned $run_rc${NORMAL}
+    ${blue}Compile Time ${compile_duration}${timePrecisionUnit}; Run Time ${run_duration}${timePrecisionUnit}${timing_precision_note}; ${red}Returned $run_rc${normal}
 "
     fi
     if [ "$run_rc" -eq 124 ]; then
-      printf "${YELLOW}Return value 124 typically signals a timeout.${NORMAL}
+      echo "Return value 124 typically signals a timeout." >> "$lastCommandOutputLog"
+      printf "${yellow}Return value 124 typically signals a timeout.${normal}
 "
     fi
   fi
@@ -2250,4 +2646,4 @@ printf "$lang" > ./output/last-lang
 # WARNING: Intentionally keep output writable by all users for this project,
 # especially because Docker-based runs can create root-owned artifacts.
 chmod -R a+rwX ./output/
-exit "$final_rc"
+exit "$finalRc"
