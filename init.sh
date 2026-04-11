@@ -106,6 +106,7 @@ print_usage_env_section() {
     echo "Run routing maps (if repeated, the final value is applied):"
     echo "  --use-runondocker=<v>  Set DEREKALGOS_RUNONDOCKER map [default: preloaded language map]"
     echo "  --use-runonssh=<value> Set DEREKALGOS_RUNONSSH map [default: empty; format: lang=ssh-destination|code-dir|run-script]"
+    echo "                         Or explicit: lang=ssh-address|ssh-user|ssh-port|code-dir|run-script"
     echo ""
 }
 
@@ -129,13 +130,18 @@ print_usage_runonssh_section() {
     echo "                             with --no-prompt: show current map"
     echo "  --runonssh-set=<t=r>       Set mapping for <target> to <route>; <target> is a language or 'all'"
     echo "  --runonssh-remove=<t>      Remove mapping for <target>; <target> is a language or 'all'"
-    echo "  <route> format: ssh-destination|code-dir|run-script"
+    echo "  <route> format (legacy): ssh-destination|code-dir|run-script"
     echo "    ssh-destination: SSH host target used by ssh/scp (host, user@host, or SSH config alias)"
+    echo "  <route> format (explicit): ssh-address|ssh-user|ssh-port|code-dir|run-script"
+    echo "    ssh-address: remote host/IP address (for example: 127.0.0.1)"
+    echo "    ssh-user: remote login user (for example: coderun)"
+    echo "    ssh-port: remote SSH port (for example: 2222)"
     echo "    code-dir: remote folder where source is copied and where the run command starts"
     echo "    run-script: remote run.sh path to execute (absolute or relative to code-dir)."
     echo "                This should be the same run.sh as this repository, but on the SSH server."
-    echo "    example route: coderun-vm|/home/coderun/codefiles|../run.sh"
-    echo "    full example: --runonssh-set=\"python=coderun-vm|/home/coderun/codefiles|../run.sh\""
+    echo "    example route (legacy): coderun-vm|/home/coderun/codefiles|../run.sh"
+    echo "    example route (explicit): 127.0.0.1|coderun|2222|/home/coderun/codefiles|../run.sh"
+    echo "    full example: --runonssh-set=\"python=127.0.0.1|coderun|2222|/home/coderun/codefiles|../run.sh\""
     echo "  These may be used multiple times and are applied in command-line order."
     echo ""
 }
@@ -697,19 +703,39 @@ runondocker_set_lang() {
 # Validate one inline SSH route definition.
 is_valid_runonssh_route() {
     route_value="$1"
-    case "$route_value" in
-        *'|'*'|'*) ;;
-        *) return 1 ;;
+    route_field_count=$(printf '%s' "$route_value" | awk -F'|' '{print NF}')
+    case "$route_field_count" in
+        3)
+            route_destination=${route_value%%|*}
+            route_rest=${route_value#*|}
+            route_codedir=${route_rest%%|*}
+            route_runscript=${route_rest#*|}
+
+            if [ -z "$route_destination" ] || [ -z "$route_codedir" ] || [ -z "$route_runscript" ]; then
+                return 1
+            fi
+            ;;
+        5)
+            route_address=${route_value%%|*}
+            route_rest=${route_value#*|}
+            route_user=${route_rest%%|*}
+            route_rest=${route_rest#*|}
+            route_port=${route_rest%%|*}
+            route_rest=${route_rest#*|}
+            route_codedir=${route_rest%%|*}
+            route_runscript=${route_rest#*|}
+
+            if [ -z "$route_address" ] || [ -z "$route_user" ] || [ -z "$route_port" ] || [ -z "$route_codedir" ] || [ -z "$route_runscript" ]; then
+                return 1
+            fi
+            case "$route_port" in
+                *[!0-9]*|'') return 1 ;;
+            esac
+            ;;
+        *)
+            return 1
+            ;;
     esac
-
-    route_destination=${route_value%%|*}
-    route_rest=${route_value#*|}
-    route_codedir=${route_rest%%|*}
-    route_runscript=${route_rest#*|}
-
-    if [ -z "$route_destination" ] || [ -z "$route_codedir" ] || [ -z "$route_runscript" ]; then
-        return 1
-    fi
 
     return 0
 }
@@ -887,7 +913,7 @@ apply_runonssh_cli_changes() {
                     exit 64
                 fi
                 if ! is_valid_runonssh_route "$set_route"; then
-                    echo "Invalid runonssh route '$set_route'. Expected ssh-destination|code-dir|run-script." >&2
+                    echo "Invalid runonssh route '$set_route'. Expected ssh-destination|code-dir|run-script or ssh-address|ssh-user|ssh-port|code-dir|run-script." >&2
                     exit 64
                 fi
                 case "$set_target" in
@@ -1004,7 +1030,7 @@ edit_runonssh_interactive() {
             ;;
         *)
             if ! is_valid_runonssh_route "$all_default"; then
-                echo "Invalid SSH route '$all_default'. Expected ssh-destination|code-dir|run-script."
+                echo "Invalid SSH route '$all_default'. Expected ssh-destination|code-dir|run-script or ssh-address|ssh-user|ssh-port|code-dir|run-script."
             else
                 useRunOnSsh=$(runonssh_set_all "$all_default")
             fi
@@ -1030,10 +1056,10 @@ edit_runonssh_interactive() {
                         useRunOnSsh=""
                         ;;
                     set|SET)
-                        all_route=$(prompt_with_default "SSH route for all languages" "coderun-vm|/home/coderun/codefiles|../run.sh")
+                        all_route=$(prompt_with_default "SSH route for all languages" "127.0.0.1|coderun|2222|/home/coderun/codefiles|../run.sh")
                         if [ -n "$all_route" ]; then
                             if ! is_valid_runonssh_route "$all_route"; then
-                                echo "Invalid SSH route '$all_route'. Expected ssh-destination|code-dir|run-script."
+                                echo "Invalid SSH route '$all_route'. Expected ssh-destination|code-dir|run-script or ssh-address|ssh-user|ssh-port|code-dir|run-script."
                             else
                                 useRunOnSsh=$(runonssh_set_all "$all_route")
                             fi
@@ -1049,7 +1075,7 @@ edit_runonssh_interactive() {
                 fi
                 current_route=$(runonssh_get_route_for_lang "$useRunOnSsh" "$target_lang")
                 if [ -z "$current_route" ]; then
-                    current_route="coderun-vm|/home/coderun/codefiles|../run.sh"
+                    current_route="127.0.0.1|coderun|2222|/home/coderun/codefiles|../run.sh"
                 fi
                 action=$(prompt_with_default "Action for $target_lang (set/remove/skip)" "set")
                 case "$action" in
@@ -1060,7 +1086,7 @@ edit_runonssh_interactive() {
                         route_value=$(prompt_with_default "SSH route for $target_lang" "$current_route")
                         if [ -n "$route_value" ]; then
                             if ! is_valid_runonssh_route "$route_value"; then
-                                echo "Invalid SSH route '$route_value'. Expected ssh-destination|code-dir|run-script."
+                                echo "Invalid SSH route '$route_value'. Expected ssh-destination|code-dir|run-script or ssh-address|ssh-user|ssh-port|code-dir|run-script."
                             else
                                 useRunOnSsh=$(runonssh_set_lang "$useRunOnSsh" "$target_lang" "$route_value")
                             fi
@@ -1525,7 +1551,7 @@ if [ "$updateEnvironment" -eq 1 ]; then
             case "$yn" in
                 [Yy]* ) edit_runonssh_interactive ;;
                 * )
-                    useRunOnSsh=$(prompt_with_default "Enter SSH routes as lang=ssh-destination|code-dir|run-script" "$useRunOnSsh")
+                    useRunOnSsh=$(prompt_with_default "Enter SSH routes as lang=ssh-destination|code-dir|run-script or lang=ssh-address|ssh-user|ssh-port|code-dir|run-script" "$useRunOnSsh")
                     ;;
             esac
         fi

@@ -442,11 +442,16 @@ get_lang_route_value() {
   }'
 }
 
-# Parse one SSH route value as: ssh-destination|code-dir|run-script.
+# Parse SSH route values in either legacy or explicit form:
+#   legacy:   ssh-destination|code-dir|run-script
+#   explicit: ssh-address|ssh-user|ssh-port|code-dir|run-script
 parse_ssh_route_definition() {
   ssh_target_def="$1"
 
   ssh_destination=
+  ssh_address=
+  ssh_user=
+  ssh_port=
   ssh_codedir=
   ssh_runscript=
 
@@ -454,21 +459,39 @@ parse_ssh_route_definition() {
     return 1
   fi
 
-  case "$ssh_target_def" in
-    *'|'*'|'*) ;;
+  ssh_field_count=$(printf '%s' "$ssh_target_def" | awk -F'|' '{print NF}')
+  case "$ssh_field_count" in
+    3)
+      ssh_destination=${ssh_target_def%%|*}
+      ssh_target_rest=${ssh_target_def#*|}
+      ssh_codedir=${ssh_target_rest%%|*}
+      ssh_runscript=${ssh_target_rest#*|}
+      if [ -z "$ssh_destination" ] || [ -z "$ssh_codedir" ] || [ -z "$ssh_runscript" ]; then
+        return 1
+      fi
+      ;;
+    5)
+      ssh_address=${ssh_target_def%%|*}
+      ssh_target_rest=${ssh_target_def#*|}
+      ssh_user=${ssh_target_rest%%|*}
+      ssh_target_rest=${ssh_target_rest#*|}
+      ssh_port=${ssh_target_rest%%|*}
+      ssh_target_rest=${ssh_target_rest#*|}
+      ssh_codedir=${ssh_target_rest%%|*}
+      ssh_runscript=${ssh_target_rest#*|}
+
+      if [ -z "$ssh_address" ] || [ -z "$ssh_user" ] || [ -z "$ssh_port" ] || [ -z "$ssh_codedir" ] || [ -z "$ssh_runscript" ]; then
+        return 1
+      fi
+      case "$ssh_port" in
+        *[!0-9]*|'') return 1 ;;
+      esac
+      ssh_destination="$ssh_user@$ssh_address"
+      ;;
     *)
       return 1
       ;;
   esac
-
-  ssh_destination=${ssh_target_def%%|*}
-  ssh_target_rest=${ssh_target_def#*|}
-  ssh_codedir=${ssh_target_rest%%|*}
-  ssh_runscript=${ssh_target_rest#*|}
-
-  if [ -z "$ssh_destination" ] || [ -z "$ssh_codedir" ] || [ -z "$ssh_runscript" ]; then
-    return 1
-  fi
 
   return 0
 }
@@ -2494,14 +2517,20 @@ if [ -n "$runOnSsh" ]; then
   if ! parse_ssh_route_definition "$runOnSsh"; then
     echo "Missing or invalid SSH config in DEREKALGOS_RUNONSSH for language '$lang'" >> "$ssh_log"
     echo "Expected value format: language=ssh-destination|code-dir|run-script" >> "$ssh_log"
-    echo "Example: forth=coderun-vm|/home/coderun/codefiles|../run.sh" >> "$ssh_log"
-    echo "Tip: use an SSH config host alias for destination so port/user/key setup lives in ~/.ssh/config" >> "$ssh_log"
+    echo "                   or: language=ssh-address|ssh-user|ssh-port|code-dir|run-script" >> "$ssh_log"
+    echo "Example (legacy): forth=coderun-vm|/home/coderun/codefiles|../run.sh" >> "$ssh_log"
+    echo "Example (explicit): forth=127.0.0.1|coderun|2222|/home/coderun/codefiles|../run.sh" >> "$ssh_log"
     cat "$ssh_log"
     exit 2
   fi
 
-  echo "scp \"./$fileName\" \"$ssh_destination:$ssh_codedir/$fileName\"" >> "$ssh_log"
-  run_and_log_output "$ssh_log" scp "./$fileName" "$ssh_destination:$ssh_codedir/$fileName"
+  if [ -n "$ssh_port" ]; then
+    echo "scp -P \"$ssh_port\" \"./$fileName\" \"$ssh_destination:$ssh_codedir/$fileName\"" >> "$ssh_log"
+    run_and_log_output "$ssh_log" scp -P "$ssh_port" "./$fileName" "$ssh_destination:$ssh_codedir/$fileName"
+  else
+    echo "scp \"./$fileName\" \"$ssh_destination:$ssh_codedir/$fileName\"" >> "$ssh_log"
+    run_and_log_output "$ssh_log" scp "./$fileName" "$ssh_destination:$ssh_codedir/$fileName"
+  fi
   retValue="$?"
   echo "-- scp returned: $retValue" >> "$ssh_log"
   if [ "$retValue" -ne 0 ]; then
@@ -2519,8 +2548,13 @@ if [ -n "$runOnSsh" ]; then
   for arg in "$@"; do
     ToRunOnSSH="$ToRunOnSSH $(shell_quote "$arg")"
   done
-  echo "ssh \"$ssh_destination\" \"$ToRunOnSSH\"" >> "$ssh_log"
-  run_and_log_output "$ssh_log" ssh "$ssh_destination" "$ToRunOnSSH"
+  if [ -n "$ssh_port" ]; then
+    echo "ssh -p \"$ssh_port\" \"$ssh_destination\" \"$ToRunOnSSH\"" >> "$ssh_log"
+    run_and_log_output "$ssh_log" ssh -p "$ssh_port" "$ssh_destination" "$ToRunOnSSH"
+  else
+    echo "ssh \"$ssh_destination\" \"$ToRunOnSSH\"" >> "$ssh_log"
+    run_and_log_output "$ssh_log" ssh "$ssh_destination" "$ToRunOnSSH"
+  fi
   retValue="$?"
   echo "-- ssh returned: $retValue" >> "$ssh_log"
   echo "---- SSH RELAY BUILD END" >> "$ssh_log"
