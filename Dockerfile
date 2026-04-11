@@ -574,9 +574,19 @@ RUN rm -rf *
 # ============================================
 #               END -- Final cleanup and settings
 # ============================================
+
+# dotnet cache: we actually want to setup a cache for dotnet in the build here
+# it is often contraindicated in dockers, but it interferes with our purpose to have
+# to load up a new cache every single time we call in.
 RUN echo "Console.WriteLine(\"init\");" > init.cs && \
     dotnet run init.cs >> /dev/null && \
     rm -rf *
+
+# in addition to cleaning, we set environment variables
+# some variables are set in .bash_profile, which is not as overwhelming as using ENV
+# as we do many other cases. This is positive. We can easily modify this and save another
+# image without worrying about cached images or rebuilding the whole thing.
+# for these specific variables, this is what we want.
 WORKDIR /
 RUN rm -rf /build && rm -rf /var/lib/apt/lists/ && \
     echo "DEREKALGOS_TIMEOUT=\"-k 10s 1m\"" >> /root/.bash_profile && \

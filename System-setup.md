@@ -96,15 +96,9 @@ export DEREKALGOS_GCC13="/usr/x86_64-pc-linux-gnu/gcc-bin/13/"
 export DEREKALGOS_GCC13NAME="x86_64-pc-linux-gcc"
 export DEREKALGOS_GXX13NAME="x86_64-pc-linux-g++"
 
-export DEREKALGOS_RUNONDOCKER="ada=code-runner asm=code-runner ballerina=code-runner freebasic=code-runner c=code-runner clojure=code-runner cobol=code-runner cpp=code-runner csharp=code-runner d=code-runner dart=code-runner eiffel=code-runner erlang=code-runner elixir=code-runner fortran=code-runner factor=code-runner fsharp=code-runner forth=code-runner gleam=code-runner go=code-runner haskell=code-runner haxe=code-runner icon=code-runner idris=code-runner java=code-runner julia=code-runner javascript=code-runner kit=code-runner kotlin=code-runner llvmir=code-runner lua=code-runner objectivec=code-runner modula3=code-runner octave=code-runner ocaml=code-runner mmixal=code-runner oberon=code-runner mojo=code-runner mercury=code-runner nasm=code-runner nim=code-runner pascal=code-runner php=code-runner prolog=code-runner perl=code-runner python=code-runner r=code-runner ruby=code-runner racket=code-runner rust=code-runner scala=code-runner scheme=code-runner simula=code-runner smalltalk=code-runner swift=code-runner tcl=code-runner typescript=code-runner v=code-runner visualbasic=code-runner wat=code-runner zig=code-runner"
+export DEREKALGOS_RUNONDOCKER="ada=code-runner asm=code-runner ballerina=code-runner freebasic=code-runner c=code-runner clojure=code-runner cobol=code-runner cpp=code-runner csharp=code-runner d=code-runner dart=code-runner eiffel=code-runner erlang=code-runner elixir=code-runner fortran=code-runner factor=code-runner fsharp=code-runner forth=code-runner gleam=code-runner go=code-runner haskell=code-runner haxe=code-runner icon=code-runner idris=code-runner java=code-runner julia=code-runner javascript=code-runner kit=code-runner kotlin=code-runner llvmir=code-runner lua=code-runner objectivec=code-runner octave=code-runner ocaml=code-runner mmixal=code-runner oberon=code-runner mojo=code-runner mercury=code-runner nasm=code-runner nim=code-runner pascal=code-runner php=code-runner prolog=code-runner perl=code-runner python=code-runner r=code-runner ruby=code-runner racket=code-runner rust=code-runner scala=code-runner scheme=code-runner simula=code-runner smalltalk=code-runner swift=code-runner tcl=code-runner typescript=code-runner v=code-runner visualbasic=code-runner wat=code-runner zig=code-runner"
 
-export DEREKALGOS_RUNONSSH="forth=UBUNTURUNNER modula3=UBUNTURUNNER oberon=UBUNTURUNNER"
-export DEREKALGOS_SSH_UBUNTURUNNER_PORT="2222"
-export DEREKALGOS_SSH_UBUNTURUNNER_USER="coderun"
-export DEREKALGOS_SSH_UBUNTURUNNER_ADDRESS="127.0.0.1"
-export DEREKALGOS_SSH_UBUNTURUNNER_CODEDIR="/home/coderun/codefiles"
-export DEREKALGOS_SSH_UBUNTURUNNER_STARTDIR="/home/coderun"
-export DEREKALGOS_SSH_UBUNTURUNNER_RUNSCRIPT="../run.sh"
+export DEREKALGOS_RUNONSSH="modula3=127.0.0.1|coderun|2222|/home/coderun/codefiles|../run.sh"
 ```
 
 ### Gentoo
@@ -326,7 +320,10 @@ sudo adduser coderun
 
 At this point, you can copy `run.sh` from this repository to `/home/coderun/run.sh`.
 This will be used to run any code that is requested on the VM. Follow the Ubuntu
-setup for any language that is desired to be run on the VM.
+setup for any language that is desired to be run on the VM. I also highly recommend
+copying over `init.sh` to the same folder and at least creating an `icons` folder also
+in the same location. With these in place, you can simply use `init.sh` to set important
+environment variables (See below).
 
 If you are on Ubuntu, we need the essential build setup.
 
@@ -350,21 +347,29 @@ ssh -p coderun@127.0.0.1 echo "test"
 
 Once languages are set up in the guest OS, we can specify that the project should
 compile and run them on the VM by modifying the `DEREKALGOS_RUNONSSH` variable. The
-best way to do this is by modifying your profile--`~/.bash_profile` on Linux and
-`~/.profile` on FreeBSD--with the following lines,
-and then running `source ~/.bash_profile` or `source ~/.profile`.
+best way to do this is to work with the interactive `init.sh` script provided in the
+base of the repository. Navigate there in your hots OS and call `./init.sh` and it 
+will walk through these variables. Otherwise, you can look for your profile file, such
+as `~/.bash_profile` and modify it manually as well.
 
-Especially on the host, OS, pay attention to `DEREKALGOS_RUNONSSH`. All
+Especially on the host OS, pay attention to `DEREKALGOS_RUNONSSH`. All
 languages that should run on the VM are in this string in the host OS,
 separated by a single space. This should probably be an empty string on the
 guest OS, unless you want to setup a string of code running servers.
-Separate each langauge by a space, and after the name of the desired
-language do an equal sign and then the name of the VM to run the code with.
-`ada=UBUNTURUNNER` means that Ada code will build with the UBUNTURUNNER VM.
-The VMs are defined by the `DEREKALGOS_SSH_{VMNAME}_VAR` variables.
+Each entry for each language that should run on the VM will be separated by a
+space within the `DEREKALGOS_RUNONSSH` variable and can fit one of two formats:
+Either `lang=ssh-destination|code-dir|run-script` (where `ssh-destination` is in the
+format of `ssh-user@ssh-address`; this short version does not support specifying ports),
+or `lang=ssh-address|ssh-user|ssh-port|code-dir|run-script`.
 
 Additionally, on the guest OS, you should at least export the `DEREKALGOS_TIMEOUT`
-environment variable in your profile.
+environment variable in your profile. This must be in a format of either a single
+timeout such as `2m` `1h` `1d` or that single timeout time preceded by `-k N` where N
+is a second timeout. Running code will be killed after the single time given,
+and if the `-k N` is also provided, following another N delay, the process will
+be entirely killed if it has not already stopped. `-k 10s 1m` would timeout after
+an initial 1 minute and then wait 10 more seconds to allow the process to end itself
+before killing it.
 
 For some languages, it is important that we always run code in GCC-13. However,
 our default is to use GCC-15. For this purpose, we need to set `DEREKALGOS_GCC13`
@@ -373,20 +378,19 @@ to the directory that contains the gcc and g++ executables. Then
 and `DEREKALGOS_GXX13NAME` contains the name of the g++ 13 executable. This
 is required for e.g. Simula.
 
+For Eiffel, we need to specify if we are trying to build with Liberty Eiffel or
+Eiffel Studio. `DEREKALGOS_EIFFEL` accepts either `eiffelstudio` or `libertyeiffel`
+in case insensitive manner. Any other value will present an error trying to run
+eiffel code.
+
 ```bash
-export DEREKALGOS_TIMEOUT="-k 10s 1m"
+export DEREKALGOS_TIMEOUT="-k 10s 2m"
 export DEREKALGOS_EIFFEL="eiffelstudio"
 export DEREKALGOS_GCC13="/usr/x86_64-pc-linux-gnu/gcc-bin/13/"
 export DEREKALGOS_GCC13NAME="x86_64-pc-linux-gcc"
 export DEREKALGOS_GXX13NAME="x86_64-pc-linux-g++"
-export DEREKALGOS_RUNONDOCKER=""
-export DEREKALGOS_RUNONSSH="forth=UBUNTURUNNER modula3=UBUNTURUNNER oberon=UBUNTURUNNER"
-export DEREKALGOS_SSH_UBUNTURUNNER_PORT="2222"
-export DEREKALGOS_SSH_UBUNTURUNNER_USER="coderun"
-export DEREKALGOS_SSH_UBUNTURUNNER_ADDRESS="127.0.0.1"
-export DEREKALGOS_SSH_UBUNTURUNNER_CODEDIR="/home/coderun/codefiles"
-export DEREKALGOS_SSH_UBUNTURUNNER_STARTDIR="/home/coderun"
-export DEREKALGOS_SSH_UBUNTURUNNER_RUNSCRIPT="../run.sh"
+export DEREKALGOS_RUNONDOCKER="zig=code-runner"
+export DEREKALGOS_RUNONSSH="modula3=127.0.0.1|coderun|2222|/home/coderun/codefiles|../run.sh"
 ```
 
 ### VM Hibernation

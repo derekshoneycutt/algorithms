@@ -135,14 +135,20 @@ favor more traditional procedural approaches.
 
 The recommended way to setup the system for the first time is to just call the
 init script right off the git. This will clone the git and set up environment
-variables for you. You can review the environment variables in your
-`~/.bash_profile` or similar based on platform.
+variables for you, as well as copy the icons to a useable folder for the material
+icons theme extension. On Windows, you will need git bash, msys, WSL, or something similar
+to run sh scripts in a sane environment.
 
 ```sh
 curl -sSL https://raw.githubusercontent.com/derekshoneycutt/algorithms/refs/heads/main/init.sh | sh
 ```
 
-If you open the folder in VS Code, you should also get a recommendation list for
+Once installed, you can navigate to the base directory of the git project at any time and
+run `./init.sh` in an sh terminal. This will provide a prompt that you can interactively
+set the various environment variables, re-copy the icons (to a different if you like), etc.
+See `./init.sh --help` for tips on using the script non-interactively as well.
+
+If you open the folder in VS Code, you should get a recommendation list for
 the extensions that are used throughout this project. This should be enough to
 have a basic environment to code in. To see this list, go to the Extensions tab
 and search for `@recommended`. You can select which to install from this list.
@@ -153,7 +159,6 @@ I highly recommend setting up docker so that you can just build the Dockerfile.
 The entire build environment setup can be viewed in the
 [System-setup](System-setup.md) document for deeper builds, but it is harder to get
 a system going from scratch instead of just using a reproducible docker.
-
 
 ```sh
 docker buildx build --platform linux/amd64 -t code-runner:v0.1 --load .
@@ -175,14 +180,25 @@ the application when it is run, as command line arguments.
 cd $dir && ../../../run.sh $fileName [additional argments]
 ```
 
+Some options are available exclusively as flags in the first command line argument
+position to the run script. See `../../../run.sh --help` for the options
+that are available. Of note, `--source-profile="FILE"` allows changing the `.profile`
+like file that is sourced for environment variables at the start of the script, and
+`--check-only` will only pretend to compile and run the specified code.
+
+`clean` is a special "fileName" that performs a clean operation for
+the current directory. It should be called from a code directory, and will delete
+the output subdirectory cleanly in that location, as well as performing any other cleanup.
+
 With the addition of ARM64 assembly targeting Apple/MacOS, it is not easily
 possible to run every single code file on a single computer for this project.
 With support for Linux, FreeBSD, and Windows on x86-64, this was already
 stretched, but most code could run on any of those. Now, I just use a docker
 and multiple computers.
 
-NOTE: On FreeBSD and MacOS, the run script uses `gdate`, which you can
-install simply via `sudo pkg install gdate` or `brew install coreutils`.
+NOTE: On FreeBSD and MacOS, the run script uses `gdate` when available, which you can
+install simply via `sudo pkg install gdate` or `brew install coreutils`. If this is not
+available, the script will fall back to `date` and report only seconds instead of milliseconds.
 
 ### Standard Library
 
