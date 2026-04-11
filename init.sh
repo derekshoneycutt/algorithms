@@ -38,6 +38,13 @@ promptForcedOff=0
 interactiveFlagCount=0
 noPromptFlagCount=0
 
+# Disable interactive prompts by default when stdin is redirected (for example,
+# curl ... | sh). Users can still force prompts with --interactive.
+if [ ! -t 0 ]; then
+    doPrompt=0
+    promptForcedOff=1
+fi
+
 exitOk=0
 exitSetupFailure=65
 exitLockUnavailable=73
@@ -352,11 +359,21 @@ print_exit_diagnostic() {
 }
 
 # Prompt the user with a default and return either input or fallback.
+read_user_input() {
+    if [ -r /dev/tty ]; then
+        IFS= read -r input_value < /dev/tty || input_value=""
+    else
+        IFS= read -r input_value || input_value=""
+    fi
+    printf '%s\n' "$input_value"
+}
+
+# Prompt the user with a default and return either input or fallback.
 prompt_with_default() {
     prompt_text="$1"
     default_value="$2"
     printf "%s [%s]: " "$prompt_text" "$default_value" >&2
-    IFS= read -r input_value
+    input_value=$(read_user_input)
     if [ -n "$input_value" ]; then
         printf '%s\n' "$input_value"
     else
@@ -1480,7 +1497,7 @@ if [ "$doPrompt" -eq 1 ] && [ "$setUseOnly" -eq 0 ]; then
         YN_PROMPT="[y/N]"
     fi
     printf "Do you wish to copy icons to VSCode local folder? %s " "$YN_PROMPT"
-    IFS= read -r yn
+    yn=$(read_user_input)
     case "$yn" in
         [Yy]* ) copyIcons=1 ;;
         [Nn]* ) copyIcons=0 ;;
@@ -1512,7 +1529,7 @@ if [ "$doPrompt" -eq 1 ] && [ "$setUseOnly" -eq 0 ]; then
         YN_PROMPT="[y/N]"
     fi
     printf "Do you wish to update the environment? %s " "$YN_PROMPT"
-    IFS= read -r yn
+    yn=$(read_user_input)
     case "$yn" in
         [Yy]* ) updateEnvironment=1 ;;
         [Nn]* ) updateEnvironment=0 ;;
@@ -1543,7 +1560,7 @@ if [ "$updateEnvironment" -eq 1 ]; then
         if [ "$setUseOnly" -eq 0 ] && [ "$runOnDockerMode" -eq 0 ] && [ "$runOnDockerCliModify" -eq 0 ]; then
             YN_PROMPT="[y/N]"
             printf "Edit DEREKALGOS_RUNONDOCKER interactively? %s " "$YN_PROMPT"
-            IFS= read -r yn
+            yn=$(read_user_input)
             case "$yn" in
                 [Yy]* ) edit_runondocker_interactive ;;
                 * )
@@ -1557,7 +1574,7 @@ if [ "$updateEnvironment" -eq 1 ]; then
         if [ "$setUseOnly" -eq 0 ] && [ "$runOnSshMode" -eq 0 ] && [ "$runOnSshCliModify" -eq 0 ]; then
             YN_PROMPT="[y/N]"
             printf "Edit DEREKALGOS_RUNONSSH interactively? %s " "$YN_PROMPT"
-            IFS= read -r yn
+            yn=$(read_user_input)
             case "$yn" in
                 [Yy]* ) edit_runonssh_interactive ;;
                 * )
