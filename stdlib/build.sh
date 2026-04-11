@@ -5,7 +5,7 @@
 
 mkdir -p ./output
 
-BUILD_TARGET=$(echo "$1" | tr '[:lower:]' '[:upper:]')
+BUILD_TARGET=$(printf '%s' "$1" | tr '[:lower:]' '[:upper:]')
 case "$BUILD_TARGET" in
     "MMIX")
         # MMIX is just looping through each subdirectory, running build
@@ -23,7 +23,7 @@ case "$BUILD_TARGET" in
             SUBDIR_PATH="${SUBDIR_PATH%/}"
             SUBDIR="${SUBDIR_PATH#./}"
             if [ -f "./$SUBDIR/build.sh" ]; then
-                cd "./$SUBDIR"
+                cd "./$SUBDIR" || { echo "FAILED BUILD. cd into ./$SUBDIR failed."; exit 1; }
                 echo "cd $SUBDIR && ./build.sh $1 && cd .." >> ../output/mmixal-build-last
                 ./build.sh "$1" >> ../output/mmixal-build-last 2>&1
                 LAST_RETURN_VALUE="$?"
@@ -48,6 +48,10 @@ case "$BUILD_TARGET" in
                 fi
 
                 cat ./$SUBDIR/output/mmixal-build-last >> ./output/mmixal-build-last
+                submodule_log_merge_ret="$?"
+                if [ "$submodule_log_merge_ret" -ne 0 ]; then
+                    echo "WARNING: failed to append ./$SUBDIR/output/mmixal-build-last (returned $submodule_log_merge_ret)"
+                fi
             fi
         done
 
@@ -60,6 +64,12 @@ case "$BUILD_TARGET" in
                 if [ -f "./$SUBDIR/build.sh" ]; then
                     echo "cat ./$SUBDIR/output/$SUBDIR.mms >> ./output/stdlib.mms" >> ./output/mmixal-build-last
                     cat ./$SUBDIR/output/$SUBDIR.mms >> ./output/stdlib.mms
+                    cat_ret="$?"
+                    if [ "$cat_ret" -ne 0 ]; then
+                        echo "FAILED BUILD. MMIX merge failed for ./$SUBDIR/output/$SUBDIR.mms (returned $cat_ret)" >> ./output/mmixal-build-last
+                        cat ./output/mmixal-build-last
+                        exit "$cat_ret"
+                    fi
                 fi
             done
             echo "MMIXAL COMBINE COMPLETE 1" >> ./output/mmixal-build-last
@@ -99,18 +109,35 @@ case "$BUILD_TARGET" in
     ;;
 
     "CLEAN")
-        # For clean, we just loop through each subdirectory and call clean there
+        # For clean, we loop through each subdirectory and call clean there.
+        # Continue even if one sub-clean fails, but return non-zero at the end.
+        clean_ret=0
         for SUBDIR_PATH in ./*/; do
             [ -d "$SUBDIR_PATH" ] || continue
             SUBDIR_PATH="${SUBDIR_PATH%/}"
             SUBDIR="${SUBDIR_PATH#./}"
             if [ -f "./$SUBDIR/build.sh" ]; then
-                cd "./$SUBDIR"
+                cd "./$SUBDIR" || { echo "WARNING: cd into ./$SUBDIR failed; skipping."; clean_ret=1; continue; }
                 ./build.sh clean
+                sub_clean_ret="$?"
                 cd ..
+                if [ "$sub_clean_ret" -ne 0 ]; then
+                    echo "WARNING: clean failed in ./$SUBDIR (returned $sub_clean_ret)"
+                    if [ "$clean_ret" -eq 0 ]; then
+                        clean_ret="$sub_clean_ret"
+                    fi
+                fi
             fi
         done
         rm -Rf ./output
+        rm_ret="$?"
+        if [ "$rm_ret" -ne 0 ]; then
+            echo "WARNING: failed to remove ./output (returned $rm_ret)"
+            if [ "$clean_ret" -eq 0 ]; then
+                clean_ret="$rm_ret"
+            fi
+        fi
+        exit "$clean_ret"
     ;;
 
     *) echo "Unknown target specified '$BUILD_TARGET'"; exit 2 ;;

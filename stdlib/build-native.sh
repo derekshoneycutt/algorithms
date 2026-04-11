@@ -5,7 +5,8 @@
 
 target=$1
 outputfile=$2
-BUILD_TARGET=$(echo "$target" | tr '[:lower:]' '[:upper:]')
+BUILD_TARGET=$(printf '%s' "$target" | tr '[:lower:]' '[:upper:]')
+mkdir -p ./output
 
 # Native builds requires us to loop through and build each of subdirectories,
 # and then we have to link all of the packages together with ld
@@ -23,7 +24,7 @@ for SUBDIR_PATH in ./*/; do
     SUBDIR_PATH="${SUBDIR_PATH%/}"
     SUBDIR="${SUBDIR_PATH#./}"
     if [ -f "./$SUBDIR/build.sh" ]; then
-        cd "./$SUBDIR"
+        cd "./$SUBDIR" || { echo "FAILED BUILD. cd into ./$SUBDIR failed."; cat ./output/${outputfile}-build-last; exit 1; }
         echo "cd $SUBDIR && ./build.sh $target && cd .." >> ../output/${outputfile}-build-last
         ./build.sh "$target" >> ../output/${outputfile}-build-last 2>&1
         LAST_RETURN_VALUE="$?"
@@ -49,12 +50,22 @@ for SUBDIR_PATH in ./*/; do
         fi
 
         cat ./$SUBDIR/output/${outputfile}-build-last >> ./output/${outputfile}-build-last
+        submodule_log_merge_ret="$?"
+        if [ "$submodule_log_merge_ret" -ne 0 ]; then
+            echo "WARNING: failed to append ./$SUBDIR/output/${outputfile}-build-last (returned $submodule_log_merge_ret)"
+        fi
         ALL_TO_BUILD="$ALL_TO_BUILD ../${SUBDIR}/output/${SUBDIR}-${target}.o"
     fi
 done
 
 # If all the builds are successful, we link them together into a single object file
 if [ "$DO_NATIVE_LINK" -eq 1 ]; then
+    if [ -z "$ALL_TO_BUILD" ]; then
+        echo "FAILED BUILD. No object files to link; ALL_TO_BUILD is empty." >> ./output/${outputfile}-build-last
+        echo "FAILED BUILD. No object files to link."
+        cat ./output/${outputfile}-build-last
+        exit 1
+    fi
     cd ./output
     echo "ld -r -o \"./stdlib-${target}.o\" $ALL_TO_BUILD" >> "./${outputfile}-build-last"
     ld -r -o "./stdlib-${target}.o" $ALL_TO_BUILD >> ./${outputfile}-build-last 2>&1

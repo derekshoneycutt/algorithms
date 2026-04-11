@@ -7,7 +7,7 @@
 # subdirectory.
 
 TARGET=$1
-BUILD_TARGET=$(echo "$TARGET" | tr '[:lower:]' '[:upper:]')
+BUILD_TARGET=$(printf '%s' "$TARGET" | tr '[:lower:]' '[:upper:]')
 OUTPUT_FILE=$2
 
 case "$BUILD_TARGET" in
@@ -45,6 +45,12 @@ case "$BUILD_TARGET" in
                 MMIX_FILE="${MMIX_FILE_PATH#./}"
                 echo "cat \"./$MMIX_FILE\" >> \"./output/$OUTPUT_FILE\"" >> ./output/mmixal-build-last
                 cat "./$MMIX_FILE" >> "./output/$OUTPUT_FILE"
+                cat_ret="$?"
+                if [ "$cat_ret" -ne 0 ]; then
+                    echo "FAILED BUILD. MMIX merge failed for ./$MMIX_FILE (returned $cat_ret)" >> ./output/mmixal-build-last
+                    cat ./output/mmixal-build-last
+                    exit "$cat_ret"
+                fi
             done
             echo "BUILD COMPLETE: wrote ./output/$OUTPUT_FILE" >> ./output/mmixal-build-last
         else
@@ -84,6 +90,11 @@ case "$BUILD_TARGET" in
     "CLEAN")
         # If we have a clean target, we just delete the output
         rm -Rf ./output
+        clean_ret="$?"
+        if [ "$clean_ret" -ne 0 ]; then
+            echo "WARNING: failed to remove ./output (returned $clean_ret)"
+        fi
+        exit "$clean_ret"
     ;;
 
     *) echo "Unknown target specified '$BUILD_TARGET'"; exit 2 ;;

@@ -9,7 +9,7 @@
 TARGET=$1
 OUTPUT_FILE=$2
 DEBUG_FILE=$3
-BUILD_TARGET=$(echo "$TARGET" | tr '[:lower:]' '[:upper:]')
+BUILD_TARGET=$(printf '%s' "$TARGET" | tr '[:lower:]' '[:upper:]')
 
 case "$BUILD_TARGET" in
     "WINDOWS-X64")
@@ -27,7 +27,11 @@ case "$BUILD_TARGET" in
         BUILD_FUNCTION="build_native_nasm"
         ;;
     *"-NASM")
-        SEARCH_TARGET="${TARGET%-nasm}"
+        case "$BUILD_TARGET" in
+            "LINUX-X64-NASM") SEARCH_TARGET="Linux-x64" ;;
+            "FREEBSD-X64-NASM") SEARCH_TARGET="FreeBSD-x64" ;;
+            *) SEARCH_TARGET=$(printf '%s' "$TARGET" | sed 's/-[Nn][Aa][Ss][Mm]$//') ;;
+        esac
         FILE_EXTENSION="nasm"
         OUT_FORMAT="elf64"
         IS_WINDOWS=0
@@ -129,6 +133,12 @@ echo "Initial building completed; DO_BUILD=$DO_BUILD; moving to linking..." >> .
 
 # Build completed, we move to linking
 if [ "$DO_BUILD" -eq 1 ]; then
+    if [ -z "$ALL_OUTPUTS" ]; then
+        echo "FAILED BUILD. No object files to link; ALL_OUTPUTS is empty." >> ./output/${DEBUG_FILE}-build-last
+        echo "FAILED BUILD. No object files to link."
+        cat ./output/${DEBUG_FILE}-build-last
+        exit 1
+    fi
     cd ./output
     echo "cd ./output" >> "./${DEBUG_FILE}-build-last"
     echo "ld -r -o \"./$OUTPUT_FILE\" $ALL_OUTPUTS" >> "./${DEBUG_FILE}-build-last"
