@@ -87,8 +87,8 @@ if [ "$doNativeLink" -eq 1 ]; then
         exit 1
     fi
     cd ./output
-    echo "ld -r -o \"./stdlib-${targetCanonical}.o\" $allToBuild" >> "./${outputFile}-build-last"
-    ld -r -o "./stdlib-${targetCanonical}.o" $allToBuild >> ./${outputFile}-build-last 2>&1
+    echo "ld -v -r -o \"./stdlib-${targetCanonical}.o\" $allToBuild" >> "./${outputFile}-build-last"
+    ld -v -r -o "./stdlib-${targetCanonical}.o" $allToBuild >> ./${outputFile}-build-last 2>&1
     LAST_RETURN_VALUE="$?"
     echo "-- ld returned: $LAST_RETURN_VALUE" >> "./${outputFile}-build-last"
     cd ..

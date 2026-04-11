@@ -737,8 +737,8 @@ normal='\033[0m' # Resets the color to default
 #           ADA
 # =============================================
 ada_compile() {
-  echo "gnatmake -q -D output -o \"./output/$fileNameWithoutExt\" \"$fileName\"" > ./output/ada-build-last
-  gnatmake -q -D output -o "./output/$fileNameWithoutExt" "$fileName" >> ./output/ada-build-last  2>&1
+  echo "gnatmake -v -D output -o \"./output/$fileNameWithoutExt\" \"$fileName\"" > ./output/ada-build-last
+  gnatmake -v -D output -o "./output/$fileNameWithoutExt" "$fileName" >> ./output/ada-build-last  2>&1
   retValue="$?"
   echo "-- GNAT returned: $retValue" >> ./output/ada-build-last
   return "$retValue"
@@ -804,8 +804,8 @@ arm64asm_compile() {
     do_build=1
   fi
   if [ "$do_build" -eq 1 ]; then
-    echo "as -arch arm64 -o \"./output/$fileNameWithoutExt.o\" \"$fileName\"" >> ./output/arm64asm-build-last
-    as -arch arm64 -o "./output/$fileNameWithoutExt.o" "$fileName" >> ./output/arm64asm-build-last 2>&1
+    echo "as -v -arch arm64 -o \"./output/$fileNameWithoutExt.o\" \"$fileName\"" >> ./output/arm64asm-build-last
+    as -v -arch arm64 -o "./output/$fileNameWithoutExt.o" "$fileName" >> ./output/arm64asm-build-last 2>&1
     retValue="$?"
         
     echo "-- as returned: $retValue" >> ./output/arm64asm-build-last
@@ -820,8 +820,8 @@ arm64asm_compile() {
     do_link=1
   fi
   if [ "$do_link" -eq 1 ]; then
-    echo "ld -e _start -arch arm64 -o \"./output/$fileNameWithoutExt\" \"./output/$fileNameWithoutExt.o\" \"$stdlib\" -lSystem -syslibroot $(xcrun -sdk macosx --show-sdk-path)" >> ./output/arm64asm-build-last
-    ld -e _start -arch arm64 -o "./output/$fileNameWithoutExt" "./output/$fileNameWithoutExt.o" "$stdlib" -lSystem -syslibroot $(xcrun -sdk macosx --show-sdk-path) >> ./output/arm64asm-build-last 2>&1
+    echo "ld -v -e _start -arch arm64 -o \"./output/$fileNameWithoutExt\" \"./output/$fileNameWithoutExt.o\" \"$stdlib\" -lSystem -syslibroot $(xcrun -sdk macosx --show-sdk-path)" >> ./output/arm64asm-build-last
+    ld -v -e _start -arch arm64 -o "./output/$fileNameWithoutExt" "./output/$fileNameWithoutExt.o" "$stdlib" -lSystem -syslibroot $(xcrun -sdk macosx --show-sdk-path) >> ./output/arm64asm-build-last 2>&1
     retValue="$?"
     echo "-- ld returned: $retValue" >> ./output/arm64asm-build-last
     if [ "$retValue" -ne 0 ]; then
@@ -906,13 +906,13 @@ asm_compile() {
   if [ "$do_build" -eq 1 ]; then
     case "$platform" in
       "Windows-x64")
-        echo "as --defsym WINDOWS=1 -o \"./output/$fileNameWithoutExt.o\" \"$fileName\"" >> ./output/asm-build-last
-        as --defsym WINDOWS=1 -o "./output/$fileNameWithoutExt.o" "$fileName" >> ./output/asm-build-last 2>&1
+        echo "as -v --defsym WINDOWS=1 -o \"./output/$fileNameWithoutExt.o\" \"$fileName\"" >> ./output/asm-build-last
+        as -v --defsym WINDOWS=1 -o "./output/$fileNameWithoutExt.o" "$fileName" >> ./output/asm-build-last 2>&1
         retValue="$?"
       ;;
       *)
-        echo "as --defsym WINDOWS=0 -o \"./output/$fileNameWithoutExt.o\" \"$fileName\"" >> ./output/asm-build-last
-        as --defsym WINDOWS=0 -o "./output/$fileNameWithoutExt.o" "$fileName" >> ./output/asm-build-last 2>&1
+        echo "as -v --defsym WINDOWS=0 -o \"./output/$fileNameWithoutExt.o\" \"$fileName\"" >> ./output/asm-build-last
+        as -v --defsym WINDOWS=0 -o "./output/$fileNameWithoutExt.o" "$fileName" >> ./output/asm-build-last 2>&1
         retValue="$?"
       ;;
     esac
@@ -930,13 +930,13 @@ asm_compile() {
   if [ "$do_link" -eq 1 ]; then
     case "$platform" in
       "Windows-x64")
-        echo "ld -e _start -o \"./output/$fileNameWithoutExt\" \"./output/$fileNameWithoutExt.o\" \"$stdlib\" -L \"$LD_ADDITIONAL_DIRECTORY\" -lkernel32 -lshell32" >> ./output/asm-build-last
-        ld -e _start -o "./output/$fileNameWithoutExt" "./output/$fileNameWithoutExt.o" "$stdlib" -L "$LD_ADDITIONAL_DIRECTORY" -lkernel32 -lshell32 >> ./output/asm-build-last 2>&1
+        echo "ld -v -e _start -o \"./output/$fileNameWithoutExt\" \"./output/$fileNameWithoutExt.o\" \"$stdlib\" -L \"$LD_ADDITIONAL_DIRECTORY\" -lkernel32 -lshell32" >> ./output/asm-build-last
+        ld -v -e _start -o "./output/$fileNameWithoutExt" "./output/$fileNameWithoutExt.o" "$stdlib" -L "$LD_ADDITIONAL_DIRECTORY" -lkernel32 -lshell32 >> ./output/asm-build-last 2>&1
         retValue="$?"
       ;;
       *)
-        echo "ld -o \"./output/$fileNameWithoutExt\" \"./output/$fileNameWithoutExt.o\" \"$stdlib\"" >> ./output/asm-build-last
-        ld -o "./output/$fileNameWithoutExt" "./output/$fileNameWithoutExt.o" "$stdlib" >> ./output/asm-build-last 2>&1
+        echo "ld -v -o \"./output/$fileNameWithoutExt\" \"./output/$fileNameWithoutExt.o\" \"$stdlib\"" >> ./output/asm-build-last
+        ld -v -o "./output/$fileNameWithoutExt" "./output/$fileNameWithoutExt.o" "$stdlib" >> ./output/asm-build-last 2>&1
         retValue="$?"
       ;;
     esac
@@ -959,8 +959,8 @@ ballerina_compile() {
   cp "$fileName" ./output/
   cd ./output
 
-  echo "bal build \"$fileName\"" > ./ballerina-build-last
-  bal build "$fileName" >> ./ballerina-build-last  2>&1
+  echo "bal build -v \"$fileName\"" > ./ballerina-build-last
+  bal build -v "$fileName" >> ./ballerina-build-last  2>&1
   retValue="$?"
   echo "-- bal returned: $retValue" >> ./ballerina-build-last
 
@@ -976,8 +976,8 @@ ballerina_run() {
 #           C
 # =============================================
 c_compile() {
-  echo "gcc \"./$fileName\" -o \"./output/$fileNameWithoutExt\"" > ./output/c-build-last
-  gcc "./$fileName" -o "./output/$fileNameWithoutExt" >> ./output/c-build-last 2>&1
+  echo "gcc -v -Wall -Wextra \"./$fileName\" -o \"./output/$fileNameWithoutExt\"" > ./output/c-build-last
+  gcc -v -Wall -Wextra "./$fileName" -o "./output/$fileNameWithoutExt" >> ./output/c-build-last 2>&1
   retValue="$?"
   echo "-- GCC returned: $retValue" >> ./output/c-build-last
   return "$retValue"
@@ -1017,8 +1017,8 @@ clojure_compile() {
   fi
   if [ "$do_lein_uberjar" -eq 1 ]; then
     cd ./output
-    echo "lein uberjar" > ./clojure-build-last
-    lein uberjar >> ./clojure-build-last 2>&1
+    echo "LEIN_VERBOSE=true lein uberjar" > ./clojure-build-last
+    LEIN_VERBOSE=true lein uberjar >> ./clojure-build-last 2>&1
     retValue="$?"
     echo "-- lein returned: $retValue" >> ./clojure-build-last
     cd ..
@@ -1034,8 +1034,8 @@ clojure_run() {
 #           COBOL
 # =============================================
 cobol_compile() {
-  echo "cobc -x -o \"./output/$fileNameWithoutExt\" \"./$fileName\"" > ./output/cobol-build-last
-  cobc -x -o "./output/$fileNameWithoutExt" "./$fileName" >> ./output/cobol-build-last 2>&1
+  echo "cobc -v -x -o \"./output/$fileNameWithoutExt\" \"./$fileName\"" > ./output/cobol-build-last
+  cobc -v -x -o "./output/$fileNameWithoutExt" "./$fileName" >> ./output/cobol-build-last 2>&1
   retValue="$?"
   echo "-- cobc returned: $retValue" >> ./output/cobol-build-last
   return "$retValue"
@@ -1049,8 +1049,8 @@ cobol_run() {
 #           C++
 # =============================================
 cpp_compile() {
-  echo "g++ \"./$fileName\" -o \"./output/$fileNameWithoutExt\" --std=c++23 -lstdc++exp" > ./output/cpp-build-last
-  g++ "./$fileName" -o "./output/$fileNameWithoutExt" --std=c++23 -lstdc++exp >> ./output/cpp-build-last 2>&1
+  echo "g++ -v -Wall -Wextra \"./$fileName\" -o \"./output/$fileNameWithoutExt\" --std=c++23 -lstdc++exp" > ./output/cpp-build-last
+  g++ -v -Wall -Wextra "./$fileName" -o "./output/$fileNameWithoutExt" --std=c++23 -lstdc++exp >> ./output/cpp-build-last 2>&1
   retValue="$?"
   echo "-- G++ returned: $retValue" >> ./output/cpp-build-last
   return "$retValue"
@@ -1076,8 +1076,11 @@ csharp_compile() {
     get_variabled_string "$template_content" > "$fileNameWithoutExt.csproj"
   fi
 
-  echo "cd ./output && echo [$fileNameWithoutExt.csproj] && dotnet build && cd .." > ./csharp-build-last
-  dotnet build >> ./csharp-build-last 2>&1
+  echo "cd ./output" > ./csharp-build-last
+  echo "echo [$fileNameWithoutExt.csproj]" >> ./csharp-build-last
+  echo "dotnet build --verbosity:detailed" >> ./csharp-build-last
+  echo "cd .." >> ./csharp-build-last
+  dotnet build --verbosity:detailed >> ./csharp-build-last 2>&1
   retValue="$?"
   echo "-- dotnet build returned: $retValue" >> ./csharp-build-last
   cd ..
@@ -1092,8 +1095,8 @@ csharp_run() {
 #           D
 # =============================================
 d_compile() {
-  echo "dmd -od=./output -of=\"./output/$fileNameWithoutExt\" \"./$fileName\"" > ./output/d-build-last
-  dmd -od=./output -of="./output/$fileNameWithoutExt" "./$fileName" >> ./output/d-build-last 2>&1
+  echo "dmd -v -od=./output -of=\"./output/$fileNameWithoutExt\" \"./$fileName\"" > ./output/d-build-last
+  dmd -v -od=./output -of="./output/$fileNameWithoutExt" "./$fileName" >> ./output/d-build-last 2>&1
   retValue="$?"
   echo "-- dmd returned: $retValue" >> ./output/d-build-last
   return "$retValue"
@@ -1107,8 +1110,8 @@ d_run() {
 #           Dart
 # =============================================
 dart_compile() {
-  echo "dart compile exe \"./$fileName\" -o \"./output/$fileNameWithoutExt\"" > ./output/dart-build-last
-  dart compile exe "./$fileName" -o "./output/$fileNameWithoutExt" >> ./output/dart-build-last 2>&1
+  echo "dart --verbose compile exe \"./$fileName\" -o \"./output/$fileNameWithoutExt\"" > ./output/dart-build-last
+  dart --verbose compile exe "./$fileName" -o "./output/$fileNameWithoutExt" >> ./output/dart-build-last 2>&1
   retValue="$?"
   echo "-- dart returned: $retValue" >> ./output/dart-build-last
   return "$retValue"
@@ -1139,8 +1142,8 @@ eiffel_compile() {
       get_variabled_string "$template_content" > "./$fileNameWithoutExt.ecf"
     fi
 
-    echo "ec -batch -config \"./$fileNameWithoutExt.ecf\" -finalize" > ./eiffel-build-last
-    ec -batch -config "./$fileNameWithoutExt.ecf" -finalize >> ./eiffel-build-last 2>&1
+    echo "ec -batch -verbose -config \"./$fileNameWithoutExt.ecf\" -finalize" > ./eiffel-build-last
+    ec -batch -verbose -config "./$fileNameWithoutExt.ecf" -finalize >> ./eiffel-build-last 2>&1
     retValue="$?"
     echo "-- ec returned: $retValue" >> ./eiffel-build-last
     cd ..
@@ -1193,8 +1196,8 @@ eiffel_run() {
 #           Elixir
 # =============================================
 elixir_compile() {
-  echo "elixirc -o ./output/ \"./$fileName\"" > ./output/elixir-build-last
-  elixirc -o ./output/ "./$fileName" >> ./output/elixir-build-last 2>&1
+  echo "elixirc --verbose -o ./output/ \"./$fileName\"" > ./output/elixir-build-last
+  elixirc --verbose -o ./output/ "./$fileName" >> ./output/elixir-build-last 2>&1
   retValue="$?"
   echo "-- elixirc returned: $retValue" >> ./output/elixir-build-last
   return "$retValue"
@@ -1208,8 +1211,8 @@ elixir_run() {
 #           Erlang
 # =============================================
 erlang_compile() {
-  echo "erlc -o ./output/ \"./$fileName\"" > ./output/erlang-build-last
-  erlc -o ./output/ "./$fileName" >> ./output/erlang-build-last 2>&1
+  echo "erlc +verbose +report -o ./output/ \"./$fileName\"" > ./output/erlang-build-last
+  erlc +verbose +report -o ./output/ "./$fileName" >> ./output/erlang-build-last 2>&1
   retValue="$?"
   echo "-- erlc returned: $retValue" >> ./output/erlang-build-last
   return "$retValue"
@@ -1248,8 +1251,8 @@ forth_run() {
 #           Fortran
 # =============================================
 fortran_compile() {
-  echo "gfortran \"./$fileName\" -o \"./output/$fileNameWithoutExt\"" > ./output/fortran-build-last
-  gfortran "./$fileName" -o "./output/$fileNameWithoutExt" >> ./output/fortran-build-last 2>&1
+  echo "gfortran -v -Wall -Wextra \"./$fileName\" -o \"./output/$fileNameWithoutExt\"" > ./output/fortran-build-last
+  gfortran -v -Wall -Wextra "./$fileName" -o "./output/$fileNameWithoutExt" >> ./output/fortran-build-last 2>&1
   retValue="$?"
   echo "-- gfortran returned: $retValue" >> ./output/fortran-build-last
   return "$retValue"
@@ -1266,8 +1269,8 @@ freebasic_compile() {
   cp "$fileName" ./output/
   cd ./output
 
-  echo "fbc \"./$fileName\"" > ./freebasic-build-last
-  fbc "./$fileName" >> ./freebasic-build-last  2>&1
+  echo "fbc -v \"./$fileName\"" > ./freebasic-build-last
+  fbc -v "./$fileName" >> ./freebasic-build-last  2>&1
   retValue="$?"
   echo "-- fbc returned: $retValue" >> ./freebasic-build-last
 
@@ -1295,8 +1298,11 @@ fsharp_compile() {
     get_variabled_string "$template_content" > "$fileNameWithoutExt.fsproj"
   fi
 
-  echo "cd ./output && echo [$fileNameWithoutExt.fsproj] && dotnet build && cd .." > ./fsharp-build-last
-  dotnet build >> ./fsharp-build-last 2>&1
+  echo "cd ./output" > ./fsharp-build-last
+  echo "echo [$fileNameWithoutExt.fsproj]" >> ./fsharp-build-last
+  echo "dotnet build --verbosity:detailed" >> ./fsharp-build-last
+  echo "cd .." >> ./fsharp-build-last
+  dotnet build --verbosity:detailed >> ./fsharp-build-last 2>&1
   retValue="$?"
   echo "-- dotnet build returned: $retValue" >> ./fsharp-build-last
   cd ..
@@ -1321,9 +1327,9 @@ gleam_compile() {
     get_variabled_string "$template_content" > "./output/manifest.toml"
   fi
 
-  echo "gleam build \"$fileNameWithoutExt\"" > ./output/gleam-build-last
+  echo "gleam build --verbose \"$fileNameWithoutExt\"" > ./output/gleam-build-last
   cd ./output
-  gleam build 2>> ./gleam-build-last
+  gleam build --verbose >> ./gleam-build-last 2>&1
   retValue="$?"
   echo "-- gleam returned: $retValue" >> ./gleam-build-last
   cd ../
@@ -1341,8 +1347,8 @@ gleam_run() {
 #           Go
 # =============================================
 go_compile() {
-  echo "go build -o \"./output/$fileNameWithoutExt\" \"./$fileName\"" > ./output/go-build-last
-  go build -o "./output/$fileNameWithoutExt" "./$fileName" >> ./output/go-build-last 2>&1
+  echo "go build -v -x -work -o \"./output/$fileNameWithoutExt\" \"./$fileName\"" > ./output/go-build-last
+  go build -v -x -work -o "./output/$fileNameWithoutExt" "./$fileName" >> ./output/go-build-last 2>&1
   retValue="$?"
   echo "-- go returned: $retValue" >> ./output/go-build-last
   return "$retValue"
@@ -1358,8 +1364,8 @@ go_run() {
 haskell_compile() {
   cp "./$fileName" ./output/
   cd ./output
-  echo "ghc \"./$fileName\"" > ./haskell-build-last
-  ghc "./$fileName" >> ./haskell-build-last 2>&1
+  echo "ghc -v2 \"./$fileName\"" > ./haskell-build-last
+  ghc -v2 "./$fileName" >> ./haskell-build-last 2>&1
   retValue="$?"
   echo "-- ghc returned: $retValue" >> ./haskell-build-last
   cd ..
@@ -1387,8 +1393,8 @@ haxe_run() {
 icon_compile() {
   cp "./$fileName" ./output/
   cd ./output
-  echo "icont \"./$fileName\"" > ./icon-build-last
-  icont "./$fileName" >> ./icon-build-last 2>&1
+  echo "icont -v \"./$fileName\"" > ./icon-build-last
+  icont -v "./$fileName" >> ./icon-build-last 2>&1
   retValue="$?"
   echo "-- icont returned: $retValue" >> ./icon-build-last
   cd ..
@@ -1406,8 +1412,8 @@ idris_compile() {
   cp "./$fileName" ./output/
   cd ./output
 
-  echo "idris2 \"$fileName\" -o \"$fileNameWithoutExt\"" > ./idris-build-last
-  idris2 "$fileName" -o "$fileNameWithoutExt" >> ./idris-build-last 2>&1
+  echo "idris2 --verbose \"$fileName\" -o \"$fileNameWithoutExt\"" > ./idris-build-last
+  idris2 --verbose "$fileName" -o "$fileNameWithoutExt" >> ./idris-build-last 2>&1
   retValue="$?"
   echo "-- idris2 returned: $retValue" >> ./idris-build-last
 
@@ -1423,8 +1429,8 @@ idris_run() {
 #           Java
 # =============================================
 java_compile() {
-  echo "javac \"./$fileName\" -d ./output" > ./output/java-build-last
-  javac "./$fileName" -d ./output >> ./output/java-build-last 2>&1
+  echo "javac -verbose -Xlint:all \"./$fileName\" -d ./output" > ./output/java-build-last
+  javac -verbose -Xlint:all "./$fileName" -d ./output >> ./output/java-build-last 2>&1
   retValue="$?"
   echo "-- javac returned: $retValue" >> ./output/java-build-last
   if [ "$retValue" -ne 0 ]; then
@@ -1493,8 +1499,8 @@ kit_run() {
 #           Kotlin
 # =============================================
 kotlin_compile() {
-  echo "kotlinc \"./$fileName\" -include-runtime -d \"./output/$fileNameWithoutExt.jar\"" > ./output/kotlin-build-last
-  kotlinc "./$fileName" -include-runtime -d "./output/$fileNameWithoutExt.jar" >> ./output/kotlin-build-last 2>&1
+  echo "kotlinc -verbose \"./$fileName\" -include-runtime -d \"./output/$fileNameWithoutExt.jar\"" > ./output/kotlin-build-last
+  kotlinc -verbose "./$fileName" -include-runtime -d "./output/$fileNameWithoutExt.jar" >> ./output/kotlin-build-last 2>&1
   retValue="$?"
   echo "-- kotlinc returned: $retValue" >> ./output/kotlin-build-last
   return "$retValue"
@@ -1508,8 +1514,8 @@ kotlin_run() {
 #           LLVM IR
 # =============================================
 llvmir_compile() {
-  echo "clang \"./$fileName\" -O2 -Wall -o \"./output/$fileNameWithoutExt\"" > ./output/llvmir-build-last
-  clang "./$fileName" -O2 -Wall -o "./output/$fileNameWithoutExt" >> ./output/llvmir-build-last 2>&1
+  echo "clang -v \"./$fileName\" -O2 -Wall -Wextra -o \"./output/$fileNameWithoutExt\"" > ./output/llvmir-build-last
+  clang -v "./$fileName" -O2 -Wall -Wextra -o "./output/$fileNameWithoutExt" >> ./output/llvmir-build-last 2>&1
   retValue="$?"
   echo "-- clang returned: $retValue" >> ./output/llvmir-build-last
   return "$retValue"
@@ -1542,8 +1548,10 @@ mercury_compile() {
   cp "$fileName" "./output/$fileNameWithoutExt.m"
   cd ./output
 
-  echo "cd ./output && mmc \"./$fileNameWithoutExt.m\" && cd .." >> ./mercury-build-last
-  mmc "./$fileNameWithoutExt.m" >> ./mercury-build-last 2>&1
+  echo "cd ./output" >> ./mercury-build-last
+  echo "mmc --verbose \"./$fileNameWithoutExt.m\"" >> ./mercury-build-last
+  echo "cd .." >> ./mercury-build-last
+  mmc --verbose "./$fileNameWithoutExt.m" >> ./mercury-build-last 2>&1
   retValue="$?"
   echo "-- mmc returned: $retValue" >> ./mercury-build-last
 
@@ -1614,7 +1622,9 @@ mmixal_compile() {
   fi
 
   cd ./output
-  echo "cd ./output/ && mmixal \"./$fileName\" && cd .." >> ./mmixal-build-last
+  echo "cd ./output" >> ./mmixal-build-last
+  echo "mmixal \"./$fileName\"" >> ./mmixal-build-last
+  echo "cd .." >> ./mmixal-build-last
   mmixal "./$fileName" >> ./mmixal-build-last 2>&1
   retValue="$?"
   echo "-- mmixal returned: $retValue" >> ./mmixal-build-last
@@ -1638,9 +1648,10 @@ modula3_compile() {
   rm -Rf ./output/AMD64_LINUX/* >> /dev/null
   echo "Copying file to output/AMD64_LINUX..." >> ./output/modula3-build-last
   cp "$fileName" "./output/AMD64_LINUX/$fileName"
-  echo "cd ./output/ && cm3 \"$fileName\"" >> ./output/modula3-build-last
+  echo "cd ./output" >> ./output/modula3-build-last
+  echo "cm3 -verbose \"$fileName\"" >> ./output/modula3-build-last
   cd ./output/
-  cm3 "$fileName" >> ./modula3-build-last 2>&1
+  cm3 -verbose "$fileName" >> ./modula3-build-last 2>&1
   retValue="$?"
   echo "-- cm3 returned: $retValue" >> ./modula3-build-last
   cd ..
@@ -1755,13 +1766,13 @@ nasm_compile() {
   if [ "$do_build" -eq 1 ]; then
     case "$platform" in
       "Windows-x64")
-        echo "nasm -f win64 -o \"./output/$fileNameWithoutExt.o\" \"$fileName\"" >> ./output/nasm-build-last
-        nasm -f win64 -o "./output/$fileNameWithoutExt.o" "$fileName" >> ./output/nasm-build-last 2>&1
+        echo "nasm -w+all -f win64 -o \"./output/$fileNameWithoutExt.o\" \"$fileName\"" >> ./output/nasm-build-last
+        nasm -w+all -f win64 -o "./output/$fileNameWithoutExt.o" "$fileName" >> ./output/nasm-build-last 2>&1
         retValue="$?"
       ;;
       *)
-        echo "nasm -f elf64 -o \"./output/$fileNameWithoutExt.o\" \"$fileName\"" >> ./output/nasm-build-last
-        nasm -f elf64 -o "./output/$fileNameWithoutExt.o" "$fileName" >> ./output/nasm-build-last 2>&1
+        echo "nasm -w+all -f elf64 -o \"./output/$fileNameWithoutExt.o\" \"$fileName\"" >> ./output/nasm-build-last
+        nasm -w+all -f elf64 -o "./output/$fileNameWithoutExt.o" "$fileName" >> ./output/nasm-build-last 2>&1
         retValue="$?"
       ;;
     esac
@@ -1779,13 +1790,13 @@ nasm_compile() {
   if [ "$do_link" -eq 1 ]; then
     case "$platform" in
       "Windows-x64")
-        echo "ld -e _start -o \"./output/$fileNameWithoutExt\" \"./output/$fileNameWithoutExt.o\" \"$stdlib\" -L \"$LD_ADDITIONAL_DIRECTORY\" -lkernel32 -lshell32" >> ./output/nasm-build-last
-        ld -e _start -o "./output/$fileNameWithoutExt" "./output/$fileNameWithoutExt.o" "$stdlib" -L "$LD_ADDITIONAL_DIRECTORY" -lkernel32 -lshell32 >> ./output/nasm-build-last 2>&1
+        echo "ld -v -e _start -o \"./output/$fileNameWithoutExt\" \"./output/$fileNameWithoutExt.o\" \"$stdlib\" -L \"$LD_ADDITIONAL_DIRECTORY\" -lkernel32 -lshell32" >> ./output/nasm-build-last
+        ld -v -e _start -o "./output/$fileNameWithoutExt" "./output/$fileNameWithoutExt.o" "$stdlib" -L "$LD_ADDITIONAL_DIRECTORY" -lkernel32 -lshell32 >> ./output/nasm-build-last 2>&1
         retValue="$?"
       ;;
       *)
-        echo "ld -o \"./output/$fileNameWithoutExt\" \"./output/$fileNameWithoutExt.o\" \"$stdlib\"" >> ./output/nasm-build-last
-        ld -o "./output/$fileNameWithoutExt" "./output/$fileNameWithoutExt.o" "$stdlib" >> ./output/nasm-build-last 2>&1
+        echo "ld -v -o \"./output/$fileNameWithoutExt\" \"./output/$fileNameWithoutExt.o\" \"$stdlib\"" >> ./output/nasm-build-last
+        ld -v -o "./output/$fileNameWithoutExt" "./output/$fileNameWithoutExt.o" "$stdlib" >> ./output/nasm-build-last 2>&1
         retValue="$?"
       ;;
     esac
@@ -1805,8 +1816,8 @@ nasm_run() {
 #           Nim
 # =============================================
 nim_compile() {
-  echo "nim compile --out:\"./output/$fileNameWithoutExt\" \"./$fileName\"" > ./output/nim-build-last
-  nim compile --out:"./output/$fileNameWithoutExt" "./$fileName" >> ./output/nim-build-last 2>&1
+  echo "nim compile --verbosity:3 --out:\"./output/$fileNameWithoutExt\" \"./$fileName\"" > ./output/nim-build-last
+  nim compile --verbosity:3 --out:"./output/$fileNameWithoutExt" "./$fileName" >> ./output/nim-build-last 2>&1
   retValue="$?"
   echo "-- nim returned: $retValue" >> ./output/nim-build-last
   return "$retValue"
@@ -1822,9 +1833,11 @@ nim_run() {
 oberon_compile() {
   echo "Copying $fileName to output..." > ./output/oberon-build-last
   cp "./$fileName" ./output/
-  echo "cd ./output && voc -m \"./$fileName\" && cd .." >> ./output/oberon-build-last
+  echo "cd ./output" >> ./output/oberon-build-last
+  echo "voc -v -m \"./$fileName\"" >> ./output/oberon-build-last
+  echo "cd .." >> ./output/oberon-build-last
   cd ./output
-  voc -m "$fileName" >> ./oberon-build-last 2>&1
+  voc -v -m "$fileName" >> ./oberon-build-last 2>&1
   retValue="$?"
   echo "-- voc returned: $retValue" >> ./oberon-build-last
   cd ..
@@ -1839,8 +1852,8 @@ oberon_run() {
 #           Objective-C
 # =============================================
 objectivec_compile() {
-  echo "clang -lobjc -lgnustep-base \$(gnustep-config --objc-flags) \$(gnustep-config --objc-libs) -L/usr/local/lib  \"./$fileName\" -o \"./output/$fileNameWithoutExt\"" > ./output/objectivec-build-last
-  clang -lobjc -lgnustep-base $(gnustep-config --objc-flags) $(gnustep-config --objc-libs) -L/usr/local/lib  "./$fileName" -o "./output/$fileNameWithoutExt" >> ./output/objectivec-build-last 2>&1
+  echo "clang -v -lobjc -lgnustep-base \$(gnustep-config --objc-flags) \$(gnustep-config --objc-libs) -L/usr/local/lib  \"./$fileName\" -o \"./output/$fileNameWithoutExt\"" > ./output/objectivec-build-last
+  clang -v -lobjc -lgnustep-base $(gnustep-config --objc-flags) $(gnustep-config --objc-libs) -L/usr/local/lib  "./$fileName" -o "./output/$fileNameWithoutExt" >> ./output/objectivec-build-last 2>&1
   retValue="$?"
   echo "-- clang returned: $retValue" >> ./output/objectivec-build-last
   return "$retValue"
@@ -1856,8 +1869,8 @@ objectivec_run() {
 ocaml_compile() {
   cp "./$fileName" ./output/
   cd ./output
-  echo "ocamlopt -o \"./$fileNameWithoutExt\" \"./$fileName\"" > ./ocaml-build-last
-  ocamlopt -o "./$fileNameWithoutExt" "./$fileName" >> ./ocaml-build-last 2>&1
+  echo "ocamlopt -verbose -o \"./$fileNameWithoutExt\" \"./$fileName\"" > ./ocaml-build-last
+  ocamlopt -verbose -o "./$fileNameWithoutExt" "./$fileName" >> ./ocaml-build-last 2>&1
   retValue="$?"
   echo "-- ocamlopt returned: $retValue" >> ./ocaml-build-last
   cd ..
@@ -1890,9 +1903,11 @@ pascal_compile() {
   echo "Copying $fileName to output..." > ./output/pascal-build-last
   cp "./$fileName" ./output
 
-  echo "cd ./output && fpc \"$fileName\" && cd .." >> ./output/pascal-build-last
+  echo "cd ./output" >> ./output/pascal-build-last
+  echo "fpc -va \"$fileName\"" >> ./output/pascal-build-last
+  echo "cd .." >> ./output/pascal-build-last
   cd ./output
-  fpc "$fileName" >> ./pascal-build-last 2>&1
+  fpc -va "$fileName" >> ./pascal-build-last 2>&1
   retValue="$?"
   echo "-- fpc returned: $retValue" >> ./pascal-build-last
   cd ..
@@ -1909,8 +1924,8 @@ pascal_run() {
 perl_compile() {
   cp "./$fileName" ./output/
   cd ./output
-  echo "perl -c \"./$fileName\"" > ./perl-build-last
-  perl -c "./$fileName" >> ./perl-build-last 2>&1
+  echo "perl -w -c \"./$fileName\"" > ./perl-build-last
+  perl -w -c "./$fileName" >> ./perl-build-last 2>&1
   retValue="$?"
   echo "-- perl returned: $retValue" >> ./perl-build-last
   cd ..
@@ -1949,8 +1964,8 @@ php_run() {
 #           Prolog
 # =============================================
 prolog_compile() {
-  echo "gplc \"$fileName\" -o \"./output/$fileNameWithoutExt\"" > ./output/prolog-build-last
-  gplc "$fileName" -o "./output/$fileNameWithoutExt" >> ./output/prolog-build-last 2>&1
+  echo "gplc -v \"$fileName\" -o \"./output/$fileNameWithoutExt\"" > ./output/prolog-build-last
+  gplc -v "$fileName" -o "./output/$fileNameWithoutExt" >> ./output/prolog-build-last 2>&1
   retValue="$?"
   echo "-- gplc returned: $retValue" >> ./output/prolog-build-last
   return "$retValue"
@@ -1966,8 +1981,8 @@ prolog_run() {
 python_compile() {
   cp "./$fileName" ./output/
   cd ./output
-  echo "python -m py_compile \"./$fileName\"" > ./python-build-last
-  python -m py_compile "./$fileName" >> ./python-build-last 2>&1
+  echo "PYTHONVERBOSE=2 python -m py_compile \"./$fileName\"" > ./python-build-last
+  PYTHONVERBOSE=2 python -m py_compile "./$fileName" >> ./python-build-last 2>&1
   retValue="$?"
   echo "-- python returned: $retValue" >> ./python-build-last
   cd ..
@@ -1987,8 +2002,8 @@ python_run() {
 r_compile() {
   cp "./$fileName" ./output/
   cd ./output
-  echo "Rscript --vanilla -e \"parse(file='$fileName')\"" > ./r-build-last
-  Rscript --vanilla -e "parse(file='$fileName')" >> ./r-build-last 2>&1
+  echo "Rscript --verbose --vanilla -e \"parse(file='$fileName')\"" > ./r-build-last
+  Rscript --verbose --vanilla -e "parse(file='$fileName')" >> ./r-build-last 2>&1
   retValue="$?"
   echo "-- Rscript returned: $retValue" >> ./r-build-last
   cd ..
@@ -2023,8 +2038,8 @@ racket_run() {
 ruby_compile() {
   cp "./$fileName" ./output/
   cd ./output
-  echo "ruby -c \"./$fileName\"" > ./ruby-build-last
-  ruby -c "./$fileName" >> ./ruby-build-last 2>&1
+  echo "ruby -w -c \"./$fileName\"" > ./ruby-build-last
+  ruby -w -c "./$fileName" >> ./ruby-build-last 2>&1
   retValue="$?"
   echo "-- ruby returned: $retValue" >> ./ruby-build-last
   cd ..
@@ -2042,8 +2057,8 @@ ruby_run() {
 #           Rust
 # =============================================
 rust_compile() {
-  echo "rustc \"./$fileName\" -o \"./output/$fileNameWithoutExt\"" > ./output/rust-build-last
-  rustc "./$fileName" -o "./output/$fileNameWithoutExt" >> ./output/rust-build-last 2>&1
+  echo "rustc --verbose \"./$fileName\" -o \"./output/$fileNameWithoutExt\"" > ./output/rust-build-last
+  rustc --verbose "./$fileName" -o "./output/$fileNameWithoutExt" >> ./output/rust-build-last 2>&1
   retValue="$?"
   echo "-- rustc returned: $retValue" >> ./output/rust-build-last
   return "$retValue"
@@ -2057,7 +2072,10 @@ rust_run() {
 #           Scala
 # =============================================
 scala_compile() {
-  echo "cp \"./$fileName\" ./output/ && cd ./output && scala compile \"./$fileName\" && cd .." > ./output/scala-build-last
+  echo "cp \"./$fileName\" ./output/" > ./output/scala-build-last
+  echo "cd ./output" >> ./output/scala-build-last
+  echo "scala compile \"./$fileName\"" >> ./output/scala-build-last
+  echo "cd .." >> ./output/scala-build-last
   cp "./$fileName" ./output/
   cd ./output
   scala compile "./$fileName" >> ./scala-build-last 2>&1
@@ -2084,13 +2102,13 @@ scala_run() {
 scheme_compile() {
   scheme_compiler_name="guild"
   if command -v guild > /dev/null 2>&1; then
-    echo "guild compile -o \"./output/$fileNameWithoutExt.go\" \"./$fileName\"" > ./output/scheme-build-last
-    guild compile -o "./output/$fileNameWithoutExt.go" "./$fileName" >> ./output/scheme-build-last 2>&1
+    echo "guild compile --verbose -o \"./output/$fileNameWithoutExt.go\" \"./$fileName\"" > ./output/scheme-build-last
+    guild compile --verbose -o "./output/$fileNameWithoutExt.go" "./$fileName" >> ./output/scheme-build-last 2>&1
     retValue="$?"
   else
     scheme_compiler_name="guile"
-    echo "guile -c \"(compile-file \\\"./$fileName\\\" #:output-file \\\"./output/$fileNameWithoutExt.go\\\")\"" > ./output/scheme-build-last
-    guile -c "(compile-file \"./$fileName\" #:output-file \"./output/$fileNameWithoutExt.go\")" >> ./output/scheme-build-last 2>&1
+    echo "GUILE_DEBUG_LOAD=1 guile -c \"(compile-file \\\"./$fileName\\\" #:output-file \\\"./output/$fileNameWithoutExt.go\\\")\"" > ./output/scheme-build-last
+    GUILE_DEBUG_LOAD=1 guile -c "(compile-file \"./$fileName\" #:output-file \"./output/$fileNameWithoutExt.go\")" >> ./output/scheme-build-last 2>&1
     retValue="$?"
   fi
   echo "-- $scheme_compiler_name returned: $retValue" >> ./output/scheme-build-last
@@ -2107,12 +2125,17 @@ scheme_run() {
 simula_compile() {
   echo "Copying $fileName to output..." > ./output/simula-build-last
   cp "./$fileName" ./output/
-  echo "cd ./output && cim \"./$fileName\" && cd .." >> ./output/simula-build-last
+  echo "cd ./output" >> ./output/simula-build-last
+  echo "rm -f ./gcc ./g++" >> ./output/simula-build-last
+  echo "ln -s \"${DEREKALGOS_GCC13}${DEREKALGOS_GCC13NAME}\" ./gcc" >> ./output/simula-build-last
+  echo "ln -s \"${DEREKALGOS_GCC13}${DEREKALGOS_GXX13NAME}\" ./g++" >> ./output/simula-build-last
+  echo "PATH=\"$PWD:\$PATH\" cim -v \"./$fileName\"" >> ./output/simula-build-last
+  echo "cd .." >> ./output/simula-build-last
   cd ./output/
   rm -f ./gcc ./g++
   ln -s "${DEREKALGOS_GCC13}${DEREKALGOS_GCC13NAME}" ./gcc
   ln -s "${DEREKALGOS_GCC13}${DEREKALGOS_GXX13NAME}" ./g++
-  PATH="$PWD:$PATH" cim "./$fileName" >> ./simula-build-last 2>&1
+  PATH="$PWD:$PATH" cim -v "./$fileName" >> ./simula-build-last 2>&1
   retValue="$?"
   echo "-- cim returned: $retValue" >> ./simula-build-last
   cd ..
@@ -2138,8 +2161,8 @@ smalltalk_run() {
 #           Swift
 # =============================================
 swift_compile() {
-  echo "swiftc \"./$fileName\" -o \"./output/$fileNameWithoutExt\"" > ./output/swift-build-last
-  swiftc "./$fileName" -o "./output/$fileNameWithoutExt" >> ./output/swift-build-last 2>&1
+  echo "swiftc -v \"./$fileName\" -o \"./output/$fileNameWithoutExt\"" > ./output/swift-build-last
+  swiftc -v "./$fileName" -o "./output/$fileNameWithoutExt" >> ./output/swift-build-last 2>&1
   retValue="$?"
   echo "-- swiftc returned: $retValue" >> ./output/swift-build-last
   return "$retValue"
@@ -2164,8 +2187,8 @@ tcl_run() {
 #           Typescript
 # =============================================
 typescript_compile() {
-  echo "tsc \"$fileName\" --outDir output --target esnext --skipLibCheck true --types node" > ./output/typescript-build-last
-  tsc "$fileName" --outDir output --target esnext --skipLibCheck true --types node >> ./output/typescript-build-last 2>&1
+  echo "tsc \"$fileName\" --outDir output --target esnext --skipLibCheck true --types node --listFiles --extendedDiagnostics" > ./output/typescript-build-last
+  tsc "$fileName" --outDir output --target esnext --skipLibCheck true --types node --listFiles --extendedDiagnostics >> ./output/typescript-build-last 2>&1
   retValue="$?"
   echo "-- tsc returned: $retValue" >> ./output/typescript-build-last
   return "$retValue"
@@ -2206,8 +2229,11 @@ visualbasic_compile() {
     get_variabled_string "$template_content" > "$fileNameWithoutExt.vbproj"
   fi
 
-  echo "cd ./output && echo [$fileNameWithoutExt.vbproj] && dotnet build && cd .." > ./visualbasic-build-last
-  dotnet build >> ./visualbasic-build-last 2>&1
+  echo "cd ./output" > ./visualbasic-build-last
+  echo "echo [$fileNameWithoutExt.vbproj]" >> ./visualbasic-build-last
+  echo "dotnet build --verbosity:detailed" >> ./visualbasic-build-last
+  echo "cd .." >> ./visualbasic-build-last
+  dotnet build --verbosity:detailed >> ./visualbasic-build-last 2>&1
   retValue="$?"
   echo "-- dotnet build returned: $retValue" >> ./visualbasic-build-last
   cd ..
@@ -2222,10 +2248,13 @@ visualbasic_run() {
 #           WASM (wat)
 # =============================================
 wat_compile() {
-  echo "cp \"$fileName\" \"./output/$fileName\" && cd ./output && wat2wasm \"$fileName\" -o \"$fileNameWithoutExt.wasm\" && cd .." > ./output/wat-build-last
+  echo "cp \"$fileName\" \"./output/$fileName\"" > ./output/wat-build-last
+  echo "cd ./output" >> ./output/wat-build-last
+  echo "wat2wasm -v \"$fileName\" -o \"$fileNameWithoutExt.wasm\"" >> ./output/wat-build-last
+  echo "cd .." >> ./output/wat-build-last
   cp "$fileName" "./output/$fileName"
   cd ./output
-  wat2wasm "$fileName" -o "$fileNameWithoutExt.wasm" >> ./wat-build-last 2>&1
+  wat2wasm -v "$fileName" -o "$fileNameWithoutExt.wasm" >> ./wat-build-last 2>&1
   retValue="$?"
   echo "-- wat2wasm returned: $retValue" >> ./wat-build-last
   cd ..

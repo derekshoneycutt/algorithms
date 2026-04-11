@@ -65,22 +65,22 @@ case "$buildTarget" in
 esac
 
 build_native_asm() {
-    echo "as --defsym WINDOWS=$IS_WINDOWS -o \"./output/$ASM_OBJ_OUTPUT\" \"$ASM_FILE\"" >> ./output/${debugFile}-build-last
-    as --defsym WINDOWS=$IS_WINDOWS -o "./output/$ASM_OBJ_OUTPUT" "$ASM_FILE" >> ./output/${debugFile}-build-last 2>&1
+    echo "as -v --defsym WINDOWS=$IS_WINDOWS -o \"./output/$ASM_OBJ_OUTPUT\" \"$ASM_FILE\"" >> ./output/${debugFile}-build-last
+    as -v --defsym WINDOWS=$IS_WINDOWS -o "./output/$ASM_OBJ_OUTPUT" "$ASM_FILE" >> ./output/${debugFile}-build-last 2>&1
     LAST_RETURN_VALUE="$?"
     echo "-- as returned: $LAST_RETURN_VALUE" >> "./output/${debugFile}-build-last"
 }
 
 build_native_nasm() {
-    echo "nasm -f $OUT_FORMAT -o \"./output/$ASM_OBJ_OUTPUT\" \"$ASM_FILE\"" >> ./output/${debugFile}-build-last
-    nasm -f $OUT_FORMAT -o "./output/$ASM_OBJ_OUTPUT" "$ASM_FILE" >> ./output/${debugFile}-build-last 2>&1
+    echo "nasm -w+all -f $OUT_FORMAT -o \"./output/$ASM_OBJ_OUTPUT\" \"$ASM_FILE\"" >> ./output/${debugFile}-build-last
+    nasm -w+all -f $OUT_FORMAT -o "./output/$ASM_OBJ_OUTPUT" "$ASM_FILE" >> ./output/${debugFile}-build-last 2>&1
     LAST_RETURN_VALUE="$?"
     echo "-- nasm returned: $LAST_RETURN_VALUE" >> "./output/${debugFile}-build-last"
 }
 
 build_native_darwinarm64() {
-    echo "as -arch arm64 -o \"./output/$ASM_OBJ_OUTPUT\" \"$ASM_FILE\"" >> ./output/${debugFile}-build-last
-    as -arch arm64 -o "./output/$ASM_OBJ_OUTPUT" "$ASM_FILE" >> ./output/${debugFile}-build-last 2>&1
+    echo "as -v -arch arm64 -o \"./output/$ASM_OBJ_OUTPUT\" \"$ASM_FILE\"" >> ./output/${debugFile}-build-last
+    as -v -arch arm64 -o "./output/$ASM_OBJ_OUTPUT" "$ASM_FILE" >> ./output/${debugFile}-build-last 2>&1
     LAST_RETURN_VALUE="$?"
     echo "-- as returned: $LAST_RETURN_VALUE" >> "./output/${debugFile}-build-last"
 }
@@ -152,8 +152,8 @@ if [ "$doBuild" -eq 1 ]; then
     fi
     cd ./output
     echo "cd ./output" >> "./${debugFile}-build-last"
-    echo "ld -r -o \"./$outputFile\" $allOutputs" >> "./${debugFile}-build-last"
-    ld -r -o "./$outputFile" $allOutputs >> ./${debugFile}-build-last 2>&1
+    echo "ld -v -r -o \"./$outputFile\" $allOutputs" >> "./${debugFile}-build-last"
+    ld -v -r -o "./$outputFile" $allOutputs >> ./${debugFile}-build-last 2>&1
     LAST_RETURN_VALUE="$?"
     echo "-- ld returned: $LAST_RETURN_VALUE" >> "./${debugFile}-build-last"
     echo "cd .." >> "./${debugFile}-build-last"
