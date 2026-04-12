@@ -115,10 +115,22 @@ else
   langs=$(awk '/^get_language_catalog\(\)/{inside=1;next} inside && /^EOF$/{inside=0} inside{print $0}' "$repoRoot/run.sh" | grep '|' | cut -d'|' -f1 | grep -v '^arm64asm$')
 fi
 
+set -- $langs
+totalLangs=$#
+if [ "$totalLangs" -eq 0 ]; then
+  echo "Smoke test aborted: no languages selected." >&2
+  exit 64
+fi
+
+echo "SMOKE START: target=$algoRel languages=$totalLangs"
+echo "SMOKE WORKDIR: $smokeWorkDir"
+
 printf 'lang|exit|build_log|archive_last|archive_output_path|archive_source_path|archive_build_success|note\n' > "$reportFile"
 
 cd "$algoDir"
+currentIndex=0
 for lang in $langs; do
+  currentIndex=$((currentIndex + 1))
   note=""
   buildLogStatus="missing"
   archiveLastStatus="missing"
@@ -135,6 +147,8 @@ for lang in $langs; do
       ;;
     *) ;;
   esac
+
+  echo "SMOKE [$currentIndex/$totalLangs] START lang=$lang timeout=$timeoutArg"
 
   # Run one language build/run and keep a dedicated per-language smoke log.
   if command -v timeout > /dev/null 2>&1; then
@@ -204,6 +218,12 @@ for lang in $langs; do
   fi
 
   printf '%s|%s|%s|%s|%s|%s|%s|%s\n' "$lang" "$rc" "$buildLogStatus" "$archiveLastStatus" "$archiveOutputStatus" "$archiveSourceStatus" "$archiveBuildSuccessStatus" "$note" >> "$reportFile"
+
+  if [ "$rc" -eq 0 ]; then
+    echo "SMOKE [$currentIndex/$totalLangs] PASS lang=$lang"
+  else
+    echo "SMOKE [$currentIndex/$totalLangs] FAIL lang=$lang rc=$rc note=${note:-none}"
+  fi
 done
 
 # Archive the smoke report and per-language logs, and refresh the stable pointer.
@@ -275,6 +295,7 @@ Smoke test run completed.
 EOF
 fi
 
+echo "SMOKE COMPLETE"
 echo "$summaryLine"
 echo "REPORT=$reportFile"
 echo "LOGDIR=$smokeLogDir"

@@ -34,6 +34,7 @@ print_usage_examples() {
   echo "  $0 main.py"
   echo "  $0 python"
   echo "  $0 --smoke-test"
+  echo "  $0 --smoke-test --langs=\"cpp rust\""
   echo "  $0 --list-languages"
   echo "  $0 --list-problems"
   echo "  $0 --flag=python"
@@ -65,7 +66,8 @@ print_usage_profile_section() {
 # Print check-only and compile-only controls.
 print_usage_execution_section() {
   echo "Execution controls:"
-  echo "  --smoke-test                     Run smoke tests for the current algorithm directory and exit"
+  echo "  --smoke-test [smoke-opts...]    Run smoke tests for the current algorithm directory and exit"
+  echo "                                   Forwarded smoke opts: --langs=..., --timeout=..., --slow-timeout=..., --markdown[=<path>]"
   echo "  --check-only[=native|docker|ssh] Skip compile/run after setup; optionally simulate one route"
   echo "  --compile-only                    Compile only; skip runtime execution"
   echo ""
@@ -125,7 +127,7 @@ print_usage_short() {
   echo "  --help                 Show this compact help and exit"
   echo "  --help-all             Show full help and exit"
   echo "  --help=<topic>         Show one topic (examples, profile, execution, docker, general, clean)"
-  echo "  --smoke-test           Run smoke tests and exit (killswitch; no trailing args allowed)"
+  echo "  --smoke-test [opts]    Run smoke tests and exit (supported opts forwarded to smoke script)"
   echo "  --list-languages       Show language presence grid for current directory and exit"
   echo "  --list-problems        Show only missing or flagged languages and exit"
   echo "  --flag=<lang>          Mark <lang> in ./.flag-lang and exit (also: all, none)"
@@ -147,7 +149,7 @@ print_usage_full() {
   echo "  --help                 Show compact help and exit"
   echo "  --help-all             Show full help and exit"
   echo "  --help=<topic>         Show one topic (examples, profile, execution, docker, general, clean)"
-  echo "  --smoke-test           Run smoke tests and exit (killswitch; no trailing args allowed)"
+  echo "  --smoke-test [opts]    Run smoke tests and exit (supported opts forwarded to smoke script)"
   echo "  --list-languages       Show language presence grid for current directory and exit"
   echo "  --list-problems        Show only missing or flagged languages and exit"
   echo "  --flag=<lang>          Mark <lang> in ./.flag-lang and exit (also: all, none)"
@@ -885,11 +887,19 @@ parse_standard_cli_options_or_exit() {
         shift 1
         ;;
       --smoke-test)
-        if [ $# -gt 1 ]; then
-          echo "Unexpected argument(s) after --smoke-test: ${*:2}" >&2
-          echo "Usage: $0 --smoke-test" >&2
-          exit 64
-        fi
+        shift 1
+
+        for smokeArg in "$@"; do
+          case "$smokeArg" in
+            --langs=*|--timeout=*|--slow-timeout=*|--markdown|--markdown=*)
+              ;;
+            *)
+              echo "Unsupported argument after --smoke-test: $smokeArg" >&2
+              echo "Usage: $0 --smoke-test [--langs=\"lang1 lang2\"] [--timeout=<dur>] [--slow-timeout=<dur>] [--markdown[=<path>]]" >&2
+              exit 64
+              ;;
+          esac
+        done
 
         smokeScriptPath="$scriptDir/shlib/run-smoke-test.sh"
         if [ ! -r "$smokeScriptPath" ]; then
@@ -897,7 +907,7 @@ parse_standard_cli_options_or_exit() {
           exit 78
         fi
 
-        sh "$smokeScriptPath" --dir="$PWD"
+        sh "$smokeScriptPath" --dir="$PWD" "$@"
         exit "$?"
         ;;
       --help|-h)
