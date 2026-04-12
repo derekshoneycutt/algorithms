@@ -102,7 +102,15 @@ for ASM_FILE in ./*-"$SEARCH_TARGET"."$FILE_EXTENSION" ./*-All."$FILE_EXTENSION"
         *"-All.${FILE_EXTENSION}")
             ASM_WITHOUT_EXT="${ASM_FILE%-All.${FILE_EXTENSION}}-${target}"
         ;;
-        *) ASM_WITHOUT_EXT="${ASM_FILE%.*}" ;;
+        *)
+            ASM_WITHOUT_EXT="${ASM_FILE%.*}"
+            if [ "$FILE_EXTENSION" = "nasm" ]; then
+                case "$ASM_WITHOUT_EXT" in
+                    *-nasm) ;;
+                    *) ASM_WITHOUT_EXT="${ASM_WITHOUT_EXT}-nasm" ;;
+                esac
+            fi
+        ;;
     esac
     ASM_OBJ_OUTPUT="${ASM_WITHOUT_EXT}.o"
     allOutputs="$allOutputs $ASM_OBJ_OUTPUT"

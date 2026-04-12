@@ -523,130 +523,6 @@ case "$startDir" in
 esac
 
 
-# Add stdlib outputs for a given dir, for NASM or ASM mode
-add_stdlib_outputs_for_dir() {
-  archiveListFile="$1"
-  archiveTargetTag="$2"
-  dirPath="$3"
-  mode="$4" # 'nasm' or 'asm'
-  if [ ! -d "$dirPath" ]; then return; fi
-
-  sourceExt="asm"
-  if [ "$mode" = "nasm" ]; then
-    sourceExt="nasm"
-  fi
-
-  # Source files: include the assembly syntax that matches the mode.
-  find "$dirPath" -type f -name "*.${sourceExt}" 2>/dev/null | while IFS= read -r outFile; do
-    outRepoRel=${outFile#"$repoRootPath/"}
-    add_archive_input_if_exists "$archiveListFile" "$outRepoRel"
-  done
-
-  # Object files: NASM mode keeps only NASM objects; ASM mode excludes them.
-  find "$dirPath" -type f -name "*.o" 2>/dev/null | while IFS= read -r outFile; do
-    outBase=$(basename "$outFile")
-    includeObject=0
-    if should_include_stdlib_object "$mode" "$outBase"; then
-      includeObject=1
-    fi
-    if [ "$includeObject" -eq 1 ]; then
-      outRepoRel=${outFile#"$repoRootPath/"}
-      add_archive_input_if_exists "$archiveListFile" "$outRepoRel"
-    fi
-  done
-
-  # Build logs: match current target tag, with NASM-aware filtering in each mode.
-  normTag=$(normalize_stdlib_tag "$archiveTargetTag")
-  find "$dirPath" -type f -name "*-build-last" 2>/dev/null | while IFS= read -r logFile; do
-    logBase=$(basename "$logFile")
-    includeLog=0
-    if should_include_stdlib_build_log "$mode" "$logBase" "$normTag"; then
-      includeLog=1
-    fi
-    if [ "$includeLog" -eq 1 ]; then
-      outRepoRel=${logFile#"$repoRootPath/"}
-      add_archive_input_if_exists "$archiveListFile" "$outRepoRel"
-    fi
-  done
-}
-
-# Normalize tags and log names for stable pattern matching.
-normalize_stdlib_tag() {
-  printf '%s' "$1" | tr '[:upper:]' '[:lower:]' | tr -d '-' | tr -d '_'
-}
-
-# Return success if an object filename belongs to the selected mode.
-should_include_stdlib_object() {
-  objectMode="$1"
-  objectBaseName="$2"
-  objectLower=$(printf '%s' "$objectBaseName" | tr '[:upper:]' '[:lower:]')
-  if [ "$objectMode" = "nasm" ]; then
-    case "$objectLower" in
-      *nasm*.o) return 0 ;;
-      *) return 1 ;;
-    esac
-  fi
-
-  case "$objectLower" in
-    *nasm*.o) return 1 ;;
-    *) return 0 ;;
-  esac
-}
-
-# Return success if a build log filename belongs to the selected mode/tag.
-should_include_stdlib_build_log() {
-  logMode="$1"
-  logBaseName="$2"
-  logTargetTagNorm="$3"
-  logNorm=$(normalize_stdlib_tag "$logBaseName")
-  if [ "$logMode" = "nasm" ]; then
-    case "$logNorm" in
-      *$logTargetTagNorm*nasm*buildlast|*nasm*$logTargetTagNorm*buildlast) return 0 ;;
-      *) return 1 ;;
-    esac
-  fi
-
-  case "$logNorm" in
-    *$logTargetTagNorm*buildlast)
-      if echo "$logNorm" | grep -vq nasm; then
-        return 0
-      fi
-      ;;
-  esac
-  return 1
-}
-
-# Helper: Add stdlib outputs for a given tag, parameterized for NASM/ASM
-add_stdlib_outputs_for_tag() {
-  archiveListFile="$1"
-  archiveTargetTag="$2"
-  mode="$3" # 'nasm' or 'asm'
-  for stdlibSub in io strings sys; do
-    add_stdlib_outputs_for_dir "$archiveListFile" "$archiveTargetTag" "$repoRootPath/stdlib/$stdlibSub/output" "$mode"
-  done
-  add_stdlib_outputs_for_dir "$archiveListFile" "$archiveTargetTag" "$repoRootPath/stdlib/output" "$mode"
-}
-
-# Main function: Add stdlib output files for the given extension and platform/arch tag
-add_stdlib_archive_outputs_for_target_tag() {
-  archiveListFile="$1"
-  archiveFileExtension="$2"
-  archiveTargetTag="$3"
-
-  # Determine NASM or ASM mode based on file extension or filename
-  # Accepts .nasm or tag/filename containing nasm (case-insensitive)
-  mode="asm"
-  case "$archiveFileExtension" in
-    nasm|NASM) mode="nasm" ;;
-    *)
-      case "$archiveTargetTag" in
-        *nasm*|*NASM*) mode="nasm" ;;
-      esac
-      ;;
-  esac
-  add_stdlib_outputs_for_tag "$archiveListFile" "$archiveTargetTag" "$mode"
-}
-
 # Archive the final run inputs and output log to repository-level logs.
 generate_random_hex_suffix() {
   if [ -r /dev/urandom ] && command -v od > /dev/null 2>&1; then
@@ -675,6 +551,34 @@ add_archive_input_if_exists() {
   if [ -e "$repoRootPath/$archiveRepoRelPath" ]; then
     printf '%s\n' "$archiveRepoRelPath" >> "$archiveListFile"
   fi
+}
+
+# Add prebuilt stdlib archive for one target, or add a missing-archive marker.
+add_stdlib_prebuilt_archive_or_marker() {
+  archiveListFile="$1"
+  stdlibTarget="$2"
+  stdlibArchiveRel="stdlib/output/stdlib-${stdlibTarget}-archive.tar.gz"
+  if [ -e "$repoRootPath/$stdlibArchiveRel" ]; then
+    add_archive_input_if_exists "$archiveListFile" "$stdlibArchiveRel"
+    return 0
+  fi
+
+  mkdir -p "$startDir/output"
+  missingMarkerBase="stdlib-prebuilt-archive-missing-${stdlibTarget}.txt"
+  missingMarkerAbs="$startDir/output/$missingMarkerBase"
+  {
+    echo "Missing prebuilt stdlib archive for this build target."
+    echo "expected: $stdlibArchiveRel"
+    echo "context: lang=${lang:-unknown} target=$stdlibTarget"
+    echo "fallback: disabled"
+  } > "$missingMarkerAbs"
+
+  missingMarkerRel="output/$missingMarkerBase"
+  if [ -n "$startDirFromRepo" ]; then
+    missingMarkerRel="$startDirFromRepo/output/$missingMarkerBase"
+  fi
+  add_archive_input_if_exists "$archiveListFile" "$missingMarkerRel"
+  return 0
 }
 
 # Add the active run log to the archive input list.
@@ -715,67 +619,6 @@ default_lang_archive() {
   else
     add_archive_input_if_exists "$archiveListFile" "$fileName"
   fi
-}
-
-# Include all stdlib source files with the requested extension.
-add_stdlib_archive_sources_by_extension() {
-  archiveListFile="$1"
-  archiveFileExtension="$2"
-  if [ -z "$archiveFileExtension" ] || [ ! -d "$repoRootPath/stdlib" ]; then
-    return 0
-  fi
-
-  find "$repoRootPath/stdlib" -type f -name "*.$archiveFileExtension" 2>/dev/null | while IFS= read -r stdlibAbsFile; do
-    stdlibRepoRel=${stdlibAbsFile#"$repoRootPath"/}
-    add_archive_input_if_exists "$archiveListFile" "$stdlibRepoRel"
-  done
-}
-
-# Include stdlib sources for one target tag (and optionally shared -All files).
-add_stdlib_archive_sources_for_target_tag() {
-  archiveListFile="$1"
-  archiveFileExtension="$2"
-  archiveTargetTag="$3"
-  archiveIncludeAll="$4"
-  if [ -z "$archiveFileExtension" ] || [ -z "$archiveTargetTag" ] || [ ! -d "$repoRootPath/stdlib" ]; then
-    return 0
-  fi
-
-  # For assembly builds, prefer explicit extension from the caller.
-  asmExts=""
-  case "$archiveFileExtension" in
-    nasm|NASM) asmExts="nasm" ;;
-    s|S) asmExts="s" ;;
-    asm|ASM) asmExts="asm" ;;
-    *)
-      case "$archiveTargetTag" in
-        *NASM*|*nasm*) asmExts="nasm" ;;
-        *DARWIN*ARM64*|*darwin*arm64*) asmExts="s" ;;
-        *) asmExts="asm" ;;
-      esac
-      ;;
-  esac
-
-  # Include stdlib sources for the detected extension(s)
-  for ext in $asmExts; do
-    find "$repoRootPath/stdlib" -type f -name "*.$ext" 2>/dev/null | while IFS= read -r stdlibAbsFile; do
-      stdlibBaseName=$(basename "$stdlibAbsFile")
-      # Only include files that match the target tag or are shared -All
-      case "$stdlibBaseName" in
-        *-"$archiveTargetTag"."$ext")
-          stdlibRepoRel=${stdlibAbsFile#"$repoRootPath"/}
-          add_archive_input_if_exists "$archiveListFile" "$stdlibRepoRel"
-          ;;
-        *-All."$ext")
-          if [ "$archiveIncludeAll" = "1" ]; then
-            stdlibRepoRel=${stdlibAbsFile#"$repoRootPath"/}
-            add_archive_input_if_exists "$archiveListFile" "$stdlibRepoRel"
-          fi
-          ;;
-        *) ;;
-      esac
-    done
-  done
 }
 
 # Collect archive inputs by invoking the language-specific archive hook.
@@ -1208,15 +1051,14 @@ arm64asm_run() {
 }
 arm64asm_archive() {
   default_lang_archive "$1"
-  # Only include stdlib sources and outputs for current platform/arch
+  # Archive prebuilt stdlib bundle for this target, or include missing marker.
   arm64asmTag="Darwin-arm64"
   case "$currentPlatform" in
     "Darwin"*) arm64asmTag="Darwin-arm64" ;;
     *) arm64asmTag="" ;;
   esac
   if [ -n "$arm64asmTag" ]; then
-    add_stdlib_archive_sources_for_target_tag "$1" "s" "$arm64asmTag" "0"
-    add_stdlib_archive_outputs_for_target_tag "$1" "o" "$arm64asmTag"
+    add_stdlib_prebuilt_archive_or_marker "$1" "$arm64asmTag"
   fi
 }
 
@@ -1352,8 +1194,7 @@ asm_archive() {
   esac
   if [ -n "$asmArchivePlatformTag" ] && [ -n "$asmArchiveArchTag" ]; then
     tag="${asmArchivePlatformTag}-${asmArchiveArchTag}"
-    add_stdlib_archive_sources_for_target_tag "$1" "asm" "$tag" "1"
-    add_stdlib_archive_outputs_for_target_tag "$1" "o" "$tag"
+    add_stdlib_prebuilt_archive_or_marker "$1" "$tag"
   fi
 }
 
@@ -2146,38 +1987,8 @@ mmixal_run() {
 }
 mmixal_archive() {
   default_lang_archive "$1"
-  # Only include stdlib sources and outputs for MMIXAL
-  add_stdlib_archive_sources_by_extension "$1" "mms"
-  # MMIXAL: only .mms and *mmixal-build-last logs as sources
-  find "$repoRootPath/stdlib" -type f \( -name "*.mms" -o -name "*mmixal-build-last" \) 2>/dev/null | while IFS= read -r stdlibAbsFile; do
-    stdlibRepoRel=${stdlibAbsFile#"$repoRootPath"/}
-    add_archive_input_if_exists "$1" "$stdlibRepoRel"
-  done
-  # MMIXAL: only .mms and *mmixal-build-last logs
-  for stdlibSub in io strings sys; do
-    stdlibOutDir="$repoRootPath/stdlib/$stdlibSub/output"
-    if [ -d "$stdlibOutDir" ]; then
-      find "$stdlibOutDir" -type f -name "*.mms" 2>/dev/null | while IFS= read -r outFile; do
-        outRepoRel=${outFile#"$repoRootPath/"}
-        add_archive_input_if_exists "$1" "$outRepoRel"
-      done
-      find "$stdlibOutDir" -type f -name "*mmixal-build-last" 2>/dev/null | while IFS= read -r logFile; do
-        outRepoRel=${logFile#"$repoRootPath/"}
-        add_archive_input_if_exists "$1" "$outRepoRel"
-      done
-    fi
-  done
-  stdlibMainOutDir="$repoRootPath/stdlib/output"
-  if [ -d "$stdlibMainOutDir" ]; then
-    find "$stdlibMainOutDir" -type f -name "*.mms" 2>/dev/null | while IFS= read -r outFile; do
-      outRepoRel=${outFile#"$repoRootPath/"}
-      add_archive_input_if_exists "$1" "$outRepoRel"
-    done
-    find "$stdlibMainOutDir" -type f -name "*mmixal-build-last" 2>/dev/null | while IFS= read -r logFile; do
-      outRepoRel=${logFile#"$repoRootPath/"}
-      add_archive_input_if_exists "$1" "$outRepoRel"
-    done
-  fi
+  # Archive prebuilt stdlib bundle for MMIXAL, or include missing marker.
+  add_stdlib_prebuilt_archive_or_marker "$1" "mmix"
 }
 
 # =============================================
@@ -2373,9 +2184,8 @@ nasm_archive() {
     *) nasmArchiveArchTag= ;;
   esac
   if [ -n "$nasmArchivePlatformTag" ] && [ -n "$nasmArchiveArchTag" ]; then
-    tag="${nasmArchivePlatformTag}-${nasmArchiveArchTag}"
-    add_stdlib_archive_sources_for_target_tag "$1" "nasm" "$tag" "1"
-    add_stdlib_archive_outputs_for_target_tag "$1" "nasm" "$tag"
+    targetTag="${nasmArchivePlatformTag}-${nasmArchiveArchTag}-nasm"
+    add_stdlib_prebuilt_archive_or_marker "$1" "$targetTag"
   fi
 }
 
