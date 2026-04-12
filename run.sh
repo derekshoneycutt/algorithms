@@ -55,6 +55,7 @@ print_usage_examples() {
   echo "  $0 --compile-only main.py arg1 arg2"
   echo "  $0 --source-profile=~/.bash_profile main.py"
   echo "  $0 clean"
+  echo "  $0 localclean"
   echo "  $0 clean --defaults"
   echo "  $0 clean --defaults=y|n"
   echo ""
@@ -108,12 +109,14 @@ print_usage_general_section() {
   echo "  Following parameters are passed to the final executable as argv."
   echo "  Supported filename input compiles and runs where possible."
   echo "  Build and run artifacts/logs are written to ./output."
+  echo "  localclean erases local output only and exits."
   echo "  clean erases local output, cleans stdlib, and exits."
   echo ""
 }
 
 print_usage_clean_section() {
   echo "Clean options:"
+  echo "  localclean                Remove ./output only and exit"
   echo "  clean                     Interactive: prompt for stdlib and archive cleanup"
   echo "  clean --defaults          Non-interactive: answer 'yes' to all prompts"
   echo "  clean --defaults=y        Answer 'yes' to both prompts"
@@ -128,7 +131,7 @@ print_usage_clean_section() {
 # Print compact, first-screen help for common usage.
 print_usage_short() {
   echo "Usage: $0 [--smoke-test]"
-  echo "       $0 [--list-languages|--list-problems|--flag=<lang>|--unflag=<lang>] [--source-profile=<profile-path>] [--check-only[=native|docker|ssh]] [--compile-only] <filename|lang|clean> [args...]"
+  echo "       $0 [--list-languages|--list-problems|--flag=<lang>|--unflag=<lang>] [--source-profile=<profile-path>] [--check-only[=native|docker|ssh]] [--compile-only] <filename|lang|clean|localclean> [args...]"
   echo "       $0 --help"
   echo ""
   print_usage_examples
@@ -151,7 +154,7 @@ print_usage_short() {
 # Print complete help with all sections.
 print_usage_full() {
   echo "Usage: $0 [--smoke-test]"
-  echo "       $0 [--list-languages|--list-problems|--flag=<lang>|--unflag=<lang>] [--source-profile=<profile-path>] [--check-only[=native|docker|ssh]] [--compile-only] <filename|lang|clean> [args...]"
+  echo "       $0 [--list-languages|--list-problems|--flag=<lang>|--unflag=<lang>] [--source-profile=<profile-path>] [--check-only[=native|docker|ssh]] [--compile-only] <filename|lang|clean|localclean> [args...]"
   echo "       $0 --help"
   echo ""
   echo "Help options:"
@@ -1793,6 +1796,17 @@ configure_runtime_environment
 
 trap 'archive_last_command_output_log' EXIT
 
+
+if [ "$fileName" = "localclean" ]; then
+  if [ $# -gt 0 ]; then
+    echo "Unexpected argument(s) for localclean: $*" >&2
+    echo "Usage: $0 localclean" >&2
+    exit 64
+  fi
+
+  rm -Rf ./output >> /dev/null 2>&1
+  exit 0
+fi
 
 if [ "$fileName" = "clean" ]; then
   rm -Rf ./output >> /dev/null 2>&1
