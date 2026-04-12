@@ -1,11 +1,5 @@
 #! /bin/sh
 
-# First argument must either be a supported filename or
-# "clean". If "clean", the output directory is destroyed
-# and the script exits. Otherwise, it will continue to try
-# to compile the file specified, passing in any other
-# arguments to the code as command line arguments
-
 # Color variables
 red='\033[0;31m'
 green='\033[0;32m'
@@ -1817,7 +1811,7 @@ link_arm64_assembly_binary_output() {
 }
 
 # The first section, each language that we support needs to have
-# a lang_compile and lang_run. This will be called when a file of
+# a lang_compile and lang_run and lang_archive. This will be called when a file of
 # that code type is recognized according to file extension below
 # The compile phase can reasonably do nothing for scripts and similar.
 # Any build output should go to ./output/lang-build-last

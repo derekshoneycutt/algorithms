@@ -56,6 +56,10 @@ exitUnsupportedPlatform=78
 # Defaults above are both the initial interactive values and the fallback values
 # when no existing profile export is found.
 
+# =============================================
+# Help And Usage
+# =============================================
+
 # Print compact examples first so most users can scan quickly.
 print_usage_examples() {
     echo "Examples:"
@@ -224,6 +228,10 @@ print_usage() {
     print_usage_short
 }
 
+# =============================================
+# Did-You-Mean Suggestion Helpers
+# =============================================
+
 # Print supported option keys for did-you-mean matching.
 print_option_catalog() {
     cat <<'EOF'
@@ -347,6 +355,10 @@ suggest_help_topic_for_unknown() {
     suggest_from_catalog "$unknownTopic" "$topicCatalog" | head -n 1
 }
 
+# =============================================
+# Exit Codes And Diagnostics
+# =============================================
+
 # Map exit codes to short labels for final diagnostics.
 exit_label_for_code() {
     case "$1" in
@@ -381,6 +393,10 @@ print_exit_diagnostic() {
         echo "$exit_message" >&2
     fi
 }
+
+# =============================================
+# I/O And Prompt Helpers
+# =============================================
 
 # Prompt the user with a default and return either input or fallback.
 read_user_input() {
@@ -460,6 +476,10 @@ make_temp_file_secure() {
     return 1
 }
 
+# =============================================
+# Profile Helpers
+# =============================================
+
 # Pick the default shell profile used by run.sh for this OS.
 determine_profile_for_platform() {
     case "$currentPlatform" in
@@ -510,6 +530,10 @@ load_existing_defaults_from_profile() {
     loaded_value=$(get_profile_export_value "DEREKALGOS_RUNONSSH" "$profile_file")
     if [ -n "$loaded_value" ]; then useRunOnSsh="$loaded_value"; fi
 }
+
+# =============================================
+# Language Key And Display Helpers
+# =============================================
 
 # The helpers below treat DEREKALGOS_RUNONDOCKER as a simple space-separated
 # key=value map. The algorithms are intentionally standard: scan, rebuild, and
@@ -625,6 +649,10 @@ print_runonssh_all_mappings() {
     done
 }
 
+# =============================================
+# Run-On Map: Shared Validation And CLI Operations
+# =============================================
+
 # Check whether a run-on-docker language key is known.
 is_known_runondocker_language() {
     target_lang="$1"
@@ -659,6 +687,10 @@ $op_kind|$op_value"
         runOnSshCliOps="$op_kind|$op_value"
     fi
 }
+
+# =============================================
+# Run-On Map: Get, Set, And Remove
+# =============================================
 
 # Resolve image value for one language key from a mapping string.
 runondocker_get_image_for_lang() {
@@ -834,6 +866,10 @@ runonssh_set_all() {
     printf '%s\n' "$all_map"
 }
 
+# =============================================
+# Run-On Map: Display And Summary
+# =============================================
+
 # Print current mapping for every supported language.
 show_runondocker_map() {
     echo "Current DEREKALGOS_RUNONDOCKER settings:"
@@ -851,6 +887,10 @@ show_runonssh_map() {
     echo "Configured mappings:"
     print_runonssh_configured_mappings
 }
+
+# =============================================
+# Run-On Map: CLI Change Application
+# =============================================
 
 # Apply non-interactive set/remove command-line edits to run-on-docker map.
 apply_runondocker_cli_changes() {
@@ -991,6 +1031,10 @@ apply_runonssh_cli_changes() {
 $runOnSshCliOps
 EOF
 }
+
+# =============================================
+# Run-On Map: Interactive Editors
+# =============================================
 
 # Prompt-driven editor for run-on-docker map (language/all set/remove/show).
 edit_runondocker_interactive() {
@@ -1164,6 +1208,10 @@ edit_runonssh_interactive() {
     done
 }
 
+# =============================================
+# Lock And Cleanup
+# =============================================
+
 # Ensure only one init.sh process mutates settings at a time.
 acquire_init_lock() {
     lock_root="${TMPDIR:-/tmp}"
@@ -1188,6 +1236,10 @@ cleanup_init_state() {
         rmdir "$lockDir" 2>/dev/null
     fi
 }
+
+# =============================================
+# CLI Argument Helpers
+# =============================================
 
 # Apply one --use-* override argument and return non-zero if unrecognized.
 apply_use_override_arg() {
