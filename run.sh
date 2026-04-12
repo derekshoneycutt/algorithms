@@ -2034,8 +2034,13 @@ fi
 
 # Only live-print when stdout is not buffered by a relay route.
 compilingIndicator=0
+dockerCompileDoneMarker=
 case "${DEREKALGOS_EXECUTION_ROUTE:-}" in
-  docker-relay|ssh-relay) : ;;
+  docker-relay)
+    dockerCompileDoneMarker="./output/.derekalgos-phase-compile-done"
+    rm -f "$dockerCompileDoneMarker"
+    ;;
+  ssh-relay) : ;;
   *) [ -n "$timingColorBlue" ] && compilingIndicator=1 ;;
 esac
 [ "$compilingIndicator" -eq 1 ] && printf "${timingColorBlue}${timingStyleBold}Compiling...${timingStyleReset}\n"
@@ -2070,6 +2075,7 @@ Build output:
     printf "\n    ${compileTimeColor}${timingStyleBold}Compile Time${timingStyleReset}${compileTimeColor} ${compile_duration}${timePrecisionUnit}; ${timingColorBlue}${timingStyleBold}Run${timingStyleReset}${timingColorBlue} skipped (compile-only); ${timingColorGreen}${timingStyleBold}Returned${timingStyleReset}${timingColorGreen} 0${timingStyleReset}\n"
     finalRc=0
   else
+    [ -n "$dockerCompileDoneMarker" ] && : > "$dockerCompileDoneMarker"
     [ "$compilingIndicator" -eq 1 ] && printf '\033[1A\033[2K'
     before_run=$(get_ms_time)
     echo "STARTING RUN: ${lang}_run" >> "$lastCommandOutputLog"

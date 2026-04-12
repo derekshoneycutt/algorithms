@@ -50,8 +50,31 @@ run_and_log_output() {
 
     trap 'rm -f "$relay_tmp_file"' INT TERM HUP EXIT
 
-    "$@" > "$relay_tmp_file" 2>&1
+    "$@" > "$relay_tmp_file" 2>&1 &
+    relay_cmd_pid="$!"
+
+    relay_phase_watcher_pid=""
+    if [ -n "${RUN_AND_LOG_PHASE_MARKER:-}" ] && [ -n "${RUN_AND_LOG_PHASE_SWITCH_TEXT:-}" ]; then
+      (
+        while kill -0 "$relay_cmd_pid" 2>/dev/null; do
+          if [ -f "$RUN_AND_LOG_PHASE_MARKER" ]; then
+            printf '\033[1A\033[2K'
+            printf "%s\n" "$RUN_AND_LOG_PHASE_SWITCH_TEXT"
+            break
+          fi
+          sleep 0.1
+        done
+      ) &
+      relay_phase_watcher_pid="$!"
+    fi
+
+    wait "$relay_cmd_pid"
     relay_ret="$?"
+
+    if [ -n "$relay_phase_watcher_pid" ]; then
+      kill "$relay_phase_watcher_pid" 2>/dev/null
+      wait "$relay_phase_watcher_pid" 2>/dev/null
+    fi
 
     flush_output_to_logs "$relay_tmp_file" "$relay_log_file" "relay output"
 
@@ -140,14 +163,20 @@ append_docker_relay_fallback_log() {
 run_docker_relay_or_exit() {
   ensure_output_dir_permissions
   docker_log="./output/${lang}-build-last"
+  dockerCompileDoneMarker="./output/.derekalgos-phase-compile-done"
+  rm -f "$dockerCompileDoneMarker"
   echo "STARTING DOCKER RELAY BUILD..." > "$docker_log"
-  echo "Executing on Docker..." >> "$docker_log"
+  echo "Compiling on Docker..." >> "$docker_log"
   dockerStatusShown=0
+  dockerStatusCompileLine="Compiling on Docker..."
+  dockerStatusRunLine="Executing on Docker..."
   if [ -n "$termColorBlue" ]; then
-    printf "${termColorBlue}${termStyleBold}Executing on Docker...${termStyleReset}\n"
+    dockerStatusCompileLine="${termColorBlue}${termStyleBold}Compiling on Docker...${termStyleReset}"
+    dockerStatusRunLine="${termColorBlue}${termStyleBold}Executing on Docker...${termStyleReset}"
+    printf "%s\n" "$dockerStatusCompileLine"
     dockerStatusShown=1
   elif [ -t 1 ]; then
-    printf "Executing on Docker...\n"
+    printf "%s\n" "$dockerStatusCompileLine"
     dockerStatusShown=1
   fi
   echo "ROUTE: Docker image $runOnDocker" >> "$docker_log"
@@ -208,15 +237,16 @@ run_docker_relay_or_exit() {
 
   if [ "$checkOnlyMode" -eq 1 ]; then
     echo "RUN_AND_LOG_SKIP_SHARED_APPEND=1 docker run --rm --platform linux/amd64 -v \"<repo>\":/build -w \"/build/src/$packName/$algoName/\" $runOnDocker sh -c 'if [ -n \"\$1\" ]; then DEREKALGOS_TIMEOUT=\"\$1\"; export DEREKALGOS_TIMEOUT; fi; DEREKALGOS_LAST_COMMAND_OUTPUT_ACTIVE=\"\$2\"; DEREKALGOS_LAST_COMMAND_OUTPUT_LOG=\"\$3\"; DEREKALGOS_EXECUTION_ROUTE=\"\$4\"; DEREKALGOS_HOST_CWD=\"\$5\"; DEREKALGOS_HOST_CPUARCH=\"\$6\"; DEREKALGOS_HOST_PLATFORM=\"\$7\"; DEREKALGOS_HOST_TRANSLATION=\"\$8\"; export DEREKALGOS_LAST_COMMAND_OUTPUT_ACTIVE DEREKALGOS_LAST_COMMAND_OUTPUT_LOG DEREKALGOS_EXECUTION_ROUTE DEREKALGOS_HOST_CWD DEREKALGOS_HOST_CPUARCH DEREKALGOS_HOST_PLATFORM DEREKALGOS_HOST_TRANSLATION; shift 8; sh /build/run.sh \"\$@\"' sh \"$docker_timeout_arg\" \"\" \"$lastCommandOutputLog\" \"docker-relay\" \"$startDir\" \"$hostCpuArch\" \"$hostPlatform\" \"$hostTranslation\" --check-only \"$fileName\" <args>" >> "$docker_log"
-    RUN_AND_LOG_CLEAR_STATUS_LINE="$dockerStatusShown" RUN_AND_LOG_SKIP_SHARED_APPEND=1 run_and_log_output "$docker_log" docker run --rm --platform linux/amd64 -v "$CURRENT_GIT_DIR":/build -w "/build/src/$packName/$algoName/" $runOnDocker sh -c 'if [ -n "$1" ]; then DEREKALGOS_TIMEOUT="$1"; export DEREKALGOS_TIMEOUT; fi; DEREKALGOS_LAST_COMMAND_OUTPUT_ACTIVE="$2"; DEREKALGOS_LAST_COMMAND_OUTPUT_LOG="$3"; DEREKALGOS_EXECUTION_ROUTE="$4"; DEREKALGOS_HOST_CWD="$5"; DEREKALGOS_HOST_CPUARCH="$6"; DEREKALGOS_HOST_PLATFORM="$7"; DEREKALGOS_HOST_TRANSLATION="$8"; export DEREKALGOS_LAST_COMMAND_OUTPUT_ACTIVE DEREKALGOS_LAST_COMMAND_OUTPUT_LOG DEREKALGOS_EXECUTION_ROUTE DEREKALGOS_HOST_CWD DEREKALGOS_HOST_CPUARCH DEREKALGOS_HOST_PLATFORM DEREKALGOS_HOST_TRANSLATION; shift 8; sh /build/run.sh "$@"' sh "$docker_timeout_arg" "" "$lastCommandOutputLog" "docker-relay" "$startDir" "$hostCpuArch" "$hostPlatform" "$hostTranslation" --check-only "$fileName" "$@"
+    RUN_AND_LOG_CLEAR_STATUS_LINE="$dockerStatusShown" RUN_AND_LOG_PHASE_MARKER="$dockerCompileDoneMarker" RUN_AND_LOG_PHASE_SWITCH_TEXT="$dockerStatusRunLine" RUN_AND_LOG_SKIP_SHARED_APPEND=1 run_and_log_output "$docker_log" docker run --rm --platform linux/amd64 -v "$CURRENT_GIT_DIR":/build -w "/build/src/$packName/$algoName/" $runOnDocker sh -c 'if [ -n "$1" ]; then DEREKALGOS_TIMEOUT="$1"; export DEREKALGOS_TIMEOUT; fi; DEREKALGOS_LAST_COMMAND_OUTPUT_ACTIVE="$2"; DEREKALGOS_LAST_COMMAND_OUTPUT_LOG="$3"; DEREKALGOS_EXECUTION_ROUTE="$4"; DEREKALGOS_HOST_CWD="$5"; DEREKALGOS_HOST_CPUARCH="$6"; DEREKALGOS_HOST_PLATFORM="$7"; DEREKALGOS_HOST_TRANSLATION="$8"; export DEREKALGOS_LAST_COMMAND_OUTPUT_ACTIVE DEREKALGOS_LAST_COMMAND_OUTPUT_LOG DEREKALGOS_EXECUTION_ROUTE DEREKALGOS_HOST_CWD DEREKALGOS_HOST_CPUARCH DEREKALGOS_HOST_PLATFORM DEREKALGOS_HOST_TRANSLATION; shift 8; sh /build/run.sh "$@"' sh "$docker_timeout_arg" "" "$lastCommandOutputLog" "docker-relay" "$startDir" "$hostCpuArch" "$hostPlatform" "$hostTranslation" --check-only "$fileName" "$@"
   elif [ "$compileOnlyMode" -eq 1 ]; then
     echo "RUN_AND_LOG_SKIP_SHARED_APPEND=1 docker run --rm --platform linux/amd64 -v \"<repo>\":/build -w \"/build/src/$packName/$algoName/\" $runOnDocker sh -c 'if [ -n \"\$1\" ]; then DEREKALGOS_TIMEOUT=\"\$1\"; export DEREKALGOS_TIMEOUT; fi; DEREKALGOS_LAST_COMMAND_OUTPUT_ACTIVE=\"\$2\"; DEREKALGOS_LAST_COMMAND_OUTPUT_LOG=\"\$3\"; DEREKALGOS_EXECUTION_ROUTE=\"\$4\"; DEREKALGOS_HOST_CWD=\"\$5\"; DEREKALGOS_HOST_CPUARCH=\"\$6\"; DEREKALGOS_HOST_PLATFORM=\"\$7\"; DEREKALGOS_HOST_TRANSLATION=\"\$8\"; export DEREKALGOS_LAST_COMMAND_OUTPUT_ACTIVE DEREKALGOS_LAST_COMMAND_OUTPUT_LOG DEREKALGOS_EXECUTION_ROUTE DEREKALGOS_HOST_CWD DEREKALGOS_HOST_CPUARCH DEREKALGOS_HOST_PLATFORM DEREKALGOS_HOST_TRANSLATION; shift 8; sh /build/run.sh \"\$@\"' sh \"$docker_timeout_arg\" \"\" \"$lastCommandOutputLog\" \"docker-relay\" \"$startDir\" \"$hostCpuArch\" \"$hostPlatform\" \"$hostTranslation\" --compile-only \"$fileName\" <args>" >> "$docker_log"
-    RUN_AND_LOG_CLEAR_STATUS_LINE="$dockerStatusShown" RUN_AND_LOG_SKIP_SHARED_APPEND=1 run_and_log_output "$docker_log" docker run --rm --platform linux/amd64 -v "$CURRENT_GIT_DIR":/build -w "/build/src/$packName/$algoName/" $runOnDocker sh -c 'if [ -n "$1" ]; then DEREKALGOS_TIMEOUT="$1"; export DEREKALGOS_TIMEOUT; fi; DEREKALGOS_LAST_COMMAND_OUTPUT_ACTIVE="$2"; DEREKALGOS_LAST_COMMAND_OUTPUT_LOG="$3"; DEREKALGOS_EXECUTION_ROUTE="$4"; DEREKALGOS_HOST_CWD="$5"; DEREKALGOS_HOST_CPUARCH="$6"; DEREKALGOS_HOST_PLATFORM="$7"; DEREKALGOS_HOST_TRANSLATION="$8"; export DEREKALGOS_LAST_COMMAND_OUTPUT_ACTIVE DEREKALGOS_LAST_COMMAND_OUTPUT_LOG DEREKALGOS_EXECUTION_ROUTE DEREKALGOS_HOST_CWD DEREKALGOS_HOST_CPUARCH DEREKALGOS_HOST_PLATFORM DEREKALGOS_HOST_TRANSLATION; shift 8; sh /build/run.sh "$@"' sh "$docker_timeout_arg" "" "$lastCommandOutputLog" "docker-relay" "$startDir" "$hostCpuArch" "$hostPlatform" "$hostTranslation" --compile-only "$fileName" "$@"
+    RUN_AND_LOG_CLEAR_STATUS_LINE="$dockerStatusShown" RUN_AND_LOG_PHASE_MARKER="$dockerCompileDoneMarker" RUN_AND_LOG_PHASE_SWITCH_TEXT="$dockerStatusRunLine" RUN_AND_LOG_SKIP_SHARED_APPEND=1 run_and_log_output "$docker_log" docker run --rm --platform linux/amd64 -v "$CURRENT_GIT_DIR":/build -w "/build/src/$packName/$algoName/" $runOnDocker sh -c 'if [ -n "$1" ]; then DEREKALGOS_TIMEOUT="$1"; export DEREKALGOS_TIMEOUT; fi; DEREKALGOS_LAST_COMMAND_OUTPUT_ACTIVE="$2"; DEREKALGOS_LAST_COMMAND_OUTPUT_LOG="$3"; DEREKALGOS_EXECUTION_ROUTE="$4"; DEREKALGOS_HOST_CWD="$5"; DEREKALGOS_HOST_CPUARCH="$6"; DEREKALGOS_HOST_PLATFORM="$7"; DEREKALGOS_HOST_TRANSLATION="$8"; export DEREKALGOS_LAST_COMMAND_OUTPUT_ACTIVE DEREKALGOS_LAST_COMMAND_OUTPUT_LOG DEREKALGOS_EXECUTION_ROUTE DEREKALGOS_HOST_CWD DEREKALGOS_HOST_CPUARCH DEREKALGOS_HOST_PLATFORM DEREKALGOS_HOST_TRANSLATION; shift 8; sh /build/run.sh "$@"' sh "$docker_timeout_arg" "" "$lastCommandOutputLog" "docker-relay" "$startDir" "$hostCpuArch" "$hostPlatform" "$hostTranslation" --compile-only "$fileName" "$@"
   else
     echo "RUN_AND_LOG_SKIP_SHARED_APPEND=1 docker run --rm --platform linux/amd64 -v \"<repo>\":/build -w \"/build/src/$packName/$algoName/\" $runOnDocker sh -c 'if [ -n \"\$1\" ]; then DEREKALGOS_TIMEOUT=\"\$1\"; export DEREKALGOS_TIMEOUT; fi; DEREKALGOS_LAST_COMMAND_OUTPUT_ACTIVE=\"\$2\"; DEREKALGOS_LAST_COMMAND_OUTPUT_LOG=\"\$3\"; DEREKALGOS_EXECUTION_ROUTE=\"\$4\"; DEREKALGOS_HOST_CWD=\"\$5\"; DEREKALGOS_HOST_CPUARCH=\"\$6\"; DEREKALGOS_HOST_PLATFORM=\"\$7\"; DEREKALGOS_HOST_TRANSLATION=\"\$8\"; export DEREKALGOS_LAST_COMMAND_OUTPUT_ACTIVE DEREKALGOS_LAST_COMMAND_OUTPUT_LOG DEREKALGOS_EXECUTION_ROUTE DEREKALGOS_HOST_CWD DEREKALGOS_HOST_CPUARCH DEREKALGOS_HOST_PLATFORM DEREKALGOS_HOST_TRANSLATION; shift 8; sh /build/run.sh \"\$@\"' sh \"$docker_timeout_arg\" \"\" \"$lastCommandOutputLog\" \"docker-relay\" \"$startDir\" \"$hostCpuArch\" \"$hostPlatform\" \"$hostTranslation\" \"$fileName\" <args>" >> "$docker_log"
-    RUN_AND_LOG_CLEAR_STATUS_LINE="$dockerStatusShown" RUN_AND_LOG_SKIP_SHARED_APPEND=1 run_and_log_output "$docker_log" docker run --rm --platform linux/amd64 -v "$CURRENT_GIT_DIR":/build -w "/build/src/$packName/$algoName/" $runOnDocker sh -c 'if [ -n "$1" ]; then DEREKALGOS_TIMEOUT="$1"; export DEREKALGOS_TIMEOUT; fi; DEREKALGOS_LAST_COMMAND_OUTPUT_ACTIVE="$2"; DEREKALGOS_LAST_COMMAND_OUTPUT_LOG="$3"; DEREKALGOS_EXECUTION_ROUTE="$4"; DEREKALGOS_HOST_CWD="$5"; DEREKALGOS_HOST_CPUARCH="$6"; DEREKALGOS_HOST_PLATFORM="$7"; DEREKALGOS_HOST_TRANSLATION="$8"; export DEREKALGOS_LAST_COMMAND_OUTPUT_ACTIVE DEREKALGOS_LAST_COMMAND_OUTPUT_LOG DEREKALGOS_EXECUTION_ROUTE DEREKALGOS_HOST_CWD DEREKALGOS_HOST_CPUARCH DEREKALGOS_HOST_PLATFORM DEREKALGOS_HOST_TRANSLATION; shift 8; sh /build/run.sh "$@"' sh "$docker_timeout_arg" "" "$lastCommandOutputLog" "docker-relay" "$startDir" "$hostCpuArch" "$hostPlatform" "$hostTranslation" "$fileName" "$@"
+    RUN_AND_LOG_CLEAR_STATUS_LINE="$dockerStatusShown" RUN_AND_LOG_PHASE_MARKER="$dockerCompileDoneMarker" RUN_AND_LOG_PHASE_SWITCH_TEXT="$dockerStatusRunLine" RUN_AND_LOG_SKIP_SHARED_APPEND=1 run_and_log_output "$docker_log" docker run --rm --platform linux/amd64 -v "$CURRENT_GIT_DIR":/build -w "/build/src/$packName/$algoName/" $runOnDocker sh -c 'if [ -n "$1" ]; then DEREKALGOS_TIMEOUT="$1"; export DEREKALGOS_TIMEOUT; fi; DEREKALGOS_LAST_COMMAND_OUTPUT_ACTIVE="$2"; DEREKALGOS_LAST_COMMAND_OUTPUT_LOG="$3"; DEREKALGOS_EXECUTION_ROUTE="$4"; DEREKALGOS_HOST_CWD="$5"; DEREKALGOS_HOST_CPUARCH="$6"; DEREKALGOS_HOST_PLATFORM="$7"; DEREKALGOS_HOST_TRANSLATION="$8"; export DEREKALGOS_LAST_COMMAND_OUTPUT_ACTIVE DEREKALGOS_LAST_COMMAND_OUTPUT_LOG DEREKALGOS_EXECUTION_ROUTE DEREKALGOS_HOST_CWD DEREKALGOS_HOST_CPUARCH DEREKALGOS_HOST_PLATFORM DEREKALGOS_HOST_TRANSLATION; shift 8; sh /build/run.sh "$@"' sh "$docker_timeout_arg" "" "$lastCommandOutputLog" "docker-relay" "$startDir" "$hostCpuArch" "$hostPlatform" "$hostTranslation" "$fileName" "$@"
   fi
   retValue="$?"
+  rm -f "$dockerCompileDoneMarker"
   echo "-- docker returned: $retValue" >> "$docker_log"
   echo "---- DOCKER RELAY BUILD END" >> "$docker_log"
 
