@@ -12,6 +12,7 @@ doPrompt=1
 copyIcons=1
 copyIconsTo=~/.vscode/extensions/icons/
 updateEnvironment=1
+updateProfileOverridePath=
 checkOnly=0
 useTimeout="-k 10s 2m"
 useEiffel="eiffelstudio"
@@ -63,6 +64,7 @@ print_usage_examples() {
     echo "  $0 --runondocker --no-prompt"
     echo "  $0 --runondocker-set=python=code-runner"
     echo "  $0 --runonssh-set=python=coderun-vm|/home/coderun/codefiles|../run.sh"
+    echo "  $0 --update-profile=~/.bash_profile"
     echo ""
 }
 
@@ -97,6 +99,7 @@ print_usage_env_section() {
     echo "Environment update toggle group (if both are provided, the final occurrence is applied; default: --update-environment):"
     echo "  --update-environment   Enable profile environment updates"
     echo "  --skip-environment     Disable profile environment updates"
+    echo "  --update-profile=<f>   Read/write DEREKALGOS vars in this profile file"
     echo "  --check-only           Dry-run mode; do not write files [default: off]"
     echo ""
     echo "Environment value overrides (if repeated, the final value is applied):"
@@ -165,6 +168,7 @@ print_usage_short() {
     echo "  --interactive          Keep interactive prompts enabled"
     echo "  --no-prompt            Disable prompts"
     echo "  --check-only           Dry-run mode; do not write files"
+    echo "  --update-profile=<f>   Override which profile file gets updated"
     echo "  --set-use-only         Set only one following --use-* or run-on flag"
     echo "  --runondocker          Enter run-on-docker map mode"
     echo "  --runonssh             Enter run-on-ssh map mode"
@@ -228,6 +232,7 @@ print_option_catalog() {
 --icons-to=
 --update-environment
 --skip-environment
+--update-profile=
 --check-only
 --runondocker
 --runonssh
@@ -1356,6 +1361,13 @@ for arg in "$@"; do
     --skip-environment)
         updateEnvironment=0
         ;;
+    --update-profile=*)
+        updateProfileOverridePath="${arg#*=}"
+        if [ -z "$updateProfileOverridePath" ]; then
+            echo "--update-profile requires a non-empty file path." >&2
+            exit 64
+        fi
+        ;;
     --check-only)
         checkOnly=1
         doPrompt=0
@@ -1448,10 +1460,14 @@ fi
 
 useProfile=""
 if [ "$needProfile" -eq 1 ]; then
-    useProfile=$(determine_profile_for_platform)
-    if [ -z "$useProfile" ]; then
-        echo "Unsupported platform '$currentPlatform'; unable to choose profile file." >&2
-        exit "$exitUnsupportedPlatform"
+    if [ -n "$updateProfileOverridePath" ]; then
+        useProfile=$(expand_home_path "$updateProfileOverridePath")
+    else
+        useProfile=$(determine_profile_for_platform)
+        if [ -z "$useProfile" ]; then
+            echo "Unsupported platform '$currentPlatform'; unable to choose profile file." >&2
+            exit "$exitUnsupportedPlatform"
+        fi
     fi
     load_existing_defaults_from_profile "$useProfile"
 fi
@@ -1658,7 +1674,10 @@ echo "update-environment: $updateEnvironment"
 echo "timeout: $useTimeout"
 echo "run-on-docker map size: $(printf '%s\n' "$useRunOnDocker" | wc -w | tr -d ' ')"
 if [ "$updateEnvironment" -eq 1 ]; then
-    summary_profile=$(determine_profile_for_platform)
+    summary_profile="$useProfile"
+    if [ -z "$summary_profile" ]; then
+        summary_profile=$(determine_profile_for_platform)
+    fi
     echo "profile: $summary_profile"
 fi
 echo "note: run.sh now reads DEREKALGOS_TIMEOUT and propagates it through docker relay."

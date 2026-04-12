@@ -15,6 +15,8 @@ print_usage_examples() {
   echo "  $0 --compile-only main.py arg1 arg2"
   echo "  $0 --source-profile=~/.bash_profile main.py"
   echo "  $0 clean"
+  echo "  $0 clean --defaults"
+  echo "  $0 clean --defaults=y|n"
   echo ""
 }
 
@@ -55,6 +57,19 @@ print_usage_general_section() {
   echo ""
 }
 
+print_usage_clean_section() {
+  echo "Clean options:"
+  echo "  clean                     Interactive: prompt for stdlib and archive cleanup"
+  echo "  clean --defaults          Non-interactive: answer 'yes' to all prompts"
+  echo "  clean --defaults=y        Answer 'yes' to both prompts"
+  echo "  clean --defaults=n        Answer 'no' to both prompts"
+  echo "  clean --defaults=yes      Same as --defaults=y"
+  echo "  clean --defaults=no       Same as --defaults=n"
+  echo "  clean --defaults=y|n      Per-prompt defaults: stdlib first, archive second"
+  echo "                            Also supports yes|no, yes|yes, no|no"
+  echo ""
+}
+
 # Print compact, first-screen help for common usage.
 print_usage_short() {
   echo "Usage: $0 [--source-profile=<profile-path>] [--check-only[=native|docker|ssh]] [--compile-only] <filename|clean> [args...]"
@@ -64,7 +79,7 @@ print_usage_short() {
   echo "Common options:"
   echo "  --help                 Show this compact help and exit"
   echo "  --help-all             Show full help and exit"
-  echo "  --help=<topic>         Show one topic (examples, profile, execution, general)"
+  echo "  --help=<topic>         Show one topic (examples, profile, execution, general, clean)"
   echo "  --source-profile=<p>   Source profile before running"
   echo "  --check-only[=route]   Dry-run/setup simulation"
   echo "  --compile-only         Compile but do not run"
@@ -80,13 +95,15 @@ print_usage_full() {
   echo "Help options:"
   echo "  --help                 Show compact help and exit"
   echo "  --help-all             Show full help and exit"
-  echo "  --help=<topic>         Show one topic (examples, profile, execution, general)"
+  echo "  --help=<topic>         Show one topic (examples, profile, execution, general, clean)"
   echo ""
   print_usage_examples
   print_usage_profile_section
   print_usage_execution_section
   print_usage_general_section
-  echo "Please configure your local profile file to set environment variables to control this script otherwise."
+  print_usage_clean_section
+  echo "Environment setup tip: run ../../../init.sh from an algorithm directory (or ./init.sh from repo root) to configure most variables automatically."
+  echo "You can still override values in your profile via --source-profile=<path>."
 }
 
 # Print one focused help section selected by topic.
@@ -96,13 +113,14 @@ print_usage_topic() {
     profile) print_usage_profile_section ;;
     execution) print_usage_execution_section ;;
     general) print_usage_general_section ;;
+    clean) print_usage_clean_section ;;
     *)
       echo "Unknown help topic: $1" >&2
       topicSuggestion=$(suggest_help_topic_for_unknown "$1")
       if [ -n "$topicSuggestion" ]; then
         echo "Did you mean: $topicSuggestion" >&2
       fi
-      echo "Supported topics: examples, profile, execution, general" >&2
+      echo "Supported topics: examples, profile, execution, general, clean" >&2
       return 1
       ;;
   esac
@@ -134,6 +152,7 @@ examples
 profile
 execution
 general
+clean
 EOF
 }
 
@@ -2749,7 +2768,64 @@ if [ "$fileName" = "clean" ]; then
 
   do_clean_stdlib=1
   do_clean_archive=1
-  if [ -t 0 ] || [ -t 1 ]; then
+
+  defaultsArg=
+  if [ $# -gt 0 ]; then
+    case "$1" in
+      --defaults)
+        defaultsArg="y|y"
+        ;;
+      --defaults=*)
+        defaultsArg=${1#--defaults=}
+        ;;
+      *)
+        echo "Unknown clean option: $1" >&2
+        echo "Usage: $0 clean [--defaults|--defaults=y|--defaults=n|--defaults=yes|--defaults=no|--defaults=y|n|--defaults=yes|no]" >&2
+        exit 64
+        ;;
+    esac
+    shift 1
+  fi
+  if [ $# -gt 0 ]; then
+    echo "Unexpected argument(s) for clean: $*" >&2
+    echo "Usage: $0 clean [--defaults|--defaults=y|--defaults=n|--defaults=yes|--defaults=no|--defaults=y|n|--defaults=yes|no]" >&2
+    exit 64
+  fi
+
+  if [ -n "$defaultsArg" ]; then
+    case "$defaultsArg" in
+      y|Y|[Yy][Ee][Ss])
+        defaultsArg="y|y"
+        ;;
+      n|N|[Nn][Oo])
+        defaultsArg="n|n"
+        ;;
+    esac
+
+    stdlibDefault=${defaultsArg%%|*}
+    archiveDefault=${defaultsArg##*|}
+    if [ -z "$stdlibDefault" ] || [ -z "$archiveDefault" ] || [ "$defaultsArg" = "$stdlibDefault" ]; then
+      echo "Invalid --defaults value '$defaultsArg'. Expected y, n, yes, no, y|n, n|y, yes|no, yes|yes, or no|no." >&2
+      exit 64
+    fi
+
+    case "$stdlibDefault" in
+      y|Y|[Yy][Ee][Ss]) do_clean_stdlib=1 ;;
+      n|N|[Nn][Oo]) do_clean_stdlib=0 ;;
+      *)
+        echo "Invalid stdlib default '$stdlibDefault' in --defaults=$defaultsArg (expected y/n or yes/no)." >&2
+        exit 64
+        ;;
+    esac
+    case "$archiveDefault" in
+      y|Y|[Yy][Ee][Ss]) do_clean_archive=1 ;;
+      n|N|[Nn][Oo]) do_clean_archive=0 ;;
+      *)
+        echo "Invalid archive default '$archiveDefault' in --defaults=$defaultsArg (expected y/n or yes/no)." >&2
+        exit 64
+        ;;
+    esac
+  elif [ -t 0 ] || [ -t 1 ]; then
     # Interactive terminal: prompt before cleaning stdlib and archive
     printf "${yellow}About to clean stdlib (this will remove all stdlib build artifacts). Continue? [Y/n] ${normal}"
     read ans
@@ -2764,7 +2840,7 @@ if [ "$fileName" = "clean" ]; then
       *) do_clean_archive=0 ;;
     esac
   else
-    # Not interactive: proceed without prompt
+    # Non-interactive and no defaults provided: proceed with yes for both.
     do_clean_stdlib=1
     do_clean_archive=1
   fi
