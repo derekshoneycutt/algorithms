@@ -54,6 +54,7 @@ print_usage_examples() {
   echo "  $0 --check-only=docker main.py"
   echo "  $0 --compile-only main.py arg1 arg2"
   echo "  $0 --source-profile=~/.bash_profile main.py"
+  echo "  $0 select"
   echo "  $0 clean"
   echo "  $0 localclean"
   echo "  $0 clean --defaults"
@@ -108,6 +109,7 @@ print_usage_general_section() {
   echo "  If first parameter is not a recognized language key, it is treated as filename."
   echo "  Following parameters are passed to the final executable as argv."
   echo "  Supported filename input compiles and runs where possible."
+  echo "  select shows language availability and prompts for one language to run."
   echo "  Build and run artifacts/logs are written to ./output."
   echo "  localclean erases local output only and exits."
   echo "  clean erases local output, cleans stdlib, and exits."
@@ -116,6 +118,7 @@ print_usage_general_section() {
 
 print_usage_clean_section() {
   echo "Clean options:"
+  echo "  select                    Show language grid, prompt for language, run selection"
   echo "  localclean                Remove ./output only and exit"
   echo "  clean                     Interactive: prompt for stdlib and archive cleanup"
   echo "  clean --defaults          Non-interactive: answer 'yes' to all prompts"
@@ -131,7 +134,7 @@ print_usage_clean_section() {
 # Print compact, first-screen help for common usage.
 print_usage_short() {
   echo "Usage: $0 [--smoke-test]"
-  echo "       $0 [--list-languages|--list-problems|--flag=<lang>|--unflag=<lang>] [--source-profile=<profile-path>] [--check-only[=native|docker|ssh]] [--compile-only] <filename|lang|clean|localclean> [args...]"
+  echo "       $0 [--list-languages|--list-problems|--flag=<lang>|--unflag=<lang>] [--source-profile=<profile-path>] [--check-only[=native|docker|ssh]] [--compile-only] <filename|lang|select|clean|localclean> [args...]"
   echo "       $0 --help"
   echo ""
   print_usage_examples
@@ -154,7 +157,7 @@ print_usage_short() {
 # Print complete help with all sections.
 print_usage_full() {
   echo "Usage: $0 [--smoke-test]"
-  echo "       $0 [--list-languages|--list-problems|--flag=<lang>|--unflag=<lang>] [--source-profile=<profile-path>] [--check-only[=native|docker|ssh]] [--compile-only] <filename|lang|clean|localclean> [args...]"
+  echo "       $0 [--list-languages|--list-problems|--flag=<lang>|--unflag=<lang>] [--source-profile=<profile-path>] [--check-only[=native|docker|ssh]] [--compile-only] <filename|lang|select|clean|localclean> [args...]"
   echo "       $0 --help"
   echo ""
   echo "Help options:"
@@ -952,8 +955,7 @@ parse_standard_cli_options_or_exit() {
   done
 
   if [ $# -lt 1 ]; then
-    print_usage
-    exit 64
+    run_interactive_language_selector
   fi
 }
 
@@ -990,6 +992,37 @@ resolve_target_filename_or_exit() {
   else
     fileName="$resolveTargetArg"
   fi
+}
+
+# Interactive language selector: shows language grid and prompts until selection or empty input.
+run_interactive_language_selector() {
+  if [ $# -gt 0 ]; then
+    echo "Unexpected argument(s) for select: $*" >&2
+    echo "Usage: $0 select" >&2
+    exit 64
+  fi
+
+  print_language_presence_grid
+  while true; do
+    printf "Enter language key to run (blank to exit): "
+    IFS= read -r selectedLang || exit 0
+    selectedLang=$(printf '%s' "$selectedLang" | awk '{$1=$1;print}')
+
+    if [ -z "$selectedLang" ]; then
+      exit 0
+    fi
+
+    selectedLangLower=$(printf '%s' "$selectedLang" | tr '[:upper:]' '[:lower:]')
+    if is_supported_language_key "$selectedLangLower"; then
+      exec "$0" "$selectedLangLower"
+    fi
+
+    echo "Unrecognized language key '$selectedLang'."
+    languageSuggestion=$(suggest_language_key_for_unknown "$selectedLang")
+    if [ -n "$languageSuggestion" ]; then
+      echo "Did you mean: $languageSuggestion"
+    fi
+  done
 }
 
 # =============================================
@@ -1806,6 +1839,10 @@ if [ "$fileName" = "localclean" ]; then
 
   rm -Rf ./output >> /dev/null 2>&1
   exit 0
+fi
+
+if [ "$fileName" = "select" ]; then
+  run_interactive_language_selector "$@"
 fi
 
 if [ "$fileName" = "clean" ]; then
