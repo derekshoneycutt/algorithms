@@ -11,6 +11,11 @@ print_usage_examples() {
   echo "Examples:"
   echo "  $0 main.py"
   echo "  $0 --list-languages"
+  echo "  $0 --list-problems"
+  echo "  $0 --flag=python"
+  echo "  $0 --flag=all"
+  echo "  $0 --unflag=none"
+  echo "  $0 --unflag=python"
   echo "  $0 --check-only main.py"
   echo "  $0 --check-only=docker main.py"
   echo "  $0 --compile-only main.py arg1 arg2"
@@ -73,7 +78,7 @@ print_usage_clean_section() {
 
 # Print compact, first-screen help for common usage.
 print_usage_short() {
-  echo "Usage: $0 [--list-languages] [--source-profile=<profile-path>] [--check-only[=native|docker|ssh]] [--compile-only] <filename|clean> [args...]"
+  echo "Usage: $0 [--list-languages|--list-problems|--flag=<lang>|--unflag=<lang>] [--source-profile=<profile-path>] [--check-only[=native|docker|ssh]] [--compile-only] <filename|clean> [args...]"
   echo "       $0 --help"
   echo ""
   print_usage_examples
@@ -82,6 +87,9 @@ print_usage_short() {
   echo "  --help-all             Show full help and exit"
   echo "  --help=<topic>         Show one topic (examples, profile, execution, general, clean)"
   echo "  --list-languages       Show language presence grid for current directory and exit"
+  echo "  --list-problems        Show only missing or flagged languages and exit"
+  echo "  --flag=<lang>          Mark <lang> in ./.flag-lang and exit (also: all, none)"
+  echo "  --unflag=<lang>        Remove <lang> from ./.flag-lang and exit (also: all, none)"
   echo "  --source-profile=<p>   Source profile before running"
   echo "  --check-only[=route]   Dry-run/setup simulation"
   echo "  --compile-only         Compile but do not run"
@@ -91,7 +99,7 @@ print_usage_short() {
 
 # Print complete help with all sections.
 print_usage_full() {
-  echo "Usage: $0 [--list-languages] [--source-profile=<profile-path>] [--check-only[=native|docker|ssh]] [--compile-only] <filename|clean> [args...]"
+  echo "Usage: $0 [--list-languages|--list-problems|--flag=<lang>|--unflag=<lang>] [--source-profile=<profile-path>] [--check-only[=native|docker|ssh]] [--compile-only] <filename|clean> [args...]"
   echo "       $0 --help"
   echo ""
   echo "Help options:"
@@ -99,6 +107,9 @@ print_usage_full() {
   echo "  --help-all             Show full help and exit"
   echo "  --help=<topic>         Show one topic (examples, profile, execution, general, clean)"
   echo "  --list-languages       Show language presence grid for current directory and exit"
+  echo "  --list-problems        Show only missing or flagged languages and exit"
+  echo "  --flag=<lang>          Mark <lang> in ./.flag-lang and exit (also: all, none)"
+  echo "  --unflag=<lang>        Remove <lang> from ./.flag-lang and exit (also: all, none)"
   echo ""
   print_usage_examples
   print_usage_profile_section
@@ -138,6 +149,10 @@ print_usage() {
 print_option_catalog() {
   cat <<'EOF'
 --list-languages
+--list-langauges
+--list-problems
+--flag=
+--unflag=
 --source-profile=
 --check-only
 --check-only=
@@ -147,6 +162,131 @@ print_option_catalog() {
 --help-all
 --help=
 EOF
+}
+
+# Shared language key list used by list/flag helpers.
+get_supported_language_keys() {
+  cat <<'EOF'
+ada
+arm64asm
+asm
+ballerina
+c
+clojure
+cobol
+cpp
+csharp
+d
+dart
+eiffel
+elixir
+erlang
+factor
+forth
+fortran
+freebasic
+fsharp
+gleam
+go
+haskell
+haxe
+icon
+idris
+java
+javascript
+julia
+kit
+kotlin
+llvmir
+lua
+mercury
+mmixal
+modula3
+mojo
+nasm
+nim
+oberon
+objectivec
+ocaml
+octave
+pascal
+perl
+php
+prolog
+python
+r
+racket
+ruby
+rust
+scala
+scheme
+simula
+smalltalk
+swift
+tcl
+typescript
+v
+visualbasic
+wat
+zig
+EOF
+}
+
+# Return 0 when one language key is supported.
+is_supported_language_key() {
+  targetLang="$1"
+  for langKey in $(get_supported_language_keys); do
+    if [ "$langKey" = "$targetLang" ]; then
+      return 0
+    fi
+  done
+  return 1
+}
+
+# Read .flag-lang and return success when a language is flagged.
+is_language_flagged() {
+  targetLang="$1"
+  [ -f ./.flag-lang ] || return 1
+  grep -Fx -- "$targetLang" ./.flag-lang > /dev/null 2>&1
+}
+
+# Add one language to .flag-lang if not already present.
+flag_language() {
+  targetLang="$1"
+  touch ./.flag-lang || return 1
+  if ! is_language_flagged "$targetLang"; then
+    printf '%s\n' "$targetLang" >> ./.flag-lang || return 1
+  fi
+  return 0
+}
+
+# Remove one language from .flag-lang if present.
+unflag_language() {
+  targetLang="$1"
+  [ -f ./.flag-lang ] || return 0
+  unflagTmp=$(mktemp "${TMPDIR:-/tmp}/derekalgos-unflag.XXXXXX") || return 1
+  grep -Fxv -- "$targetLang" ./.flag-lang > "$unflagTmp"
+  unflagRet="$?"
+  if [ "$unflagRet" -gt 1 ]; then
+    rm -f "$unflagTmp"
+    return 1
+  fi
+  mv "$unflagTmp" ./.flag-lang || { rm -f "$unflagTmp"; return 1; }
+  return 0
+}
+
+# Flag all supported languages.
+flag_all_languages() {
+  flagAllTmp=$(mktemp "${TMPDIR:-/tmp}/derekalgos-flag-all.XXXXXX") || return 1
+  get_supported_language_keys > "$flagAllTmp" || { rm -f "$flagAllTmp"; return 1; }
+  mv "$flagAllTmp" ./.flag-lang || { rm -f "$flagAllTmp"; return 1; }
+  return 0
+}
+
+# Clear all flag entries.
+clear_all_language_flags() {
+  rm -f ./.flag-lang || return 1
+  return 0
 }
 
 # Return terminal width with a conservative fallback.
@@ -247,14 +387,34 @@ language_has_source_in_cwd() {
 
 # Print the supported language list with color indicating source presence in cwd.
 print_language_presence_grid() {
+  gridMode="$1"
+  if [ -z "$gridMode" ]; then
+    gridMode="all"
+  fi
+
   gridGreen='\033[0;32m'
   gridYellow='\033[0;33m'
+  gridRed='\033[0;31m'
   gridNormal='\033[0m'
-  languageList="ada arm64asm asm ballerina c clojure cobol cpp csharp d dart eiffel elixir erlang factor forth fortran freebasic fsharp gleam go haskell haxe icon idris java javascript julia kit kotlin llvmir lua mercury mmixal modula3 mojo nasm nim oberon objectivec ocaml octave pascal perl php prolog python r racket ruby rust scala scheme simula smalltalk swift tcl typescript v visualbasic wat zig"
 
   maxLabelLen=0
-  for langName in $languageList; do
+  for langName in $(get_supported_language_keys); do
+    langPresent=0
+    langFlagged=0
+    if language_has_source_in_cwd "$langName"; then
+      langPresent=1
+    fi
+    if is_language_flagged "$langName"; then
+      langFlagged=1
+    fi
+    if [ "$gridMode" = "problems" ] && [ "$langPresent" -eq 1 ] && [ "$langFlagged" -eq 0 ]; then
+      continue
+    fi
+
     langLen=${#langName}
+    if [ "$langFlagged" -eq 1 ]; then
+      langLen=$((langLen + 1))
+    fi
     if [ "$langLen" -gt "$maxLabelLen" ]; then
       maxLabelLen="$langLen"
     fi
@@ -267,16 +427,45 @@ print_language_presence_grid() {
     colsPerRow=1
   fi
 
-  echo "Language availability in current directory: $PWD"
+  if [ "$gridMode" = "problems" ]; then
+    echo "Language problems in current directory: $PWD"
+  else
+    echo "Language availability in current directory: $PWD"
+  fi
+
   currentCol=0
-  for langName in $languageList; do
+  displayedCount=0
+  for langName in $(get_supported_language_keys); do
+    langPresent=0
+    langFlagged=0
     if language_has_source_in_cwd "$langName"; then
+      langPresent=1
       langColor="$gridGreen"
     else
       langColor="$gridYellow"
     fi
-    paddedLang=$(printf "%-*s" "$colWidth" "$langName")
-    printf "  %b" "${langColor}${paddedLang}${gridNormal}"
+    if is_language_flagged "$langName"; then
+      langFlagged=1
+    fi
+    if [ "$gridMode" = "problems" ] && [ "$langPresent" -eq 1 ] && [ "$langFlagged" -eq 0 ]; then
+      continue
+    fi
+
+    if [ "$langFlagged" -eq 1 ]; then
+      padWidth=$((colWidth - ${#langName} - 1))
+      if [ "$padWidth" -lt 0 ]; then
+        padWidth=0
+      fi
+      printf "  %b%s%b%bF%b%*s" "$langColor" "$langName" "$gridNormal" "$gridRed" "$gridNormal" "$padWidth" ""
+    else
+      padWidth=$((colWidth - ${#langName}))
+      if [ "$padWidth" -lt 0 ]; then
+        padWidth=0
+      fi
+      printf "  %b%s%b%*s" "$langColor" "$langName" "$gridNormal" "$padWidth" ""
+    fi
+
+    displayedCount=$((displayedCount + 1))
     currentCol=$((currentCol + 1))
     if [ "$currentCol" -ge "$colsPerRow" ]; then
       printf '\n'
@@ -287,7 +476,12 @@ print_language_presence_grid() {
     printf '\n'
   fi
 
-  printf "Key: %bpresent%b, %bnot present%b\n" "$gridGreen" "$gridNormal" "$gridYellow" "$gridNormal"
+  if [ "$displayedCount" -eq 0 ]; then
+    echo "  <none>"
+  fi
+
+  printf "Key: %bpresent%b, %bnot present%b, %bF%b flagged\n" "$gridGreen" "$gridNormal" "$gridYellow" "$gridNormal" "$gridRed" "$gridNormal"
+  echo "Hint: use --flag=<language> to mark and --unflag=<language> to clear flags in ./.flag-lang"
 }
 
 # Print supported help topics for did-you-mean matching.
@@ -380,32 +574,135 @@ suggest_clean_option_for_unknown() {
   suggest_from_catalog "$unknownCleanOption" "$cleanOptionCatalog" | head -n 1
 }
 
+# Suggest the closest supported language key.
+suggest_language_key_for_unknown() {
+  unknownLanguageKey="$1"
+  languageCatalog="$(get_supported_language_keys)
+all
+none"
+  suggest_from_catalog "$unknownLanguageKey" "$languageCatalog" | head -n 1
+}
+
 sourceProfileOverrideSet=0
 sourceProfileOverridePath=
 checkOnlyMode=0
 checkOnlyRoute="native"
 compileOnlyMode=0
-listLanguagesMode=0
-listLanguagesIgnoredArgs=""
+
+quickMode=""
+quickModeValue=""
+quickModeIgnoredArgs=""
 
 for rawArg in "$@"; do
-  if [ "$rawArg" = "--list-languages" ]; then
-    listLanguagesMode=1
-  else
-    if [ -n "$listLanguagesIgnoredArgs" ]; then
-      listLanguagesIgnoredArgs="$listLanguagesIgnoredArgs $rawArg"
-    else
-      listLanguagesIgnoredArgs="$rawArg"
-    fi
-  fi
+  case "$rawArg" in
+    --list-languages|--list-langauges)
+      if [ -z "$quickMode" ]; then
+        quickMode="list"
+      else
+        quickModeIgnoredArgs="$quickModeIgnoredArgs $rawArg"
+      fi
+      ;;
+    --list-problems)
+      if [ -z "$quickMode" ]; then
+        quickMode="problems"
+      else
+        quickModeIgnoredArgs="$quickModeIgnoredArgs $rawArg"
+      fi
+      ;;
+    --flag=*)
+      if [ -z "$quickMode" ]; then
+        quickMode="flag"
+        quickModeValue=${rawArg#--flag=}
+      else
+        quickModeIgnoredArgs="$quickModeIgnoredArgs $rawArg"
+      fi
+      ;;
+    --unflag=*)
+      if [ -z "$quickMode" ]; then
+        quickMode="unflag"
+        quickModeValue=${rawArg#--unflag=}
+      else
+        quickModeIgnoredArgs="$quickModeIgnoredArgs $rawArg"
+      fi
+      ;;
+    *)
+      quickModeIgnoredArgs="$quickModeIgnoredArgs $rawArg"
+      ;;
+  esac
 done
 
-if [ "$listLanguagesMode" -eq 1 ]; then
-  if [ -n "$listLanguagesIgnoredArgs" ]; then
-    echo "WARNING: --list-languages ignores all other arguments/options. Ignored: $listLanguagesIgnoredArgs" >&2
+quickModeIgnoredArgs=$(printf '%s\n' "$quickModeIgnoredArgs" | awk '{$1=$1;print}')
+
+if [ -n "$quickMode" ]; then
+  if [ -n "$quickModeIgnoredArgs" ]; then
+    case "$quickMode" in
+      list) echo "WARNING: --list-languages ignores all other arguments/options. Ignored: $quickModeIgnoredArgs" >&2 ;;
+      problems) echo "WARNING: --list-problems ignores all other arguments/options. Ignored: $quickModeIgnoredArgs" >&2 ;;
+      flag) echo "WARNING: --flag ignores all other arguments/options. Ignored: $quickModeIgnoredArgs" >&2 ;;
+      unflag) echo "WARNING: --unflag ignores all other arguments/options. Ignored: $quickModeIgnoredArgs" >&2 ;;
+    esac
   fi
-  print_language_presence_grid
-  exit 0
+
+  case "$quickMode" in
+    list)
+      print_language_presence_grid
+      exit 0
+      ;;
+    problems)
+      print_language_presence_grid "problems"
+      exit 0
+      ;;
+    flag|unflag)
+      if [ -z "$quickModeValue" ]; then
+        echo "Missing language key for --$quickMode." >&2
+        exit 64
+      fi
+      case "$quickModeValue" in
+        all)
+          if [ "$quickMode" = "flag" ]; then
+            if ! flag_all_languages; then
+              echo "Failed to update ./.flag-lang for --flag=all" >&2
+              exit 1
+            fi
+          else
+            if ! clear_all_language_flags; then
+              echo "Failed to update ./.flag-lang for --unflag=all" >&2
+              exit 1
+            fi
+          fi
+          ;;
+        none)
+          if ! clear_all_language_flags; then
+            echo "Failed to update ./.flag-lang for --$quickMode=none" >&2
+            exit 1
+          fi
+          ;;
+        *)
+          if ! is_supported_language_key "$quickModeValue"; then
+            echo "Unknown language key '$quickModeValue' for --$quickMode." >&2
+            languageSuggestion=$(suggest_language_key_for_unknown "$quickModeValue")
+            if [ -n "$languageSuggestion" ]; then
+              echo "Did you mean: --$quickMode=$languageSuggestion" >&2
+            fi
+            exit 64
+          fi
+          if [ "$quickMode" = "flag" ]; then
+            if ! flag_language "$quickModeValue"; then
+              echo "Failed to update ./.flag-lang for --flag=$quickModeValue" >&2
+              exit 1
+            fi
+          else
+            if ! unflag_language "$quickModeValue"; then
+              echo "Failed to update ./.flag-lang for --unflag=$quickModeValue" >&2
+              exit 1
+            fi
+          fi
+          ;;
+      esac
+      print_language_presence_grid
+      exit 0
+      ;;
+  esac
 fi
 
 while [ $# -ge 1 ]; do
