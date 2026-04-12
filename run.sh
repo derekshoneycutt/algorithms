@@ -7,6 +7,23 @@ yellow='\033[0;33m'
 blue='\033[0;34m'
 normal='\033[0m' # Resets the color to default
 
+scriptDir=$(CDPATH= cd -- "$(dirname "$0")" && pwd -P)
+. "$scriptDir/shlib/loader.sh" || {
+  echo "ERROR: unable to load shlib loader from $scriptDir/shlib/loader.sh" >&2
+  exit 78
+}
+load_required_shlib_modules "run.sh" "$scriptDir" \
+  suggest.sh \
+  terminal.sh \
+  docker-policy.sh \
+  profile.sh \
+  runonssh-contract.sh \
+  help-common.sh \
+  help-catalogs.sh \
+  run-relay.sh \
+  run-language-loader.sh || exit 78
+load_run_language_modules "$scriptDir" || exit 78
+
 # =============================================
 # Help And Usage
 # =============================================
@@ -16,6 +33,7 @@ print_usage_examples() {
   echo "Examples:"
   echo "  $0 main.py"
   echo "  $0 python"
+  echo "  $0 --smoke-test"
   echo "  $0 --list-languages"
   echo "  $0 --list-problems"
   echo "  $0 --flag=python"
@@ -47,6 +65,7 @@ print_usage_profile_section() {
 # Print check-only and compile-only controls.
 print_usage_execution_section() {
   echo "Execution controls:"
+  echo "  --smoke-test                     Run smoke tests for the current algorithm directory and exit"
   echo "  --check-only[=native|docker|ssh] Skip compile/run after setup; optionally simulate one route"
   echo "  --compile-only                    Compile only; skip runtime execution"
   echo ""
@@ -55,6 +74,16 @@ print_usage_execution_section() {
   echo "  --check-only=docker or --check-only=ssh simulates that relay path only."
   echo "  --check-only= or --check-only=native uses native simulation."
   echo ""
+}
+
+# Print Docker runner support details.
+print_usage_docker_section() {
+  echo "Docker support:"
+  echo "  This project supports running languages via a Docker image as the relay runner."
+  echo "  The image to use is configured via the DEREKALGOS_RUNONDOCKER environment variable"
+  echo "  (set globally or per-language via init.sh)."
+  echo ""
+  print_usage_docker_policy_common
 }
 
 # Print general invocation and argument forwarding behavior.
@@ -87,14 +116,16 @@ print_usage_clean_section() {
 
 # Print compact, first-screen help for common usage.
 print_usage_short() {
-  echo "Usage: $0 [--list-languages|--list-problems|--flag=<lang>|--unflag=<lang>] [--source-profile=<profile-path>] [--check-only[=native|docker|ssh]] [--compile-only] <filename|lang|clean> [args...]"
+  echo "Usage: $0 [--smoke-test]"
+  echo "       $0 [--list-languages|--list-problems|--flag=<lang>|--unflag=<lang>] [--source-profile=<profile-path>] [--check-only[=native|docker|ssh]] [--compile-only] <filename|lang|clean> [args...]"
   echo "       $0 --help"
   echo ""
   print_usage_examples
   echo "Common options:"
   echo "  --help                 Show this compact help and exit"
   echo "  --help-all             Show full help and exit"
-  echo "  --help=<topic>         Show one topic (examples, profile, execution, general, clean)"
+  echo "  --help=<topic>         Show one topic (examples, profile, execution, docker, general, clean)"
+  echo "  --smoke-test           Run smoke tests and exit (killswitch; no trailing args allowed)"
   echo "  --list-languages       Show language presence grid for current directory and exit"
   echo "  --list-problems        Show only missing or flagged languages and exit"
   echo "  --flag=<lang>          Mark <lang> in ./.flag-lang and exit (also: all, none)"
@@ -108,13 +139,15 @@ print_usage_short() {
 
 # Print complete help with all sections.
 print_usage_full() {
-  echo "Usage: $0 [--list-languages|--list-problems|--flag=<lang>|--unflag=<lang>] [--source-profile=<profile-path>] [--check-only[=native|docker|ssh]] [--compile-only] <filename|lang|clean> [args...]"
+  echo "Usage: $0 [--smoke-test]"
+  echo "       $0 [--list-languages|--list-problems|--flag=<lang>|--unflag=<lang>] [--source-profile=<profile-path>] [--check-only[=native|docker|ssh]] [--compile-only] <filename|lang|clean> [args...]"
   echo "       $0 --help"
   echo ""
   echo "Help options:"
   echo "  --help                 Show compact help and exit"
   echo "  --help-all             Show full help and exit"
-  echo "  --help=<topic>         Show one topic (examples, profile, execution, general, clean)"
+  echo "  --help=<topic>         Show one topic (examples, profile, execution, docker, general, clean)"
+  echo "  --smoke-test           Run smoke tests and exit (killswitch; no trailing args allowed)"
   echo "  --list-languages       Show language presence grid for current directory and exit"
   echo "  --list-problems        Show only missing or flagged languages and exit"
   echo "  --flag=<lang>          Mark <lang> in ./.flag-lang and exit (also: all, none)"
@@ -123,6 +156,7 @@ print_usage_full() {
   print_usage_examples
   print_usage_profile_section
   print_usage_execution_section
+  print_usage_docker_section
   print_usage_general_section
   print_usage_clean_section
   echo "Environment setup tip: run ../../../init.sh from an algorithm directory (or ./init.sh from repo root) to configure most variables automatically."
@@ -135,6 +169,7 @@ print_usage_topic() {
     examples) print_usage_examples ;;
     profile) print_usage_profile_section ;;
     execution) print_usage_execution_section ;;
+    docker) print_usage_docker_section ;;
     general) print_usage_general_section ;;
     clean) print_usage_clean_section ;;
     *)
@@ -143,7 +178,7 @@ print_usage_topic() {
       if [ -n "$topicSuggestion" ]; then
         echo "Did you mean: $topicSuggestion" >&2
       fi
-      echo "Supported topics: examples, profile, execution, general, clean" >&2
+      echo "Supported topics: examples, profile, execution, docker, general, clean" >&2
       return 1
       ;;
   esac
@@ -160,21 +195,7 @@ print_usage() {
 
 # Print supported option keys for did-you-mean matching.
 print_option_catalog() {
-  cat <<'EOF'
---list-languages
---list-langauges
---list-problems
---flag=
---unflag=
---source-profile=
---check-only
---check-only=
---compile-only
---help
--h
---help-all
---help=
-EOF
+  print_option_catalog_for_script run
 }
 
 # One source of truth for language catalog:
@@ -422,24 +443,6 @@ clear_all_language_flags() {
   return 0
 }
 
-# Return terminal width with a conservative fallback.
-get_display_columns() {
-  displayCols=""
-  if command -v tput > /dev/null 2>&1; then
-    displayCols=$(tput cols 2>/dev/null)
-  fi
-  if [ -z "$displayCols" ] && [ -n "$COLUMNS" ]; then
-    displayCols="$COLUMNS"
-  fi
-  case "$displayCols" in
-    ''|*[!0-9]*) displayCols=80 ;;
-  esac
-  if [ "$displayCols" -lt 40 ]; then
-    displayCols=40
-  fi
-  printf '%s\n' "$displayCols"
-}
-
 # Return success when the current directory contains at least one file with an extension.
 dir_has_extension() {
   targetExt="$1"
@@ -604,75 +607,7 @@ EOF
 
 # Print supported help topics for did-you-mean matching.
 print_help_topic_catalog() {
-  cat <<'EOF'
-examples
-profile
-execution
-general
-clean
-EOF
-}
-
-# Normalize one option token for matching by dropping values after '='.
-normalize_option_token() {
-  case "$1" in
-    --*=*) printf '%s\n' "${1%%=*}=" ;;
-    *) printf '%s\n' "$1" ;;
-  esac
-}
-
-# Suggest one closest token from a newline-separated catalog.
-suggest_from_catalog() {
-  suggestTarget="$1"
-  suggestCatalog="$2"
-  printf '%s\n' "$suggestCatalog" | awk -v target="$suggestTarget" '
-    function min3(a, b, c, m) { m = a; if (b < m) m = b; if (c < m) m = c; return m }
-    function dist(s, t, i, j, ls, lt, cost, prev, tmp, cur) {
-      ls = length(s); lt = length(t)
-      for (j = 0; j <= lt; j++) d[j] = j
-      for (i = 1; i <= ls; i++) {
-        prev = d[0]
-        d[0] = i
-        for (j = 1; j <= lt; j++) {
-          tmp = d[j]
-          cost = (substr(s, i, 1) == substr(t, j, 1)) ? 0 : 1
-          cur = min3(d[j] + 1, d[j - 1] + 1, prev + cost)
-          d[j] = cur
-          prev = tmp
-        }
-      }
-      return d[lt]
-    }
-    {
-      if ($0 == "") next
-      if (index($0, target) == 1 || index(target, $0) == 1) {
-        print $0
-        exit
-      }
-      score = dist(target, $0)
-      if (best == "" || score < bestScore) {
-        best = $0
-        bestScore = score
-      }
-    }
-    END {
-      if (best != "" && bestScore <= 4) print best
-    }'
-}
-
-# Suggest the closest option for an unknown option token.
-suggest_option_for_unknown() {
-  unknownOption="$1"
-  normalizedOption=$(normalize_option_token "$unknownOption")
-  optionCatalog=$(print_option_catalog)
-  suggest_from_catalog "$normalizedOption" "$optionCatalog" | head -n 1
-}
-
-# Suggest the closest help topic for unknown topic values.
-suggest_help_topic_for_unknown() {
-  unknownTopic="$1"
-  topicCatalog=$(print_help_topic_catalog)
-  suggest_from_catalog "$unknownTopic" "$topicCatalog" | head -n 1
+  print_help_topic_catalog_for_script run
 }
 
 # Suggest the closest check-only route token.
@@ -760,13 +695,21 @@ configure_runtime_environment() {
       . "$sourceProfileOverridePath" >> "$profileOutCache" 2>&1
     fi
   else
-    case "$currentPlatform" in
-      "MINGW64_NT"*) . ~/.bash_profile >> "$profileOutCache" 2>&1 ;;
-      "Linux"*) . ~/.bash_profile >> "$profileOutCache" 2>&1 ;;
-      "FreeBSD") . ~/.profile >> "$profileOutCache" 2>&1 ;;
-      "Darwin") . ~/.zprofile >> "$profileOutCache" 2>&1 ;;
-      *) ;;
-    esac
+    # NOTE: determine_profile_for_platform resolves Linux to ~/.bash_profile.
+    # That Linux resolution also covers Docker containers: Docker reports "Linux"
+    # from uname -s and runs as root, so ~/.bash_profile resolves to /root/.bash_profile.
+    # Any Docker image used as a runner for this project must write DEREKALGOS_* defaults
+    # to /root/.bash_profile so this profile-source can load them — this is the supported
+    # and only supported contract for Docker runners. This project's own Dockerfile
+    # (see: Dockerfile at repo root) is the canonical reference implementation of that
+    # contract: its final RUN block writes the DEREKALGOS_* defaults to that exact path.
+    # IMPORTANT: linux/amd64 is the fully supported Docker platform; linux/arm64 has
+    # limited support and may work via emulation or a compatible image but is not
+    # guaranteed. No other Docker platform or architecture has a supported path today.
+    defaultProfilePath=$(determine_profile_for_platform "$currentPlatform")
+    if [ -n "$defaultProfilePath" ]; then
+      . "$defaultProfilePath" >> "$profileOutCache" 2>&1
+    fi
   fi
 
   if [ -n "$DEREKALGOS_TIMEOUT" ]; then
@@ -941,6 +884,22 @@ parse_standard_cli_options_or_exit() {
         parsedCliArgCount=$((parsedCliArgCount + 1))
         shift 1
         ;;
+      --smoke-test)
+        if [ $# -gt 1 ]; then
+          echo "Unexpected argument(s) after --smoke-test: ${*:2}" >&2
+          echo "Usage: $0 --smoke-test" >&2
+          exit 64
+        fi
+
+        smokeScriptPath="$scriptDir/shlib/run-smoke-test.sh"
+        if [ ! -r "$smokeScriptPath" ]; then
+          echo "Smoke test script missing or unreadable: $smokeScriptPath" >&2
+          exit 78
+        fi
+
+        sh "$smokeScriptPath" --dir="$PWD"
+        exit "$?"
+        ;;
       --help|-h)
         print_usage_short
         exit 0
@@ -1104,67 +1063,6 @@ get_lang_route_value() {
   }'
 }
 
-# Parse SSH route values in either legacy or explicit form:
-#   legacy:   ssh-destination|code-dir|run-script
-#   explicit: ssh-address|ssh-user|ssh-port|code-dir|run-script
-parse_ssh_route_definition() {
-  ssh_target_def="$1"
-
-  ssh_destination=
-  ssh_address=
-  ssh_user=
-  ssh_port=
-  ssh_codedir=
-  ssh_runscript=
-
-  if [ -z "$ssh_target_def" ]; then
-    return 1
-  fi
-
-  ssh_field_count=$(printf '%s' "$ssh_target_def" | awk -F'|' '{print NF}')
-  case "$ssh_field_count" in
-    3)
-      ssh_destination=${ssh_target_def%%|*}
-      ssh_target_rest=${ssh_target_def#*|}
-      ssh_codedir=${ssh_target_rest%%|*}
-      ssh_runscript=${ssh_target_rest#*|}
-      if [ -z "$ssh_destination" ] || [ -z "$ssh_codedir" ] || [ -z "$ssh_runscript" ]; then
-        return 1
-      fi
-      ;;
-    5)
-      ssh_address=${ssh_target_def%%|*}
-      ssh_target_rest=${ssh_target_def#*|}
-      ssh_user=${ssh_target_rest%%|*}
-      ssh_target_rest=${ssh_target_rest#*|}
-      ssh_port=${ssh_target_rest%%|*}
-      ssh_target_rest=${ssh_target_rest#*|}
-      ssh_codedir=${ssh_target_rest%%|*}
-      ssh_runscript=${ssh_target_rest#*|}
-
-      if [ -z "$ssh_address" ] || [ -z "$ssh_user" ] || [ -z "$ssh_port" ] || [ -z "$ssh_codedir" ] || [ -z "$ssh_runscript" ]; then
-        return 1
-      fi
-      case "$ssh_port" in
-        *[!0-9]*|'') return 1 ;;
-      esac
-      ssh_destination="$ssh_user@$ssh_address"
-      ;;
-    *)
-      return 1
-      ;;
-  esac
-
-  return 0
-}
-
-# Quote one argument so it is safe in POSIX sh commands.
-shell_quote() {
-  # Return a single shell token safe for POSIX sh parsing.
-  quoted=$(printf '%s' "$1" | sed "s/'/'\\\\''/g")
-  printf "'%s'" "$quoted"
-}
-
 # Resolve a path to an absolute canonical path.
 resolve_abs_path() {
   if command -v realpath > /dev/null 2>&1; then
@@ -1294,7 +1192,7 @@ collect_lang_archive_inputs() {
 # Archive the entire output directory (repo-relative), plus sources.
 create_lang_input_archive() {
   archiveDestination="$1"
-  archiveListFile=$(make_tmp_file "source-archive") || return 1
+  archiveListFile=$(make_temp_file_secure "source-archive" "${TMPDIR:-/tmp}") || return 1
   : > "$archiveListFile"
 
   include_output_dir=0
@@ -1382,68 +1280,6 @@ archive_last_command_output_log() {
   fi
   if [ "$didArchiveWrite" -eq 1 ]; then
     chmod -R a+rwX "$logsDir" 2>/dev/null || true
-  fi
-}
-
-# Run a command, stream its output, and append output to logs.
-run_and_log_output() {
-  relay_log_file="$1"
-  shift
-  (
-    relay_tmp_file=$(make_tmp_file "relay") || {
-      echo "ERROR: unable to create relay temp file" >&2
-      exit 1
-    }
-
-    trap 'rm -f "$relay_tmp_file"' INT TERM HUP EXIT
-
-    "$@" > "$relay_tmp_file" 2>&1
-    relay_ret="$?"
-
-    flush_output_to_logs "$relay_tmp_file" "$relay_log_file" "relay output"
-
-    exit "$relay_ret"
-  )
-  return "$?"
-}
-
-# Create a temp file path with a predictable derekalgos prefix.
-make_tmp_file() {
-  tmp_label="$1"
-  max_tmp_tries=128
-  if command -v mktemp > /dev/null 2>&1; then
-    mktemp "${TMPDIR:-/tmp}/derekalgos-${tmp_label}.XXXXXX"
-  else
-    tmp_idx=0
-    while [ "$tmp_idx" -lt "$max_tmp_tries" ]; do
-      tmp_file="${TMPDIR:-/tmp}/derekalgos-${tmp_label}.$$.$tmp_idx"
-      ( set -C; : > "$tmp_file" ) 2>/dev/null && { printf '%s\n' "$tmp_file"; return 0; }
-      tmp_idx=$((tmp_idx + 1))
-    done
-    echo "ERROR: unable to create temp file in ${TMPDIR:-/tmp} after $max_tmp_tries attempts" >&2
-    return 1
-  fi
-}
-
-# Print captured output and append it to main and shared logs.
-flush_output_to_logs() {
-  flush_tmp_file="$1"
-  flush_log_file="$2"
-  flush_label="$3"
-
-  cat "$flush_tmp_file"
-  cat "$flush_tmp_file" >> "$flush_log_file"
-  flush_append_ret="$?"
-  if [ "$flush_append_ret" -ne 0 ]; then
-    echo "WARNING: failed to append $flush_label to $flush_log_file (returned $flush_append_ret)" >&2
-  fi
-
-  if [ -z "$RUN_AND_LOG_SKIP_SHARED_APPEND" ] && [ -n "$lastCommandOutputLog" ] && [ "$flush_log_file" != "$lastCommandOutputLog" ]; then
-    cat "$flush_tmp_file" >> "$lastCommandOutputLog"
-    flush_last_ret="$?"
-    if [ "$flush_last_ret" -ne 0 ]; then
-      echo "WARNING: failed to append $flush_label to $lastCommandOutputLog (returned $flush_last_ret)" >&2
-    fi
   fi
 }
 
@@ -1565,11 +1401,11 @@ run_with_log_and_timeout() {
   parse_timeout_seconds
 
   (
-    _tmp=$(make_tmp_file "relay") || {
+    _tmp=$(make_temp_file_secure "relay" "${TMPDIR:-/tmp}") || {
       echo "ERROR: unable to create run output temp file" >&2
       exit 1
     }
-    _flag=$(make_tmp_file "timeout") || {
+    _flag=$(make_temp_file_secure "timeout" "${TMPDIR:-/tmp}") || {
       echo "ERROR: unable to create timeout flag file" >&2
       exit 1
     }
@@ -1810,1604 +1646,6 @@ link_arm64_assembly_binary_output() {
   return 0
 }
 
-# The first section, each language that we support needs to have
-# a lang_compile and lang_run and lang_archive. This will be called when a file of
-# that code type is recognized according to file extension below
-# The compile phase can reasonably do nothing for scripts and similar.
-# Any build output should go to ./output/lang-build-last
-# as this will be output when recognized that the build failed
-
-# =============================================
-#           ADA
-# =============================================
-ada_compile() {
-  echo "gnatmake -v -D output -o \"./output/$fileNameWithoutExt\" \"$fileName\"" > ./output/ada-build-last
-  gnatmake -v -D output -o "./output/$fileNameWithoutExt" "$fileName" >> ./output/ada-build-last  2>&1
-  retValue="$?"
-  echo "-- GNAT returned: $retValue" >> ./output/ada-build-last
-  return "$retValue"
-}
-ada_run() {
-  "./output/$fileNameWithoutExt" "$@"
-  return "$?"
-}
-ada_archive() {
-  default_lang_archive "$@"
-}
-
-# =============================================
-#           ASSEMBLY (ARM64)
-# =============================================
-arm64asm_compile() {
-  do_link=0
-  platform="$currentPlatform"
-  platform_output=
-  case "$platform" in
-    "Darwin"*)
-      platform="Darwin"
-      platform_output="darwin"
-    ;;
-    *)
-      echo "Unrecognized Platform for Assembly Builds" > ./output/arm64asm-build-last
-      return 1
-  esac
-  case "$currentCpuArch" in
-    "arm64")
-      platform="${platform}-arm64"
-      platform_output="${platform_output}arm64"
-      ;;
-    *)
-      echo "Unrecognized CPU Architecture for Assembly Builds" > ./output/arm64asm-build-last
-      return 1
-      ;;
-  esac
-
-  run_or_return build_assembly_stdlib_and_merge_log "Assembly" "./output/arm64asm-build-last" "$platform" "$platform_output" "arm64asm" || return "$?"
-  stdlib="../../../stdlib/output/stdlib-${platform}.o"
-
-  # Now we build our actual output, linking to the standard library
-  #   Only build if there's new changes to be built
-  echo "Building Assembly file..." >> ./output/arm64asm-build-last
-  do_build=0
-  if should_rebuild_object_for_source "./output/$fileNameWithoutExt.o"; then
-    do_build=1
-  fi
-  if [ "$do_build" -eq 1 ]; then
-    run_or_return build_arm64_assembly_object_output "./output/arm64asm-build-last" || return "$?"
-    do_link=1
-  fi
-  if should_link_executable_for_stdlib "./output/$fileNameWithoutExt" "$stdlib"; then
-    do_link=1
-  fi
-  if [ "$do_link" -eq 1 ]; then
-    run_or_return link_arm64_assembly_binary_output "./output/arm64asm-build-last" "$stdlib" || return "$?"
-  fi
-  return "$retValue"
-}
-arm64asm_run() {
-  "./output/$fileNameWithoutExt" "$@"
-  return "$?"
-}
-arm64asm_archive() {
-  default_lang_archive "$1"
-  # Archive prebuilt stdlib bundle for this target, or include missing marker.
-  arm64asmTag="Darwin-arm64"
-  case "$currentPlatform" in
-    "Darwin"*) arm64asmTag="Darwin-arm64" ;;
-    *) arm64asmTag="" ;;
-  esac
-  if [ -n "$arm64asmTag" ]; then
-    add_stdlib_prebuilt_archive_or_marker "$1" "$arm64asmTag"
-  fi
-}
-
-# =============================================
-#           ASSEMBLY (AT&T/GAS - x86-64)
-# =============================================
-asm_compile() {
-  do_link=0
-  run_or_return resolve_x64_assembly_platform "Assembly" "./output/asm-build-last" "-x64" "x64" || return "$?"
-
-  run_or_return build_assembly_stdlib_and_merge_log "Assembly" "./output/asm-build-last" "$platform" "$platform_output" "asm" || return "$?"
-  stdlib="../../../stdlib/output/stdlib-${platform}.o"
-
-  # Now we build our actual output, linking to the standard library
-  #   Only build if there's new changes to be built
-  echo "Building Assembly file..." >> ./output/asm-build-last
-  do_build=0
-  if should_rebuild_object_for_source "./output/$fileNameWithoutExt.o"; then
-    do_build=1
-  fi
-  if [ "$do_build" -eq 1 ]; then
-    run_or_return build_x64_assembly_object_output "asm" "./output/asm-build-last" "$platform" || return "$?"
-    do_link=1
-  fi
-  if should_link_executable_for_stdlib "./output/$fileNameWithoutExt" "$stdlib"; then
-    do_link=1
-  fi
-  if [ "$do_link" -eq 1 ]; then
-    run_or_return link_x64_assembly_binary_output "./output/asm-build-last" "$platform" "$stdlib" || return "$?"
-  fi
-  return "$retValue"
-}
-asm_run() {
-  "./output/$fileNameWithoutExt" "$@"
-  return "$?"
-}
-asm_archive() {
-  default_lang_archive "$1"
-  asmArchivePlatformTag=
-  case "$currentPlatform" in
-    "Linux"*) asmArchivePlatformTag="Linux" ;;
-    "FreeBSD"*) asmArchivePlatformTag="FreeBSD" ;;
-    "MINGW64_NT"*) asmArchivePlatformTag="Windows" ;;
-    *) asmArchivePlatformTag= ;;
-  esac
-  asmArchiveArchTag=
-  case "$currentCpuArch" in
-    "x86_64"|"amd64") asmArchiveArchTag="x64" ;;
-    *) asmArchiveArchTag= ;;
-  esac
-  if [ -n "$asmArchivePlatformTag" ] && [ -n "$asmArchiveArchTag" ]; then
-    tag="${asmArchivePlatformTag}-${asmArchiveArchTag}"
-    add_stdlib_prebuilt_archive_or_marker "$1" "$tag"
-  fi
-}
-
-# =============================================
-#           Ballerina
-# =============================================
-ballerina_compile() {
-  cp "$fileName" ./output/
-  cd ./output
-
-  echo "bal build \"$fileName\"" > ./ballerina-build-last
-  bal build "$fileName" >> ./ballerina-build-last  2>&1
-  retValue="$?"
-  echo "-- bal returned: $retValue" >> ./ballerina-build-last
-
-  cd ..
-  return "$retValue"
-}
-ballerina_run() {
-  java -jar "./output/$fileNameWithoutExt.jar" "$@"
-  return "$?"
-}
-ballerina_archive() {
-  default_lang_archive "$@"
-}
-
-# =============================================
-#           C
-# =============================================
-c_compile() {
-  echo "gcc -v -Wall -Wextra \"./$fileName\" -o \"./output/$fileNameWithoutExt\"" > ./output/c-build-last
-  gcc -v -Wall -Wextra "./$fileName" -o "./output/$fileNameWithoutExt" >> ./output/c-build-last 2>&1
-  retValue="$?"
-  echo "-- GCC returned: $retValue" >> ./output/c-build-last
-  return "$retValue"
-}
-c_run() {
-  "./output/$fileNameWithoutExt" "$@"
-  return "$?"
-}
-c_archive() {
-  default_lang_archive "$@"
-}
-
-# =============================================
-#           Clojure
-# =============================================
-clojure_compile() {
-  retValue=0
-  mkdir -p ./output/src/algo ./output/resources
-  do_update_source=0
-  if [ ! -f "./output/src/algo/main.clj" ]; then
-    do_update_source=1
-  elif [ -n "$(find "./$fileName" -prune -newer "./output/src/algo/main.clj" 2>/dev/null)" ]; then
-    do_update_source=1
-  fi
-  if [ "$do_update_source" -eq 1 ]; then
-    printf '(ns algo.main (:gen-class))\n(defn -main [& args]\n  (binding [*command-line-args* (into ["%s"] args)]\n    (load-string (slurp (clojure.java.io/resource "%s")))))\n' "./$fileName" "$fileName" > "./output/src/algo/main.clj"
-    cp "./$fileName" ./output/resources/
-  fi
-
-  if [ ! -f "./output/project.clj" ]; then
-    template_content=$(cat ../../../templates/template.project.clj)
-    get_variabled_string "$template_content" > "./output/project.clj"
-  fi
-
-  do_lein_uberjar=0
-  if [ ! -f "./output/target/uberjar/$fileNameWithoutExt-1.0.0-standalone.jar" ]; then
-    do_lein_uberjar=1
-  elif [ -n "$(find "./$fileName" -prune -newer "./output/target/uberjar/$fileNameWithoutExt-1.0.0-standalone.jar" 2>/dev/null)" ]; then
-    do_lein_uberjar=1
-  fi
-  if [ "$do_lein_uberjar" -eq 1 ]; then
-    cd ./output
-    echo "LEIN_VERBOSE=true lein uberjar" > ./clojure-build-last
-    LEIN_VERBOSE=true lein uberjar >> ./clojure-build-last 2>&1
-    retValue="$?"
-    echo "-- lein returned: $retValue" >> ./clojure-build-last
-    cd ..
-  fi
-  return "$retValue"
-}
-clojure_run() {
-  java -cp "./output/target/uberjar/$fileNameWithoutExt-1.0.0-standalone.jar" clojure.main -m algo.main "$@"
-  return "$?"
-}
-clojure_archive() {
-  default_lang_archive "$@"
-}
-
-# =============================================
-#           COBOL
-# =============================================
-cobol_compile() {
-  echo "cobc -v -x -o \"./output/$fileNameWithoutExt\" \"./$fileName\"" > ./output/cobol-build-last
-  cobc -v -x -o "./output/$fileNameWithoutExt" "./$fileName" >> ./output/cobol-build-last 2>&1
-  retValue="$?"
-  echo "-- cobc returned: $retValue" >> ./output/cobol-build-last
-  return "$retValue"
-}
-cobol_run() {
-  "./output/$fileNameWithoutExt" "$@"
-  return "$?"
-}
-cobol_archive() {
-  default_lang_archive "$@"
-}
-
-# =============================================
-#           C++
-# =============================================
-cpp_compile() {
-  echo "g++ -v -Wall -Wextra \"./$fileName\" -o \"./output/$fileNameWithoutExt\" --std=c++23 -lstdc++exp" > ./output/cpp-build-last
-  g++ -v -Wall -Wextra "./$fileName" -o "./output/$fileNameWithoutExt" --std=c++23 -lstdc++exp >> ./output/cpp-build-last 2>&1
-  retValue="$?"
-  echo "-- G++ returned: $retValue" >> ./output/cpp-build-last
-  return "$retValue"
-}
-cpp_run() {
-  "./output/$fileNameWithoutExt" "$@"
-  return "$?"
-}
-
-cpp_archive() {
-  default_lang_archive "$@"
-}
-
-# =============================================
-#           C#
-# =============================================
-csharp_compile() {
-  if [ ! -f "./output/$fileName" ]; then
-    cp "./$fileName" ./output/
-  elif [ -n "$(find "./$fileName" -prune -newer "./output/$fileName" 2>/dev/null)" ]; then
-    cp "./$fileName" ./output/
-  fi
-  cd ./output
-
-  if [ ! -f "$fileNameWithoutExt.csproj" ]; then
-    template_content=$(cat ../../../../templates/template.csproj)
-    get_variabled_string "$template_content" > "$fileNameWithoutExt.csproj"
-  fi
-
-  echo "cd ./output" > ./csharp-build-last
-  echo "echo [$fileNameWithoutExt.csproj]" >> ./csharp-build-last
-  echo "dotnet build --verbosity:detailed" >> ./csharp-build-last
-  echo "cd .." >> ./csharp-build-last
-  dotnet build --verbosity:detailed >> ./csharp-build-last 2>&1
-  retValue="$?"
-  echo "-- dotnet build returned: $retValue" >> ./csharp-build-last
-  cd ..
-  return "$retValue"
-}
-csharp_run() {
-  "./output/bin/Debug/net10.0/$fileNameWithoutExt" "$@"
-  return "$?"
-}
-csharp_archive() {
-  default_lang_archive "$@"
-}
-
-# =============================================
-#           D
-# =============================================
-d_compile() {
-  echo "dmd -v -od=./output -of=\"./output/$fileNameWithoutExt\" \"./$fileName\"" > ./output/d-build-last
-  dmd -v -od=./output -of="./output/$fileNameWithoutExt" "./$fileName" >> ./output/d-build-last 2>&1
-  retValue="$?"
-  echo "-- dmd returned: $retValue" >> ./output/d-build-last
-  return "$retValue"
-}
-d_run() {
-  "./output/$fileNameWithoutExt" "$@"
-  return "$?"
-}
-d_archive() {
-  default_lang_archive "$@"
-}
-
-# =============================================
-#           Dart
-# =============================================
-dart_compile() {
-  echo "dart --verbose compile exe \"./$fileName\" -o \"./output/$fileNameWithoutExt\"" > ./output/dart-build-last
-  dart --verbose compile exe "./$fileName" -o "./output/$fileNameWithoutExt" >> ./output/dart-build-last 2>&1
-  retValue="$?"
-  echo "-- dart returned: $retValue" >> ./output/dart-build-last
-  return "$retValue"
-}
-dart_run() {
-  "./output/$fileNameWithoutExt" "$@"
-  return "$?"
-}
-dart_archive() {
-  default_lang_archive "$@"
-}
-
-# =============================================
-#           Eiffel
-# =============================================
-eiffel_compile() {
-  retValue=0
-  eiffel_compiler=$(printf '%s' "$DEREKALGOS_EIFFEL" | tr '[:upper:]' '[:lower:]')
-  case "$eiffel_compiler" in
-  "eiffelstudio")
-    #WARNING: This new_uuid is currently evaluated via eval. We should
-    # address this better in the future.
-    new_uuid=$(uuidgen)
-
-    cp "./$fileName" ./output/
-    cp ./eiffel_include/*.e ./output/ >> /dev/null 2>&1
-    cd ./output/
-
-    if [ ! -f "$fileNameWithoutExt.ecf" ]; then
-      template_content=$(cat ../../../../templates/eiffel.ecf)
-      get_variabled_string "$template_content" > "./$fileNameWithoutExt.ecf"
-    fi
-
-    echo "ec -batch -verbose -config \"./$fileNameWithoutExt.ecf\" -finalize" > ./eiffel-build-last
-    ec -batch -verbose -config "./$fileNameWithoutExt.ecf" -finalize >> ./eiffel-build-last 2>&1
-    retValue="$?"
-    echo "-- ec returned: $retValue" >> ./eiffel-build-last
-    cd ..
-    if [ "$retValue" -ne 0 ]; then
-     return $retValue
-    fi
-
-    cd "./output/EIFGENs/$fileNameWithoutExt/F_code"
-    echo "
-
-===========================================================================
-FIRST COMPILE FINISHED. CALLING finish_freezing in EIFGENs/$fileNameWithoutExt/F_code
-===========================================================================
-
-" >> "../../../eiffel-build-last"
-    finish_freezing >> "../../../eiffel-build-last"
-    retValue="$?"
-    echo "-- finish_freezing returned: $retValue" >> ../../../eiffel-build-last
-
-    cd ../../../../
-  ;;
-  "libertyeiffel")
-    cp "./$fileName" ./output/
-    cp ./eiffel_include/*.e ./output/ >> /dev/null 2>&1
-    mkdir -p "./output/EIFGENs/$fileNameWithoutExt/F_code"
-    cd ./output/
-
-    echo "se compile \"$fileName\" -o \"./$fileNameWithoutExt\"" > ./eiffel-build-last
-    se compile "$fileName" -o "EIFGENs/$fileNameWithoutExt/F_code/$fileNameWithoutExt" >> ./eiffel-build-last 2>&1
-    retValue="$?"
-    echo "-- se compile returned: $retValue" >> ./eiffel-build-last
-
-    cd ..
-  ;;
-  *)
-    mkdir -p ./output
-    echo "Unsupported DEREKALGOS_EIFFEL value: $DEREKALGOS_EIFFEL" > ./output/eiffel-build-last
-    echo "Accepted values (case-insensitive): eiffelstudio, libertyeiffel" >> ./output/eiffel-build-last
-    retValue=64
-  ;;
-  esac
-  return "$retValue"
-}
-eiffel_run() {
-  "./output/EIFGENs/$fileNameWithoutExt/F_code/$fileNameWithoutExt" "$@"
-  return "$?"
-}
-eiffel_archive() {
-  default_lang_archive "$@"
-
-  for eiffelIncludeFile in "$startDir"/eiffel_include/*.e; do
-    [ -f "$eiffelIncludeFile" ] || continue
-    eiffelIncludeBase=$(basename "$eiffelIncludeFile")
-    if [ -n "$startDirFromRepo" ]; then
-      add_archive_input_if_exists "$1" "$startDirFromRepo/eiffel_include/$eiffelIncludeBase"
-    else
-      add_archive_input_if_exists "$1" "eiffel_include/$eiffelIncludeBase"
-    fi
-  done
-}
-
-# =============================================
-#           Elixir
-# =============================================
-elixir_compile() {
-  echo "elixirc --verbose -o ./output/ \"./$fileName\"" > ./output/elixir-build-last
-  elixirc --verbose -o ./output/ "./$fileName" >> ./output/elixir-build-last 2>&1
-  retValue="$?"
-  echo "-- elixirc returned: $retValue" >> ./output/elixir-build-last
-  return "$retValue"
-}
-elixir_run() {
-  elixir --erl "-pa ./output/" -e "$moduleName.main(System.argv())" -- "$@"
-  return "$?"
-}
-elixir_archive() {
-  default_lang_archive "$@"
-}
-
-# =============================================
-#           Erlang
-# =============================================
-erlang_compile() {
-  echo "erlc +verbose +report -o ./output/ \"./$fileName\"" > ./output/erlang-build-last
-  erlc +verbose +report -o ./output/ "./$fileName" >> ./output/erlang-build-last 2>&1
-  retValue="$?"
-  echo "-- erlc returned: $retValue" >> ./output/erlang-build-last
-  return "$retValue"
-}
-erlang_run() {
-  cd ./output
-  erl -noshell -s "$fileNameWithoutExt" main -s init stop -- "$@"
-  retValue="$?"
-  cd ..
-  return "$retValue"
-}
-erlang_archive() {
-  default_lang_archive "$@"
-}
-
-# =============================================
-#           Factor
-# =============================================
-factor_compile() {
-  return 0
-}
-factor_run() {
-  factor -run "./$fileName" "$@"
-  return "$?"
-}
-factor_archive() {
-  default_lang_archive "$@"
-}
-
-# =============================================
-#           Forth
-# =============================================
-forth_compile() {
-  return 0
-}
-forth_run() {
-  gforth "./$fileName" -- "$@"
-  return "$?"
-}
-forth_archive() {
-  default_lang_archive "$@"
-}
-
-# =============================================
-#           Fortran
-# =============================================
-fortran_compile() {
-  echo "gfortran -v -Wall -Wextra \"./$fileName\" -o \"./output/$fileNameWithoutExt\"" > ./output/fortran-build-last
-  gfortran -v -Wall -Wextra "./$fileName" -o "./output/$fileNameWithoutExt" >> ./output/fortran-build-last 2>&1
-  retValue="$?"
-  echo "-- gfortran returned: $retValue" >> ./output/fortran-build-last
-  return "$retValue"
-}
-fortran_run() {
-  "./output/$fileNameWithoutExt" "$@"
-  return "$?"
-}
-fortran_archive() {
-  default_lang_archive "$@"
-}
-
-# =============================================
-#           FreeBASIC
-# =============================================
-freebasic_compile() {
-  cp "$fileName" ./output/
-  cd ./output
-
-  echo "fbc -v \"./$fileName\"" > ./freebasic-build-last
-  fbc -v "./$fileName" >> ./freebasic-build-last  2>&1
-  retValue="$?"
-  echo "-- fbc returned: $retValue" >> ./freebasic-build-last
-
-  cd ..
-  return "$retValue"
-}
-freebasic_run() {
-  "./output/$fileNameWithoutExt" "$@"
-  return "$?"
-}
-freebasic_archive() {
-  default_lang_archive "$@"
-}
-
-# =============================================
-#           FSharp
-# =============================================
-fsharp_compile() {
-  if [ ! -f "./output/$fileName" ]; then
-    cp "./$fileName" ./output/
-  elif [ -n "$(find "./$fileName" -prune -newer "./output/$fileName" 2>/dev/null)" ]; then
-    cp "./$fileName" ./output/
-  fi
-  cd ./output
-
-  if [ ! -f "$fileNameWithoutExt.fsproj" ]; then
-    template_content=$(cat ../../../../templates/template.fsproj)
-    get_variabled_string "$template_content" > "$fileNameWithoutExt.fsproj"
-  fi
-
-  echo "cd ./output" > ./fsharp-build-last
-  echo "echo [$fileNameWithoutExt.fsproj]" >> ./fsharp-build-last
-  echo "dotnet build --verbosity:detailed" >> ./fsharp-build-last
-  echo "cd .." >> ./fsharp-build-last
-  dotnet build --verbosity:detailed >> ./fsharp-build-last 2>&1
-  retValue="$?"
-  echo "-- dotnet build returned: $retValue" >> ./fsharp-build-last
-  cd ..
-  return "$retValue"
-}
-fsharp_run() {
-  "./output/bin/Debug/net10.0/$fileNameWithoutExt" "$@"
-  return "$?"
-}
-fsharp_archive() {
-  default_lang_archive "$@"
-}
-
-# =============================================
-#           Gleam
-# =============================================
-gleam_compile() {
-  mkdir -p output/src
-  cp "./$fileName" ./output/src/
-
-  if [ ! -f "./output/gleam.toml" ]; then
-    template_content=$(cat ../../../templates/gleam-template.toml)
-    get_variabled_string "$template_content" > "./output/gleam.toml"
-    template_content=$(cat ../../../templates/gleam-manifest.toml)
-    get_variabled_string "$template_content" > "./output/manifest.toml"
-  fi
-
-  echo "gleam build \"$fileNameWithoutExt\"" > ./output/gleam-build-last
-  cd ./output
-  gleam build >> ./gleam-build-last 2>&1
-  retValue="$?"
-  echo "-- gleam returned: $retValue" >> ./gleam-build-last
-  cd ../
-  return "$retValue"
-}
-gleam_run() {
-  cd ./output
-  gleam run --no-print-progress -m "$fileNameWithoutExt" -- "$@" 2>> ./gleam-build-last
-  retValue="$?"
-  cd ..
-  return "$retValue"
-}
-gleam_archive() {
-  default_lang_archive "$@"
-}
-
-# =============================================
-#           Go
-# =============================================
-go_compile() {
-  echo "go build -v -x -work -o \"./output/$fileNameWithoutExt\" \"./$fileName\"" > ./output/go-build-last
-  go build -v -x -work -o "./output/$fileNameWithoutExt" "./$fileName" >> ./output/go-build-last 2>&1
-  retValue="$?"
-  echo "-- go returned: $retValue" >> ./output/go-build-last
-  return "$retValue"
-}
-go_run() {
-  "./output/$fileNameWithoutExt" "$@"
-  return "$?"
-}
-go_archive() {
-  default_lang_archive "$@"
-}
-
-# =============================================
-#           Haskell
-# =============================================
-haskell_compile() {
-  cp "./$fileName" ./output/
-  cd ./output
-  echo "ghc -v2 \"./$fileName\"" > ./haskell-build-last
-  ghc -v2 "./$fileName" >> ./haskell-build-last 2>&1
-  retValue="$?"
-  echo "-- ghc returned: $retValue" >> ./haskell-build-last
-  cd ..
-  return "$retValue"
-}
-haskell_run() {
-  "./output/$fileNameWithoutExt" "$@"
-  return "$?"
-}
-haskell_archive() {
-  default_lang_archive "$@"
-}
-
-# =============================================
-#           Haxe
-# =============================================
-haxe_compile() {
-  return 0
-}
-haxe_run() {
-  haxe --run "$fileName" "$@"
-  return "$?"
-}
-haxe_archive() {
-  default_lang_archive "$@"
-}
-
-# =============================================
-#           Icon
-# =============================================
-icon_compile() {
-  cp "./$fileName" ./output/
-  cd ./output
-  echo "icont \"./$fileName\"" > ./icon-build-last
-  icont "./$fileName" >> ./icon-build-last 2>&1
-  retValue="$?"
-  echo "-- icont returned: $retValue" >> ./icon-build-last
-  cd ..
-  return "$retValue"
-}
-icon_run() {
-  "./output/$fileNameWithoutExt" "$@"
-  return "$?"
-}
-icon_archive() {
-  default_lang_archive "$@"
-}
-
-# =============================================
-#           Idris
-# =============================================
-idris_compile() {
-  cp "./$fileName" ./output/
-  cd ./output
-
-  echo "idris2 --verbose \"$fileName\" -o \"$fileNameWithoutExt\"" > ./idris-build-last
-  idris2 --verbose "$fileName" -o "$fileNameWithoutExt" >> ./idris-build-last 2>&1
-  retValue="$?"
-  echo "-- idris2 returned: $retValue" >> ./idris-build-last
-
-  cd ..
-  return "$retValue"
-}
-idris_run() {
-  "./output/build/exec/$fileNameWithoutExt" "$@"
-  return "$?"
-}
-idris_archive() {
-  default_lang_archive "$@"
-}
-
-# =============================================
-#           Java
-# =============================================
-java_compile() {
-  echo "javac -verbose -Xlint:all \"./$fileName\" -d ./output" > ./output/java-build-last
-  javac -verbose -Xlint:all "./$fileName" -d ./output >> ./output/java-build-last 2>&1
-  retValue="$?"
-  echo "-- javac returned: $retValue" >> ./output/java-build-last
-  if [ "$retValue" -ne 0 ]; then
-    return $retValue
-  fi
-  cd ./output
-  echo "jar cvfe \"$fileNameWithoutExt.jar\" \"$packName.$algoName.$fileNameWithoutExt\" \"$packName/$algoName/$fileNameWithoutExt.class\"" >> ./java-build-last
-  jar cvfe "$fileNameWithoutExt.jar" "$packName.$algoName.$fileNameWithoutExt" "$packName/$algoName/$fileNameWithoutExt.class" >> ./java-build-last 2>&1
-  retValue="$?"
-  echo "-- jar cvfe returned: $retValue" >> ./java-build-last
-  cd ..
-  return "$retValue"
-}
-java_run() {
-  cd ./output
-  java -jar "$fileNameWithoutExt.jar" "$@"
-  retValue="$?"
-  cd ..
-  return "$retValue"
-}
-java_archive() {
-  default_lang_archive "$@"
-}
-
-# =============================================
-#           Javascript
-# =============================================
-javascript_compile() {
-  cp "./$fileName" ./output/
-  cd ./output
-  echo "node --check \"./$fileName\"" > ./javascript-build-last
-  node --check "./$fileName" >> ./javascript-build-last 2>&1
-  retValue="$?"
-  echo "-- node returned: $retValue" >> ./javascript-build-last
-  cd ..
-  return "$retValue"
-}
-javascript_run() {
-  cd ./output
-  node "./$fileName" "$@"
-  retValue="$?"
-  cd ..
-  return "$retValue"
-}
-javascript_archive() {
-  default_lang_archive "$@"
-}
-
-# =============================================
-#           Julia
-# =============================================
-julia_compile() {
-  return 0
-}
-julia_run() {
-  julia "./$fileName" "$@"
-  return "$?"
-}
-julia_archive() {
-  default_lang_archive "$@"
-}
-
-# =============================================
-#           Kit
-# =============================================
-kit_compile() {
-  return 0
-}
-kit_run() {
-  kit run "./$fileName" "$@"
-  return "$?"
-}
-kit_archive() {
-  default_lang_archive "$@"
-}
-
-# =============================================
-#           Kotlin
-# =============================================
-kotlin_compile() {
-  echo "kotlinc -verbose \"./$fileName\" -include-runtime -d \"./output/$fileNameWithoutExt.jar\"" > ./output/kotlin-build-last
-  kotlinc -verbose "./$fileName" -include-runtime -d "./output/$fileNameWithoutExt.jar" >> ./output/kotlin-build-last 2>&1
-  retValue="$?"
-  echo "-- kotlinc returned: $retValue" >> ./output/kotlin-build-last
-  return "$retValue"
-}
-kotlin_run() {
-  java -jar "./output/$fileNameWithoutExt.jar" "$@"
-  return "$?"
-}
-kotlin_archive() {
-  default_lang_archive "$@"
-}
-
-# =============================================
-#           LLVM IR
-# =============================================
-llvmir_compile() {
-  echo "clang -v \"./$fileName\" -O2 -Wall -Wextra -o \"./output/$fileNameWithoutExt\"" > ./output/llvmir-build-last
-  clang -v "./$fileName" -O2 -Wall -Wextra -o "./output/$fileNameWithoutExt" >> ./output/llvmir-build-last 2>&1
-  retValue="$?"
-  echo "-- clang returned: $retValue" >> ./output/llvmir-build-last
-  return "$retValue"
-}
-llvmir_run() {
-  "./output/$fileNameWithoutExt" "$@"
-  return "$?"
-}
-llvmir_archive() {
-  default_lang_archive "$@"
-}
-
-# =============================================
-#           Lua
-# =============================================
-lua_compile() {
-  echo "luac -o \"./output/$fileNameWithoutExt.luac\" \"./$fileName\"" > ./output/lua-build-last
-  luac -o "./output/$fileNameWithoutExt.luac" "./$fileName" >> ./output/lua-build-last 2>&1
-  retValue="$?"
-  echo "-- luac returned: $retValue" >> ./output/lua-build-last
-  return "$retValue"
-}
-lua_run() {
-  lua "./output/$fileNameWithoutExt.luac" "$@"
-  return "$?"
-}
-lua_archive() {
-  default_lang_archive "$@"
-}
-
-# =============================================
-#           Mercury
-# =============================================
-mercury_compile() {
-  echo "Copying $fileName to output as .m..." > ./output/mercury-build-last
-  cp "$fileName" "./output/$fileNameWithoutExt.m"
-  cd ./output
-
-  echo "cd ./output" >> ./mercury-build-last
-  echo "mmc --verbose \"./$fileNameWithoutExt.m\"" >> ./mercury-build-last
-  echo "cd .." >> ./mercury-build-last
-  mmc --verbose "./$fileNameWithoutExt.m" >> ./mercury-build-last 2>&1
-  retValue="$?"
-  echo "-- mmc returned: $retValue" >> ./mercury-build-last
-
-  cd ..
-  return "$retValue"
-}
-mercury_run() {
-  "./output/$fileNameWithoutExt" "$@"
-  return "$?"
-}
-mercury_archive() {
-  default_lang_archive "$@"
-}
-
-# =============================================
-#           MMIXAL
-# =============================================
-mmixal_compile() {
-  echo "Building MMIX standard library..." > ./output/mmixal-build-last
-  cd ../../../stdlib || { echo "Failed to cd into stdlib for mmixal build" >> "$startDir/output/mmixal-build-last"; return 1; }
-  ./build.sh mmix >> "$startDir/output/mmixal-build-last" 2>&1
-  retValue="$?"
-  cd "$startDir" || { echo "Failed to return to start directory: $startDir" >> "$startDir/output/mmixal-build-last"; return 1; }
-  if [ $retValue -ne 0 ]; then
-    return $retValue
-  fi
-
-  stdlib_mms="../../../stdlib/output/stdlib.mms"
-  combined_source="./output/$fileName"
-  do_refresh_combined=0
-
-  if [ ! -f "$stdlib_mms" ]; then
-    echo "Missing MMIX standard library output: $stdlib_mms" >> ./output/mmixal-build-last
-    return 1
-  fi
-
-  if [ ! -f "$combined_source" ]; then
-    do_refresh_combined=1
-    echo "Combined MMIX source missing; creating $combined_source" >> ./output/mmixal-build-last
-  elif [ -n "$(find "./$fileName" -prune -newer "$combined_source" 2>/dev/null)" ]; then
-    do_refresh_combined=1
-    echo "Source file changed; refreshing combined MMIX source" >> ./output/mmixal-build-last
-  elif [ -n "$(find "$stdlib_mms" -prune -newer "$combined_source" 2>/dev/null)" ]; then
-    do_refresh_combined=1
-    echo "MMIX stdlib changed; refreshing combined MMIX source" >> ./output/mmixal-build-last
-  else
-    echo "Combined MMIX source is up-to-date; reusing $combined_source" >> ./output/mmixal-build-last
-  fi
-
-  if [ "$do_refresh_combined" -eq 1 ]; then
-    echo "Copying source: cp \"./$fileName\" \"$combined_source\"" >> ./output/mmixal-build-last
-    cp "./$fileName" "$combined_source" >> ./output/mmixal-build-last 2>&1
-    retValue="$?"
-    echo "-- cp returned: $retValue" >> ./output/mmixal-build-last
-    if [ "$retValue" -ne 0 ]; then
-      return $retValue
-    fi
-
-    echo "Combining stdlib: cat \"$stdlib_mms\" >> \"$combined_source\"" >> ./output/mmixal-build-last
-    cat "$stdlib_mms" >> "$combined_source" 2>> ./output/mmixal-build-last
-    retValue="$?"
-    echo "-- cat returned: $retValue" >> ./output/mmixal-build-last
-    if [ "$retValue" -ne 0 ]; then
-      return $retValue
-    fi
-  fi
-
-  if [ ! -s "$combined_source" ]; then
-    echo "Combined MMIX source missing or empty: $combined_source" >> ./output/mmixal-build-last
-    return 1
-  fi
-
-  cd ./output
-  echo "cd ./output" >> ./mmixal-build-last
-  echo "mmixal \"./$fileName\"" >> ./mmixal-build-last
-  echo "cd .." >> ./mmixal-build-last
-  mmixal "./$fileName" >> ./mmixal-build-last 2>&1
-  retValue="$?"
-  echo "-- mmixal returned: $retValue" >> ./mmixal-build-last
-  cd ..
-  return "$retValue"
-}
-mmixal_run() {
-  cd ./output
-  mmix "./$fileNameWithoutExt.mmo" "$@"
-  retValue="$?"
-  cd ..
-  return "$retValue"
-}
-mmixal_archive() {
-  default_lang_archive "$1"
-  # Archive prebuilt stdlib bundle for MMIXAL, or include missing marker.
-  add_stdlib_prebuilt_archive_or_marker "$1" "mmix"
-}
-
-# =============================================
-#           Modula-3
-# =============================================
-modula3_compile() {
-  echo "Making and emptying output/AMD64_LINUX..." > ./output/modula3-build-last
-  mkdir -p ./output/AMD64_LINUX
-  rm -Rf ./output/AMD64_LINUX/* >> /dev/null
-  echo "Copying file to output/AMD64_LINUX..." >> ./output/modula3-build-last
-  cp "$fileName" "./output/AMD64_LINUX/$fileName"
-  echo "cd ./output" >> ./output/modula3-build-last
-  echo "cm3 -verbose \"$fileName\"" >> ./output/modula3-build-last
-  cd ./output/
-  cm3 -verbose "$fileName" >> ./modula3-build-last 2>&1
-  retValue="$?"
-  echo "-- cm3 returned: $retValue" >> ./modula3-build-last
-  cd ..
-  return "$retValue"
-}
-modula3_run() {
-  "./output/AMD64_LINUX/prog" "$@"
-  return "$?"
-}
-modula3_archive() {
-  default_lang_archive "$@"
-}
-
-# =============================================
-#           Mojo
-# =============================================
-mojo_compile() {
-  retValue=0
-  if [ ! -f "./output/pixi.toml" ]; then
-    template_content=$(cat ../../../templates/pixi.lock)
-    get_variabled_string "$template_content" > "./output/pixi.lock"
-    template_content=$(cat ../../../templates/pixi.toml)
-    get_variabled_string "$template_content" > "./output/pixi.toml"
-
-    echo "Attempting to ensure mojo is added..." > ./output/mojo-build-last
-    cd ./output
-    pixi add mojo >> ./mojo-build-last 2>&1
-    retValue="$?"
-    echo "-- pixi returned: $retValue" >> ./mojo-build-last
-    cd ..
-  else
-    echo "pixi.toml exists in output, skipping setup..." > ./output/mojo-build-last
-  fi
-
-  cp -f "./$fileName" ./output/
-  retValue="$?"
-  return "$retValue"
-}
-mojo_run() {
-  cd ./output
-  pixi run mojo run "./$fileName" "$@"
-  retValue="$?"
-  cd ..
-  return "$retValue"
-}
-mojo_archive() {
-  default_lang_archive "$@"
-}
-
-# =============================================
-#           NASM
-# =============================================
-nasm_compile() {
-  do_link=0
-  run_or_return resolve_x64_assembly_platform "NASM" "./output/nasm-build-last" "-x64-nasm" "x64nasm" || return "$?"
-
-  run_or_return build_assembly_stdlib_and_merge_log "NASM" "./output/nasm-build-last" "$platform" "$platform_output" "nasm" || return "$?"
-  stdlib="../../../stdlib/output/stdlib-${platform}.o"
-
-  # Now we build our actual output, linking to the standard library
-  #   Only build if there's new changes to be built
-  echo "Building NASM file..." >> ./output/nasm-build-last
-  do_build=0
-  if should_rebuild_object_for_source "./output/$fileNameWithoutExt.o"; then
-    do_build=1
-  fi
-  if [ "$do_build" -eq 1 ]; then
-    run_or_return build_x64_assembly_object_output "nasm" "./output/nasm-build-last" "$platform" || return "$?"
-    do_link=1
-  fi
-  if should_link_executable_for_stdlib "./output/$fileNameWithoutExt" "$stdlib"; then
-    do_link=1
-  fi
-  if [ "$do_link" -eq 1 ]; then
-    run_or_return link_x64_assembly_binary_output "./output/nasm-build-last" "$platform" "$stdlib" || return "$?"
-  fi
-  return "$retValue"
-}
-nasm_run() {
-  "./output/$fileNameWithoutExt" "$@"
-  return "$?"
-}
-nasm_archive() {
-  default_lang_archive "$1"
-  nasmArchivePlatformTag=
-  case "$currentPlatform" in
-    "Linux"*) nasmArchivePlatformTag="Linux" ;;
-    "FreeBSD"*) nasmArchivePlatformTag="FreeBSD" ;;
-    "MINGW64_NT"*) nasmArchivePlatformTag="Windows" ;;
-    *) nasmArchivePlatformTag= ;;
-  esac
-  nasmArchiveArchTag=
-  case "$currentCpuArch" in
-    "x86_64"|"amd64") nasmArchiveArchTag="x64" ;;
-    *) nasmArchiveArchTag= ;;
-  esac
-  if [ -n "$nasmArchivePlatformTag" ] && [ -n "$nasmArchiveArchTag" ]; then
-    targetTag="${nasmArchivePlatformTag}-${nasmArchiveArchTag}-nasm"
-    add_stdlib_prebuilt_archive_or_marker "$1" "$targetTag"
-  fi
-}
-
-# =============================================
-#           Nim
-# =============================================
-nim_compile() {
-  echo "nim compile --verbosity:3 --out:\"./output/$fileNameWithoutExt\" \"./$fileName\"" > ./output/nim-build-last
-  nim compile --verbosity:3 --out:"./output/$fileNameWithoutExt" "./$fileName" >> ./output/nim-build-last 2>&1
-  retValue="$?"
-  echo "-- nim returned: $retValue" >> ./output/nim-build-last
-  return "$retValue"
-}
-nim_run() {
-  "./output/$fileNameWithoutExt" "$@"
-  return "$?"
-}
-nim_archive() {
-  default_lang_archive "$@"
-}
-
-# =============================================
-#           Oberon
-# =============================================
-oberon_compile() {
-  echo "Copying $fileName to output..." > ./output/oberon-build-last
-  cp "./$fileName" ./output/
-  echo "cd ./output" >> ./output/oberon-build-last
-  echo "voc -v -m \"./$fileName\"" >> ./output/oberon-build-last
-  echo "cd .." >> ./output/oberon-build-last
-  cd ./output
-  voc -v -m "$fileName" >> ./oberon-build-last 2>&1
-  retValue="$?"
-  echo "-- voc returned: $retValue" >> ./oberon-build-last
-  cd ..
-  return "$retValue"
-}
-oberon_run() {
-  "./output/$fileNameWithoutExt" "$@"
-  return "$?"
-}
-oberon_archive() {
-  default_lang_archive "$@"
-}
-
-# =============================================
-#           Objective-C
-# =============================================
-objectivec_compile() {
-  echo "clang -v -lobjc -lgnustep-base \$(gnustep-config --objc-flags) \$(gnustep-config --objc-libs) -L/usr/local/lib  \"./$fileName\" -o \"./output/$fileNameWithoutExt\"" > ./output/objectivec-build-last
-  clang -v -lobjc -lgnustep-base $(gnustep-config --objc-flags) $(gnustep-config --objc-libs) -L/usr/local/lib  "./$fileName" -o "./output/$fileNameWithoutExt" >> ./output/objectivec-build-last 2>&1
-  retValue="$?"
-  echo "-- clang returned: $retValue" >> ./output/objectivec-build-last
-  return "$retValue"
-}
-objectivec_run() {
-  "./output/$fileNameWithoutExt" "$@"
-  return "$?"
-}
-objectivec_archive() {
-  default_lang_archive "$@"
-}
-
-# =============================================
-#           Ocaml
-# =============================================
-ocaml_compile() {
-  cp "./$fileName" ./output/
-  cd ./output
-  echo "ocamlopt -verbose -o \"./$fileNameWithoutExt\" \"./$fileName\"" > ./ocaml-build-last
-  ocamlopt -verbose -o "./$fileNameWithoutExt" "./$fileName" >> ./ocaml-build-last 2>&1
-  retValue="$?"
-  echo "-- ocamlopt returned: $retValue" >> ./ocaml-build-last
-  cd ..
-  return "$retValue"
-}
-ocaml_run() {
-  "./output/$fileNameWithoutExt" "$@"
-  return "$?"
-}
-ocaml_archive() {
-  default_lang_archive "$@"
-}
-
-# =============================================
-#           Octave
-# =============================================
-octave_compile() {
-  cp "./$fileName" "./output/${fileNameWithoutExt}shaved.m"
-  return "$?"
-}
-octave_run() {
-  cd ./output
-  octave --quiet "${fileNameWithoutExt}shaved.m" "$@"
-  retValue="$?"
-  cd ..
-  return "$retValue"
-}
-octave_archive() {
-  default_lang_archive "$@"
-}
-
-# =============================================
-#           Pascal
-# =============================================
-pascal_compile() {
-  echo "Copying $fileName to output..." > ./output/pascal-build-last
-  cp "./$fileName" ./output
-
-  echo "cd ./output" >> ./output/pascal-build-last
-  echo "fpc -va \"$fileName\"" >> ./output/pascal-build-last
-  echo "cd .." >> ./output/pascal-build-last
-  cd ./output
-  fpc -va "$fileName" >> ./pascal-build-last 2>&1
-  retValue="$?"
-  echo "-- fpc returned: $retValue" >> ./pascal-build-last
-  cd ..
-  return "$retValue"
-}
-pascal_run() {
-  "./output/$fileNameWithoutExt" "$@"
-  return "$?"
-}
-pascal_archive() {
-  default_lang_archive "$@"
-}
-
-# =============================================
-#           Perl
-# =============================================
-perl_compile() {
-  cp "./$fileName" ./output/
-  cd ./output
-  echo "perl -w -c \"./$fileName\"" > ./perl-build-last
-  perl -w -c "./$fileName" >> ./perl-build-last 2>&1
-  retValue="$?"
-  echo "-- perl returned: $retValue" >> ./perl-build-last
-  cd ..
-  return "$retValue"
-}
-perl_run() {
-  cd ./output
-  perl "./$fileName" "$@"
-  retValue="$?"
-  cd ..
-  return "$retValue"
-}
-perl_archive() {
-  default_lang_archive "$@"
-}
-
-# =============================================
-#           PHP
-# =============================================
-php_compile() {
-  cp "./$fileName" ./output/
-  cd ./output
-  echo "php -l \"./$fileName\"" > ./php-build-last
-  php -l "./$fileName" >> ./php-build-last 2>&1
-  retValue="$?"
-  echo "-- php returned: $retValue" >> ./php-build-last
-  cd ..
-  return "$retValue"
-}
-php_run() {
-  cd ./output
-  php "./$fileName" "$@"
-  retValue="$?"
-  cd ..
-  return "$retValue"
-}
-php_archive() {
-  default_lang_archive "$@"
-}
-
-# =============================================
-#           Prolog
-# =============================================
-prolog_compile() {
-  echo "gplc -v \"$fileName\" -o \"./output/$fileNameWithoutExt\"" > ./output/prolog-build-last
-  gplc -v "$fileName" -o "./output/$fileNameWithoutExt" >> ./output/prolog-build-last 2>&1
-  retValue="$?"
-  echo "-- gplc returned: $retValue" >> ./output/prolog-build-last
-  return "$retValue"
-}
-prolog_run() {
-  "./output/$fileNameWithoutExt" "$@"
-  return "$?"
-}
-prolog_archive() {
-  default_lang_archive "$@"
-}
-
-# =============================================
-#           Python
-# =============================================
-python_compile() {
-  cp "./$fileName" ./output/
-  cd ./output
-  echo "PYTHONVERBOSE=2 python -m py_compile \"./$fileName\"" > ./python-build-last
-  PYTHONVERBOSE=2 python -m py_compile "./$fileName" >> ./python-build-last 2>&1
-  retValue="$?"
-  echo "-- python returned: $retValue" >> ./python-build-last
-  cd ..
-  return "$retValue"
-}
-python_run() {
-  cd ./output
-  python -u "./$fileName" "$@"
-  retValue="$?"
-  cd ..
-  return "$retValue"
-}
-python_archive() {
-  default_lang_archive "$@"
-}
-
-# =============================================
-#           R
-# =============================================
-r_compile() {
-  cp "./$fileName" ./output/
-  cd ./output
-  echo "Rscript --verbose --vanilla -e \"parse(file='$fileName')\"" > ./r-build-last
-  Rscript --verbose --vanilla -e "parse(file='$fileName')" >> ./r-build-last 2>&1
-  retValue="$?"
-  echo "-- Rscript returned: $retValue" >> ./r-build-last
-  cd ..
-  return "$retValue"
-}
-r_run() {
-  cd ./output
-  Rscript "./$fileName" "$@"
-  retValue="$?"
-  cd ..
-  return "$retValue"
-}
-r_archive() {
-  default_lang_archive "$@"
-}
-
-# =============================================
-#           Racket
-# =============================================
-racket_compile() {
-  echo "raco exe -o \"./output/$fileNameWithoutExt\" \"./$fileName\"" > ./output/racket-build-last
-  raco exe -o "./output/$fileNameWithoutExt" "./$fileName" >> ./output/racket-build-last 2>&1
-  retValue="$?"
-  echo "-- raco exe returned: $retValue" >> ./output/racket-build-last
-  return "$retValue"
-}
-racket_run() {
-  "./output/$fileNameWithoutExt" "$@"
-  return "$?"
-}
-racket_archive() {
-  default_lang_archive "$@"
-}
-
-# =============================================
-#           Ruby
-# =============================================
-ruby_compile() {
-  cp "./$fileName" ./output/
-  cd ./output
-  echo "ruby -w -c \"./$fileName\"" > ./ruby-build-last
-  ruby -w -c "./$fileName" >> ./ruby-build-last 2>&1
-  retValue="$?"
-  echo "-- ruby returned: $retValue" >> ./ruby-build-last
-  cd ..
-  return "$retValue"
-}
-ruby_run() {
-  cd ./output
-  ruby "./$fileName" "$@"
-  retValue="$?"
-  cd ..
-  return "$retValue"
-}
-ruby_archive() {
-  default_lang_archive "$@"
-}
-
-# =============================================
-#           Rust
-# =============================================
-rust_compile() {
-  echo "rustc --verbose \"./$fileName\" -o \"./output/$fileNameWithoutExt\"" > ./output/rust-build-last
-  rustc --verbose "./$fileName" -o "./output/$fileNameWithoutExt" >> ./output/rust-build-last 2>&1
-  retValue="$?"
-  echo "-- rustc returned: $retValue" >> ./output/rust-build-last
-  return "$retValue"
-}
-rust_run() {
-  "./output/$fileNameWithoutExt" "$@"
-  return "$?"
-}
-rust_archive() {
-  default_lang_archive "$@"
-}
-
-# =============================================
-#           Scala
-# =============================================
-scala_compile() {
-  echo "cp \"./$fileName\" ./output/" > ./output/scala-build-last
-  echo "cd ./output" >> ./output/scala-build-last
-  echo "scala compile \"./$fileName\"" >> ./output/scala-build-last
-  echo "cd .." >> ./output/scala-build-last
-  cp "./$fileName" ./output/
-  cd ./output
-  scala compile "./$fileName" >> ./scala-build-last 2>&1
-  retValue="$?"
-  echo "-- scala returned: $retValue" >> ./scala-build-last
-  cd ..
-  return "$retValue"
-}
-scala_run() {
-  if [ "$#" -eq 0 ]; then
-      set -- 15 10
-  fi
-
-  cd ./output
-  scala run "$fileName" -- "$@"
-  retValue="$?"
-  cd ..
-  return "$retValue"
-}
-scala_archive() {
-  default_lang_archive "$@"
-}
-
-# =============================================
-#           Scheme
-# =============================================
-scheme_compile() {
-  scheme_compiler_name="guild"
-  if command -v guild > /dev/null 2>&1; then
-    echo "guild compile --verbose -o \"./output/$fileNameWithoutExt.go\" \"./$fileName\"" > ./output/scheme-build-last
-    guild compile --verbose -o "./output/$fileNameWithoutExt.go" "./$fileName" >> ./output/scheme-build-last 2>&1
-    retValue="$?"
-  else
-    scheme_compiler_name="guile"
-    echo "GUILE_DEBUG_LOAD=1 guile -c \"(compile-file \\\"./$fileName\\\" #:output-file \\\"./output/$fileNameWithoutExt.go\\\")\"" > ./output/scheme-build-last
-    GUILE_DEBUG_LOAD=1 guile -c "(compile-file \"./$fileName\" #:output-file \"./output/$fileNameWithoutExt.go\")" >> ./output/scheme-build-last 2>&1
-    retValue="$?"
-  fi
-  echo "-- $scheme_compiler_name returned: $retValue" >> ./output/scheme-build-last
-  return "$retValue"
-}
-scheme_run() {
-  guile -c "(load-compiled \"./output/$fileNameWithoutExt.go\")" "$@"
-  return "$?"
-}
-scheme_archive() {
-  default_lang_archive "$@"
-}
-
-# =============================================
-#           Simula
-# =============================================
-simula_compile() {
-  echo "Copying $fileName to output..." > ./output/simula-build-last
-  cp "./$fileName" ./output/
-  echo "cd ./output" >> ./output/simula-build-last
-  echo "rm -f ./gcc ./g++" >> ./output/simula-build-last
-  echo "ln -s \"${DEREKALGOS_GCC13}${DEREKALGOS_GCC13NAME}\" ./gcc" >> ./output/simula-build-last
-  echo "ln -s \"${DEREKALGOS_GCC13}${DEREKALGOS_GXX13NAME}\" ./g++" >> ./output/simula-build-last
-  echo "PATH=\"$PWD:\$PATH\" cim -v \"./$fileName\"" >> ./output/simula-build-last
-  echo "cd .." >> ./output/simula-build-last
-  cd ./output/
-  rm -f ./gcc ./g++
-  ln -s "${DEREKALGOS_GCC13}${DEREKALGOS_GCC13NAME}" ./gcc
-  ln -s "${DEREKALGOS_GCC13}${DEREKALGOS_GXX13NAME}" ./g++
-  PATH="$PWD:$PATH" cim -v "./$fileName" >> ./simula-build-last 2>&1
-  retValue="$?"
-  echo "-- cim returned: $retValue" >> ./simula-build-last
-  cd ..
-  return "$retValue"
-}
-simula_run() {
-  "./output/$fileNameWithoutExt" "$@"
-  return "$?"
-}
-simula_archive() {
-  default_lang_archive "$@"
-}
-
-# =============================================
-#           SmallTalk
-# =============================================
-smalltalk_compile() {
-  return 0
-}
-smalltalk_run() {
-  gst "./$fileName" -a "$@"
-  return "$?"
-}
-smalltalk_archive() {
-  default_lang_archive "$@"
-}
-
-# =============================================
-#           Swift
-# =============================================
-swift_compile() {
-  echo "swiftc -v \"./$fileName\" -o \"./output/$fileNameWithoutExt\"" > ./output/swift-build-last
-  swiftc -v "./$fileName" -o "./output/$fileNameWithoutExt" >> ./output/swift-build-last 2>&1
-  retValue="$?"
-  echo "-- swiftc returned: $retValue" >> ./output/swift-build-last
-  return "$retValue"
-}
-swift_run() {
-  "./output/$fileNameWithoutExt" "$@"
-  return "$?"
-}
-swift_archive() {
-  default_lang_archive "$@"
-}
-
-# =============================================
-#           Tcl
-# =============================================
-tcl_compile() {
-  return 0
-}
-tcl_run() {
-  tclsh "$fileName" "$@"
-  return "$?"
-}
-tcl_archive() {
-  default_lang_archive "$@"
-}
-
-# =============================================
-#           Typescript
-# =============================================
-typescript_compile() {
-  echo "tsc \"$fileName\" --outDir output --target esnext --skipLibCheck true --types node --listFiles --extendedDiagnostics" > ./output/typescript-build-last
-  tsc "$fileName" --outDir output --target esnext --skipLibCheck true --types node --listFiles --extendedDiagnostics >> ./output/typescript-build-last 2>&1
-  retValue="$?"
-  echo "-- tsc returned: $retValue" >> ./output/typescript-build-last
-  return "$retValue"
-}
-typescript_run() {
-  node "./output/$fileNameWithoutExt.js" "$@"
-  return "$?"
-}
-typescript_archive() {
-  default_lang_archive "$@"
-}
-
-# =============================================
-#           V
-# =============================================
-v_compile() {
-  echo "v \"./$fileName\" -o \"./output/$fileNameWithoutExt\"" > ./output/v-build-last
-  v "./$fileName" -o "./output/$fileNameWithoutExt" >> ./output/v-build-last 2>&1
-  retValue="$?"
-  echo "-- v returned: $retValue" >> ./output/v-build-last
-  return "$retValue"
-}
-v_run() {
-  "./output/$fileNameWithoutExt" "$@"
-  return "$?"
-}
-v_archive() {
-  default_lang_archive "$@"
-}
-
-# =============================================
-#           Visual Basic .Net
-# =============================================
-visualbasic_compile() {
-  if [ ! -f "./output/$fileName" ]; then
-    cp "./$fileName" ./output/
-  elif [ -n "$(find "./$fileName" -prune -newer "./output/$fileName" 2>/dev/null)" ]; then
-    cp "./$fileName" ./output/
-  fi
-  cd ./output
-
-  if [ ! -f "$fileNameWithoutExt.vbproj" ]; then
-    template_content=$(cat ../../../../templates/template.vbproj)
-    get_variabled_string "$template_content" > "$fileNameWithoutExt.vbproj"
-  fi
-
-  echo "cd ./output" > ./visualbasic-build-last
-  echo "echo [$fileNameWithoutExt.vbproj]" >> ./visualbasic-build-last
-  echo "dotnet build --verbosity:detailed" >> ./visualbasic-build-last
-  echo "cd .." >> ./visualbasic-build-last
-  dotnet build --verbosity:detailed >> ./visualbasic-build-last 2>&1
-  retValue="$?"
-  echo "-- dotnet build returned: $retValue" >> ./visualbasic-build-last
-  cd ..
-  return "$retValue"
-}
-visualbasic_run() {
-  "./output/bin/Debug/net10.0/$fileNameWithoutExt" "$@"
-  return "$?"
-}
-visualbasic_archive() {
-  default_lang_archive "$@"
-}
-
-# =============================================
-#           WASM (wat)
-# =============================================
-wat_compile() {
-  echo "cp \"$fileName\" \"./output/$fileName\"" > ./output/wat-build-last
-  echo "cd ./output" >> ./output/wat-build-last
-  echo "wat2wasm -v \"$fileName\" -o \"$fileNameWithoutExt.wasm\"" >> ./output/wat-build-last
-  echo "cd .." >> ./output/wat-build-last
-  cp "$fileName" "./output/$fileName"
-  cd ./output
-  wat2wasm -v "$fileName" -o "$fileNameWithoutExt.wasm" >> ./wat-build-last 2>&1
-  retValue="$?"
-  echo "-- wat2wasm returned: $retValue" >> ./wat-build-last
-  cd ..
-  return "$retValue"
-}
-wat_run() {
-  node ../../../run-wasm.js "./output/$fileNameWithoutExt.wasm" "$@"
-  return "$?"
-}
-wat_archive() {
-  default_lang_archive "$@"
-}
-
-# =============================================
-#           ZIG
-# =============================================
-zig_compile() {
-  cp "./$fileName" ./output/
-  cd ./output
-  echo "zig build-exe \"./$fileName\"" > ./zig-build-last
-  zig build-exe "./$fileName" >> ./zig-build-last 2>&1
-  retValue="$?"
-  echo "-- zig returned: $retValue" >> ./zig-build-last
-  cd ..
-  return "$retValue"
-}
-zig_run() {
-  "./output/$fileNameWithoutExt" "$@"
-  return "$?"
-}
-zig_archive() {
-  default_lang_archive "$@"
-}
-
 # Runtime bootstrap and CLI parsing are intentionally kept together here,
 # just above the script entrypoint, to keep helper/function definitions readable.
 # Major runtime variable initialization for the run-now block.
@@ -3585,218 +1823,8 @@ testTemplate=${runtimeBinding#*|}
 # testTemplate is static catalog data; expand fileName variables in-place.
 eval "testFile=\"$testTemplate\""
 
-# Now, we should check if the environment wants our language
-# to run via a docker image, in which case, we should go ahead
-# and do that then exit.
-
-runOnDocker=$(get_lang_route_value "$DEREKALGOS_RUNONDOCKER" "$lang")
-if [ "$checkOnlyMode" -eq 1 ]; then
-  case "$checkOnlyRoute" in
-    native|ssh)
-      runOnDocker=""
-      ;;
-    docker)
-      if [ -z "$runOnDocker" ]; then
-        runOnDocker="check-only-docker"
-      fi
-      ;;
-  esac
-fi
-if [ -n "$runOnDocker" ]; then
-  mkdir -p ./output
-  docker_log="./output/${lang}-build-last"
-  echo "STARTING DOCKER RELAY BUILD..." > "$docker_log"
-  echo "ROUTE: Docker image $runOnDocker" >> "$docker_log"
-  echo "HOST: platform=$hostPlatform cpu=$hostCpuArch translation=$hostTranslation" >> "$docker_log"
-
-  if [ "$checkOnlyMode" -eq 1 ] && [ "$checkOnlyRoute" = "docker" ]; then
-    echo "CHECK-ONLY ROUTE: docker relay simulated" >> "$docker_log"
-    echo "CHECK-ONLY: would relay via docker image '$runOnDocker'" >> "$docker_log"
-    echo "CHECK-ONLY: would run sh /build/run.sh --check-only $fileName <args>" >> "$docker_log"
-    if [ -n "$lastCommandOutputLog" ]; then
-      {
-        echo "---- docker-check-only-simulated ----"
-        cat "$docker_log"
-      } >> "$lastCommandOutputLog"
-    fi
-    echo "CHECK-ONLY: docker relay simulated for $lang"
-    exit 0
-  fi
-
-  if [ "$hostPlatform" = "Darwin" ] && [ "$hostCpuArch" = "arm64" ]; then
-    echo "NOTE: Docker run uses --platform linux/amd64 on arm64 host; CPU emulation may apply." >> "$docker_log"
-  fi
-
-  append_docker_relay_fallback_log() {
-    if [ -z "$lastCommandOutputLog" ] || [ ! -f "$docker_log" ]; then
-      return
-    fi
-    if [ ! -f "$lastCommandOutputLog" ]; then
-      DEREKALGOS_EXECUTION_ROUTE="docker-relay"
-      DEREKALGOS_HOST_CWD="$startDir"
-      DEREKALGOS_HOST_CPUARCH="$hostCpuArch"
-      DEREKALGOS_HOST_PLATFORM="$hostPlatform"
-      DEREKALGOS_HOST_TRANSLATION="$hostTranslation"
-      init_last_command_output_log
-    fi
-    {
-      echo "---- docker-relay-fallback-log ----"
-      cat "$docker_log"
-    } >> "$lastCommandOutputLog"
-  }
-
-  if ! command -v docker > /dev/null 2>&1; then
-    echo "Docker relay aborted: docker command not found in PATH" >> "$docker_log"
-    append_docker_relay_fallback_log
-    cat "$docker_log"
-    exit 127
-  fi
-
-  CURRENT_GIT_DIR=$(resolve_abs_path ../../../)
-  if [ -z "$CURRENT_GIT_DIR" ] || [ ! -d "$CURRENT_GIT_DIR" ]; then
-    echo "Docker relay aborted: unable to resolve repository root directory" >> "$docker_log"
-    append_docker_relay_fallback_log
-    cat "$docker_log"
-    exit 2
-  fi
-  if [ ! -f "$CURRENT_GIT_DIR/run.sh" ]; then
-    echo "Docker relay aborted: missing runner script at $CURRENT_GIT_DIR/run.sh" >> "$docker_log"
-    append_docker_relay_fallback_log
-    cat "$docker_log"
-    exit 2
-  fi
-  if [ ! -r "$CURRENT_GIT_DIR/run.sh" ]; then
-    echo "Docker relay aborted: runner script is not readable at $CURRENT_GIT_DIR/run.sh" >> "$docker_log"
-    append_docker_relay_fallback_log
-    cat "$docker_log"
-    exit 2
-  fi
-
-  docker_timeout_arg=""
-  if [ "$timeoutFromHost" -eq 1 ]; then
-    docker_timeout_arg="$timeoutConfig"
-    echo "TIMEOUT SOURCE: host ($timeoutConfig)" >> "$docker_log"
-  else
-    echo "TIMEOUT SOURCE: container-profile-or-default" >> "$docker_log"
-  fi
-
-  if [ "$checkOnlyMode" -eq 1 ]; then
-    echo "RUN_AND_LOG_SKIP_SHARED_APPEND=1 docker run --rm --platform linux/amd64 -v \"<repo>\":/build -w \"/build/src/$packName/$algoName/\" $runOnDocker sh -c 'if [ -n \"\$1\" ]; then DEREKALGOS_TIMEOUT=\"\$1\"; export DEREKALGOS_TIMEOUT; fi; DEREKALGOS_LAST_COMMAND_OUTPUT_ACTIVE=\"\$2\"; DEREKALGOS_LAST_COMMAND_OUTPUT_LOG=\"\$3\"; DEREKALGOS_EXECUTION_ROUTE=\"\$4\"; DEREKALGOS_HOST_CWD=\"\$5\"; DEREKALGOS_HOST_CPUARCH=\"\$6\"; DEREKALGOS_HOST_PLATFORM=\"\$7\"; DEREKALGOS_HOST_TRANSLATION=\"\$8\"; export DEREKALGOS_LAST_COMMAND_OUTPUT_ACTIVE DEREKALGOS_LAST_COMMAND_OUTPUT_LOG DEREKALGOS_EXECUTION_ROUTE DEREKALGOS_HOST_CWD DEREKALGOS_HOST_CPUARCH DEREKALGOS_HOST_PLATFORM DEREKALGOS_HOST_TRANSLATION; shift 8; sh /build/run.sh \"\$@\"' sh \"$docker_timeout_arg\" \"\" \"$lastCommandOutputLog\" \"docker-relay\" \"$startDir\" \"$hostCpuArch\" \"$hostPlatform\" \"$hostTranslation\" --check-only \"$fileName\" <args>" >> "$docker_log"
-    RUN_AND_LOG_SKIP_SHARED_APPEND=1 run_and_log_output "$docker_log" docker run --rm --platform linux/amd64 -v "$CURRENT_GIT_DIR":/build -w "/build/src/$packName/$algoName/" $runOnDocker sh -c 'if [ -n "$1" ]; then DEREKALGOS_TIMEOUT="$1"; export DEREKALGOS_TIMEOUT; fi; DEREKALGOS_LAST_COMMAND_OUTPUT_ACTIVE="$2"; DEREKALGOS_LAST_COMMAND_OUTPUT_LOG="$3"; DEREKALGOS_EXECUTION_ROUTE="$4"; DEREKALGOS_HOST_CWD="$5"; DEREKALGOS_HOST_CPUARCH="$6"; DEREKALGOS_HOST_PLATFORM="$7"; DEREKALGOS_HOST_TRANSLATION="$8"; export DEREKALGOS_LAST_COMMAND_OUTPUT_ACTIVE DEREKALGOS_LAST_COMMAND_OUTPUT_LOG DEREKALGOS_EXECUTION_ROUTE DEREKALGOS_HOST_CWD DEREKALGOS_HOST_CPUARCH DEREKALGOS_HOST_PLATFORM DEREKALGOS_HOST_TRANSLATION; shift 8; sh /build/run.sh "$@"' sh "$docker_timeout_arg" "" "$lastCommandOutputLog" "docker-relay" "$startDir" "$hostCpuArch" "$hostPlatform" "$hostTranslation" --check-only "$fileName" "$@"
-  elif [ "$compileOnlyMode" -eq 1 ]; then
-    echo "RUN_AND_LOG_SKIP_SHARED_APPEND=1 docker run --rm --platform linux/amd64 -v \"<repo>\":/build -w \"/build/src/$packName/$algoName/\" $runOnDocker sh -c 'if [ -n \"\$1\" ]; then DEREKALGOS_TIMEOUT=\"\$1\"; export DEREKALGOS_TIMEOUT; fi; DEREKALGOS_LAST_COMMAND_OUTPUT_ACTIVE=\"\$2\"; DEREKALGOS_LAST_COMMAND_OUTPUT_LOG=\"\$3\"; DEREKALGOS_EXECUTION_ROUTE=\"\$4\"; DEREKALGOS_HOST_CWD=\"\$5\"; DEREKALGOS_HOST_CPUARCH=\"\$6\"; DEREKALGOS_HOST_PLATFORM=\"\$7\"; DEREKALGOS_HOST_TRANSLATION=\"\$8\"; export DEREKALGOS_LAST_COMMAND_OUTPUT_ACTIVE DEREKALGOS_LAST_COMMAND_OUTPUT_LOG DEREKALGOS_EXECUTION_ROUTE DEREKALGOS_HOST_CWD DEREKALGOS_HOST_CPUARCH DEREKALGOS_HOST_PLATFORM DEREKALGOS_HOST_TRANSLATION; shift 8; sh /build/run.sh \"\$@\"' sh \"$docker_timeout_arg\" \"\" \"$lastCommandOutputLog\" \"docker-relay\" \"$startDir\" \"$hostCpuArch\" \"$hostPlatform\" \"$hostTranslation\" --compile-only \"$fileName\" <args>" >> "$docker_log"
-    RUN_AND_LOG_SKIP_SHARED_APPEND=1 run_and_log_output "$docker_log" docker run --rm --platform linux/amd64 -v "$CURRENT_GIT_DIR":/build -w "/build/src/$packName/$algoName/" $runOnDocker sh -c 'if [ -n "$1" ]; then DEREKALGOS_TIMEOUT="$1"; export DEREKALGOS_TIMEOUT; fi; DEREKALGOS_LAST_COMMAND_OUTPUT_ACTIVE="$2"; DEREKALGOS_LAST_COMMAND_OUTPUT_LOG="$3"; DEREKALGOS_EXECUTION_ROUTE="$4"; DEREKALGOS_HOST_CWD="$5"; DEREKALGOS_HOST_CPUARCH="$6"; DEREKALGOS_HOST_PLATFORM="$7"; DEREKALGOS_HOST_TRANSLATION="$8"; export DEREKALGOS_LAST_COMMAND_OUTPUT_ACTIVE DEREKALGOS_LAST_COMMAND_OUTPUT_LOG DEREKALGOS_EXECUTION_ROUTE DEREKALGOS_HOST_CWD DEREKALGOS_HOST_CPUARCH DEREKALGOS_HOST_PLATFORM DEREKALGOS_HOST_TRANSLATION; shift 8; sh /build/run.sh "$@"' sh "$docker_timeout_arg" "" "$lastCommandOutputLog" "docker-relay" "$startDir" "$hostCpuArch" "$hostPlatform" "$hostTranslation" --compile-only "$fileName" "$@"
-  else
-    echo "RUN_AND_LOG_SKIP_SHARED_APPEND=1 docker run --rm --platform linux/amd64 -v \"<repo>\":/build -w \"/build/src/$packName/$algoName/\" $runOnDocker sh -c 'if [ -n \"\$1\" ]; then DEREKALGOS_TIMEOUT=\"\$1\"; export DEREKALGOS_TIMEOUT; fi; DEREKALGOS_LAST_COMMAND_OUTPUT_ACTIVE=\"\$2\"; DEREKALGOS_LAST_COMMAND_OUTPUT_LOG=\"\$3\"; DEREKALGOS_EXECUTION_ROUTE=\"\$4\"; DEREKALGOS_HOST_CWD=\"\$5\"; DEREKALGOS_HOST_CPUARCH=\"\$6\"; DEREKALGOS_HOST_PLATFORM=\"\$7\"; DEREKALGOS_HOST_TRANSLATION=\"\$8\"; export DEREKALGOS_LAST_COMMAND_OUTPUT_ACTIVE DEREKALGOS_LAST_COMMAND_OUTPUT_LOG DEREKALGOS_EXECUTION_ROUTE DEREKALGOS_HOST_CWD DEREKALGOS_HOST_CPUARCH DEREKALGOS_HOST_PLATFORM DEREKALGOS_HOST_TRANSLATION; shift 8; sh /build/run.sh \"\$@\"' sh \"$docker_timeout_arg\" \"\" \"$lastCommandOutputLog\" \"docker-relay\" \"$startDir\" \"$hostCpuArch\" \"$hostPlatform\" \"$hostTranslation\" \"$fileName\" <args>" >> "$docker_log"
-    RUN_AND_LOG_SKIP_SHARED_APPEND=1 run_and_log_output "$docker_log" docker run --rm --platform linux/amd64 -v "$CURRENT_GIT_DIR":/build -w "/build/src/$packName/$algoName/" $runOnDocker sh -c 'if [ -n "$1" ]; then DEREKALGOS_TIMEOUT="$1"; export DEREKALGOS_TIMEOUT; fi; DEREKALGOS_LAST_COMMAND_OUTPUT_ACTIVE="$2"; DEREKALGOS_LAST_COMMAND_OUTPUT_LOG="$3"; DEREKALGOS_EXECUTION_ROUTE="$4"; DEREKALGOS_HOST_CWD="$5"; DEREKALGOS_HOST_CPUARCH="$6"; DEREKALGOS_HOST_PLATFORM="$7"; DEREKALGOS_HOST_TRANSLATION="$8"; export DEREKALGOS_LAST_COMMAND_OUTPUT_ACTIVE DEREKALGOS_LAST_COMMAND_OUTPUT_LOG DEREKALGOS_EXECUTION_ROUTE DEREKALGOS_HOST_CWD DEREKALGOS_HOST_CPUARCH DEREKALGOS_HOST_PLATFORM DEREKALGOS_HOST_TRANSLATION; shift 8; sh /build/run.sh "$@"' sh "$docker_timeout_arg" "" "$lastCommandOutputLog" "docker-relay" "$startDir" "$hostCpuArch" "$hostPlatform" "$hostTranslation" "$fileName" "$@"
-  fi
-  retValue="$?"
-  echo "-- docker returned: $retValue" >> "$docker_log"
-  echo "---- DOCKER RELAY BUILD END" >> "$docker_log"
-
-  # If docker failed, append relay diagnostics to shared output.
-  if [ "$retValue" -ne 0 ] && [ -n "$lastCommandOutputLog" ] && [ -f "$docker_log" ]; then
-    append_docker_relay_fallback_log
-  fi
-
-  exit "$retValue"
-fi
-
-# Now, we should check if the environment wants our language
-# to run on remotely via ssh, in which case, we should go ahead
-# and do that then exit.
-
-runOnSsh=$(get_lang_route_value "$DEREKALGOS_RUNONSSH" "$lang")
-if [ "$checkOnlyMode" -eq 1 ]; then
-  case "$checkOnlyRoute" in
-    native|docker)
-      runOnSsh=""
-      ;;
-    ssh)
-      if [ -z "$runOnSsh" ]; then
-        runOnSsh="check-only-ssh"
-      fi
-      ;;
-  esac
-fi
-if [ -n "$runOnSsh" ]; then
-  mkdir -p ./output
-  ssh_log="./output/${lang}-build-last"
-
-  echo "STARTING SSH RELAY BUILD..." > "$ssh_log"
-  echo "ROUTE: SSH target $runOnSsh" >> "$ssh_log"
-
-  if [ "$checkOnlyMode" -eq 1 ] && [ "$checkOnlyRoute" = "ssh" ]; then
-    echo "CHECK-ONLY ROUTE: ssh relay simulated" >> "$ssh_log"
-    echo "CHECK-ONLY: would relay via SSH target '$runOnSsh'" >> "$ssh_log"
-    echo "CHECK-ONLY: would run remote run.sh --check-only $fileName <args>" >> "$ssh_log"
-    if [ -n "$lastCommandOutputLog" ]; then
-      {
-        echo "---- ssh-check-only-simulated ----"
-        cat "$ssh_log"
-      } >> "$lastCommandOutputLog"
-    fi
-    echo "CHECK-ONLY: ssh relay simulated for $lang"
-    exit 0
-  fi
-
-  if ! command -v scp > /dev/null 2>&1; then
-    echo "SSH relay aborted: scp command not found in PATH" >> "$ssh_log"
-    cat "$ssh_log"
-    exit 127
-  fi
-  if ! command -v ssh > /dev/null 2>&1; then
-    echo "SSH relay aborted: ssh command not found in PATH" >> "$ssh_log"
-    cat "$ssh_log"
-    exit 127
-  fi
-
-  if ! parse_ssh_route_definition "$runOnSsh"; then
-    echo "Missing or invalid SSH config in DEREKALGOS_RUNONSSH for language '$lang'" >> "$ssh_log"
-    echo "Expected value format: language=ssh-destination|code-dir|run-script" >> "$ssh_log"
-    echo "                   or: language=ssh-address|ssh-user|ssh-port|code-dir|run-script" >> "$ssh_log"
-    echo "Example (legacy): forth=coderun-vm|/home/coderun/codefiles|../run.sh" >> "$ssh_log"
-    echo "Example (explicit): forth=127.0.0.1|coderun|2222|/home/coderun/codefiles|../run.sh" >> "$ssh_log"
-    cat "$ssh_log"
-    exit 2
-  fi
-
-  if [ -n "$ssh_port" ]; then
-    echo "scp -P \"$ssh_port\" \"./$fileName\" \"$ssh_destination:$ssh_codedir/$fileName\"" >> "$ssh_log"
-    run_and_log_output "$ssh_log" scp -P "$ssh_port" "./$fileName" "$ssh_destination:$ssh_codedir/$fileName"
-  else
-    echo "scp \"./$fileName\" \"$ssh_destination:$ssh_codedir/$fileName\"" >> "$ssh_log"
-    run_and_log_output "$ssh_log" scp "./$fileName" "$ssh_destination:$ssh_codedir/$fileName"
-  fi
-  retValue="$?"
-  echo "-- scp returned: $retValue" >> "$ssh_log"
-  if [ "$retValue" -ne 0 ]; then
-    echo "---- SSH RELAY BUILD END" >> "$ssh_log"
-    exit "$retValue"
-  fi
-
-  ToRunOnSSH="cd $(shell_quote "$ssh_codedir") && $(shell_quote "$ssh_runscript")"
-  if [ "$checkOnlyMode" -eq 1 ]; then
-    ToRunOnSSH="$ToRunOnSSH --check-only"
-  elif [ "$compileOnlyMode" -eq 1 ]; then
-    ToRunOnSSH="$ToRunOnSSH --compile-only"
-  fi
-  ToRunOnSSH="$ToRunOnSSH $(shell_quote "$fileName")"
-  for arg in "$@"; do
-    ToRunOnSSH="$ToRunOnSSH $(shell_quote "$arg")"
-  done
-  if [ -n "$ssh_port" ]; then
-    echo "ssh -p \"$ssh_port\" \"$ssh_destination\" \"$ToRunOnSSH\"" >> "$ssh_log"
-    run_and_log_output "$ssh_log" ssh -p "$ssh_port" "$ssh_destination" "$ToRunOnSSH"
-  else
-    echo "ssh \"$ssh_destination\" \"$ToRunOnSSH\"" >> "$ssh_log"
-    run_and_log_output "$ssh_log" ssh "$ssh_destination" "$ToRunOnSSH"
-  fi
-  retValue="$?"
-  echo "-- ssh returned: $retValue" >> "$ssh_log"
-  echo "---- SSH RELAY BUILD END" >> "$ssh_log"
-  exit "$retValue"
-fi
+# Resolve and execute relay routes (docker/ssh). This returns only when no relay route is selected.
+run_selected_relay_or_continue "$@"
 
 # First thing, let's check to see if the output directory
 # needs to be cleaned. This is the case if a different language
@@ -3823,12 +1851,10 @@ else
   mkdir -p ./output
 fi
 
-# For local runs, initialize once after output cleanup/setup.
-# Docker child handles its own header; SSH is remote-native.
-if [ -z "$runOnDocker" ] && [ -z "$runOnSsh" ]; then
-  if [ -z "$DEREKALGOS_LAST_COMMAND_OUTPUT_ACTIVE" ] || [ "$destroyOutput" -eq 1 ] || [ ! -f "$lastCommandOutputLog" ]; then
-    init_last_command_output_log
-  fi
+# Relay selection now exits inside run_selected_relay_or_continue.
+# Reaching this point means local/native flow continues.
+if [ -z "$DEREKALGOS_LAST_COMMAND_OUTPUT_ACTIVE" ] || [ "$destroyOutput" -eq 1 ] || [ ! -f "$lastCommandOutputLog" ]; then
+  init_last_command_output_log
 fi
 
 # Finally, run the compile for the specified language,

@@ -8,6 +8,21 @@
 # but this will provide a really good start.
 
 currentPlatform=$(uname -s)
+scriptDir=$(CDPATH= cd -- "$(dirname "$0")" && pwd -P)
+. "$scriptDir/shlib/loader.sh" || {
+    echo "ERROR: unable to load shlib loader from $scriptDir/shlib/loader.sh" >&2
+    exit 78
+}
+load_required_shlib_modules "init.sh" "$scriptDir" \
+    suggest.sh \
+    terminal.sh \
+    docker-policy.sh \
+    profile.sh \
+    runonssh-contract.sh \
+    check-env.sh \
+    help-common.sh \
+    help-catalogs.sh \
+    init-runon-map.sh || exit 78
 doPrompt=1
 copyIcons=1
 copyIconsTo=~/.vscode/extensions/icons/
@@ -15,6 +30,7 @@ updateEnvironment=1
 updateProfileOverridePath=
 buildDocker=0
 checkOnly=0
+checkEnv=0
 useTimeout="-k 10s 2m"
 useEiffel="eiffelstudio"
 useGcc13="/usr/bin/"
@@ -66,6 +82,7 @@ print_usage_examples() {
     echo "  $0"
     echo "  $0 --no-prompt --check-only"
     echo "  $0 --set-use-only --use-eiffel=libertyeiffel"
+    echo "  $0 --check-env"
     echo "  $0 --runondocker --no-prompt"
     echo "  $0 --runondocker-set=python=code-runner"
     echo "  $0 --runonssh-set=python=coderun-vm|/home/coderun/codefiles|../run.sh"
@@ -107,6 +124,7 @@ print_usage_env_section() {
     echo "  --update-profile=<f>   Read/write DEREKALGOS vars in this profile file"
     echo "  --build-docker         Build Dockerfile as linux/amd64 (default: off)"
     echo "  --check-only           Dry-run mode; do not write files [default: off]"
+    echo "  --check-env            Read-only environment diagnostics and map validation"
     echo ""
     echo "Environment value overrides (if repeated, the final value is applied):"
     echo "  --use-timeout=<value>  Set DEREKALGOS_TIMEOUT value [default: $useTimeout]"
@@ -136,6 +154,15 @@ print_usage_runondocker_section() {
     echo "  --runondocker-remove=<t>   Remove mapping for <target>; <target> is a language or 'all'"
     echo "  These may be used multiple times and are applied in command-line order."
     echo ""
+}
+
+# Print Docker support policy and platform scope.
+print_usage_docker_section() {
+    echo "Docker support policy:"
+    echo "  init.sh can configure Docker runner mappings (DEREKALGOS_RUNONDOCKER), and"
+    echo "  run.sh can execute through those Docker relay images."
+    echo ""
+    print_usage_docker_policy_common
 }
 
 # Print run-on-ssh map editor options and route format details.
@@ -170,10 +197,11 @@ print_usage_short() {
     echo "Common options:"
     echo "  --help                 Show this compact help and exit"
     echo "  --help-all             Show full help and exit"
-    echo "  --help=<topic>         Show one topic (examples, prompt, set-use-only, env, runondocker, runonssh)"
+    echo "  --help=<topic>         Show one topic (examples, prompt, set-use-only, env, docker, runondocker, runonssh)"
     echo "  --interactive          Keep interactive prompts enabled"
     echo "  --no-prompt            Disable prompts"
     echo "  --check-only           Dry-run mode; do not write files"
+    echo "  --check-env            Run read-only environment diagnostics and exit"
     echo "  --update-profile=<f>   Override which profile file gets updated"
     echo "  --build-docker         Build Dockerfile as linux/amd64"
     echo "  --set-use-only         Set only one following --use-* or run-on flag"
@@ -190,12 +218,13 @@ print_usage_full() {
     echo "Options:"
     echo "  --help                 Show compact help and exit"
     echo "  --help-all             Show full help and exit"
-    echo "  --help=<topic>         Show one topic (examples, prompt, set-use-only, env, runondocker, runonssh)"
+    echo "  --help=<topic>         Show one topic (examples, prompt, set-use-only, env, docker, runondocker, runonssh)"
     echo ""
     print_usage_examples
     print_usage_prompt_section
     print_usage_set_use_only_section
     print_usage_env_section
+    print_usage_docker_section
     print_usage_runondocker_section
     print_usage_runonssh_section
     echo "Note: option names are '--use-runondocker' and '--use-runonssh'."
@@ -209,6 +238,7 @@ print_usage_topic() {
         prompt) print_usage_prompt_section ;;
         set-use-only) print_usage_set_use_only_section ;;
         env) print_usage_env_section ;;
+        docker) print_usage_docker_section ;;
         runondocker) print_usage_runondocker_section ;;
         runonssh) print_usage_runonssh_section ;;
         *)
@@ -217,7 +247,7 @@ print_usage_topic() {
             if [ -n "$topicSuggestion" ]; then
                 echo "Did you mean: $topicSuggestion" >&2
             fi
-            echo "Supported topics: examples, prompt, set-use-only, env, runondocker, runonssh" >&2
+            echo "Supported topics: examples, prompt, set-use-only, env, docker, runondocker, runonssh" >&2
             return 1
             ;;
     esac
@@ -234,103 +264,12 @@ print_usage() {
 
 # Print supported option keys for did-you-mean matching.
 print_option_catalog() {
-    cat <<'EOF'
---interactive
---no-prompt
---set-use-only
---copy-icons
---no-icons
---icons-to=
---update-environment
---skip-environment
---update-profile=
---build-docker
---check-only
---runondocker
---runonssh
---runondocker-set=
---runonssh-set=
---runondocker-remove=
---runonssh-remove=
---help
--h
---help-all
---help=
---use-timeout=
---use-eiffel=
---use-gcc13=
---use-gcc13name=
---use-gxx13name=
---use-runondocker=
---use-runonssh=
-EOF
+    print_option_catalog_for_script init
 }
 
 # Print supported help topics for did-you-mean matching.
 print_help_topic_catalog() {
-    cat <<'EOF'
-examples
-prompt
-set-use-only
-env
-runondocker
-runonssh
-EOF
-}
-
-# Normalize one option token for matching by dropping values after '='.
-normalize_option_token() {
-    case "$1" in
-        --*=*) printf '%s\n' "${1%%=*}=" ;;
-        *) printf '%s\n' "$1" ;;
-    esac
-}
-
-# Suggest one closest token from a newline-separated catalog.
-suggest_from_catalog() {
-    suggestTarget="$1"
-    suggestCatalog="$2"
-    printf '%s\n' "$suggestCatalog" | awk -v target="$suggestTarget" '
-        function min3(a, b, c, m) { m = a; if (b < m) m = b; if (c < m) m = c; return m }
-        function dist(s, t, i, j, ls, lt, cost, prev, tmp, cur) {
-            ls = length(s); lt = length(t)
-            for (j = 0; j <= lt; j++) d[j] = j
-            for (i = 1; i <= ls; i++) {
-                prev = d[0]
-                d[0] = i
-                for (j = 1; j <= lt; j++) {
-                    tmp = d[j]
-                    cost = (substr(s, i, 1) == substr(t, j, 1)) ? 0 : 1
-                    cur = min3(d[j] + 1, d[j - 1] + 1, prev + cost)
-                    d[j] = cur
-                    prev = tmp
-                }
-            }
-            return d[lt]
-        }
-        {
-            if ($0 == "") next
-            if (index($0, target) == 1 || index(target, $0) == 1) {
-                print $0
-                exit
-            }
-            score = dist(target, $0)
-            if (best == "" || score < bestScore) {
-                best = $0
-                bestScore = score
-            }
-        }
-        END {
-            if (best != "" && bestScore <= 4) print best
-        }'
-}
-
-# Suggest the closest option for an unknown option token.
-suggest_option_for_unknown() {
-    unknownOption="$1"
-    normalizedOption=$(normalize_option_token "$unknownOption")
-    optionCatalog=$(print_option_catalog)
-    suggest_from_catalog "$normalizedOption" "$optionCatalog" | head -n 1
+    print_help_topic_catalog_for_script init
 }
 
 # Suggest the closest language target key for run-on map edits.
@@ -346,13 +285,6 @@ $langKey"
         fi
     done
     suggest_from_catalog "$unknownKey" "$languageCatalog" | head -n 1
-}
-
-# Suggest the closest help topic for unknown topic values.
-suggest_help_topic_for_unknown() {
-    unknownTopic="$1"
-    topicCatalog=$(print_help_topic_catalog)
-    suggest_from_catalog "$unknownTopic" "$topicCatalog" | head -n 1
 }
 
 # =============================================
@@ -449,47 +381,9 @@ expand_home_path() {
     esac
 }
 
-# Create temp files safely even without mktemp by using noclobber retries.
-make_temp_file_secure() {
-    temp_label="$1"
-    temp_base_dir="$2"
-    if [ -z "$temp_base_dir" ]; then
-        temp_base_dir="${TMPDIR:-/tmp}"
-    fi
-
-    if command -v mktemp > /dev/null 2>&1; then
-        mktemp "${temp_base_dir%/}/derekalgos-${temp_label}.XXXXXX"
-        return "$?"
-    fi
-
-    temp_idx=0
-    temp_max_tries=128
-    while [ "$temp_idx" -lt "$temp_max_tries" ]; do
-        temp_candidate="${temp_base_dir%/}/derekalgos-${temp_label}.$$.$temp_idx"
-        ( set -C; : > "$temp_candidate" ) 2>/dev/null && {
-            printf '%s\n' "$temp_candidate"
-            return 0
-        }
-        temp_idx=$((temp_idx + 1))
-    done
-
-    return 1
-}
-
 # =============================================
 # Profile Helpers
 # =============================================
-
-# Pick the default shell profile used by run.sh for this OS.
-determine_profile_for_platform() {
-    case "$currentPlatform" in
-        "MINGW64_NT"*) printf '%s\n' ~/.bash_profile ;;
-        "Linux"*) printf '%s\n' ~/.bash_profile ;;
-        "FreeBSD") printf '%s\n' ~/.profile ;;
-        "Darwin") printf '%s\n' ~/.zprofile ;;
-        *) printf '%s\n' "" ;;
-    esac
-}
 
 # Read a previously exported DEREKALGOS value from profile text.
 get_profile_export_value() {
@@ -532,681 +426,11 @@ load_existing_defaults_from_profile() {
 }
 
 # =============================================
-# Language Key And Display Helpers
+# Run-On Map Subsystem
 # =============================================
 
-# The helpers below treat DEREKALGOS_RUNONDOCKER as a simple space-separated
-# key=value map. The algorithms are intentionally standard: scan, rebuild, and
-# preserve command-line order when replaying edits.
-
-# Emit the supported language key list for run-on-docker mappings.
-runondocker_language_list() {
-    for lang_key in $supportedLanguageKeys; do
-        printf '%s\n' "$lang_key"
-    done
-}
-
-# Return terminal width for compact column formatting, with safe fallback.
-get_display_columns() {
-    display_cols=""
-    if command -v tput > /dev/null 2>&1; then
-        display_cols=$(tput cols 2>/dev/null)
-    fi
-    if [ -z "$display_cols" ] && [ -n "$COLUMNS" ]; then
-        display_cols="$COLUMNS"
-    fi
-    case "$display_cols" in
-        ''|*[!0-9]*) display_cols=80 ;;
-    esac
-    if [ "$display_cols" -lt 40 ]; then
-        display_cols=40
-    fi
-    printf '%s\n' "$display_cols"
-}
-
-# Print supported language keys in compact wrapped columns.
-print_supported_language_keys_grid() {
-    max_key_len=0
-    for lang_key in $(runondocker_language_list); do
-        key_len=${#lang_key}
-        if [ "$key_len" -gt "$max_key_len" ]; then
-            max_key_len="$key_len"
-        fi
-    done
-
-    col_width=$((max_key_len + 3))
-    display_cols=$(get_display_columns)
-    cols_per_row=$((display_cols / col_width))
-    if [ "$cols_per_row" -lt 1 ]; then
-        cols_per_row=1
-    fi
-
-    current_col=0
-    for lang_key in $(runondocker_language_list); do
-        printf "  %-*s" "$col_width" "$lang_key"
-        current_col=$((current_col + 1))
-        if [ "$current_col" -ge "$cols_per_row" ]; then
-            printf '\n'
-            current_col=0
-        fi
-    done
-    if [ "$current_col" -ne 0 ]; then
-        printf '\n'
-    fi
-}
-
-# Print only currently configured run-on-docker mappings.
-print_runondocker_configured_mappings() {
-    has_mapping=0
-    for lang_key in $(runondocker_language_list); do
-        img_value=$(runondocker_get_image_for_lang "$useRunOnDocker" "$lang_key")
-        if [ -n "$img_value" ]; then
-            echo "  $lang_key=$img_value"
-            has_mapping=1
-        fi
-    done
-    if [ "$has_mapping" -eq 0 ]; then
-        echo "  <none>"
-    fi
-}
-
-# Print only currently configured run-on-ssh mappings.
-print_runonssh_configured_mappings() {
-    has_mapping=0
-    for lang_key in $(runondocker_language_list); do
-        route_value=$(runonssh_get_route_for_lang "$useRunOnSsh" "$lang_key")
-        if [ -n "$route_value" ]; then
-            echo "  $lang_key=$route_value"
-            has_mapping=1
-        fi
-    done
-    if [ "$has_mapping" -eq 0 ]; then
-        echo "  <none>"
-    fi
-}
-
-# Print all supported languages with their current run-on-docker mapping or <unset>.
-print_runondocker_all_mappings() {
-    for lang_key in $(runondocker_language_list); do
-        img_value=$(runondocker_get_image_for_lang "$useRunOnDocker" "$lang_key")
-        if [ -n "$img_value" ]; then
-            echo "  $lang_key=$img_value"
-        else
-            echo "  $lang_key=<unset>"
-        fi
-    done
-}
-
-# Print all supported languages with their current run-on-ssh mapping or <unset>.
-print_runonssh_all_mappings() {
-    for lang_key in $(runondocker_language_list); do
-        route_value=$(runonssh_get_route_for_lang "$useRunOnSsh" "$lang_key")
-        if [ -n "$route_value" ]; then
-            echo "  $lang_key=$route_value"
-        else
-            echo "  $lang_key=<unset>"
-        fi
-    done
-}
-
-# =============================================
-# Run-On Map: Shared Validation And CLI Operations
-# =============================================
-
-# Check whether a run-on-docker language key is known.
-is_known_runondocker_language() {
-    target_lang="$1"
-    for known_lang in $(runondocker_language_list); do
-        if [ "$known_lang" = "$target_lang" ]; then
-            return 0
-        fi
-    done
-    return 1
-}
-
-# Append one ordered run-on-docker CLI operation for later replay.
-append_runondocker_cli_op() {
-    op_kind="$1"
-    op_value="$2"
-    if [ -n "$runOnDockerCliOps" ]; then
-        runOnDockerCliOps="$runOnDockerCliOps
-$op_kind|$op_value"
-    else
-        runOnDockerCliOps="$op_kind|$op_value"
-    fi
-}
-
-# Append one ordered run-on-ssh CLI operation for later replay.
-append_runonssh_cli_op() {
-    op_kind="$1"
-    op_value="$2"
-    if [ -n "$runOnSshCliOps" ]; then
-        runOnSshCliOps="$runOnSshCliOps
-$op_kind|$op_value"
-    else
-        runOnSshCliOps="$op_kind|$op_value"
-    fi
-}
-
-# =============================================
-# Run-On Map: Get, Set, And Remove
-# =============================================
-
-# Resolve image value for one language key from a mapping string.
-runondocker_get_image_for_lang() {
-    map_string="$1"
-    target_lang="$2"
-    for pair in $map_string; do
-        pair_lang=${pair%%=*}
-        if [ "$pair_lang" = "$target_lang" ]; then
-            printf '%s\n' "${pair#*=}"
-            return
-        fi
-    done
-}
-
-# Resolve SSH route value for one language key from a mapping string.
-runonssh_get_route_for_lang() {
-    map_string="$1"
-    target_lang="$2"
-    for pair in $map_string; do
-        pair_lang=${pair%%=*}
-        if [ "$pair_lang" = "$target_lang" ]; then
-            printf '%s\n' "${pair#*=}"
-            return
-        fi
-    done
-}
-
-# Remove one language key from a mapping string.
-runondocker_remove_lang() {
-    map_string="$1"
-    target_lang="$2"
-    next_map=""
-    for pair in $map_string; do
-        pair_lang=${pair%%=*}
-        if [ "$pair_lang" = "$target_lang" ]; then
-            continue
-        fi
-        if [ -n "$next_map" ]; then
-            next_map="$next_map $pair"
-        else
-            next_map="$pair"
-        fi
-    done
-    printf '%s\n' "$next_map"
-}
-
-# Remove one language key from the SSH routing string.
-runonssh_remove_lang() {
-    map_string="$1"
-    target_lang="$2"
-    next_map=""
-    for pair in $map_string; do
-        pair_lang=${pair%%=*}
-        if [ "$pair_lang" = "$target_lang" ]; then
-            continue
-        fi
-        if [ -n "$next_map" ]; then
-            next_map="$next_map $pair"
-        else
-            next_map="$pair"
-        fi
-    done
-    printf '%s\n' "$next_map"
-}
-
-# Set one language key to an image in a mapping string.
-runondocker_set_lang() {
-    map_string="$1"
-    target_lang="$2"
-    target_image="$3"
-    base_map=$(runondocker_remove_lang "$map_string" "$target_lang")
-    if [ -z "$target_image" ]; then
-        printf '%s\n' "$base_map"
-        return
-    fi
-    if [ -n "$base_map" ]; then
-        printf '%s\n' "$base_map $target_lang=$target_image"
-    else
-        printf '%s\n' "$target_lang=$target_image"
-    fi
-}
-
-# Validate one inline SSH route definition.
-is_valid_runonssh_route() {
-    route_value="$1"
-    route_field_count=$(printf '%s' "$route_value" | awk -F'|' '{print NF}')
-    case "$route_field_count" in
-        3)
-            route_destination=${route_value%%|*}
-            route_rest=${route_value#*|}
-            route_codedir=${route_rest%%|*}
-            route_runscript=${route_rest#*|}
-
-            if [ -z "$route_destination" ] || [ -z "$route_codedir" ] || [ -z "$route_runscript" ]; then
-                return 1
-            fi
-            ;;
-        5)
-            route_address=${route_value%%|*}
-            route_rest=${route_value#*|}
-            route_user=${route_rest%%|*}
-            route_rest=${route_rest#*|}
-            route_port=${route_rest%%|*}
-            route_rest=${route_rest#*|}
-            route_codedir=${route_rest%%|*}
-            route_runscript=${route_rest#*|}
-
-            if [ -z "$route_address" ] || [ -z "$route_user" ] || [ -z "$route_port" ] || [ -z "$route_codedir" ] || [ -z "$route_runscript" ]; then
-                return 1
-            fi
-            case "$route_port" in
-                *[!0-9]*|'') return 1 ;;
-            esac
-            ;;
-        *)
-            return 1
-            ;;
-    esac
-
-    return 0
-}
-
-# Set one language key to an SSH route in a mapping string.
-runonssh_set_lang() {
-    map_string="$1"
-    target_lang="$2"
-    target_route="$3"
-    base_map=$(runonssh_remove_lang "$map_string" "$target_lang")
-    if [ -z "$target_route" ]; then
-        printf '%s\n' "$base_map"
-        return
-    fi
-    if [ -n "$base_map" ]; then
-        printf '%s\n' "$base_map $target_lang=$target_route"
-    else
-        printf '%s\n' "$target_lang=$target_route"
-    fi
-}
-
-# Set all known languages to one image (or clear all when image is empty).
-runondocker_set_all() {
-    target_image="$1"
-    if [ -z "$target_image" ]; then
-        printf '%s\n' ""
-        return
-    fi
-    all_map=""
-    for lang_key in $(runondocker_language_list); do
-        if [ -n "$all_map" ]; then
-            all_map="$all_map $lang_key=$target_image"
-        else
-            all_map="$lang_key=$target_image"
-        fi
-    done
-    printf '%s\n' "$all_map"
-}
-
-# Set all known languages to one SSH route (or clear all when route is empty).
-runonssh_set_all() {
-    target_route="$1"
-    if [ -z "$target_route" ]; then
-        printf '%s\n' ""
-        return
-    fi
-    all_map=""
-    for lang_key in $(runondocker_language_list); do
-        if [ -n "$all_map" ]; then
-            all_map="$all_map $lang_key=$target_route"
-        else
-            all_map="$lang_key=$target_route"
-        fi
-    done
-    printf '%s\n' "$all_map"
-}
-
-# =============================================
-# Run-On Map: Display And Summary
-# =============================================
-
-# Print current mapping for every supported language.
-show_runondocker_map() {
-    echo "Current DEREKALGOS_RUNONDOCKER settings:"
-    echo "Supported language keys:"
-    print_supported_language_keys_grid
-    echo "Configured mappings:"
-    print_runondocker_configured_mappings
-}
-
-# Print current SSH routing for every supported language.
-show_runonssh_map() {
-    echo "Current DEREKALGOS_RUNONSSH settings:"
-    echo "Supported language keys:"
-    print_supported_language_keys_grid
-    echo "Configured mappings:"
-    print_runonssh_configured_mappings
-}
-
-# =============================================
-# Run-On Map: CLI Change Application
-# =============================================
-
-# Apply non-interactive set/remove command-line edits to run-on-docker map.
-apply_runondocker_cli_changes() {
-    if [ -z "$runOnDockerCliOps" ]; then
-        return
-    fi
-
-    while IFS= read -r op_entry; do
-        if [ -z "$op_entry" ]; then
-            continue
-        fi
-        op_kind=${op_entry%%|*}
-        op_value=${op_entry#*|}
-        case "$op_kind" in
-            replace)
-                useRunOnDocker="$op_value"
-                ;;
-            remove)
-                case "$op_value" in
-                    all)
-                        useRunOnDocker=""
-                        ;;
-                    *)
-                        if ! is_known_runondocker_language "$op_value"; then
-                            echo "Unknown runondocker remove target: $op_value" >&2
-                            targetSuggestion=$(suggest_language_key_for_unknown "$op_value")
-                            if [ -n "$targetSuggestion" ]; then
-                                echo "Did you mean target: $targetSuggestion" >&2
-                            fi
-                            exit 64
-                        fi
-                        useRunOnDocker=$(runondocker_remove_lang "$useRunOnDocker" "$op_value")
-                        ;;
-                esac
-                ;;
-            set)
-                set_target=${op_value%%=*}
-                if [ "$set_target" = "$op_value" ]; then
-                    echo "Invalid --runondocker-set format. Expected <target>=<image>." >&2
-                    exit 64
-                fi
-                set_image=${op_value#*=}
-                if [ -z "$set_target" ] || [ -z "$set_image" ]; then
-                    echo "Invalid --runondocker-set format. Expected non-empty <target>=<image>." >&2
-                    exit 64
-                fi
-                case "$set_target" in
-                    all)
-                        useRunOnDocker=$(runondocker_set_all "$set_image")
-                        ;;
-                    *)
-                        if ! is_known_runondocker_language "$set_target"; then
-                            echo "Unknown runondocker set target: $set_target" >&2
-                            targetSuggestion=$(suggest_language_key_for_unknown "$set_target")
-                            if [ -n "$targetSuggestion" ]; then
-                                echo "Did you mean target: $targetSuggestion" >&2
-                            fi
-                            exit 64
-                        fi
-                        useRunOnDocker=$(runondocker_set_lang "$useRunOnDocker" "$set_target" "$set_image")
-                        ;;
-                esac
-                ;;
-        esac
-    done <<EOF
-$runOnDockerCliOps
-EOF
-}
-
-# Apply non-interactive set/remove command-line edits to run-on-ssh map.
-apply_runonssh_cli_changes() {
-    if [ -z "$runOnSshCliOps" ]; then
-        return
-    fi
-
-    while IFS= read -r op_entry; do
-        if [ -z "$op_entry" ]; then
-            continue
-        fi
-        op_kind=${op_entry%%|*}
-        op_value=${op_entry#*|}
-        case "$op_kind" in
-            replace)
-                useRunOnSsh="$op_value"
-                ;;
-            remove)
-                case "$op_value" in
-                    all)
-                        useRunOnSsh=""
-                        ;;
-                    *)
-                        if ! is_known_runondocker_language "$op_value"; then
-                            echo "Unknown runonssh remove target: $op_value" >&2
-                            targetSuggestion=$(suggest_language_key_for_unknown "$op_value")
-                            if [ -n "$targetSuggestion" ]; then
-                                echo "Did you mean target: $targetSuggestion" >&2
-                            fi
-                            exit 64
-                        fi
-                        useRunOnSsh=$(runonssh_remove_lang "$useRunOnSsh" "$op_value")
-                        ;;
-                esac
-                ;;
-            set)
-                set_target=${op_value%%=*}
-                if [ "$set_target" = "$op_value" ]; then
-                    echo "Invalid --runonssh-set format. Expected <target>=<route>." >&2
-                    exit 64
-                fi
-                set_route=${op_value#*=}
-                if [ -z "$set_target" ] || [ -z "$set_route" ]; then
-                    echo "Invalid --runonssh-set format. Expected non-empty <target>=<route>." >&2
-                    exit 64
-                fi
-                if ! is_valid_runonssh_route "$set_route"; then
-                    echo "Invalid runonssh route '$set_route'. Expected ssh-destination|code-dir|run-script or ssh-address|ssh-user|ssh-port|code-dir|run-script." >&2
-                    exit 64
-                fi
-                case "$set_target" in
-                    all)
-                        useRunOnSsh=$(runonssh_set_all "$set_route")
-                        ;;
-                    *)
-                        if ! is_known_runondocker_language "$set_target"; then
-                            echo "Unknown runonssh set target: $set_target" >&2
-                            targetSuggestion=$(suggest_language_key_for_unknown "$set_target")
-                            if [ -n "$targetSuggestion" ]; then
-                                echo "Did you mean target: $targetSuggestion" >&2
-                            fi
-                            exit 64
-                        fi
-                        useRunOnSsh=$(runonssh_set_lang "$useRunOnSsh" "$set_target" "$set_route")
-                        ;;
-                esac
-                ;;
-        esac
-    done <<EOF
-$runOnSshCliOps
-EOF
-}
-
-# =============================================
-# Run-On Map: Interactive Editors
-# =============================================
-
-# Prompt-driven editor for run-on-docker map (language/all set/remove/show).
-edit_runondocker_interactive() {
-    echo ""
-    echo "Run-on-docker interactive editor"
-    echo "  ENTER accepts defaults shown in [brackets]."
-    echo "  Type 'done' (or press ENTER at language prompt) to exit editor."
-    echo "  Type 'show' at language prompt to view all languages and their current mappings."
-    echo "  Supported language keys:"
-    print_supported_language_keys_grid
-    echo ""
-    all_default=$(prompt_with_default "Initial all-language action image (type 'skip' to keep existing map, 'none' to clear all)" "skip")
-    case "$all_default" in
-        skip|SKIP)
-            ;;
-        none|NONE)
-            useRunOnDocker=""
-            ;;
-        *)
-            useRunOnDocker=$(runondocker_set_all "$all_default")
-            ;;
-    esac
-
-    while :; do
-        echo ""
-        target_lang=$(prompt_with_default "Language to edit (name/all/show/done; ENTER=done)" "done")
-        case "$target_lang" in
-            done|DONE)
-                break
-                ;;
-            show|SHOW)
-                echo "All run-on-docker mappings:"
-                print_runondocker_all_mappings
-                continue
-                ;;
-            all|ALL)
-                action=$(prompt_with_default "Action for all languages (set/remove/skip)" "set")
-                case "$action" in
-                    remove|REMOVE)
-                        useRunOnDocker=""
-                        ;;
-                    set|SET)
-                        all_image=$(prompt_with_default "Docker image for all languages" "code-runner")
-                        if [ -n "$all_image" ]; then
-                            useRunOnDocker=$(runondocker_set_all "$all_image")
-                        fi
-                        ;;
-                    *) ;;
-                esac
-                ;;
-            *)
-                if ! is_known_runondocker_language "$target_lang"; then
-                    echo "Unknown language '$target_lang'. Use 'show' to view available keys."
-                    targetSuggestion=$(suggest_language_key_for_unknown "$target_lang")
-                    if [ -n "$targetSuggestion" ]; then
-                        echo "Did you mean target: $targetSuggestion"
-                    fi
-                    continue
-                fi
-                current_image=$(runondocker_get_image_for_lang "$useRunOnDocker" "$target_lang")
-                if [ -z "$current_image" ]; then
-                    current_image="code-runner"
-                fi
-                action=$(prompt_with_default "Action for $target_lang (set/remove/skip)" "set")
-                case "$action" in
-                    remove|REMOVE)
-                        useRunOnDocker=$(runondocker_remove_lang "$useRunOnDocker" "$target_lang")
-                        ;;
-                    set|SET)
-                        image_name=$(prompt_with_default "Docker image for $target_lang" "$current_image")
-                        if [ -n "$image_name" ]; then
-                            useRunOnDocker=$(runondocker_set_lang "$useRunOnDocker" "$target_lang" "$image_name")
-                        fi
-                        ;;
-                    *) ;;
-                esac
-                ;;
-        esac
-    done
-}
-
-# Prompt-driven editor for run-on-ssh map (language/all set/remove/show).
-edit_runonssh_interactive() {
-    echo ""
-    echo "Run-on-ssh interactive editor"
-    echo "  ENTER accepts defaults shown in [brackets]."
-    echo "  Type 'done' (or press ENTER at language prompt) to exit editor."
-    echo "  Type 'show' at language prompt to view all languages and their current mappings."
-    echo "  Supported language keys:"
-    print_supported_language_keys_grid
-    echo ""
-    all_default=$(prompt_with_default "Initial all-language action route (type 'skip' to keep existing map, 'none' to clear all)" "skip")
-    case "$all_default" in
-        skip|SKIP)
-            ;;
-        none|NONE)
-            useRunOnSsh=""
-            ;;
-        *)
-            if ! is_valid_runonssh_route "$all_default"; then
-                echo "Invalid SSH route '$all_default'. Expected ssh-destination|code-dir|run-script or ssh-address|ssh-user|ssh-port|code-dir|run-script."
-            else
-                useRunOnSsh=$(runonssh_set_all "$all_default")
-            fi
-            ;;
-    esac
-
-    while :; do
-        echo ""
-        target_lang=$(prompt_with_default "Language to edit (name/all/show/done; ENTER=done)" "done")
-        case "$target_lang" in
-            done|DONE)
-                break
-                ;;
-            show|SHOW)
-                echo "All run-on-ssh mappings:"
-                print_runonssh_all_mappings
-                continue
-                ;;
-            all|ALL)
-                action=$(prompt_with_default "Action for all languages (set/remove/skip)" "set")
-                case "$action" in
-                    remove|REMOVE)
-                        useRunOnSsh=""
-                        ;;
-                    set|SET)
-                        all_route=$(prompt_with_default "SSH route for all languages" "127.0.0.1|coderun|2222|/home/coderun/codefiles|../run.sh")
-                        if [ -n "$all_route" ]; then
-                            if ! is_valid_runonssh_route "$all_route"; then
-                                echo "Invalid SSH route '$all_route'. Expected ssh-destination|code-dir|run-script or ssh-address|ssh-user|ssh-port|code-dir|run-script."
-                            else
-                                useRunOnSsh=$(runonssh_set_all "$all_route")
-                            fi
-                        fi
-                        ;;
-                    *) ;;
-                esac
-                ;;
-            *)
-                if ! is_known_runondocker_language "$target_lang"; then
-                    echo "Unknown language '$target_lang'. Use 'show' to view available keys."
-                    targetSuggestion=$(suggest_language_key_for_unknown "$target_lang")
-                    if [ -n "$targetSuggestion" ]; then
-                        echo "Did you mean target: $targetSuggestion"
-                    fi
-                    continue
-                fi
-                current_route=$(runonssh_get_route_for_lang "$useRunOnSsh" "$target_lang")
-                if [ -z "$current_route" ]; then
-                    current_route="127.0.0.1|coderun|2222|/home/coderun/codefiles|../run.sh"
-                fi
-                action=$(prompt_with_default "Action for $target_lang (set/remove/skip)" "set")
-                case "$action" in
-                    remove|REMOVE)
-                        useRunOnSsh=$(runonssh_remove_lang "$useRunOnSsh" "$target_lang")
-                        ;;
-                    set|SET)
-                        route_value=$(prompt_with_default "SSH route for $target_lang" "$current_route")
-                        if [ -n "$route_value" ]; then
-                            if ! is_valid_runonssh_route "$route_value"; then
-                                echo "Invalid SSH route '$route_value'. Expected ssh-destination|code-dir|run-script or ssh-address|ssh-user|ssh-port|code-dir|run-script."
-                            else
-                                useRunOnSsh=$(runonssh_set_lang "$useRunOnSsh" "$target_lang" "$route_value")
-                            fi
-                        fi
-                        ;;
-                    *) ;;
-                esac
-                ;;
-        esac
-    done
-}
+# Run-on map helpers, editors, and CLI mutation logic are sourced from
+# shlib/init-runon-map.sh via the loader contract near the top of this file.
 
 # =============================================
 # Lock And Cleanup
@@ -1476,6 +700,13 @@ for arg in "$@"; do
         checkOnly=1
         doPrompt=0
         ;;
+    --check-env)
+        checkEnv=1
+        doPrompt=0
+        copyIcons=0
+        updateEnvironment=0
+        buildDocker=0
+        ;;
     --runondocker-only|--runonssh-only)
         echo "$arg is no longer supported. Use --runondocker or --runonssh." >&2
         exit 64
@@ -1551,14 +782,16 @@ if [ "$setUseOnlyWaiting" -eq 1 ]; then
     fi
 fi
 
-if ! acquire_init_lock; then
-    echo "Warning: continuing without lock after lock acquisition failure." >&2
+if [ "$checkOnly" -ne 1 ]; then
+    if ! acquire_init_lock; then
+        echo "Warning: continuing without lock after lock acquisition failure." >&2
+    fi
 fi
 
 # Profile loading is deferred until it is actually needed so icon-only runs do
 # not touch shell configuration logic at all.
 needProfile=0
-if [ "$updateEnvironment" -eq 1 ] || [ "$runOnDockerMode" -eq 1 ] || [ "$runOnDockerCliModify" -eq 1 ] || [ "$runOnSshMode" -eq 1 ] || [ "$runOnSshCliModify" -eq 1 ]; then
+if [ "$updateEnvironment" -eq 1 ] || [ "$runOnDockerMode" -eq 1 ] || [ "$runOnDockerCliModify" -eq 1 ] || [ "$runOnSshMode" -eq 1 ] || [ "$runOnSshCliModify" -eq 1 ] || [ "$checkEnv" -eq 1 ]; then
     needProfile=1
 fi
 
@@ -1608,6 +841,13 @@ if [ "$runOnSshMode" -eq 1 ]; then
             updateEnvironment=0
         fi
     fi
+fi
+
+if [ "$checkEnv" -eq 1 ]; then
+    if run_init_check_env; then
+        exit "$exitOk"
+    fi
+    exit 1
 fi
 
 # Potentially prompt if we should copy the icons

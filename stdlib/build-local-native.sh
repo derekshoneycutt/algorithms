@@ -67,22 +67,22 @@ esac
 build_native_asm() {
     echo "as -v --defsym WINDOWS=$IS_WINDOWS -o \"./output/$ASM_OBJ_OUTPUT\" \"$ASM_FILE\"" >> ./output/${debugFile}-build-last
     as -v --defsym WINDOWS=$IS_WINDOWS -o "./output/$ASM_OBJ_OUTPUT" "$ASM_FILE" >> ./output/${debugFile}-build-last 2>&1
-    LAST_RETURN_VALUE="$?"
-    echo "-- as returned: $LAST_RETURN_VALUE" >> "./output/${debugFile}-build-last"
+    lastReturnValue="$?"
+    echo "-- as returned: $lastReturnValue" >> "./output/${debugFile}-build-last"
 }
 
 build_native_nasm() {
     echo "nasm -w+all -f $OUT_FORMAT -o \"./output/$ASM_OBJ_OUTPUT\" \"$ASM_FILE\"" >> ./output/${debugFile}-build-last
     nasm -w+all -f $OUT_FORMAT -o "./output/$ASM_OBJ_OUTPUT" "$ASM_FILE" >> ./output/${debugFile}-build-last 2>&1
-    LAST_RETURN_VALUE="$?"
-    echo "-- nasm returned: $LAST_RETURN_VALUE" >> "./output/${debugFile}-build-last"
+    lastReturnValue="$?"
+    echo "-- nasm returned: $lastReturnValue" >> "./output/${debugFile}-build-last"
 }
 
 build_native_darwinarm64() {
     echo "as -v -arch arm64 -o \"./output/$ASM_OBJ_OUTPUT\" \"$ASM_FILE\"" >> ./output/${debugFile}-build-last
     as -v -arch arm64 -o "./output/$ASM_OBJ_OUTPUT" "$ASM_FILE" >> ./output/${debugFile}-build-last 2>&1
-    LAST_RETURN_VALUE="$?"
-    echo "-- as returned: $LAST_RETURN_VALUE" >> "./output/${debugFile}-build-last"
+    lastReturnValue="$?"
+    echo "-- as returned: $lastReturnValue" >> "./output/${debugFile}-build-last"
 }
 
 # For native assembly, we need to first loop through all of the files,
@@ -129,7 +129,7 @@ for ASM_FILE in ./*-"$SEARCH_TARGET"."$FILE_EXTENSION" ./*-All."$FILE_EXTENSION"
         "$BUILD_FUNCTION"
         
         # We exit completely on any failures
-        if [ "$LAST_RETURN_VALUE" -ne 0 ]; then
+        if [ "$lastReturnValue" -ne 0 ]; then
             echo "FAILED BUILD."
             cat ./output/${debugFile}-build-last
             exit 1
@@ -162,13 +162,13 @@ if [ "$doBuild" -eq 1 ]; then
     echo "cd ./output" >> "./${debugFile}-build-last"
     echo "ld -v -r -o \"./$outputFile\" $allOutputs" >> "./${debugFile}-build-last"
     ld -v -r -o "./$outputFile" $allOutputs >> ./${debugFile}-build-last 2>&1
-    LAST_RETURN_VALUE="$?"
-    echo "-- ld returned: $LAST_RETURN_VALUE" >> "./${debugFile}-build-last"
+    lastReturnValue="$?"
+    echo "-- ld returned: $lastReturnValue" >> "./${debugFile}-build-last"
     echo "cd .." >> "./${debugFile}-build-last"
     cd ..
 
     # We exit completely on any failures
-    if [ "$LAST_RETURN_VALUE" -ne 0 ]; then
+    if [ "$lastReturnValue" -ne 0 ]; then
         echo "FAILED BUILD."
         cat ./output/${debugFile}-build-last
         exit 1

@@ -15,6 +15,13 @@ ensure_output_permissions() {
 }
 trap 'ensure_output_permissions' EXIT
 
+scriptDir=$(CDPATH= cd -- "$(dirname "$0")" && pwd -P)
+if [ ! -r "$scriptDir/target-metadata.sh" ]; then
+    echo "Required file missing or unreadable: $scriptDir/target-metadata.sh"
+    exit 78
+fi
+. "$scriptDir/target-metadata.sh" || exit 78
+
 target=$1
 buildTarget=$(printf '%s' "$target" | tr '[:lower:]' '[:upper:]')
 outputFile=$2
@@ -68,34 +75,6 @@ case "$buildTarget" in
         echo "MMIXAL COMPLETE $DO_MMIX_BUILD" >> ./output/mmixal-build-last
     ;;
     
-    "LINUX-X64")
-        ../build-local-native.sh "$target" "$outputFile" "linuxx64"
-    ;;
-    
-    "LINUX-X64-NASM")
-        ../build-local-native.sh "$target" "$outputFile" "linuxx64nasm"
-    ;;
-    
-    "FREEBSD-X64")
-        ../build-local-native.sh "$target" "$outputFile" "freebsdx64"
-    ;;
-    
-    "FREEBSD-X64-NASM")
-        ../build-local-native.sh "$target" "$outputFile" "freebsdx64nasm"
-    ;;
-    
-    "DARWIN-ARM64")
-        ../build-local-native.sh "$target" "$outputFile" "darwinarm64"
-    ;;
-
-    "WINDOWS-X64")
-        ../build-local-native.sh "$target" "$outputFile" "windowsx64"
-    ;;
-
-    "WINDOWS-X64-NASM")
-        ../build-local-native.sh "$target" "$outputFile" "windowsx64nasm"
-    ;;
-
     "CLEAN")
         # If we have a clean target, we just delete the output
         rm -Rf ./output
@@ -106,5 +85,12 @@ case "$buildTarget" in
         exit "$clean_ret"
     ;;
 
-    *) echo "Unknown target specified '$buildTarget'"; exit 2 ;;
+    *)
+        if resolve_stdlib_native_target_metadata "$buildTarget"; then
+            ../build-local-native.sh "$target" "$outputFile" "$stdlibTargetDebugTag"
+        else
+            echo "Unknown target specified '$buildTarget'"
+            exit 2
+        fi
+    ;;
 esac
