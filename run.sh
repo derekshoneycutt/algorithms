@@ -6,6 +6,17 @@
 # to compile the file specified, passing in any other
 # arguments to the code as command line arguments
 
+# Color variables
+red='\033[0;31m'
+green='\033[0;32m'
+yellow='\033[0;33m'
+blue='\033[0;34m'
+normal='\033[0m' # Resets the color to default
+
+# =============================================
+# Help And Usage
+# =============================================
+
 # Print compact examples first so most users can scan quickly.
 print_usage_examples() {
   echo "Examples:"
@@ -149,6 +160,10 @@ print_usage() {
   print_usage_short
 }
 
+# =============================================
+# Language Catalog And Target Resolution
+# =============================================
+
 # Print supported option keys for did-you-mean matching.
 print_option_catalog() {
   cat <<'EOF'
@@ -168,152 +183,96 @@ print_option_catalog() {
 EOF
 }
 
+# One source of truth for language catalog:
+#   language|extension|test-file-template
+get_language_catalog() {
+  cat <<'EOF'
+ada|adb|./output/$fileNameWithoutExt
+arm64asm|s|./output/$fileNameWithoutExt
+asm|asm|./output/$fileNameWithoutExt
+ballerina|bal|./output/$fileNameWithoutExt.jar
+c|c|./output/$fileNameWithoutExt
+clojure|clj|./output/target/uberjar/$fileNameWithoutExt-1.0.0-standalone.jar
+cobol|cob|./output/$fileNameWithoutExt
+cpp|cpp|./output/$fileNameWithoutExt
+csharp|cs|./output/bin/Debug/net10.0/$fileNameWithoutExt
+d|d|./output/$fileNameWithoutExt
+dart|dart|./output/$fileNameWithoutExt
+eiffel|e|./output/EIFGENs/$fileNameWithoutExt/F_code/$fileNameWithoutExt
+elixir|exs|./$fileName
+erlang|erl|./output/$fileNameWithoutExt.beam
+factor|factor|./$fileName
+forth|fth|./$fileName
+fortran|f90|./output/$fileNameWithoutExt
+freebasic|bas|./output/$fileNameWithoutExt
+fsharp|fs|./output/bin/Debug/net10.0/$fileNameWithoutExt
+gleam|gleam|./output/build/dev/erlang/$fileNameWithoutExt/ebin/$fileNameWithoutExt.beam
+go|go|./output/$fileNameWithoutExt
+haskell|hs|./output/$fileNameWithoutExt
+haxe|hx|./$fileName
+icon|icn|./output/$fileNameWithoutExt
+idris|idr|./output/build/exec/$fileNameWithoutExt
+java|java|./output/$fileNameWithoutExt.jar
+javascript|js|./output/$fileName
+julia|jl|./$fileName
+kit|kit|./$fileName
+kotlin|kt|./output/$fileNameWithoutExt.jar
+llvmir|ll|./output/$fileNameWithoutExt
+lua|lua|./output/$fileNameWithoutExt.luac
+mercury|moo|./output/$fileNameWithoutExt
+mmixal|mms|./output/$fileNameWithoutExt.mmo
+modula3|m3|./output/AMD64_LINUX/prog
+mojo|mojo|./output/$fileName
+nasm|nasm|./output/$fileNameWithoutExt
+nim|nim|./output/$fileNameWithoutExt
+oberon|Mod|./output/$fileNameWithoutExt
+objectivec|m|./output/$fileNameWithoutExt
+ocaml|ml|./output/$fileNameWithoutExt
+octave|mat|./output/${fileNameWithoutExt}shaved.m
+pascal|pas|./output/$fileNameWithoutExt
+perl|plx|./output/$fileName
+php|php|./output/$fileName
+prolog|pl|./output/$fileNameWithoutExt
+python|py|./output/$fileName
+r|r|./output/$fileName
+racket|rkt|./output/$fileNameWithoutExt
+ruby|rb|./output/$fileName
+rust|rs|./output/$fileNameWithoutExt
+scala|scala|./output/$fileName
+scheme|scm|./$fileName
+simula|sim|./output/$fileNameWithoutExt
+smalltalk|st|./$fileName
+swift|swift|./output/$fileNameWithoutExt
+tcl|tcl|./$fileName
+typescript|ts|./output/$fileNameWithoutExt.js
+v|v|./output/$fileNameWithoutExt
+visualbasic|vb|./output/bin/Debug/net10.0/$fileNameWithoutExt
+wat|wat|./output/$fileNameWithoutExt.wasm
+zig|zig|./output/$fileNameWithoutExt
+EOF
+}
+
 # Shared language key list used by list/flag helpers.
 get_supported_language_keys() {
-  cat <<'EOF'
-ada
-arm64asm
-asm
-ballerina
-c
-clojure
-cobol
-cpp
-csharp
-d
-dart
-eiffel
-elixir
-erlang
-factor
-forth
-fortran
-freebasic
-fsharp
-gleam
-go
-haskell
-haxe
-icon
-idris
-java
-javascript
-julia
-kit
-kotlin
-llvmir
-lua
-mercury
-mmixal
-modula3
-mojo
-nasm
-nim
-oberon
-objectivec
-ocaml
-octave
-pascal
-perl
-php
-prolog
-python
-r
-racket
-ruby
-rust
-scala
-scheme
-simula
-smalltalk
-swift
-tcl
-typescript
-v
-visualbasic
-wat
-zig
-EOF
+  get_language_catalog | awk -F'|' '{print $1}'
 }
 
 # Return 0 when one language key is supported.
 is_supported_language_key() {
   targetLang="$1"
-  for langKey in $(get_supported_language_keys); do
-    if [ "$langKey" = "$targetLang" ]; then
-      return 0
-    fi
-  done
-  return 1
+  get_language_catalog | awk -F'|' -v lang="$targetLang" '$1 == lang {found=1} END {exit(found ? 0 : 1)}'
 }
 
 # Return primary source extension for one language key.
 get_extension_for_language_key() {
-  case "$1" in
-    ada) printf '%s\n' "adb" ;;
-    arm64asm) printf '%s\n' "s" ;;
-    asm) printf '%s\n' "asm" ;;
-    ballerina) printf '%s\n' "bal" ;;
-    c) printf '%s\n' "c" ;;
-    clojure) printf '%s\n' "clj" ;;
-    cobol) printf '%s\n' "cob" ;;
-    cpp) printf '%s\n' "cpp" ;;
-    csharp) printf '%s\n' "cs" ;;
-    d) printf '%s\n' "d" ;;
-    dart) printf '%s\n' "dart" ;;
-    eiffel) printf '%s\n' "e" ;;
-    elixir) printf '%s\n' "exs" ;;
-    erlang) printf '%s\n' "erl" ;;
-    factor) printf '%s\n' "factor" ;;
-    forth) printf '%s\n' "fth" ;;
-    fortran) printf '%s\n' "f90" ;;
-    freebasic) printf '%s\n' "bas" ;;
-    fsharp) printf '%s\n' "fs" ;;
-    gleam) printf '%s\n' "gleam" ;;
-    go) printf '%s\n' "go" ;;
-    haskell) printf '%s\n' "hs" ;;
-    haxe) printf '%s\n' "hx" ;;
-    icon) printf '%s\n' "icn" ;;
-    idris) printf '%s\n' "idr" ;;
-    java) printf '%s\n' "java" ;;
-    javascript) printf '%s\n' "js" ;;
-    julia) printf '%s\n' "jl" ;;
-    kit) printf '%s\n' "kit" ;;
-    kotlin) printf '%s\n' "kt" ;;
-    llvmir) printf '%s\n' "ll" ;;
-    lua) printf '%s\n' "lua" ;;
-    mercury) printf '%s\n' "moo" ;;
-    mmixal) printf '%s\n' "mms" ;;
-    modula3) printf '%s\n' "m3" ;;
-    mojo) printf '%s\n' "mojo" ;;
-    nasm) printf '%s\n' "nasm" ;;
-    nim) printf '%s\n' "nim" ;;
-    oberon) printf '%s\n' "Mod" ;;
-    objectivec) printf '%s\n' "m" ;;
-    ocaml) printf '%s\n' "ml" ;;
-    octave) printf '%s\n' "mat" ;;
-    pascal) printf '%s\n' "pas" ;;
-    perl) printf '%s\n' "plx" ;;
-    php) printf '%s\n' "php" ;;
-    prolog) printf '%s\n' "pl" ;;
-    python) printf '%s\n' "py" ;;
-    r) printf '%s\n' "r" ;;
-    racket) printf '%s\n' "rkt" ;;
-    ruby) printf '%s\n' "rb" ;;
-    rust) printf '%s\n' "rs" ;;
-    scala) printf '%s\n' "scala" ;;
-    scheme) printf '%s\n' "scm" ;;
-    simula) printf '%s\n' "sim" ;;
-    smalltalk) printf '%s\n' "st" ;;
-    swift) printf '%s\n' "swift" ;;
-    tcl) printf '%s\n' "tcl" ;;
-    typescript) printf '%s\n' "ts" ;;
-    v) printf '%s\n' "v" ;;
-    visualbasic) printf '%s\n' "vb" ;;
-    wat) printf '%s\n' "wat" ;;
-    zig) printf '%s\n' "zig" ;;
-    *) return 1 ;;
-  esac
+  targetLang="$1"
+  get_language_catalog | awk -F'|' -v lang="$targetLang" '$1 == lang {print $2; found=1; exit} END {exit(found ? 0 : 1)}'
+}
+
+# Resolve language and test-file template from source extension.
+get_runtime_binding_for_extension() {
+  targetExt="$1"
+  get_language_catalog | awk -F'|' -v ext="$targetExt" '$2 == ext {print $1 "|" $3; found=1; exit} END {exit(found ? 0 : 1)}'
 }
 
 # Normalize names for lightweight matching (lowercase alphanumeric only).
@@ -419,6 +378,10 @@ resolve_filename_for_language_key() {
   return 1
 }
 
+# =============================================
+# Quick Mode: Flags And Language Grid
+# =============================================
+
 # Read .flag-lang and return success when a language is flagged.
 is_language_flagged() {
   targetLang="$1"
@@ -494,71 +457,80 @@ dir_has_extension() {
 
 # Return success when there is at least one source file for the given language in cwd.
 language_has_source_in_cwd() {
-  case "$1" in
-    ada) dir_has_extension "adb" ;;
-    arm64asm) dir_has_extension "s" ;;
-    asm) dir_has_extension "asm" ;;
-    ballerina) dir_has_extension "bal" ;;
-    c) dir_has_extension "c" ;;
-    clojure) dir_has_extension "clj" ;;
-    cobol) dir_has_extension "cob" ;;
-    cpp) dir_has_extension "cpp" ;;
-    csharp) dir_has_extension "cs" ;;
-    d) dir_has_extension "d" ;;
-    dart) dir_has_extension "dart" ;;
-    eiffel) dir_has_extension "e" ;;
-    elixir) dir_has_extension "exs" ;;
-    erlang) dir_has_extension "erl" ;;
-    factor) dir_has_extension "factor" ;;
-    forth) dir_has_extension "fth" ;;
-    fortran) dir_has_extension "f90" ;;
-    freebasic) dir_has_extension "bas" ;;
-    fsharp) dir_has_extension "fs" ;;
-    gleam) dir_has_extension "gleam" ;;
-    go) dir_has_extension "go" ;;
-    haskell) dir_has_extension "hs" ;;
-    haxe) dir_has_extension "hx" ;;
-    icon) dir_has_extension "icn" ;;
-    idris) dir_has_extension "idr" ;;
-    java) dir_has_extension "java" ;;
-    javascript) dir_has_extension "js" ;;
-    julia) dir_has_extension "jl" ;;
-    kit) dir_has_extension "kit" ;;
-    kotlin) dir_has_extension "kt" ;;
-    llvmir) dir_has_extension "ll" ;;
-    lua) dir_has_extension "lua" ;;
-    mercury) dir_has_extension "moo" ;;
-    mmixal) dir_has_extension "mms" ;;
-    modula3) dir_has_extension "m3" ;;
-    mojo) dir_has_extension "mojo" ;;
-    nasm) dir_has_extension "nasm" ;;
-    nim) dir_has_extension "nim" ;;
-    oberon) dir_has_extension "Mod" ;;
-    objectivec) dir_has_extension "m" ;;
-    ocaml) dir_has_extension "ml" ;;
-    octave) dir_has_extension "mat" ;;
-    pascal) dir_has_extension "pas" ;;
-    perl) dir_has_extension "plx" ;;
-    php) dir_has_extension "php" ;;
-    prolog) dir_has_extension "pl" ;;
-    python) dir_has_extension "py" ;;
-    r) dir_has_extension "r" ;;
-    racket) dir_has_extension "rkt" ;;
-    ruby) dir_has_extension "rb" ;;
-    rust) dir_has_extension "rs" ;;
-    scala) dir_has_extension "scala" ;;
-    scheme) dir_has_extension "scm" ;;
-    simula) dir_has_extension "sim" ;;
-    smalltalk) dir_has_extension "st" ;;
-    swift) dir_has_extension "swift" ;;
-    tcl) dir_has_extension "tcl" ;;
-    typescript) dir_has_extension "ts" ;;
-    v) dir_has_extension "v" ;;
-    visualbasic) dir_has_extension "vb" ;;
-    wat) dir_has_extension "wat" ;;
-    zig) dir_has_extension "zig" ;;
-    *) return 1 ;;
-  esac
+  langExt=$(get_extension_for_language_key "$1") || return 1
+  dir_has_extension "$langExt"
+}
+
+# Print "present flagged" status bits for one language key.
+get_language_grid_status() {
+  statusLang="$1"
+  statusPresent=0
+  statusFlagged=0
+
+  if language_has_source_in_cwd "$statusLang"; then
+    statusPresent=1
+  fi
+  if is_language_flagged "$statusLang"; then
+    statusFlagged=1
+  fi
+
+  printf '%s %s\n' "$statusPresent" "$statusFlagged"
+}
+
+# Return success when a language should be included for the selected grid mode.
+should_include_language_in_grid() {
+  includeMode="$1"
+  includePresent="$2"
+  includeFlagged="$3"
+
+  if [ "$includeMode" = "problems" ] && [ "$includePresent" -eq 1 ] && [ "$includeFlagged" -eq 0 ]; then
+    return 1
+  fi
+  return 0
+}
+
+# Return the visible label length, including flag marker width when present.
+get_language_grid_label_len() {
+  labelLang="$1"
+  labelFlagged="$2"
+
+  labelLen=${#labelLang}
+  if [ "$labelFlagged" -eq 1 ]; then
+    labelLen=$((labelLen + 1))
+  fi
+  printf '%s\n' "$labelLen"
+}
+
+# Print one grid cell for a language with color and optional flag marker.
+print_language_grid_cell() {
+  cellLang="$1"
+  cellPresent="$2"
+  cellFlagged="$3"
+  cellWidth="$4"
+  cellGreen="$5"
+  cellYellow="$6"
+  cellRed="$7"
+  cellNormal="$8"
+
+  if [ "$cellPresent" -eq 1 ]; then
+    cellColor="$cellGreen"
+  else
+    cellColor="$cellYellow"
+  fi
+
+  cellPadding=$((cellWidth - ${#cellLang}))
+  if [ "$cellFlagged" -eq 1 ]; then
+    cellPadding=$((cellPadding - 1))
+  fi
+  if [ "$cellPadding" -lt 0 ]; then
+    cellPadding=0
+  fi
+
+  if [ "$cellFlagged" -eq 1 ]; then
+    printf "  %b%s%b%bF%b%*s" "$cellColor" "$cellLang" "$cellNormal" "$cellRed" "$cellNormal" "$cellPadding" ""
+  else
+    printf "  %b%s%b%*s" "$cellColor" "$cellLang" "$cellNormal" "$cellPadding" ""
+  fi
 }
 
 # Print the supported language list with color indicating source presence in cwd.
@@ -575,22 +547,14 @@ print_language_presence_grid() {
 
   maxLabelLen=0
   for langName in $(get_supported_language_keys); do
-    langPresent=0
-    langFlagged=0
-    if language_has_source_in_cwd "$langName"; then
-      langPresent=1
-    fi
-    if is_language_flagged "$langName"; then
-      langFlagged=1
-    fi
-    if [ "$gridMode" = "problems" ] && [ "$langPresent" -eq 1 ] && [ "$langFlagged" -eq 0 ]; then
+    read -r langPresent langFlagged <<EOF
+$(get_language_grid_status "$langName")
+EOF
+    if ! should_include_language_in_grid "$gridMode" "$langPresent" "$langFlagged"; then
       continue
     fi
 
-    langLen=${#langName}
-    if [ "$langFlagged" -eq 1 ]; then
-      langLen=$((langLen + 1))
-    fi
+    langLen=$(get_language_grid_label_len "$langName" "$langFlagged")
     if [ "$langLen" -gt "$maxLabelLen" ]; then
       maxLabelLen="$langLen"
     fi
@@ -612,34 +576,14 @@ print_language_presence_grid() {
   currentCol=0
   displayedCount=0
   for langName in $(get_supported_language_keys); do
-    langPresent=0
-    langFlagged=0
-    if language_has_source_in_cwd "$langName"; then
-      langPresent=1
-      langColor="$gridGreen"
-    else
-      langColor="$gridYellow"
-    fi
-    if is_language_flagged "$langName"; then
-      langFlagged=1
-    fi
-    if [ "$gridMode" = "problems" ] && [ "$langPresent" -eq 1 ] && [ "$langFlagged" -eq 0 ]; then
+    read -r langPresent langFlagged <<EOF
+$(get_language_grid_status "$langName")
+EOF
+    if ! should_include_language_in_grid "$gridMode" "$langPresent" "$langFlagged"; then
       continue
     fi
 
-    if [ "$langFlagged" -eq 1 ]; then
-      padWidth=$((colWidth - ${#langName} - 1))
-      if [ "$padWidth" -lt 0 ]; then
-        padWidth=0
-      fi
-      printf "  %b%s%b%bF%b%*s" "$langColor" "$langName" "$gridNormal" "$gridRed" "$gridNormal" "$padWidth" ""
-    else
-      padWidth=$((colWidth - ${#langName}))
-      if [ "$padWidth" -lt 0 ]; then
-        padWidth=0
-      fi
-      printf "  %b%s%b%*s" "$langColor" "$langName" "$gridNormal" "$padWidth" ""
-    fi
+    print_language_grid_cell "$langName" "$langPresent" "$langFlagged" "$colWidth" "$gridGreen" "$gridYellow" "$gridRed" "$gridNormal"
 
     displayedCount=$((displayedCount + 1))
     currentCol=$((currentCol + 1))
@@ -659,6 +603,10 @@ print_language_presence_grid() {
   printf "Key: %bpresent%b, %bnot present%b, %bF%b flagged\n" "$gridGreen" "$gridNormal" "$gridYellow" "$gridNormal" "$gridRed" "$gridNormal"
   echo "Hint: use --flag=<language> to mark and --unflag=<language> to clear flags in ./.flag-lang"
 }
+
+# =============================================
+# Did-You-Mean Suggestion Helpers
+# =============================================
 
 # Print supported help topics for did-you-mean matching.
 print_help_topic_catalog() {
@@ -759,57 +707,143 @@ none"
   suggest_from_catalog "$unknownLanguageKey" "$languageCatalog" | head -n 1
 }
 
-sourceProfileOverrideSet=0
-sourceProfileOverridePath=
-checkOnlyMode=0
-checkOnlyRoute="native"
-compileOnlyMode=0
+# =============================================
+# Runtime Helpers: Argument Parsing And Bootstrap
+# =============================================
 
-quickMode=""
-quickModeValue=""
-quickModeIgnoredArgs=""
+# Populate runtime context values after filename resolution.
+initialize_runtime_context_for_selected_file() {
+  fileNameWithoutExt="${fileName%.*}"
+  fileExtension="${fileName##*.}"
+  className=$(echo "$fileNameWithoutExt" | tr '[:lower:]' '[:upper:]')
 
-for rawArg in "$@"; do
-  case "$rawArg" in
-    --list-languages|--list-langauges)
-      if [ -z "$quickMode" ]; then
-        quickMode="list"
-      else
-        quickModeIgnoredArgs="$quickModeIgnoredArgs $rawArg"
+  currentCpuArch=$(uname -m)
+  currentPlatform=$(uname -s)
+  startDir=$PWD
+  dir="${PWD%/*}"
+  packName="${dir##*/}"
+  algoName="${PWD##*/}"
+  moduleName="$(echo "$fileNameWithoutExt" | awk '{print toupper(substr($0,1,1)) substr($0,2)}')"
+
+  hostCpuArch="$currentCpuArch"
+  hostPlatform="$currentPlatform"
+  hostTranslation="n/a"
+  if [ "$currentPlatform" = "Darwin" ] && command -v sysctl > /dev/null 2>&1; then
+    rosetta_state=$(sysctl -in sysctl.proc_translated 2>/dev/null)
+    case "$rosetta_state" in
+      1) hostTranslation="rosetta-translated" ;;
+      0) hostTranslation="native" ;;
+      *) hostTranslation="unknown" ;;
+    esac
+  fi
+}
+
+# Finalize runtime environment config before build/dispatch.
+configure_runtime_environment() {
+  export DEREKALGOS_LAST_COMMAND_OUTPUT_LOG="$lastCommandOutputLog"
+
+  # Decide what date command we're going to use.
+  dateCmd="date"
+  case "$currentPlatform" in
+    "FreeBSD"|"Darwin")
+      if command -v gdate > /dev/null 2>&1; then
+        dateCmd="gdate"
       fi
       ;;
-    --list-problems)
-      if [ -z "$quickMode" ]; then
-        quickMode="problems"
-      else
-        quickModeIgnoredArgs="$quickModeIgnoredArgs $rawArg"
-      fi
-      ;;
-    --flag=*)
-      if [ -z "$quickMode" ]; then
-        quickMode="flag"
-        quickModeValue=${rawArg#--flag=}
-      else
-        quickModeIgnoredArgs="$quickModeIgnoredArgs $rawArg"
-      fi
-      ;;
-    --unflag=*)
-      if [ -z "$quickMode" ]; then
-        quickMode="unflag"
-        quickModeValue=${rawArg#--unflag=}
-      else
-        quickModeIgnoredArgs="$quickModeIgnoredArgs $rawArg"
-      fi
-      ;;
-    *)
-      quickModeIgnoredArgs="$quickModeIgnoredArgs $rawArg"
-      ;;
+    *) ;;
   esac
-done
 
-quickModeIgnoredArgs=$(printf '%s\n' "$quickModeIgnoredArgs" | awk '{$1=$1;print}')
+  # Refresh shell profile.
+  # - Default behavior follows existing platform profile sourcing.
+  # - --source-profile=<path> overrides with a specific profile.
+  # - --source-profile= (empty) disables profile sourcing.
+  profileOutCacheDir="$HOME/.cache/derekalgos"
+  profileOutCache="$profileOutCacheDir/profile.log"
+  mkdir -p "$profileOutCacheDir" || profileOutCache="${TMPDIR:-/tmp}/derekalgos-profile.log"
+  if [ "$sourceProfileOverrideSet" -eq 1 ]; then
+    if [ -n "$sourceProfileOverridePath" ]; then
+      # If profile sourcing fails (missing file, parse error, etc), continue anyway by design.
+      . "$sourceProfileOverridePath" >> "$profileOutCache" 2>&1
+    fi
+  else
+    case "$currentPlatform" in
+      "MINGW64_NT"*) . ~/.bash_profile >> "$profileOutCache" 2>&1 ;;
+      "Linux"*) . ~/.bash_profile >> "$profileOutCache" 2>&1 ;;
+      "FreeBSD") . ~/.profile >> "$profileOutCache" 2>&1 ;;
+      "Darwin") . ~/.zprofile >> "$profileOutCache" 2>&1 ;;
+      *) ;;
+    esac
+  fi
 
-if [ -n "$quickMode" ]; then
+  if [ -n "$DEREKALGOS_TIMEOUT" ]; then
+    timeoutConfig="$DEREKALGOS_TIMEOUT"
+    timeoutFromHost=1
+  fi
+  if [ -z "$timeoutConfig" ]; then
+    timeoutConfig="-k 10s 2m"
+  fi
+  export DEREKALGOS_TIMEOUT="$timeoutConfig"
+
+  detect_time_precision
+
+  repoRootPath=$(resolve_abs_path "$startDir/../../../")
+  startDirFromRepo=
+  case "$startDir" in
+    "$repoRootPath") startDirFromRepo="" ;;
+    "$repoRootPath"/*) startDirFromRepo=${startDir#"$repoRootPath"/} ;;
+    *) startDirFromRepo="" ;;
+  esac
+}
+
+# Scan for quick-mode options in the original argv list.
+scan_quick_mode_from_args() {
+  for rawArg in "$@"; do
+    case "$rawArg" in
+      --list-languages|--list-langauges)
+        if [ -z "$quickMode" ]; then
+          quickMode="list"
+        else
+          quickModeIgnoredArgs="$quickModeIgnoredArgs $rawArg"
+        fi
+        ;;
+      --list-problems)
+        if [ -z "$quickMode" ]; then
+          quickMode="problems"
+        else
+          quickModeIgnoredArgs="$quickModeIgnoredArgs $rawArg"
+        fi
+        ;;
+      --flag=*)
+        if [ -z "$quickMode" ]; then
+          quickMode="flag"
+          quickModeValue=${rawArg#--flag=}
+        else
+          quickModeIgnoredArgs="$quickModeIgnoredArgs $rawArg"
+        fi
+        ;;
+      --unflag=*)
+        if [ -z "$quickMode" ]; then
+          quickMode="unflag"
+          quickModeValue=${rawArg#--unflag=}
+        else
+          quickModeIgnoredArgs="$quickModeIgnoredArgs $rawArg"
+        fi
+        ;;
+      *)
+        quickModeIgnoredArgs="$quickModeIgnoredArgs $rawArg"
+        ;;
+    esac
+  done
+
+  quickModeIgnoredArgs=$(printf '%s\n' "$quickModeIgnoredArgs" | awk '{$1=$1;print}')
+}
+
+# Execute quick mode when requested; exits on completion.
+maybe_handle_quick_mode_and_exit() {
+  if [ -z "$quickMode" ]; then
+    return 0
+  fi
+
   if [ -n "$quickModeIgnoredArgs" ]; then
     case "$quickMode" in
       list) echo "WARNING: --list-languages ignores all other arguments/options. Ignored: $quickModeIgnoredArgs" >&2 ;;
@@ -879,124 +913,113 @@ if [ -n "$quickMode" ]; then
       exit 0
       ;;
   esac
-fi
+}
 
-while [ $# -ge 1 ]; do
-  case "$1" in
-    --source-profile=*)
-      sourceProfileOverrideSet=1
-      sourceProfileOverridePath=${1#--source-profile=}
-      shift 1
-      ;;
-    --check-only)
-      checkOnlyMode=1
-      checkOnlyRoute="native"
-      shift 1
-      ;;
-    --check-only=*)
-      checkOnlyMode=1
-      checkOnlyRoute=${1#--check-only=}
-      if [ -z "$checkOnlyRoute" ]; then
+# Parse non-quick options and count consumed option args.
+parse_standard_cli_options_or_exit() {
+  parsedCliArgCount=0
+
+  while [ $# -ge 1 ]; do
+    case "$1" in
+      --source-profile=*)
+        sourceProfileOverrideSet=1
+        sourceProfileOverridePath=${1#--source-profile=}
+        parsedCliArgCount=$((parsedCliArgCount + 1))
+        shift 1
+        ;;
+      --check-only)
+        checkOnlyMode=1
         checkOnlyRoute="native"
-      fi
-      shift 1
-      ;;
-    --compile-only)
-      compileOnlyMode=1
-      shift 1
-      ;;
-    --help|-h)
-      print_usage_short
-      exit 0
-      ;;
-    --help-all)
-      print_usage_full
-      exit 0
-      ;;
-    --help=*)
-      helpTopic=${1#--help=}
-      if ! print_usage_topic "$helpTopic"; then
-        exit 64
-      fi
-      exit 0
-      ;;
-    *)
-      if [ "${1#--}" != "$1" ]; then
-        echo "Unknown option: $1" >&2
-        optionSuggestion=$(suggest_option_for_unknown "$1")
-        if [ -n "$optionSuggestion" ]; then
-          echo "Did you mean: $optionSuggestion" >&2
+        parsedCliArgCount=$((parsedCliArgCount + 1))
+        shift 1
+        ;;
+      --check-only=*)
+        checkOnlyMode=1
+        checkOnlyRoute=${1#--check-only=}
+        if [ -z "$checkOnlyRoute" ]; then
+          checkOnlyRoute="native"
         fi
-        exit 64
-      fi
-      break
-      ;;
-  esac
-done
+        parsedCliArgCount=$((parsedCliArgCount + 1))
+        shift 1
+        ;;
+      --compile-only)
+        compileOnlyMode=1
+        parsedCliArgCount=$((parsedCliArgCount + 1))
+        shift 1
+        ;;
+      --help|-h)
+        print_usage_short
+        exit 0
+        ;;
+      --help-all)
+        print_usage_full
+        exit 0
+        ;;
+      --help=*)
+        helpTopic=${1#--help=}
+        if ! print_usage_topic "$helpTopic"; then
+          exit 64
+        fi
+        exit 0
+        ;;
+      *)
+        if [ "${1#--}" != "$1" ]; then
+          echo "Unknown option: $1" >&2
+          optionSuggestion=$(suggest_option_for_unknown "$1")
+          if [ -n "$optionSuggestion" ]; then
+            echo "Did you mean: $optionSuggestion" >&2
+          fi
+          exit 64
+        fi
+        break
+        ;;
+    esac
+  done
 
-if [ $# -lt 1 ]; then
-  print_usage
-  exit 64
-fi
-
-case "$checkOnlyRoute" in
-  "native"|"docker"|"ssh") ;;
-  *)
-    echo "Unsupported check-only route '$checkOnlyRoute' (expected: native, docker, or ssh)." >&2
-    routeSuggestion=$(suggest_check_only_route_for_unknown "$checkOnlyRoute")
-    if [ -n "$routeSuggestion" ]; then
-      echo "Did you mean: --check-only=$routeSuggestion" >&2
-    fi
-    exit 64
-    ;;
-esac
-if [ "$checkOnlyMode" -eq 1 ]; then
-  compileOnlyMode=0
-fi
-
-firstArg="$1"
-firstArgLower=$(printf '%s' "$firstArg" | tr '[:upper:]' '[:lower:]')
-if is_supported_language_key "$firstArgLower"; then
-  resolvedFileName=$(resolve_filename_for_language_key "$firstArgLower")
-  if [ -z "$resolvedFileName" ]; then
+  if [ $# -lt 1 ]; then
+    print_usage
     exit 64
   fi
-  fileName="$resolvedFileName"
-else
-  fileName="$firstArg"
-fi
-fileNameWithoutExt="${fileName%.*}"
-fileExtension="${fileName##*.}"
-className=$(echo "$fileNameWithoutExt" | tr '[:lower:]' '[:upper:]')
-shift 1
-currentCpuArch=$(uname -m)
-currentPlatform=$(uname -s)
-startDir=$PWD
-dir="${PWD%/*}"
-packName="${dir##*/}"
-algoName="${PWD##*/}"
-moduleName="$(echo "$fileNameWithoutExt" | awk '{print toupper(substr($0,1,1)) substr($0,2)}')"
-lang=
-testFile=
-destroyOutput=0
-lastCommandOutputLog="${DEREKALGOS_LAST_COMMAND_OUTPUT_LOG:-./output/last-command-output.log}"
-timeoutConfig="${DEREKALGOS_TIMEOUT}"
-timeoutFromHost=0
-if [ -n "$timeoutConfig" ]; then
-  timeoutFromHost=1
-fi
-timePrecisionUnit="ms"
-hostCpuArch="$currentCpuArch"
-hostPlatform="$currentPlatform"
-hostTranslation="n/a"
-if [ "$currentPlatform" = "Darwin" ] && command -v sysctl > /dev/null 2>&1; then
-  rosetta_state=$(sysctl -in sysctl.proc_translated 2>/dev/null)
-  case "$rosetta_state" in
-    1) hostTranslation="rosetta-translated" ;;
-    0) hostTranslation="native" ;;
-    *) hostTranslation="unknown" ;;
+}
+
+# Validate route controls and normalize check-only/compile-only interactions.
+validate_execution_route_controls_or_exit() {
+  case "$checkOnlyRoute" in
+    "native"|"docker"|"ssh") ;;
+    *)
+      echo "Unsupported check-only route '$checkOnlyRoute' (expected: native, docker, or ssh)." >&2
+      routeSuggestion=$(suggest_check_only_route_for_unknown "$checkOnlyRoute")
+      if [ -n "$routeSuggestion" ]; then
+        echo "Did you mean: --check-only=$routeSuggestion" >&2
+      fi
+      exit 64
+      ;;
   esac
-fi
+
+  if [ "$checkOnlyMode" -eq 1 ]; then
+    compileOnlyMode=0
+  fi
+}
+
+# Resolve filename from first positional arg (language key or explicit file).
+resolve_target_filename_or_exit() {
+  resolveTargetArg="$1"
+  resolveTargetLower=$(printf '%s' "$resolveTargetArg" | tr '[:upper:]' '[:lower:]')
+
+  if is_supported_language_key "$resolveTargetLower"; then
+    resolvedFileName=$(resolve_filename_for_language_key "$resolveTargetLower")
+    if [ -z "$resolvedFileName" ]; then
+      exit 64
+    fi
+    fileName="$resolvedFileName"
+  else
+    fileName="$resolveTargetArg"
+  fi
+}
+
+# =============================================
+# Runtime Helpers: Logging, Routing, And Utilities
+# =============================================
 
 # Initialize and write the run header to the command output log.
 init_last_command_output_log() {
@@ -1042,50 +1065,6 @@ init_last_command_output_log() {
   export DEREKALGOS_LAST_COMMAND_OUTPUT_ACTIVE=1
 }
 
-export DEREKALGOS_LAST_COMMAND_OUTPUT_LOG="$lastCommandOutputLog"
-
-# Decide what date command we're going to use.
-dateCmd="date"
-case "$currentPlatform" in
-  "FreeBSD"|"Darwin")
-    if command -v gdate > /dev/null 2>&1; then
-      dateCmd="gdate"
-    fi
-    ;;
-  *) ;;
-esac
-
-# Refresh shell profile.
-# - Default behavior follows existing platform profile sourcing.
-# - --source-profile=<path> overrides with a specific profile.
-# - --source-profile= (empty) disables profile sourcing.
-profileOutCacheDir="$HOME/.cache/derekalgos"
-profileOutCache="$profileOutCacheDir/profile.log"
-mkdir -p "$profileOutCacheDir" || profileOutCache="${TMPDIR:-/tmp}/derekalgos-profile.log"
-if [ "$sourceProfileOverrideSet" -eq 1 ]; then
-  if [ -n "$sourceProfileOverridePath" ]; then
-    # If profile sourcing fails (missing file, parse error, etc), continue anyway by design.
-    . "$sourceProfileOverridePath" >> "$profileOutCache" 2>&1
-  fi
-else
-  case "$currentPlatform" in
-    "MINGW64_NT"*) . ~/.bash_profile >> "$profileOutCache" 2>&1 ;;
-    "Linux"*) . ~/.bash_profile >> "$profileOutCache" 2>&1 ;;
-    "FreeBSD") . ~/.profile >> "$profileOutCache" 2>&1 ;;
-    "Darwin") . ~/.zprofile >> "$profileOutCache" 2>&1 ;;
-    *) ;;
-  esac
-fi
-
-if [ -n "$DEREKALGOS_TIMEOUT" ]; then
-  timeoutConfig="$DEREKALGOS_TIMEOUT"
-  timeoutFromHost=1
-fi
-if [ -z "$timeoutConfig" ]; then
-  timeoutConfig="-k 10s 2m"
-fi
-export DEREKALGOS_TIMEOUT="$timeoutConfig"
-
 # Detect whether the local date command supports millisecond precision.
 detect_time_precision() {
   ms_sample=$($dateCmd +%s%3N 2>/dev/null)
@@ -1098,7 +1077,6 @@ detect_time_precision() {
       ;;
   esac
 }
-detect_time_precision
 
 # Return current time in detected precision units.
 get_ms_time() {
@@ -1204,14 +1182,6 @@ resolve_abs_path() {
   fi
 }
 
-repoRootPath=$(resolve_abs_path "$startDir/../../../")
-startDirFromRepo=
-case "$startDir" in
-  "$repoRootPath") startDirFromRepo="" ;;
-  "$repoRootPath"/*) startDirFromRepo=${startDir#"$repoRootPath"/} ;;
-  *) startDirFromRepo="" ;;
-esac
-
 
 # Archive the final run inputs and output log to repository-level logs.
 generate_random_hex_suffix() {
@@ -1254,6 +1224,11 @@ add_stdlib_prebuilt_archive_or_marker() {
   fi
 
   mkdir -p "$startDir/output"
+
+# =============================================
+# Archive And Log Capture Helpers
+# =============================================
+
   missingMarkerBase="stdlib-prebuilt-archive-missing-${stdlibTarget}.txt"
   missingMarkerAbs="$startDir/output/$missingMarkerBase"
   {
@@ -1478,6 +1453,10 @@ flush_output_to_logs() {
   fi
 }
 
+# =============================================
+# Timeout Helpers
+# =============================================
+
 # Validate timeout tokens like 10s, 2m, 1h, or 1d.
 is_valid_duration_token() {
   duration_token="$1"
@@ -1621,12 +1600,221 @@ run_with_log_and_timeout() {
   return "$?"
 }
 
-# Color variables
-red='\033[0;31m'
-green='\033[0;32m'
-yellow='\033[0;33m'
-blue='\033[0;34m'
-normal='\033[0m' # Resets the color to default
+# =============================================
+# Assembly Shared Build Helpers
+# =============================================
+
+# Return success when source should rebuild object output.
+should_rebuild_object_for_source() {
+  objectPath="$1"
+  if [ ! -f "$objectPath" ]; then
+    return 0
+  fi
+  if [ -n "$(find "$fileName" -prune -newer "$objectPath" 2>/dev/null)" ]; then
+    return 0
+  fi
+  return 1
+}
+
+# Return success when executable should be linked.
+should_link_executable_for_stdlib() {
+  binaryPath="$1"
+  stdlibPath="$2"
+  if [ ! -f "$binaryPath" ]; then
+    return 0
+  fi
+  if [ -n "$(find "$stdlibPath" -prune -newer "$binaryPath" 2>/dev/null)" ]; then
+    return 0
+  fi
+  return 1
+}
+
+# Run a command and preserve its return code for caller-side chaining.
+run_or_return() {
+  "$@"
+  runOrReturnRet="$?"
+  return "$runOrReturnRet"
+}
+
+# Build stdlib for assembly-family languages and merge logs.
+build_assembly_stdlib_and_merge_log() {
+  asmBuildLabel="$1"
+  asmBuildLogPath="$2"
+  asmPlatform="$3"
+  asmPlatformOutputTag="$4"
+  asmBuildContext="$5"
+
+  echo "Building ${asmBuildLabel}..." > "$asmBuildLogPath"
+  echo "Building ${asmBuildLabel} Standard Library..." >> "$asmBuildLogPath"
+  cp "./$fileName" ./output/
+
+  cd ../../../stdlib || {
+    echo "Failed to cd into stdlib for ${asmBuildContext} build" >> "$startDir/$asmBuildLogPath"
+    return 1
+  }
+  ./build.sh "$asmPlatform" >> "$startDir/$asmBuildLogPath" 2>&1
+  retValue="$?"
+  cd "$startDir" || {
+    echo "Failed to return to start directory: $startDir" >> "$startDir/$asmBuildLogPath"
+    return 1
+  }
+  if [ "$retValue" -ne 0 ]; then
+    return "$retValue"
+  fi
+
+  cat "../../../stdlib/output/${asmPlatformOutputTag}-build-last" >> "$asmBuildLogPath"
+  asmLogMergeRet="$?"
+  if [ "$asmLogMergeRet" -ne 0 ]; then
+    echo "WARNING: failed to append stdlib build log to $asmBuildLogPath (returned $asmLogMergeRet)" >&2
+  fi
+
+  return 0
+}
+
+# Resolve x64 assembly-family platform labels for compile paths.
+resolve_x64_assembly_platform() {
+  x64BuildKind="$1"
+  x64BuildLogPath="$2"
+  x64PlatformSuffix="$3"
+  x64OutputSuffix="$4"
+
+  platform="$currentPlatform"
+  platform_output=
+  case "$platform" in
+    "MINGW64_NT"*)
+      platform="Windows"
+      platform_output="windows"
+      ;;
+    "Linux"*)
+      platform="Linux"
+      platform_output="linux"
+      ;;
+    "FreeBSD"*)
+      platform="FreeBSD"
+      platform_output="freebsd"
+      ;;
+    *)
+      echo "Unrecognized Platform for ${x64BuildKind} Builds" > "$x64BuildLogPath"
+      return 1
+      ;;
+  esac
+
+  case "$currentCpuArch" in
+    "x86_64"|"amd64")
+      platform="${platform}${x64PlatformSuffix}"
+      platform_output="${platform_output}${x64OutputSuffix}"
+      ;;
+    *)
+      echo "Unrecognized CPU Architecture for ${x64BuildKind} Builds" > "$x64BuildLogPath"
+      return 1
+      ;;
+  esac
+
+  return 0
+}
+
+# Build x64 assembly-family object output for asm or nasm.
+build_x64_assembly_object_output() {
+  objectBuildKind="$1"
+  objectBuildLogPath="$2"
+  objectBuildPlatform="$3"
+
+  case "$objectBuildKind" in
+    "asm")
+      case "$objectBuildPlatform" in
+        "Windows-x64")
+          echo "as -v --defsym WINDOWS=1 -o \"./output/$fileNameWithoutExt.o\" \"$fileName\"" >> "$objectBuildLogPath"
+          as -v --defsym WINDOWS=1 -o "./output/$fileNameWithoutExt.o" "$fileName" >> "$objectBuildLogPath" 2>&1
+          retValue="$?"
+          ;;
+        *)
+          echo "as -v --defsym WINDOWS=0 -o \"./output/$fileNameWithoutExt.o\" \"$fileName\"" >> "$objectBuildLogPath"
+          as -v --defsym WINDOWS=0 -o "./output/$fileNameWithoutExt.o" "$fileName" >> "$objectBuildLogPath" 2>&1
+          retValue="$?"
+          ;;
+      esac
+      echo "-- as returned: $retValue" >> "$objectBuildLogPath"
+      ;;
+    "nasm")
+      case "$objectBuildPlatform" in
+        "Windows-x64-nasm")
+          echo "nasm -w+all -f win64 -o \"./output/$fileNameWithoutExt.o\" \"$fileName\"" >> "$objectBuildLogPath"
+          nasm -w+all -f win64 -o "./output/$fileNameWithoutExt.o" "$fileName" >> "$objectBuildLogPath" 2>&1
+          retValue="$?"
+          ;;
+        *)
+          echo "nasm -w+all -f elf64 -o \"./output/$fileNameWithoutExt.o\" \"$fileName\"" >> "$objectBuildLogPath"
+          nasm -w+all -f elf64 -o "./output/$fileNameWithoutExt.o" "$fileName" >> "$objectBuildLogPath" 2>&1
+          retValue="$?"
+          ;;
+      esac
+      echo "-- nasm returned: $retValue" >> "$objectBuildLogPath"
+      ;;
+    *)
+      echo "Unsupported x64 object build kind '$objectBuildKind'" >> "$objectBuildLogPath"
+      return 1
+      ;;
+  esac
+
+  if [ "$retValue" -ne 0 ]; then
+    return "$retValue"
+  fi
+  return 0
+}
+
+# Link x64 assembly-family executable output.
+link_x64_assembly_binary_output() {
+  linkBuildLogPath="$1"
+  linkBuildPlatform="$2"
+  linkBuildStdlib="$3"
+
+  case "$linkBuildPlatform" in
+    "Windows-x64"|"Windows-x64-nasm")
+      echo "ld -v -e _start -o \"./output/$fileNameWithoutExt\" \"./output/$fileNameWithoutExt.o\" \"$linkBuildStdlib\" -L \"$LD_ADDITIONAL_DIRECTORY\" -lkernel32 -lshell32" >> "$linkBuildLogPath"
+      ld -v -e _start -o "./output/$fileNameWithoutExt" "./output/$fileNameWithoutExt.o" "$linkBuildStdlib" -L "$LD_ADDITIONAL_DIRECTORY" -lkernel32 -lshell32 >> "$linkBuildLogPath" 2>&1
+      retValue="$?"
+      ;;
+    *)
+      echo "ld -v -o \"./output/$fileNameWithoutExt\" \"./output/$fileNameWithoutExt.o\" \"$linkBuildStdlib\"" >> "$linkBuildLogPath"
+      ld -v -o "./output/$fileNameWithoutExt" "./output/$fileNameWithoutExt.o" "$linkBuildStdlib" >> "$linkBuildLogPath" 2>&1
+      retValue="$?"
+      ;;
+  esac
+  echo "-- ld returned: $retValue" >> "$linkBuildLogPath"
+  if [ "$retValue" -ne 0 ]; then
+    return "$retValue"
+  fi
+  return 0
+}
+
+# Build arm64 assembly object output.
+build_arm64_assembly_object_output() {
+  arm64ObjectBuildLogPath="$1"
+
+  echo "as -v -arch arm64 -o \"./output/$fileNameWithoutExt.o\" \"$fileName\"" >> "$arm64ObjectBuildLogPath"
+  as -v -arch arm64 -o "./output/$fileNameWithoutExt.o" "$fileName" >> "$arm64ObjectBuildLogPath" 2>&1
+  retValue="$?"
+  echo "-- as returned: $retValue" >> "$arm64ObjectBuildLogPath"
+  if [ "$retValue" -ne 0 ]; then
+    return "$retValue"
+  fi
+  return 0
+}
+
+# Link arm64 assembly executable output.
+link_arm64_assembly_binary_output() {
+  arm64LinkBuildLogPath="$1"
+  arm64LinkBuildStdlib="$2"
+
+  echo "ld -v -e _start -arch arm64 -o \"./output/$fileNameWithoutExt\" \"./output/$fileNameWithoutExt.o\" \"$arm64LinkBuildStdlib\" -lSystem -syslibroot $(xcrun -sdk macosx --show-sdk-path)" >> "$arm64LinkBuildLogPath"
+  ld -v -e _start -arch arm64 -o "./output/$fileNameWithoutExt" "./output/$fileNameWithoutExt.o" "$arm64LinkBuildStdlib" -lSystem -syslibroot $(xcrun -sdk macosx --show-sdk-path) >> "$arm64LinkBuildLogPath" 2>&1
+  retValue="$?"
+  echo "-- ld returned: $retValue" >> "$arm64LinkBuildLogPath"
+  if [ "$retValue" -ne 0 ]; then
+    return "$retValue"
+  fi
+  return 0
+}
 
 # The first section, each language that we support needs to have
 # a lang_compile and lang_run. This will be called when a file of
@@ -1680,58 +1868,25 @@ arm64asm_compile() {
       ;;
   esac
 
-  # First go into stdlib and build the standard library ;)
-  #   Only build if there's new changes to be built
-  echo "Building Assembly..." > ./output/arm64asm-build-last
-  echo "Building Assembly Standard Library..." >> ./output/arm64asm-build-last
-  cp "./$fileName" ./output/
-  cd ../../../stdlib || { echo "Failed to cd into stdlib for arm64asm build" >> "$startDir/output/arm64asm-build-last"; return 1; }
-  ./build.sh "$platform" >> "$startDir/output/arm64asm-build-last" 2>&1
-  retValue="$?"
-  cd "$startDir" || { echo "Failed to return to start directory: $startDir" >> "$startDir/output/arm64asm-build-last"; return 1; }
-  if [ $retValue -ne 0 ]; then
-    return $retValue
-  fi
-  cat "../../../stdlib/output/${platform_output}-build-last" >> ./output/arm64asm-build-last
-  arm64_log_merge_ret="$?"
-  if [ "$arm64_log_merge_ret" -ne 0 ]; then
-    echo "WARNING: failed to append stdlib build log to ./output/arm64asm-build-last (returned $arm64_log_merge_ret)" >&2
-  fi
+  run_or_return build_assembly_stdlib_and_merge_log "Assembly" "./output/arm64asm-build-last" "$platform" "$platform_output" "arm64asm" || return "$?"
   stdlib="../../../stdlib/output/stdlib-${platform}.o"
 
   # Now we build our actual output, linking to the standard library
   #   Only build if there's new changes to be built
   echo "Building Assembly file..." >> ./output/arm64asm-build-last
   do_build=0
-  if [ ! -f "./output/$fileNameWithoutExt.o" ]; then
-    do_build=1
-  elif [ -n "$(find "$fileName" -prune -newer "./output/$fileNameWithoutExt.o" 2>/dev/null)" ]; then
+  if should_rebuild_object_for_source "./output/$fileNameWithoutExt.o"; then
     do_build=1
   fi
   if [ "$do_build" -eq 1 ]; then
-    echo "as -v -arch arm64 -o \"./output/$fileNameWithoutExt.o\" \"$fileName\"" >> ./output/arm64asm-build-last
-    as -v -arch arm64 -o "./output/$fileNameWithoutExt.o" "$fileName" >> ./output/arm64asm-build-last 2>&1
-    retValue="$?"
-        
-    echo "-- as returned: $retValue" >> ./output/arm64asm-build-last
-    if [ "$retValue" -ne 0 ]; then
-      return $retValue
-    fi
+    run_or_return build_arm64_assembly_object_output "./output/arm64asm-build-last" || return "$?"
     do_link=1
   fi
-  if [ ! -f "./output/$fileNameWithoutExt" ]; then
-    do_link=1
-  elif [ -n "$(find "$stdlib" -prune -newer "./output/$fileNameWithoutExt" 2>/dev/null)" ]; then
+  if should_link_executable_for_stdlib "./output/$fileNameWithoutExt" "$stdlib"; then
     do_link=1
   fi
   if [ "$do_link" -eq 1 ]; then
-    echo "ld -v -e _start -arch arm64 -o \"./output/$fileNameWithoutExt\" \"./output/$fileNameWithoutExt.o\" \"$stdlib\" -lSystem -syslibroot $(xcrun -sdk macosx --show-sdk-path)" >> ./output/arm64asm-build-last
-    ld -v -e _start -arch arm64 -o "./output/$fileNameWithoutExt" "./output/$fileNameWithoutExt.o" "$stdlib" -lSystem -syslibroot $(xcrun -sdk macosx --show-sdk-path) >> ./output/arm64asm-build-last 2>&1
-    retValue="$?"
-    echo "-- ld returned: $retValue" >> ./output/arm64asm-build-last
-    if [ "$retValue" -ne 0 ]; then
-      return $retValue
-    fi
+    run_or_return link_arm64_assembly_binary_output "./output/arm64asm-build-last" "$stdlib" || return "$?"
   fi
   return "$retValue"
 }
@@ -1757,110 +1912,27 @@ arm64asm_archive() {
 # =============================================
 asm_compile() {
   do_link=0
-  platform="$currentPlatform"
-  platform_output=
-  case "$platform" in
-    "MINGW64_NT"*)
-      platform="Windows"
-      platform_output="windows"
-    ;;
-    "Linux"*)
-      platform="Linux"
-      platform_output="linux"
-    ;;
-    "FreeBSD"*)
-      platform="FreeBSD"
-      platform_output="freebsd"
-    ;;
-    *)
-      echo "Unrecognized Platform for Assembly Builds" > ./output/asm-build-last
-      return 1
-    ;;
-  esac
-  case "$currentCpuArch" in
-    "x86_64")
-      platform="${platform}-x64"
-      platform_output="${platform_output}x64"
-      ;;
-    "amd64")
-      platform="${platform}-x64"
-      platform_output="${platform_output}x64"
-      ;;
-    *)
-      echo "Unrecognized CPU Architecture for Assembly Builds" > ./output/asm-build-last
-      return 1
-      ;;
-  esac
+  run_or_return resolve_x64_assembly_platform "Assembly" "./output/asm-build-last" "-x64" "x64" || return "$?"
 
-  # First go into stdlib and build the standard library ;)
-  #   Only build if there's new changes to be built
-  echo "Building Assembly..." > ./output/asm-build-last
-  echo "Building Assembly Standard Library..." >> ./output/asm-build-last
-  cp "./$fileName" ./output/
-  cd ../../../stdlib || { echo "Failed to cd into stdlib for asm build" >> "$startDir/output/asm-build-last"; return 1; }
-  ./build.sh "$platform" >> "$startDir/output/asm-build-last" 2>&1
-  retValue="$?"
-  cd "$startDir" || { echo "Failed to return to start directory: $startDir" >> "$startDir/output/asm-build-last"; return 1; }
-  if [ $retValue -ne 0 ]; then
-    return $retValue
-  fi
-  cat "../../../stdlib/output/${platform_output}-build-last" >> ./output/asm-build-last
-  asm_log_merge_ret="$?"
-  if [ "$asm_log_merge_ret" -ne 0 ]; then
-    echo "WARNING: failed to append stdlib build log to ./output/asm-build-last (returned $asm_log_merge_ret)" >&2
-  fi
+  run_or_return build_assembly_stdlib_and_merge_log "Assembly" "./output/asm-build-last" "$platform" "$platform_output" "asm" || return "$?"
   stdlib="../../../stdlib/output/stdlib-${platform}.o"
 
   # Now we build our actual output, linking to the standard library
   #   Only build if there's new changes to be built
   echo "Building Assembly file..." >> ./output/asm-build-last
   do_build=0
-  if [ ! -f "./output/$fileNameWithoutExt.o" ]; then
-    do_build=1
-  elif [ -n "$(find "$fileName" -prune -newer "./output/$fileNameWithoutExt.o" 2>/dev/null)" ]; then
+  if should_rebuild_object_for_source "./output/$fileNameWithoutExt.o"; then
     do_build=1
   fi
   if [ "$do_build" -eq 1 ]; then
-    case "$platform" in
-      "Windows-x64")
-        echo "as -v --defsym WINDOWS=1 -o \"./output/$fileNameWithoutExt.o\" \"$fileName\"" >> ./output/asm-build-last
-        as -v --defsym WINDOWS=1 -o "./output/$fileNameWithoutExt.o" "$fileName" >> ./output/asm-build-last 2>&1
-        retValue="$?"
-      ;;
-      *)
-        echo "as -v --defsym WINDOWS=0 -o \"./output/$fileNameWithoutExt.o\" \"$fileName\"" >> ./output/asm-build-last
-        as -v --defsym WINDOWS=0 -o "./output/$fileNameWithoutExt.o" "$fileName" >> ./output/asm-build-last 2>&1
-        retValue="$?"
-      ;;
-    esac
-    echo "-- as returned: $retValue" >> ./output/asm-build-last
-    if [ "$retValue" -ne 0 ]; then
-      return $retValue
-    fi
+    run_or_return build_x64_assembly_object_output "asm" "./output/asm-build-last" "$platform" || return "$?"
     do_link=1
   fi
-  if [ ! -f "./output/$fileNameWithoutExt" ]; then
-    do_link=1
-  elif [ -n "$(find "$stdlib" -prune -newer "./output/$fileNameWithoutExt" 2>/dev/null)" ]; then
+  if should_link_executable_for_stdlib "./output/$fileNameWithoutExt" "$stdlib"; then
     do_link=1
   fi
   if [ "$do_link" -eq 1 ]; then
-    case "$platform" in
-      "Windows-x64")
-        echo "ld -v -e _start -o \"./output/$fileNameWithoutExt\" \"./output/$fileNameWithoutExt.o\" \"$stdlib\" -L \"$LD_ADDITIONAL_DIRECTORY\" -lkernel32 -lshell32" >> ./output/asm-build-last
-        ld -v -e _start -o "./output/$fileNameWithoutExt" "./output/$fileNameWithoutExt.o" "$stdlib" -L "$LD_ADDITIONAL_DIRECTORY" -lkernel32 -lshell32 >> ./output/asm-build-last 2>&1
-        retValue="$?"
-      ;;
-      *)
-        echo "ld -v -o \"./output/$fileNameWithoutExt\" \"./output/$fileNameWithoutExt.o\" \"$stdlib\"" >> ./output/asm-build-last
-        ld -v -o "./output/$fileNameWithoutExt" "./output/$fileNameWithoutExt.o" "$stdlib" >> ./output/asm-build-last 2>&1
-        retValue="$?"
-      ;;
-    esac
-    echo "-- ld returned: $retValue" >> ./output/asm-build-last
-    if [ "$retValue" -ne 0 ]; then
-      return $retValue
-    fi
+    run_or_return link_x64_assembly_binary_output "./output/asm-build-last" "$platform" "$stdlib" || return "$?"
   fi
   return "$retValue"
 }
@@ -1895,8 +1967,8 @@ ballerina_compile() {
   cp "$fileName" ./output/
   cd ./output
 
-  echo "bal build -v \"$fileName\"" > ./ballerina-build-last
-  bal build -v "$fileName" >> ./ballerina-build-last  2>&1
+  echo "bal build \"$fileName\"" > ./ballerina-build-last
+  bal build "$fileName" >> ./ballerina-build-last  2>&1
   retValue="$?"
   echo "-- bal returned: $retValue" >> ./ballerina-build-last
 
@@ -2322,9 +2394,9 @@ gleam_compile() {
     get_variabled_string "$template_content" > "./output/manifest.toml"
   fi
 
-  echo "gleam build --verbose \"$fileNameWithoutExt\"" > ./output/gleam-build-last
+  echo "gleam build \"$fileNameWithoutExt\"" > ./output/gleam-build-last
   cd ./output
-  gleam build --verbose >> ./gleam-build-last 2>&1
+  gleam build >> ./gleam-build-last 2>&1
   retValue="$?"
   echo "-- gleam returned: $retValue" >> ./gleam-build-last
   cd ../
@@ -2400,8 +2472,8 @@ haxe_archive() {
 icon_compile() {
   cp "./$fileName" ./output/
   cd ./output
-  echo "icont -v \"./$fileName\"" > ./icon-build-last
-  icont -v "./$fileName" >> ./icon-build-last 2>&1
+  echo "icont \"./$fileName\"" > ./icon-build-last
+  icont "./$fileName" >> ./icon-build-last 2>&1
   retValue="$?"
   echo "-- icont returned: $retValue" >> ./icon-build-last
   cd ..
@@ -2748,110 +2820,27 @@ mojo_archive() {
 # =============================================
 nasm_compile() {
   do_link=0
-  platform="$currentPlatform"
-  platform_output=
-  case "$platform" in
-    "MINGW64_NT"*)
-      platform="Windows"
-      platform_output="windows"
-    ;;
-    "Linux"*)
-      platform="Linux"
-      platform_output="linux"
-    ;;
-    "FreeBSD"*)
-      platform="FreeBSD"
-      platform_output="freebsd"
-    ;;
-    *)
-      echo "Unrecognized Platform for NASM Builds" > ./output/nasm-build-last
-      return 1
-    ;;
-  esac
-  case "$currentCpuArch" in
-    "x86_64")
-      platform="${platform}-x64-nasm"
-      platform_output="${platform_output}x64nasm"
-      ;;
-    "amd64")
-      platform="${platform}-x64-nasm"
-      platform_output="${platform_output}x64nasm"
-      ;;
-    *)
-      echo "Unrecognized CPU Architecture for NASM Builds" > ./output/nasm-build-last
-      return 1
-      ;;
-  esac
+  run_or_return resolve_x64_assembly_platform "NASM" "./output/nasm-build-last" "-x64-nasm" "x64nasm" || return "$?"
 
-  # First go into stdlib and build the standard library ;)
-  #   Only build if there's new changes to be built
-  echo "Building NASM..." > ./output/nasm-build-last
-  echo "Building NASM Standard Library..." >> ./output/nasm-build-last
-  cp "./$fileName" ./output/
-  cd ../../../stdlib || { echo "Failed to cd into stdlib for nasm build" >> "$startDir/output/nasm-build-last"; return 1; }
-  ./build.sh "$platform" >> "$startDir/output/nasm-build-last" 2>&1
-  retValue="$?"
-  cd "$startDir" || { echo "Failed to return to start directory: $startDir" >> "$startDir/output/nasm-build-last"; return 1; }
-  if [ $retValue -ne 0 ]; then
-    return $retValue
-  fi
-  cat "../../../stdlib/output/${platform_output}-build-last" >> ./output/nasm-build-last
-  nasm_log_merge_ret="$?"
-  if [ "$nasm_log_merge_ret" -ne 0 ]; then
-    echo "WARNING: failed to append stdlib build log to ./output/nasm-build-last (returned $nasm_log_merge_ret)" >&2
-  fi
+  run_or_return build_assembly_stdlib_and_merge_log "NASM" "./output/nasm-build-last" "$platform" "$platform_output" "nasm" || return "$?"
   stdlib="../../../stdlib/output/stdlib-${platform}.o"
 
   # Now we build our actual output, linking to the standard library
   #   Only build if there's new changes to be built
   echo "Building NASM file..." >> ./output/nasm-build-last
   do_build=0
-  if [ ! -f "./output/$fileNameWithoutExt.o" ]; then
-    do_build=1
-  elif [ -n "$(find "$fileName" -prune -newer "./output/$fileNameWithoutExt.o" 2>/dev/null)" ]; then
+  if should_rebuild_object_for_source "./output/$fileNameWithoutExt.o"; then
     do_build=1
   fi
   if [ "$do_build" -eq 1 ]; then
-    case "$platform" in
-      "Windows-x64-nasm")
-        echo "nasm -w+all -f win64 -o \"./output/$fileNameWithoutExt.o\" \"$fileName\"" >> ./output/nasm-build-last
-        nasm -w+all -f win64 -o "./output/$fileNameWithoutExt.o" "$fileName" >> ./output/nasm-build-last 2>&1
-        retValue="$?"
-      ;;
-      *)
-        echo "nasm -w+all -f elf64 -o \"./output/$fileNameWithoutExt.o\" \"$fileName\"" >> ./output/nasm-build-last
-        nasm -w+all -f elf64 -o "./output/$fileNameWithoutExt.o" "$fileName" >> ./output/nasm-build-last 2>&1
-        retValue="$?"
-      ;;
-    esac
-    echo "-- nasm returned: $retValue" >> ./output/nasm-build-last
-    if [ "$retValue" -ne 0 ]; then
-      return $retValue
-    fi
+    run_or_return build_x64_assembly_object_output "nasm" "./output/nasm-build-last" "$platform" || return "$?"
     do_link=1
   fi
-  if [ ! -f "./output/$fileNameWithoutExt" ]; then
-    do_link=1
-  elif [ -n "$(find "$stdlib" -prune -newer "./output/$fileNameWithoutExt" 2>/dev/null)" ]; then
+  if should_link_executable_for_stdlib "./output/$fileNameWithoutExt" "$stdlib"; then
     do_link=1
   fi
   if [ "$do_link" -eq 1 ]; then
-    case "$platform" in
-      "Windows-x64-nasm")
-        echo "ld -v -e _start -o \"./output/$fileNameWithoutExt\" \"./output/$fileNameWithoutExt.o\" \"$stdlib\" -L \"$LD_ADDITIONAL_DIRECTORY\" -lkernel32 -lshell32" >> ./output/nasm-build-last
-        ld -v -e _start -o "./output/$fileNameWithoutExt" "./output/$fileNameWithoutExt.o" "$stdlib" -L "$LD_ADDITIONAL_DIRECTORY" -lkernel32 -lshell32 >> ./output/nasm-build-last 2>&1
-        retValue="$?"
-      ;;
-      *)
-        echo "ld -v -o \"./output/$fileNameWithoutExt\" \"./output/$fileNameWithoutExt.o\" \"$stdlib\"" >> ./output/nasm-build-last
-        ld -v -o "./output/$fileNameWithoutExt" "./output/$fileNameWithoutExt.o" "$stdlib" >> ./output/nasm-build-last 2>&1
-        retValue="$?"
-      ;;
-    esac
-    echo "-- ld returned: $retValue" >> ./output/nasm-build-last
-    if [ "$retValue" -ne 0 ]; then
-      return $retValue
-    fi
+    run_or_return link_x64_assembly_binary_output "./output/nasm-build-last" "$platform" "$stdlib" || return "$?"
   fi
   return "$retValue"
 }
@@ -3425,8 +3414,51 @@ zig_archive() {
   default_lang_archive "$@"
 }
 
-# =============================================
-# =============================================
+# Runtime bootstrap and CLI parsing are intentionally kept together here,
+# just above the script entrypoint, to keep helper/function definitions readable.
+# Major runtime variable initialization for the run-now block.
+sourceProfileOverrideSet=0
+sourceProfileOverridePath=
+checkOnlyMode=0
+checkOnlyRoute="native"
+compileOnlyMode=0
+
+quickMode=""
+quickModeValue=""
+quickModeIgnoredArgs=""
+
+fileName=
+lang=
+testFile=
+destroyOutput=0
+
+lastCommandOutputLog="${DEREKALGOS_LAST_COMMAND_OUTPUT_LOG:-./output/last-command-output.log}"
+timeoutConfig="${DEREKALGOS_TIMEOUT}"
+timeoutFromHost=0
+if [ -n "$timeoutConfig" ]; then
+  timeoutFromHost=1
+fi
+timePrecisionUnit="ms"
+hostTranslation="n/a"
+
+scan_quick_mode_from_args "$@"
+maybe_handle_quick_mode_and_exit
+
+parse_standard_cli_options_or_exit "$@"
+
+remainingOptionShiftCount="$parsedCliArgCount"
+while [ "$remainingOptionShiftCount" -gt 0 ]; do
+  shift 1
+  remainingOptionShiftCount=$((remainingOptionShiftCount - 1))
+done
+
+validate_execution_route_controls_or_exit
+
+resolve_target_filename_or_exit "$1"
+shift 1
+
+initialize_runtime_context_for_selected_file
+configure_runtime_environment
 
 # Definitions done, we start by checking for a check for the "clean"
 # request.
@@ -3547,80 +3579,17 @@ if [ "$fileName" = "clean" ]; then
   exit $retValue
 fi
 
-# If we are not cleaning, we look at the file extension and specify
-# what drives the compilation and running.
-# Required:
-#   lang : must be set to the language that matches the extension.
-#          Used to call compile and run and check for file updates.
-#   testFile : if the file specified in this variable does not exist,
-#          then we do not attempt to run by attempt to show
-#          ./output/lang-build-last instead.
+# If we are not cleaning, resolve language and test output from extension.
+runtimeBinding=$(get_runtime_binding_for_extension "$fileExtension")
+if [ -z "$runtimeBinding" ]; then
+  echo "Unrecognized file extension, not building!"
+  exit 64
+fi
 
-case "$fileExtension" in
-  "adb") lang="ada"; testFile="./output/$fileNameWithoutExt";;
-  "asm") lang="asm"; testFile="./output/$fileNameWithoutExt";;
-  "bal") lang="ballerina"; testFile="./output/$fileNameWithoutExt.jar";;
-  "bas") lang="freebasic"; testFile="./output/$fileNameWithoutExt";;
-  "c") lang="c"; testFile="./output/$fileNameWithoutExt";;
-  "clj") lang="clojure"; testFile="./output/target/uberjar/$fileNameWithoutExt-1.0.0-standalone.jar";;
-  "cob") lang="cobol"; testFile="./output/$fileNameWithoutExt";;
-  "cpp") lang="cpp"; testFile="./output/$fileNameWithoutExt";;
-  "cs") lang="csharp"; testFile="./output/bin/Debug/net10.0/$fileNameWithoutExt";;
-  "d") lang="d"; testFile="./output/$fileNameWithoutExt";;
-  "dart") lang="dart"; testFile="./output/$fileNameWithoutExt";;
-  "e") lang="eiffel"; testFile="./output/EIFGENs/$fileNameWithoutExt/F_code/$fileNameWithoutExt";;
-  "erl") lang="erlang"; testFile="./output/$fileNameWithoutExt.beam";;
-  "exs") lang="elixir"; testFile="./$fileName";;
-  "f90") lang="fortran"; testFile="./output/$fileNameWithoutExt";;
-  "factor") lang="factor"; testFile="./$fileName";;
-  "fs") lang="fsharp"; testFile="./output/bin/Debug/net10.0/$fileNameWithoutExt";;
-  "fth") lang="forth"; testFile="./$fileName";;
-  "gleam") lang="gleam"; testFile="./output/build/dev/erlang/$fileNameWithoutExt/ebin/$fileNameWithoutExt.beam";;
-  "go") lang="go"; testFile="./output/$fileNameWithoutExt";;
-  "hs") lang="haskell"; testFile="./output/$fileNameWithoutExt";;
-  "hx") lang="haxe"; testFile="./$fileName";;
-  "icn") lang="icon"; testFile="./output/$fileNameWithoutExt";;
-  "idr") lang="idris"; testFile="./output/build/exec/$fileNameWithoutExt";;
-  "java") lang="java"; testFile="./output/$fileNameWithoutExt.jar";;
-  "jl") lang="julia"; testFile="./$fileName";;
-  "js") lang="javascript"; testFile="./output/$fileName";;
-  "kit") lang="kit"; testFile="./$fileName";;
-  "kt") lang="kotlin"; testFile="./output/$fileNameWithoutExt.jar";;
-  "ll") lang="llvmir"; testFile="./output/$fileNameWithoutExt";;
-  "lua") lang="lua"; testFile="./output/$fileNameWithoutExt.luac";;
-  "m") lang="objectivec"; testFile="./output/$fileNameWithoutExt";;
-  "m3") lang="modula3"; testFile="./output/AMD64_LINUX/prog";;
-  "mat") lang="octave"; testFile="./output/${fileNameWithoutExt}shaved.m";;
-  "ml") lang="ocaml"; testFile="./output/$fileNameWithoutExt";;
-  "mms") lang="mmixal"; testFile="./output/$fileNameWithoutExt.mmo";;
-  "Mod") lang="oberon"; testFile="./output/$fileNameWithoutExt";;
-  "mojo") lang="mojo"; testFile="./output/$fileName";;
-  "moo") lang="mercury"; testFile="./output/$fileNameWithoutExt";;
-  "nasm") lang="nasm"; testFile="./output/$fileNameWithoutExt";;
-  "nim") lang="nim"; testFile="./output/$fileNameWithoutExt";;
-  "pas") lang="pascal"; testFile="./output/$fileNameWithoutExt";;
-  "php") lang="php"; testFile="./output/$fileName";;
-  "pl") lang="prolog"; testFile="./output/$fileNameWithoutExt";;
-  "plx") lang="perl"; testFile="./output/$fileName";;
-  "py") lang="python"; testFile="./output/$fileName";;
-  "r") lang="r"; testFile="./output/$fileName";;
-  "rb") lang="ruby"; testFile="./output/$fileName";;
-  "rkt") lang="racket"; testFile="./output/$fileNameWithoutExt";;
-  "rs") lang="rust"; testFile="./output/$fileNameWithoutExt";;
-  "s") lang="arm64asm"; testFile="./output/$fileNameWithoutExt";;
-  "scala") lang="scala"; testFile="./output/$fileName";;
-  "scm") lang="scheme"; testFile="./$fileName";;
-  "sim") lang="simula"; testFile="./output/$fileNameWithoutExt";;
-  "st") lang="smalltalk"; testFile="./$fileName";;
-  "swift") lang="swift"; testFile="./output/$fileNameWithoutExt";;
-  "tcl") lang="tcl"; testFile="./$fileName";;
-  "ts") lang="typescript"; testFile="./output/$fileNameWithoutExt.js";;
-  "v") lang="v"; testFile="./output/$fileNameWithoutExt";;
-  "vb") lang="visualbasic"; testFile="./output/bin/Debug/net10.0/$fileNameWithoutExt";;
-  "wat") lang="wat"; testFile="./output/$fileNameWithoutExt.wasm";;
-  "zig") lang="zig"; testFile="./output/$fileNameWithoutExt";;
-  *) echo "Unrecognized file extension, not building!"; exit 64;;
-esac
+lang=${runtimeBinding%%|*}
+testTemplate=${runtimeBinding#*|}
+# testTemplate is static catalog data; expand fileName variables in-place.
+eval "testFile=\"$testTemplate\""
 
 # Now, we should check if the environment wants our language
 # to run via a docker image, in which case, we should go ahead
@@ -3759,6 +3728,7 @@ fi
 if [ -n "$runOnSsh" ]; then
   mkdir -p ./output
   ssh_log="./output/${lang}-build-last"
+
   echo "STARTING SSH RELAY BUILD..." > "$ssh_log"
   echo "ROUTE: SSH target $runOnSsh" >> "$ssh_log"
 
