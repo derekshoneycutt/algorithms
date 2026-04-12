@@ -1,12 +1,5 @@
 #! /bin/sh
 
-# Color variables
-red='\033[0;31m'
-green='\033[0;32m'
-yellow='\033[0;33m'
-blue='\033[0;34m'
-normal='\033[0m' # Resets the color to default
-
 scriptDir=$(CDPATH= cd -- "$(dirname "$0")" && pwd -P)
 . "$scriptDir/shlib/loader.sh" || {
   echo "ERROR: unable to load shlib loader from $scriptDir/shlib/loader.sh" >&2
@@ -23,6 +16,22 @@ load_required_shlib_modules "run.sh" "$scriptDir" \
   run-relay.sh \
   run-language-loader.sh || exit 78
 load_run_language_modules "$scriptDir" || exit 78
+
+init_terminal_style_sequences
+timingStyleReset=""
+timingStyleBold=""
+timingColorBlue=""
+timingColorYellow=""
+timingColorGreen=""
+timingColorRed=""
+if [ -n "$termStyleReset" ]; then
+  timingStyleReset="$termStyleReset"
+  timingStyleBold="$termStyleBold"
+  timingColorBlue="$termColorBlue"
+  timingColorYellow="$termColorYellow"
+  timingColorGreen="$termColorGreen"
+  timingColorRed="$termColorRed"
+fi
 
 # =============================================
 # Help And Usage
@@ -986,7 +995,7 @@ resolve_target_filename_or_exit() {
 
 # Initialize and write the run header to the command output log.
 init_last_command_output_log() {
-  mkdir -p ./output
+  ensure_output_dir_permissions
   : > "$lastCommandOutputLog"
   if command -v date > /dev/null 2>&1; then
     run_header_time=$(date '+%Y-%m-%d %H:%M:%S %Z')
@@ -1050,6 +1059,40 @@ get_ms_time() {
   fi
 }
 
+# Print a yellow warning when an operation exceeds one second.
+warn_if_slow_operation() {
+  slowLabel="$1"
+  slowDuration="$2"
+
+  if [ -z "$slowDuration" ]; then
+    return 0
+  fi
+
+  if [ "$timePrecisionUnit" = "ms" ]; then
+    if [ "$slowDuration" -le 1000 ]; then
+      return 0
+    fi
+  else
+    if [ "$slowDuration" -le 1 ]; then
+      return 0
+    fi
+  fi
+
+  printf "${timingColorYellow}${timingStyleBold}Slow step:${timingStyleReset}${timingColorYellow} %s took %s%s${timingStyleReset}\n" "$slowLabel" "$slowDuration" "$timePrecisionUnit"
+}
+
+# Run recursive chmod with timing diagnostics.
+run_recursive_chmod_with_timing() {
+  chmodTarget="$1"
+  chmodLabel="$2"
+
+  chmodStart=$(get_ms_time)
+  chmod -R a+rwX "$chmodTarget" 2>/dev/null || true
+  chmodEnd=$(get_ms_time)
+  chmodDuration=$((chmodEnd - chmodStart))
+  warn_if_slow_operation "$chmodLabel" "$chmodDuration"
+}
+
 # Render a template string with shell variable expansion.
 get_variabled_string() {
   # WARNING: eval-based templating is intentionally retained for now; replace with safer rendering when practical.
@@ -1082,6 +1125,22 @@ resolve_abs_path() {
       cd "$1" 2>/dev/null && pwd -P
     )
   fi
+}
+
+# Ensure output exists and is writable across host/container transitions.
+ensure_output_dir_permissions() {
+  mkdir -p ./output
+  chmod a+rwx ./output/ 2>/dev/null || true
+
+  # Fast path: if we can create a file, directory permissions are sufficient.
+  probeFile="./output/.perm-probe-$$"
+  if : > "$probeFile" 2>/dev/null; then
+    rm -f "$probeFile"
+    return 0
+  fi
+
+  # Fallback for root-owned artifacts from prior container runs.
+  run_recursive_chmod_with_timing "./output/" "output chmod"
 }
 
 
@@ -1199,10 +1258,25 @@ collect_lang_archive_inputs() {
   fi
 }
 
+# Collect tar exclude patterns from language-specific archive hook.
+collect_lang_archive_excludes() {
+  archiveExcludeFile="$1"
+  archiveExcludeMethod="${lang}_archive_excludes"
+
+  : > "$archiveExcludeFile"
+  if command -v "$archiveExcludeMethod" > /dev/null 2>&1; then
+    "$archiveExcludeMethod" "$archiveExcludeFile"
+  fi
+}
+
 # Archive the entire output directory (repo-relative), plus sources.
 create_lang_input_archive() {
   archiveDestination="$1"
   archiveListFile=$(make_temp_file_secure "source-archive" "${TMPDIR:-/tmp}") || return 1
+  archiveExcludeFile=$(make_temp_file_secure "source-archive-excludes" "${TMPDIR:-/tmp}") || {
+    rm -f "$archiveListFile"
+    return 1
+  }
   : > "$archiveListFile"
 
   include_output_dir=0
@@ -1221,8 +1295,10 @@ create_lang_input_archive() {
     add_last_command_log_to_archive "$archiveListFile"
   fi
   collect_lang_archive_inputs "$archiveListFile"
+  collect_lang_archive_excludes "$archiveExcludeFile"
   if [ ! -s "$archiveListFile" ]; then
     rm -f "$archiveListFile"
+    rm -f "$archiveExcludeFile"
     return 1
   fi
 
@@ -1232,10 +1308,15 @@ create_lang_input_archive() {
 
   (
     cd "$repoRootPath" 2>/dev/null || exit 1
-    tar -czf "$archiveDestination" -T "$archiveListFile"
+    if [ -s "$archiveExcludeFile" ]; then
+      tar -czf "$archiveDestination" -X "$archiveExcludeFile" -T "$archiveListFile"
+    else
+      tar -czf "$archiveDestination" -T "$archiveListFile"
+    fi
   )
   archiveRet="$?"
   rm -f "$archiveListFile"
+  rm -f "$archiveExcludeFile"
   return "$archiveRet"
 }
 
@@ -1259,7 +1340,7 @@ archive_last_command_output_log() {
   if ! mkdir -p "$logsDir" 2>/dev/null; then
     return 0
   fi
-  chmod -R a+rwX "$logsDir" 2>/dev/null || true
+  run_recursive_chmod_with_timing "$logsDir" "archive dir chmod"
 
   if archiveTimestamp=$($dateCmd +%Y%m%d-%H%M%S 2>/dev/null); then
     :
@@ -1282,14 +1363,19 @@ archive_last_command_output_log() {
 
   didArchiveWrite=0
 
+  archiveCreateStart=$(get_ms_time)
   if create_lang_input_archive "$archivedInputPath"; then
+    archiveCreateEnd=$(get_ms_time)
+    warn_if_slow_operation "archive create" "$((archiveCreateEnd - archiveCreateStart))"
     ln -sfn "$(basename "$archivedInputPath")" "$logsDir/last-build.tar.gz" 2>/dev/null || true
     didArchiveWrite=1
   else
+    archiveCreateEnd=$(get_ms_time)
+    warn_if_slow_operation "archive create" "$((archiveCreateEnd - archiveCreateStart))"
     echo "WARNING: failed to create source archive at $archivedInputPath" >&2
   fi
   if [ "$didArchiveWrite" -eq 1 ]; then
-    chmod -R a+rwX "$logsDir" 2>/dev/null || true
+    run_recursive_chmod_with_timing "$logsDir" "archive dir chmod"
   fi
 }
 
@@ -1778,13 +1864,13 @@ if [ "$fileName" = "clean" ]; then
     esac
   elif [ -t 0 ] || [ -t 1 ]; then
     # Interactive terminal: prompt before cleaning stdlib and archive
-    printf "${yellow}About to clean stdlib (this will remove all stdlib build artifacts). Continue? [Y/n] ${normal}"
+    printf "${timingColorYellow}About to clean stdlib (this will remove all stdlib build artifacts). Continue? [Y/n] ${timingStyleReset}"
     read ans
     case "$ans" in
       ""|[Yy]*) do_clean_stdlib=1 ;;
       *) do_clean_stdlib=0 ;;
     esac
-    printf "${yellow}About to remove ./archive (all build archives will be deleted). Continue? [Y/n] ${normal}"
+    printf "${timingColorYellow}About to remove ./archive (all build archives will be deleted). Continue? [Y/n] ${timingStyleReset}"
     read ans
     case "$ans" in
       ""|[Yy]*) do_clean_archive=1 ;;
@@ -1801,7 +1887,7 @@ if [ "$fileName" = "clean" ]; then
     ./build.sh clean
     retValue=$?
     if [ "$retValue" -ne 0 ]; then
-      echo "${red}Failed to clean stdlib. Returned $retValue.${normal}"
+      echo "${timingColorRed}Failed to clean stdlib. Returned $retValue.${timingStyleReset}"
     else
       retValue=0
     fi
@@ -1854,11 +1940,10 @@ else
 fi
 
 if [ "$destroyOutput" -eq 1 ]; then
-  rm -Rf ./output >> ./clean-output 2>&1
-  mkdir -p ./output
-  mv ./clean-output ./output/
+  rm -Rf ./output >> /dev/null 2>&1
+  ensure_output_dir_permissions
 else
-  mkdir -p ./output
+  ensure_output_dir_permissions
 fi
 
 # Relay selection now exits inside run_selected_relay_or_continue.
@@ -1877,9 +1962,9 @@ if [ "$checkOnlyMode" -eq 1 ]; then
   echo "CHECK-ONLY: skipping compile and run for $lang" >> "$lastCommandOutputLog"
   echo "CHECK-ONLY: would run ${lang}_compile" >> "$lastCommandOutputLog"
   echo "CHECK-ONLY: would run ${lang}_run $*" >> "$lastCommandOutputLog"
-  printf "\n    ${yellow}CHECK-ONLY: compile/run skipped for $lang.${normal}\n"
+  printf "\n    ${timingColorYellow}CHECK-ONLY: compile/run skipped for $lang.${timingStyleReset}\n"
   printf "$lang" > ./output/last-lang
-  chmod -R a+rwX ./output/
+  run_recursive_chmod_with_timing "./output/" "output chmod"
   exit 0
 fi
 
@@ -1907,7 +1992,11 @@ Build output:
   elif [ "$compileOnlyMode" -eq 1 ]; then
     timing_summary="Compile Time ${compile_duration}${timePrecisionUnit}; Run skipped (compile-only); Returned 0"
     echo "$timing_summary" >> "$lastCommandOutputLog"
-    printf "\n    ${blue}Compile Time ${compile_duration}${timePrecisionUnit}; ${yellow}Run skipped (compile-only); ${green}Returned 0${normal}\n"
+    compileTimeColor="$timingColorBlue"
+    if { [ "$timePrecisionUnit" = "s" ] && [ "$compile_duration" -gt 5 ]; } || { [ "$timePrecisionUnit" != "s" ] && [ "$compile_duration" -gt 5000 ]; }; then
+      compileTimeColor="$timingColorYellow"
+    fi
+    printf "\n    ${compileTimeColor}${timingStyleBold}Compile Time${timingStyleReset}${compileTimeColor} ${compile_duration}${timePrecisionUnit}; ${timingColorBlue}${timingStyleBold}Run${timingStyleReset}${timingColorBlue} skipped (compile-only); ${timingColorGreen}${timingStyleBold}Returned${timingStyleReset}${timingColorGreen} 0${timingStyleReset}\n"
     finalRc=0
   else
     before_run=$(get_ms_time)
@@ -1926,19 +2015,27 @@ Build output:
     timing_summary="Compile Time ${compile_duration}${timePrecisionUnit}; Run Time ${run_duration}${timePrecisionUnit}${timing_precision_note}; Returned $run_rc"
     echo "$timing_summary" >> "$lastCommandOutputLog"
 
+    compileTimeColor="$timingColorBlue"
+    runTimeColor="$timingColorBlue"
+    if { [ "$timePrecisionUnit" = "s" ] && [ "$compile_duration" -gt 5 ]; } || { [ "$timePrecisionUnit" != "s" ] && [ "$compile_duration" -gt 5000 ]; }; then
+      compileTimeColor="$timingColorYellow"
+    fi
+    if { [ "$timePrecisionUnit" = "s" ] && [ "$run_duration" -gt 5 ]; } || { [ "$timePrecisionUnit" != "s" ] && [ "$run_duration" -gt 5000 ]; }; then
+      runTimeColor="$timingColorYellow"
+    fi
+
     if [ "$run_rc" -eq 0 ]; then
       printf "
-    ${blue}Compile Time ${compile_duration}${timePrecisionUnit}; Run Time ${run_duration}${timePrecisionUnit}${timing_precision_note}; ${green}Returned $run_rc${normal}
+    ${compileTimeColor}${timingStyleBold}Compile Time${timingStyleReset}${compileTimeColor} ${compile_duration}${timePrecisionUnit}; ${runTimeColor}${timingStyleBold}Run Time${timingStyleReset}${runTimeColor} ${run_duration}${timePrecisionUnit}${timing_precision_note}; ${timingColorGreen}${timingStyleBold}Returned${timingStyleReset}${timingColorGreen} $run_rc${timingStyleReset}
 "
     else
       printf "
-    ${blue}Compile Time ${compile_duration}${timePrecisionUnit}; Run Time ${run_duration}${timePrecisionUnit}${timing_precision_note}; ${red}Returned $run_rc${normal}
+    ${compileTimeColor}${timingStyleBold}Compile Time${timingStyleReset}${compileTimeColor} ${compile_duration}${timePrecisionUnit}; ${runTimeColor}${timingStyleBold}Run Time${timingStyleReset}${runTimeColor} ${run_duration}${timePrecisionUnit}${timing_precision_note}; ${timingColorRed}${timingStyleBold}Returned${timingStyleReset}${timingColorRed} $run_rc${timingStyleReset}
 "
     fi
     if [ "$run_rc" -eq 124 ]; then
       echo "Return value 124 typically signals a timeout." >> "$lastCommandOutputLog"
-      printf "${yellow}Return value 124 typically signals a timeout.${normal}
-"
+      printf "${timingColorYellow}Return value 124 typically signals a timeout.${timingStyleReset}\n"
     fi
   fi
 else
@@ -1950,7 +2047,5 @@ Build output:
 fi
 
 printf "$lang" > ./output/last-lang
-# WARNING: Intentionally keep output writable by all users for this project,
-# especially because Docker-based runs can create root-owned artifacts.
-chmod -R a+rwX ./output/
+run_recursive_chmod_with_timing "./output/" "output chmod"
 exit "$finalRc"

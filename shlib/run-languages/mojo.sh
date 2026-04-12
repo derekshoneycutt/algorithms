@@ -32,3 +32,13 @@ mojo_run() {
 mojo_archive() {
   default_lang_archive "$@"
 }
+mojo_archive_excludes() {
+  archiveExcludeFile="$1"
+  if [ -n "$startDirFromRepo" ]; then
+    printf '%s\n' "$startDirFromRepo/output/.pixi" >> "$archiveExcludeFile"
+    printf '%s\n' "$startDirFromRepo/output/.pixi/*" >> "$archiveExcludeFile"
+  else
+    printf '%s\n' "output/.pixi" >> "$archiveExcludeFile"
+    printf '%s\n' "output/.pixi/*" >> "$archiveExcludeFile"
+  fi
+}

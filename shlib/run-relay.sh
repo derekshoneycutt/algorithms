@@ -133,7 +133,7 @@ append_docker_relay_fallback_log() {
 
 # Execute docker relay path and exit with docker relay result.
 run_docker_relay_or_exit() {
-  mkdir -p ./output
+  ensure_output_dir_permissions
   docker_log="./output/${lang}-build-last"
   echo "STARTING DOCKER RELAY BUILD..." > "$docker_log"
   echo "ROUTE: Docker image $runOnDocker" >> "$docker_log"
@@ -215,7 +215,7 @@ run_docker_relay_or_exit() {
 
 # Execute ssh relay path and exit with ssh relay result.
 run_ssh_relay_or_exit() {
-  mkdir -p ./output
+  ensure_output_dir_permissions
   ssh_log="./output/${lang}-build-last"
 
   echo "STARTING SSH RELAY BUILD..." > "$ssh_log"

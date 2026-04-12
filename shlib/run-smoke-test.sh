@@ -4,6 +4,10 @@ set -eu
 # Locate repository root from this script location.
 scriptDir=$(CDPATH= cd -- "$(dirname "$0")" && pwd -P)
 repoRoot=$(CDPATH= cd -- "$scriptDir/.." && pwd -P)
+. "$scriptDir/terminal.sh" || {
+  echo "ERROR: unable to load terminal helpers from $scriptDir/terminal.sh" >&2
+  exit 78
+}
 
 # CLI options.
 targetDir=""
@@ -11,6 +15,57 @@ langsOverride=""
 defaultTimeout="8m"
 slowTimeout="20m"
 markdownReportPath=""
+
+supportsInteractiveStatus=0
+terminalCols=80
+ansiReset=""
+ansiGreen=""
+ansiYellow=""
+ansiRed=""
+ansiBlue=""
+ansiBold=""
+
+if [ -t 1 ]; then
+  supportsInteractiveStatus=1
+  terminalCols=$(get_display_columns)
+fi
+
+init_terminal_style_sequences
+if [ -n "$termStyleReset" ]; then
+  ansiReset="$termStyleReset"
+  ansiGreen="$termColorGreen"
+  ansiYellow="$termColorYellow"
+  ansiRed="$termColorRed"
+  ansiBlue="$termColorBlue"
+  ansiBold="$termStyleBold"
+fi
+
+render_smoke_status_line() {
+  renderIndex="$1"
+  renderTotal="$2"
+  renderLang="$3"
+  renderTimeout="$4"
+  renderStatus="$5"
+  renderStatusColor="$6"
+
+  renderLeft="SMOKE [$renderIndex/$renderTotal] lang=$renderLang timeout=$renderTimeout"
+
+  if [ "$supportsInteractiveStatus" -eq 1 ]; then
+    leftLen=${#renderLeft}
+    statusLen=$(( ${#renderStatus} + 2 ))
+    spacing=$((terminalCols - leftLen - statusLen - 1))
+    if [ "$spacing" -lt 1 ]; then
+      spacing=1
+    fi
+    printf '\r%s%*s%s[%s%s%s%s%s]%s' \
+      "$renderLeft" "$spacing" "" \
+      "$ansiBlue" \
+      "$renderStatusColor" "$ansiBold" "$renderStatus" "$ansiReset" "$ansiBlue" \
+      "$ansiReset"
+  else
+    printf '%s [%s]\n' "$renderLeft" "$renderStatus"
+  fi
+}
 
 printUsage() {
   cat <<'EOF'
@@ -148,7 +203,7 @@ for lang in $langs; do
     *) ;;
   esac
 
-  echo "SMOKE [$currentIndex/$totalLangs] START lang=$lang timeout=$timeoutArg"
+  render_smoke_status_line "$currentIndex" "$totalLangs" "$lang" "$timeoutArg" "RUNNING" "$ansiYellow"
 
   # Run one language build/run and keep a dedicated per-language smoke log.
   if command -v timeout > /dev/null 2>&1; then
@@ -220,9 +275,20 @@ for lang in $langs; do
   printf '%s|%s|%s|%s|%s|%s|%s|%s\n' "$lang" "$rc" "$buildLogStatus" "$archiveLastStatus" "$archiveOutputStatus" "$archiveSourceStatus" "$archiveBuildSuccessStatus" "$note" >> "$reportFile"
 
   if [ "$rc" -eq 0 ]; then
-    echo "SMOKE [$currentIndex/$totalLangs] PASS lang=$lang"
+    render_smoke_status_line "$currentIndex" "$totalLangs" "$lang" "$timeoutArg" "PASS" "$ansiGreen"
   else
-    echo "SMOKE [$currentIndex/$totalLangs] FAIL lang=$lang rc=$rc note=${note:-none}"
+    case "$note" in
+      timeout)
+        render_smoke_status_line "$currentIndex" "$totalLangs" "$lang" "$timeoutArg" "TIMEOUT" "$ansiYellow"
+        ;;
+      *)
+        render_smoke_status_line "$currentIndex" "$totalLangs" "$lang" "$timeoutArg" "FAIL" "$ansiRed"
+        ;;
+    esac
+  fi
+
+  if [ "$supportsInteractiveStatus" -eq 1 ]; then
+    printf '\n'
   fi
 done
 
@@ -237,7 +303,14 @@ archivePath="$smokeArchiveDir/$archiveName"
 tar -czf "$archivePath" -C "$smokeWorkDir" "$(basename "$reportFile")" "$(basename "$smokeLogDir")"
 ln -sfn "smoke/$archiveName" "$archiveDir/last-smoke.tar.gz"
 
-summaryLine=$(awk -F'|' 'NR==1{next} {total++; if($2==0) pass++; else fail++; if($7!="ok") badArchiveBuildSuccess++; if($8!="") noted++} END{printf("total=%d pass=%d fail=%d badArchiveBuildSuccess=%d noted=%d",total,pass,fail,badArchiveBuildSuccess,noted)}' "$reportFile")
+summaryStats=$(awk -F'|' 'NR==1{next} {total++; if($2==0) pass++; else fail++; if($7!="ok") badArchiveBuildSuccess++; if($8!="") noted++} END{printf("%d %d %d %d %d",total,pass,fail,badArchiveBuildSuccess,noted)}' "$reportFile")
+set -- $summaryStats
+summaryTotal="$1"
+summaryPass="$2"
+summaryFail="$3"
+summaryBadArchiveBuildSuccess="$4"
+summaryNoted="$5"
+summaryLine="Total=$summaryTotal Pass=$summaryPass Fail=$summaryFail badArchiveBuildSuccess=$summaryBadArchiveBuildSuccess noted=$summaryNoted"
 
 if [ -n "$markdownReportPath" ]; then
   markdownDir=$(dirname "$markdownReportPath")
@@ -296,7 +369,15 @@ EOF
 fi
 
 echo "SMOKE COMPLETE"
-echo "$summaryLine"
+if [ "$supportsInteractiveStatus" -eq 1 ]; then
+  printf '%s%sTotal%s=%s%d%s %s%sPass%s=%s%d%s %s%sFail%s=%s%d%s badArchiveBuildSuccess=%d noted=%d\n' \
+    "$ansiBlue" "$ansiBold" "$ansiReset" "$ansiBlue" "$summaryTotal" "$ansiReset" \
+    "$ansiGreen" "$ansiBold" "$ansiReset" "$ansiGreen" "$summaryPass" "$ansiReset" \
+    "$ansiRed" "$ansiBold" "$ansiReset" "$ansiRed" "$summaryFail" "$ansiReset" \
+    "$summaryBadArchiveBuildSuccess" "$summaryNoted"
+else
+  echo "$summaryLine"
+fi
 echo "REPORT=$reportFile"
 echo "LOGDIR=$smokeLogDir"
 echo "ARCHIVE=$archivePath"
