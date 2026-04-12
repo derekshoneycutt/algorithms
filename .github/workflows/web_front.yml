@@ -24,6 +24,9 @@ jobs:
       url: ${{ steps.deployment.outputs.page_url }}
     runs-on: ubuntu-latest
 
+    env:
+      MY_GITHUB_MARKDOWN_TOKEN: ${{ secrets.MY_GITHUB_MARKDOWN_TOKEN }}
+
     strategy:
       matrix:
         node-version: [24.x]

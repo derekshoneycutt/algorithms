@@ -34,7 +34,9 @@ export default function(source) {
         const pageTitle = page ? `Derek's Algorithms Project: ${page.title}` : `Derek's Algorithms Project`;
 
         // Get the markdown as html to embed directly into the page
-        const octokit = new Octokit();
+        const octokit = new Octokit({
+            auth: process.env.MY_GITHUB_MARKDOWN_TOKEN
+        });
         const response = await octokit.request('POST /markdown', {
             text: source,
             headers: {
