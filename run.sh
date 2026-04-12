@@ -1014,7 +1014,20 @@ run_interactive_language_selector() {
 
     selectedLangLower=$(printf '%s' "$selectedLang" | tr '[:upper:]' '[:lower:]')
     if is_supported_language_key "$selectedLangLower"; then
-      exec "$0" "$selectedLangLower"
+      printf "Enter args (optional, space-separated): "
+      IFS= read -r selectedArgs || selectedArgs=
+      selectedArgs=$(printf '%s' "$selectedArgs" | awk '{$1=$1;print}')
+
+      if [ -z "$selectedArgs" ]; then
+        exec "$0" "$selectedLangLower"
+      fi
+
+      # Split args on shell whitespace for simple interactive forwarding.
+      set -f
+      # shellcheck disable=SC2086
+      set -- $selectedArgs
+      set +f
+      exec "$0" "$selectedLangLower" "$@"
     fi
 
     echo "Unrecognized language key '$selectedLang'."
@@ -2019,6 +2032,13 @@ if [ "$checkOnlyMode" -eq 1 ]; then
   exit 0
 fi
 
+# Only live-print when stdout is not buffered by a relay route.
+compilingIndicator=0
+case "${DEREKALGOS_EXECUTION_ROUTE:-}" in
+  docker-relay|ssh-relay) : ;;
+  *) [ -n "$timingColorBlue" ] && compilingIndicator=1 ;;
+esac
+[ "$compilingIndicator" -eq 1 ] && printf "${timingColorBlue}${timingStyleBold}Compiling...${timingStyleReset}\n"
 run_and_log_output "$lastCommandOutputLog" "${lang}_compile"
 compileRc="$?"
 afterCompile=$(get_ms_time)
@@ -2050,6 +2070,7 @@ Build output:
     printf "\n    ${compileTimeColor}${timingStyleBold}Compile Time${timingStyleReset}${compileTimeColor} ${compile_duration}${timePrecisionUnit}; ${timingColorBlue}${timingStyleBold}Run${timingStyleReset}${timingColorBlue} skipped (compile-only); ${timingColorGreen}${timingStyleBold}Returned${timingStyleReset}${timingColorGreen} 0${timingStyleReset}\n"
     finalRc=0
   else
+    [ "$compilingIndicator" -eq 1 ] && printf '\033[1A\033[2K'
     before_run=$(get_ms_time)
     echo "STARTING RUN: ${lang}_run" >> "$lastCommandOutputLog"
     run_with_log_and_timeout "$lastCommandOutputLog" "${lang}_run" "$@"
