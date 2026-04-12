@@ -13,6 +13,7 @@ copyIcons=1
 copyIconsTo=~/.vscode/extensions/icons/
 updateEnvironment=1
 updateProfileOverridePath=
+buildDocker=0
 checkOnly=0
 useTimeout="-k 10s 2m"
 useEiffel="eiffelstudio"
@@ -100,6 +101,7 @@ print_usage_env_section() {
     echo "  --update-environment   Enable profile environment updates"
     echo "  --skip-environment     Disable profile environment updates"
     echo "  --update-profile=<f>   Read/write DEREKALGOS vars in this profile file"
+    echo "  --build-docker         Build Dockerfile as linux/amd64 (default: off)"
     echo "  --check-only           Dry-run mode; do not write files [default: off]"
     echo ""
     echo "Environment value overrides (if repeated, the final value is applied):"
@@ -169,6 +171,7 @@ print_usage_short() {
     echo "  --no-prompt            Disable prompts"
     echo "  --check-only           Dry-run mode; do not write files"
     echo "  --update-profile=<f>   Override which profile file gets updated"
+    echo "  --build-docker         Build Dockerfile as linux/amd64"
     echo "  --set-use-only         Set only one following --use-* or run-on flag"
     echo "  --runondocker          Enter run-on-docker map mode"
     echo "  --runonssh             Enter run-on-ssh map mode"
@@ -233,6 +236,7 @@ print_option_catalog() {
 --update-environment
 --skip-environment
 --update-profile=
+--build-docker
 --check-only
 --runondocker
 --runonssh
@@ -1368,6 +1372,9 @@ for arg in "$@"; do
             exit 64
         fi
         ;;
+    --build-docker)
+        buildDocker=1
+        ;;
     --check-only)
         checkOnly=1
         doPrompt=0
@@ -1665,10 +1672,50 @@ if [ "$updateEnvironment" -eq 1 ]; then
 
 fi
 
+# Optionally build local docker image used by run.sh docker-relay paths.
+if [ "$doPrompt" -eq 1 ]; then
+    YN_PROMPT="[y/N]"
+    if [ "$buildDocker" -eq 1 ]; then
+        YN_PROMPT="[Y/n]"
+    fi
+    printf "Do you wish to build Dockerfile for linux/amd64 now? %s " "$YN_PROMPT"
+    yn=$(read_user_input)
+    case "$yn" in
+        [Yy]* ) buildDocker=1 ;;
+        [Nn]* ) buildDocker=0 ;;
+        * ) ;;
+    esac
+    echo ""
+fi
+
+if [ "$buildDocker" -eq 1 ]; then
+    if [ "$checkOnly" -eq 1 ]; then
+        echo "CHECK: would build docker image 'code-runner' from ./Dockerfile for linux/amd64"
+    else
+        if ! command -v docker > /dev/null 2>&1; then
+            echo "docker command not found; unable to build Dockerfile." >&2
+            exit "$exitSetupFailure"
+        fi
+        if [ ! -f "./Dockerfile" ]; then
+            echo "Dockerfile not found at ./Dockerfile" >&2
+            exit "$exitSetupFailure"
+        fi
+
+        echo "Building docker image 'code-runner' for linux/amd64..."
+        docker build --platform linux/amd64 -t code-runner -f ./Dockerfile .
+        dockerRet="$?"
+        if [ "$dockerRet" -ne 0 ]; then
+            echo "docker build failed with exit code $dockerRet" >&2
+            exit "$dockerRet"
+        fi
+    fi
+fi
+
 echo ""
 echo "==== INIT SUMMARY ===="
 echo "platform: $currentPlatform"
 echo "check-only: $checkOnly"
+echo "build-docker: $buildDocker"
 echo "copy-icons: $copyIcons"
 echo "update-environment: $updateEnvironment"
 echo "timeout: $useTimeout"
