@@ -10,6 +10,7 @@
 print_usage_examples() {
   echo "Examples:"
   echo "  $0 main.py"
+  echo "  $0 --list-languages"
   echo "  $0 --check-only main.py"
   echo "  $0 --check-only=docker main.py"
   echo "  $0 --compile-only main.py arg1 arg2"
@@ -72,7 +73,7 @@ print_usage_clean_section() {
 
 # Print compact, first-screen help for common usage.
 print_usage_short() {
-  echo "Usage: $0 [--source-profile=<profile-path>] [--check-only[=native|docker|ssh]] [--compile-only] <filename|clean> [args...]"
+  echo "Usage: $0 [--list-languages] [--source-profile=<profile-path>] [--check-only[=native|docker|ssh]] [--compile-only] <filename|clean> [args...]"
   echo "       $0 --help"
   echo ""
   print_usage_examples
@@ -80,6 +81,7 @@ print_usage_short() {
   echo "  --help                 Show this compact help and exit"
   echo "  --help-all             Show full help and exit"
   echo "  --help=<topic>         Show one topic (examples, profile, execution, general, clean)"
+  echo "  --list-languages       Show language presence grid for current directory and exit"
   echo "  --source-profile=<p>   Source profile before running"
   echo "  --check-only[=route]   Dry-run/setup simulation"
   echo "  --compile-only         Compile but do not run"
@@ -89,13 +91,14 @@ print_usage_short() {
 
 # Print complete help with all sections.
 print_usage_full() {
-  echo "Usage: $0 [--source-profile=<profile-path>] [--check-only[=native|docker|ssh]] [--compile-only] <filename|clean> [args...]"
+  echo "Usage: $0 [--list-languages] [--source-profile=<profile-path>] [--check-only[=native|docker|ssh]] [--compile-only] <filename|clean> [args...]"
   echo "       $0 --help"
   echo ""
   echo "Help options:"
   echo "  --help                 Show compact help and exit"
   echo "  --help-all             Show full help and exit"
   echo "  --help=<topic>         Show one topic (examples, profile, execution, general, clean)"
+  echo "  --list-languages       Show language presence grid for current directory and exit"
   echo ""
   print_usage_examples
   print_usage_profile_section
@@ -134,6 +137,7 @@ print_usage() {
 # Print supported option keys for did-you-mean matching.
 print_option_catalog() {
   cat <<'EOF'
+--list-languages
 --source-profile=
 --check-only
 --check-only=
@@ -143,6 +147,147 @@ print_option_catalog() {
 --help-all
 --help=
 EOF
+}
+
+# Return terminal width with a conservative fallback.
+get_display_columns() {
+  displayCols=""
+  if command -v tput > /dev/null 2>&1; then
+    displayCols=$(tput cols 2>/dev/null)
+  fi
+  if [ -z "$displayCols" ] && [ -n "$COLUMNS" ]; then
+    displayCols="$COLUMNS"
+  fi
+  case "$displayCols" in
+    ''|*[!0-9]*) displayCols=80 ;;
+  esac
+  if [ "$displayCols" -lt 40 ]; then
+    displayCols=40
+  fi
+  printf '%s\n' "$displayCols"
+}
+
+# Return success when the current directory contains at least one file with an extension.
+dir_has_extension() {
+  targetExt="$1"
+  for sourceFile in ./*."$targetExt"; do
+    [ -f "$sourceFile" ] && return 0
+  done
+  return 1
+}
+
+# Return success when there is at least one source file for the given language in cwd.
+language_has_source_in_cwd() {
+  case "$1" in
+    ada) dir_has_extension "adb" ;;
+    arm64asm) dir_has_extension "s" ;;
+    asm) dir_has_extension "asm" ;;
+    ballerina) dir_has_extension "bal" ;;
+    c) dir_has_extension "c" ;;
+    clojure) dir_has_extension "clj" ;;
+    cobol) dir_has_extension "cob" ;;
+    cpp) dir_has_extension "cpp" ;;
+    csharp) dir_has_extension "cs" ;;
+    d) dir_has_extension "d" ;;
+    dart) dir_has_extension "dart" ;;
+    eiffel) dir_has_extension "e" ;;
+    elixir) dir_has_extension "exs" ;;
+    erlang) dir_has_extension "erl" ;;
+    factor) dir_has_extension "factor" ;;
+    forth) dir_has_extension "fth" ;;
+    fortran) dir_has_extension "f90" ;;
+    freebasic) dir_has_extension "bas" ;;
+    fsharp) dir_has_extension "fs" ;;
+    gleam) dir_has_extension "gleam" ;;
+    go) dir_has_extension "go" ;;
+    haskell) dir_has_extension "hs" ;;
+    haxe) dir_has_extension "hx" ;;
+    icon) dir_has_extension "icn" ;;
+    idris) dir_has_extension "idr" ;;
+    java) dir_has_extension "java" ;;
+    javascript) dir_has_extension "js" ;;
+    julia) dir_has_extension "jl" ;;
+    kit) dir_has_extension "kit" ;;
+    kotlin) dir_has_extension "kt" ;;
+    llvmir) dir_has_extension "ll" ;;
+    lua) dir_has_extension "lua" ;;
+    mercury) dir_has_extension "moo" ;;
+    mmixal) dir_has_extension "mms" ;;
+    modula3) dir_has_extension "m3" ;;
+    mojo) dir_has_extension "mojo" ;;
+    nasm) dir_has_extension "nasm" ;;
+    nim) dir_has_extension "nim" ;;
+    oberon) dir_has_extension "Mod" ;;
+    objectivec) dir_has_extension "m" ;;
+    ocaml) dir_has_extension "ml" ;;
+    octave) dir_has_extension "mat" ;;
+    pascal) dir_has_extension "pas" ;;
+    perl) dir_has_extension "plx" ;;
+    php) dir_has_extension "php" ;;
+    prolog) dir_has_extension "pl" ;;
+    python) dir_has_extension "py" ;;
+    r) dir_has_extension "r" ;;
+    racket) dir_has_extension "rkt" ;;
+    ruby) dir_has_extension "rb" ;;
+    rust) dir_has_extension "rs" ;;
+    scala) dir_has_extension "scala" ;;
+    scheme) dir_has_extension "scm" ;;
+    simula) dir_has_extension "sim" ;;
+    smalltalk) dir_has_extension "st" ;;
+    swift) dir_has_extension "swift" ;;
+    tcl) dir_has_extension "tcl" ;;
+    typescript) dir_has_extension "ts" ;;
+    v) dir_has_extension "v" ;;
+    visualbasic) dir_has_extension "vb" ;;
+    wat) dir_has_extension "wat" ;;
+    zig) dir_has_extension "zig" ;;
+    *) return 1 ;;
+  esac
+}
+
+# Print the supported language list with color indicating source presence in cwd.
+print_language_presence_grid() {
+  gridGreen='\033[0;32m'
+  gridYellow='\033[0;33m'
+  gridNormal='\033[0m'
+  languageList="ada arm64asm asm ballerina c clojure cobol cpp csharp d dart eiffel elixir erlang factor forth fortran freebasic fsharp gleam go haskell haxe icon idris java javascript julia kit kotlin llvmir lua mercury mmixal modula3 mojo nasm nim oberon objectivec ocaml octave pascal perl php prolog python r racket ruby rust scala scheme simula smalltalk swift tcl typescript v visualbasic wat zig"
+
+  maxLabelLen=0
+  for langName in $languageList; do
+    langLen=${#langName}
+    if [ "$langLen" -gt "$maxLabelLen" ]; then
+      maxLabelLen="$langLen"
+    fi
+  done
+
+  colWidth=$((maxLabelLen + 3))
+  displayCols=$(get_display_columns)
+  colsPerRow=$((displayCols / colWidth))
+  if [ "$colsPerRow" -lt 1 ]; then
+    colsPerRow=1
+  fi
+
+  echo "Language availability in current directory: $PWD"
+  currentCol=0
+  for langName in $languageList; do
+    if language_has_source_in_cwd "$langName"; then
+      langColor="$gridGreen"
+    else
+      langColor="$gridYellow"
+    fi
+    paddedLang=$(printf "%-*s" "$colWidth" "$langName")
+    printf "  %b" "${langColor}${paddedLang}${gridNormal}"
+    currentCol=$((currentCol + 1))
+    if [ "$currentCol" -ge "$colsPerRow" ]; then
+      printf '\n'
+      currentCol=0
+    fi
+  done
+  if [ "$currentCol" -ne 0 ]; then
+    printf '\n'
+  fi
+
+  printf "Key: %bpresent%b, %bnot present%b\n" "$gridGreen" "$gridNormal" "$gridYellow" "$gridNormal"
 }
 
 # Print supported help topics for did-you-mean matching.
@@ -240,6 +385,28 @@ sourceProfileOverridePath=
 checkOnlyMode=0
 checkOnlyRoute="native"
 compileOnlyMode=0
+listLanguagesMode=0
+listLanguagesIgnoredArgs=""
+
+for rawArg in "$@"; do
+  if [ "$rawArg" = "--list-languages" ]; then
+    listLanguagesMode=1
+  else
+    if [ -n "$listLanguagesIgnoredArgs" ]; then
+      listLanguagesIgnoredArgs="$listLanguagesIgnoredArgs $rawArg"
+    else
+      listLanguagesIgnoredArgs="$rawArg"
+    fi
+  fi
+done
+
+if [ "$listLanguagesMode" -eq 1 ]; then
+  if [ -n "$listLanguagesIgnoredArgs" ]; then
+    echo "WARNING: --list-languages ignores all other arguments/options. Ignored: $listLanguagesIgnoredArgs" >&2
+  fi
+  print_language_presence_grid
+  exit 0
+fi
 
 while [ $# -ge 1 ]; do
   case "$1" in
