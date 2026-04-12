@@ -10,6 +10,7 @@
 print_usage_examples() {
   echo "Examples:"
   echo "  $0 main.py"
+  echo "  $0 python"
   echo "  $0 --list-languages"
   echo "  $0 --list-problems"
   echo "  $0 --flag=python"
@@ -55,7 +56,10 @@ print_usage_execution_section() {
 print_usage_general_section() {
   echo "General behavior:"
   echo "  This is intended to be run from the command line in the directory of the source file."
-  echo "  If first parameter is not a recognized option, it is treated as filename."
+  echo "  You may pass a language key (for example: python) instead of a filename."
+  echo "  Naming standard for auto-pick: use <algorithm>.<ext> (case-insensitive),"
+  echo "  or a shortened suffix of the algorithm name (for example: hello for hello_world)."
+  echo "  If first parameter is not a recognized language key, it is treated as filename."
   echo "  Following parameters are passed to the final executable as argv."
   echo "  Supported filename input compiles and runs where possible."
   echo "  Build and run artifacts/logs are written to ./output."
@@ -78,7 +82,7 @@ print_usage_clean_section() {
 
 # Print compact, first-screen help for common usage.
 print_usage_short() {
-  echo "Usage: $0 [--list-languages|--list-problems|--flag=<lang>|--unflag=<lang>] [--source-profile=<profile-path>] [--check-only[=native|docker|ssh]] [--compile-only] <filename|clean> [args...]"
+  echo "Usage: $0 [--list-languages|--list-problems|--flag=<lang>|--unflag=<lang>] [--source-profile=<profile-path>] [--check-only[=native|docker|ssh]] [--compile-only] <filename|lang|clean> [args...]"
   echo "       $0 --help"
   echo ""
   print_usage_examples
@@ -99,7 +103,7 @@ print_usage_short() {
 
 # Print complete help with all sections.
 print_usage_full() {
-  echo "Usage: $0 [--list-languages|--list-problems|--flag=<lang>|--unflag=<lang>] [--source-profile=<profile-path>] [--check-only[=native|docker|ssh]] [--compile-only] <filename|clean> [args...]"
+  echo "Usage: $0 [--list-languages|--list-problems|--flag=<lang>|--unflag=<lang>] [--source-profile=<profile-path>] [--check-only[=native|docker|ssh]] [--compile-only] <filename|lang|clean> [args...]"
   echo "       $0 --help"
   echo ""
   echo "Help options:"
@@ -240,6 +244,178 @@ is_supported_language_key() {
       return 0
     fi
   done
+  return 1
+}
+
+# Return primary source extension for one language key.
+get_extension_for_language_key() {
+  case "$1" in
+    ada) printf '%s\n' "adb" ;;
+    arm64asm) printf '%s\n' "s" ;;
+    asm) printf '%s\n' "asm" ;;
+    ballerina) printf '%s\n' "bal" ;;
+    c) printf '%s\n' "c" ;;
+    clojure) printf '%s\n' "clj" ;;
+    cobol) printf '%s\n' "cob" ;;
+    cpp) printf '%s\n' "cpp" ;;
+    csharp) printf '%s\n' "cs" ;;
+    d) printf '%s\n' "d" ;;
+    dart) printf '%s\n' "dart" ;;
+    eiffel) printf '%s\n' "e" ;;
+    elixir) printf '%s\n' "exs" ;;
+    erlang) printf '%s\n' "erl" ;;
+    factor) printf '%s\n' "factor" ;;
+    forth) printf '%s\n' "fth" ;;
+    fortran) printf '%s\n' "f90" ;;
+    freebasic) printf '%s\n' "bas" ;;
+    fsharp) printf '%s\n' "fs" ;;
+    gleam) printf '%s\n' "gleam" ;;
+    go) printf '%s\n' "go" ;;
+    haskell) printf '%s\n' "hs" ;;
+    haxe) printf '%s\n' "hx" ;;
+    icon) printf '%s\n' "icn" ;;
+    idris) printf '%s\n' "idr" ;;
+    java) printf '%s\n' "java" ;;
+    javascript) printf '%s\n' "js" ;;
+    julia) printf '%s\n' "jl" ;;
+    kit) printf '%s\n' "kit" ;;
+    kotlin) printf '%s\n' "kt" ;;
+    llvmir) printf '%s\n' "ll" ;;
+    lua) printf '%s\n' "lua" ;;
+    mercury) printf '%s\n' "moo" ;;
+    mmixal) printf '%s\n' "mms" ;;
+    modula3) printf '%s\n' "m3" ;;
+    mojo) printf '%s\n' "mojo" ;;
+    nasm) printf '%s\n' "nasm" ;;
+    nim) printf '%s\n' "nim" ;;
+    oberon) printf '%s\n' "Mod" ;;
+    objectivec) printf '%s\n' "m" ;;
+    ocaml) printf '%s\n' "ml" ;;
+    octave) printf '%s\n' "mat" ;;
+    pascal) printf '%s\n' "pas" ;;
+    perl) printf '%s\n' "plx" ;;
+    php) printf '%s\n' "php" ;;
+    prolog) printf '%s\n' "pl" ;;
+    python) printf '%s\n' "py" ;;
+    r) printf '%s\n' "r" ;;
+    racket) printf '%s\n' "rkt" ;;
+    ruby) printf '%s\n' "rb" ;;
+    rust) printf '%s\n' "rs" ;;
+    scala) printf '%s\n' "scala" ;;
+    scheme) printf '%s\n' "scm" ;;
+    simula) printf '%s\n' "sim" ;;
+    smalltalk) printf '%s\n' "st" ;;
+    swift) printf '%s\n' "swift" ;;
+    tcl) printf '%s\n' "tcl" ;;
+    typescript) printf '%s\n' "ts" ;;
+    v) printf '%s\n' "v" ;;
+    visualbasic) printf '%s\n' "vb" ;;
+    wat) printf '%s\n' "wat" ;;
+    zig) printf '%s\n' "zig" ;;
+    *) return 1 ;;
+  esac
+}
+
+# Normalize names for lightweight matching (lowercase alphanumeric only).
+normalize_identifier() {
+  printf '%s' "$1" | tr '[:upper:]' '[:lower:]' | tr -cd '[:alnum:]'
+}
+
+# Score how well one file basename matches the algorithm directory basename.
+score_file_for_algorithm_name() {
+  fileBase="$1"
+  algoBase="$2"
+
+  fileLower=$(printf '%s' "$fileBase" | tr '[:upper:]' '[:lower:]')
+  algoLower=$(printf '%s' "$algoBase" | tr '[:upper:]' '[:lower:]')
+  fileNorm=$(normalize_identifier "$fileBase")
+  algoNorm=$(normalize_identifier "$algoBase")
+
+  if [ "$fileBase" = "$algoBase" ]; then
+    printf '%s\n' 0
+    return
+  fi
+  if [ "$fileLower" = "$algoLower" ]; then
+    printf '%s\n' 1
+    return
+  fi
+  if [ -n "$fileNorm" ] && [ "$fileNorm" = "$algoNorm" ]; then
+    printf '%s\n' 2
+    return
+  fi
+  case "$algoNorm" in
+    *"$fileNorm")
+      if [ -n "$fileNorm" ]; then
+        printf '%s\n' 3
+        return
+      fi
+      ;;
+  esac
+  case "$algoNorm" in
+    *"$fileNorm"*)
+      if [ -n "$fileNorm" ]; then
+        printf '%s\n' 4
+        return
+      fi
+      ;;
+  esac
+  case "$fileNorm" in
+    *"$algoNorm"*)
+      if [ -n "$algoNorm" ]; then
+        printf '%s\n' 5
+        return
+      fi
+      ;;
+  esac
+
+  printf '%s\n' 99
+}
+
+# Resolve one language key to exactly one source file in cwd.
+resolve_filename_for_language_key() {
+  targetLang="$1"
+  targetExt=$(get_extension_for_language_key "$targetLang") || return 1
+  algoDirName="${PWD##*/}"
+
+  matchCount=0
+  matchedFile=""
+  bestScore=999
+  bestFile=""
+  bestCount=0
+  for sourceFile in ./*."$targetExt"; do
+    [ -f "$sourceFile" ] || continue
+    matchCount=$((matchCount + 1))
+    candidateFile=${sourceFile#./}
+    matchedFile="$candidateFile"
+
+    candidateBase="${candidateFile%.*}"
+    candidateScore=$(score_file_for_algorithm_name "$candidateBase" "$algoDirName")
+    if [ "$candidateScore" -lt "$bestScore" ]; then
+      bestScore="$candidateScore"
+      bestFile="$candidateFile"
+      bestCount=1
+    elif [ "$candidateScore" -eq "$bestScore" ]; then
+      bestCount=$((bestCount + 1))
+    fi
+  done
+
+  if [ "$matchCount" -eq 1 ]; then
+    printf '%s\n' "$matchedFile"
+    return 0
+  fi
+
+  if [ "$matchCount" -gt 1 ] && [ "$bestScore" -lt 99 ] && [ "$bestCount" -eq 1 ]; then
+    printf '%s\n' "$bestFile"
+    return 0
+  fi
+
+  if [ "$matchCount" -eq 0 ]; then
+    echo "No '*.$targetExt' source file found for language '$targetLang' in current directory." >&2
+    echo "Naming standard: use <algorithm>.$targetExt (case-insensitive) or shortened suffix." >&2
+  else
+    echo "Multiple '*.$targetExt' source files found for language '$targetLang'; unable to choose unambiguously." >&2
+    echo "Naming standard: use <algorithm>.$targetExt (case-insensitive) or shortened suffix, or pass filename explicitly." >&2
+  fi
   return 1
 }
 
@@ -778,7 +954,17 @@ if [ "$checkOnlyMode" -eq 1 ]; then
   compileOnlyMode=0
 fi
 
-fileName=$1
+firstArg="$1"
+firstArgLower=$(printf '%s' "$firstArg" | tr '[:upper:]' '[:lower:]')
+if is_supported_language_key "$firstArgLower"; then
+  resolvedFileName=$(resolve_filename_for_language_key "$firstArgLower")
+  if [ -z "$resolvedFileName" ]; then
+    exit 64
+  fi
+  fileName="$resolvedFileName"
+else
+  fileName="$firstArg"
+fi
 fileNameWithoutExt="${fileName%.*}"
 fileExtension="${fileName##*.}"
 className=$(echo "$fileNameWithoutExt" | tr '[:lower:]' '[:upper:]')
