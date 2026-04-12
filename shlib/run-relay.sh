@@ -235,15 +235,50 @@ run_docker_relay_or_exit() {
     echo "TIMEOUT SOURCE: container-profile-or-default" >> "$docker_log"
   fi
 
+  docker_inner_sh='if [ -n "$1" ]; then DEREKALGOS_TIMEOUT="$1"; export DEREKALGOS_TIMEOUT; fi; DEREKALGOS_LAST_COMMAND_OUTPUT_ACTIVE="$2"; DEREKALGOS_LAST_COMMAND_OUTPUT_LOG="$3"; DEREKALGOS_EXECUTION_ROUTE="$4"; DEREKALGOS_HOST_CWD="$5"; DEREKALGOS_HOST_CPUARCH="$6"; DEREKALGOS_HOST_PLATFORM="$7"; DEREKALGOS_HOST_TRANSLATION="$8"; export DEREKALGOS_LAST_COMMAND_OUTPUT_ACTIVE DEREKALGOS_LAST_COMMAND_OUTPUT_LOG DEREKALGOS_EXECUTION_ROUTE DEREKALGOS_HOST_CWD DEREKALGOS_HOST_CPUARCH DEREKALGOS_HOST_PLATFORM DEREKALGOS_HOST_TRANSLATION; shift 8; sh /build/run.sh "$@"'
+
   if [ "$checkOnlyMode" -eq 1 ]; then
-    echo "RUN_AND_LOG_SKIP_SHARED_APPEND=1 docker run --rm --platform linux/amd64 -v \"<repo>\":/build -w \"/build/src/$packName/$algoName/\" $runOnDocker sh -c 'if [ -n \"\$1\" ]; then DEREKALGOS_TIMEOUT=\"\$1\"; export DEREKALGOS_TIMEOUT; fi; DEREKALGOS_LAST_COMMAND_OUTPUT_ACTIVE=\"\$2\"; DEREKALGOS_LAST_COMMAND_OUTPUT_LOG=\"\$3\"; DEREKALGOS_EXECUTION_ROUTE=\"\$4\"; DEREKALGOS_HOST_CWD=\"\$5\"; DEREKALGOS_HOST_CPUARCH=\"\$6\"; DEREKALGOS_HOST_PLATFORM=\"\$7\"; DEREKALGOS_HOST_TRANSLATION=\"\$8\"; export DEREKALGOS_LAST_COMMAND_OUTPUT_ACTIVE DEREKALGOS_LAST_COMMAND_OUTPUT_LOG DEREKALGOS_EXECUTION_ROUTE DEREKALGOS_HOST_CWD DEREKALGOS_HOST_CPUARCH DEREKALGOS_HOST_PLATFORM DEREKALGOS_HOST_TRANSLATION; shift 8; sh /build/run.sh \"\$@\"' sh \"$docker_timeout_arg\" \"\" \"$lastCommandOutputLog\" \"docker-relay\" \"$startDir\" \"$hostCpuArch\" \"$hostPlatform\" \"$hostTranslation\" --check-only \"$fileName\" <args>" >> "$docker_log"
-    RUN_AND_LOG_CLEAR_STATUS_LINE="$dockerStatusShown" RUN_AND_LOG_PHASE_MARKER="$dockerCompileDoneMarker" RUN_AND_LOG_PHASE_SWITCH_TEXT="$dockerStatusRunLine" RUN_AND_LOG_SKIP_SHARED_APPEND=1 run_and_log_output "$docker_log" docker run --rm --platform linux/amd64 -v "$CURRENT_GIT_DIR":/build -w "/build/src/$packName/$algoName/" $runOnDocker sh -c 'if [ -n "$1" ]; then DEREKALGOS_TIMEOUT="$1"; export DEREKALGOS_TIMEOUT; fi; DEREKALGOS_LAST_COMMAND_OUTPUT_ACTIVE="$2"; DEREKALGOS_LAST_COMMAND_OUTPUT_LOG="$3"; DEREKALGOS_EXECUTION_ROUTE="$4"; DEREKALGOS_HOST_CWD="$5"; DEREKALGOS_HOST_CPUARCH="$6"; DEREKALGOS_HOST_PLATFORM="$7"; DEREKALGOS_HOST_TRANSLATION="$8"; export DEREKALGOS_LAST_COMMAND_OUTPUT_ACTIVE DEREKALGOS_LAST_COMMAND_OUTPUT_LOG DEREKALGOS_EXECUTION_ROUTE DEREKALGOS_HOST_CWD DEREKALGOS_HOST_CPUARCH DEREKALGOS_HOST_PLATFORM DEREKALGOS_HOST_TRANSLATION; shift 8; sh /build/run.sh "$@"' sh "$docker_timeout_arg" "" "$lastCommandOutputLog" "docker-relay" "$startDir" "$hostCpuArch" "$hostPlatform" "$hostTranslation" --check-only "$fileName" "$@"
+    echo "RUN_AND_LOG: docker relay -> /build/run.sh --check-only $fileName <args>" >> "$docker_log"
+    RUN_AND_LOG_CLEAR_STATUS_LINE="$dockerStatusShown" \
+    RUN_AND_LOG_PHASE_MARKER="$dockerCompileDoneMarker" \
+    RUN_AND_LOG_PHASE_SWITCH_TEXT="$dockerStatusRunLine" \
+    RUN_AND_LOG_SKIP_SHARED_APPEND=1 \
+      run_and_log_output "$docker_log" \
+        docker run --rm --platform linux/amd64 \
+        -v "$CURRENT_GIT_DIR":/build \
+        -w "/build/src/$packName/$algoName/" \
+        $runOnDocker sh -c "$docker_inner_sh" \
+        sh "$docker_timeout_arg" "" "$lastCommandOutputLog" "docker-relay" \
+        "$startDir" "$hostCpuArch" "$hostPlatform" "$hostTranslation" \
+        --check-only "$fileName" "$@"
   elif [ "$compileOnlyMode" -eq 1 ]; then
-    echo "RUN_AND_LOG_SKIP_SHARED_APPEND=1 docker run --rm --platform linux/amd64 -v \"<repo>\":/build -w \"/build/src/$packName/$algoName/\" $runOnDocker sh -c 'if [ -n \"\$1\" ]; then DEREKALGOS_TIMEOUT=\"\$1\"; export DEREKALGOS_TIMEOUT; fi; DEREKALGOS_LAST_COMMAND_OUTPUT_ACTIVE=\"\$2\"; DEREKALGOS_LAST_COMMAND_OUTPUT_LOG=\"\$3\"; DEREKALGOS_EXECUTION_ROUTE=\"\$4\"; DEREKALGOS_HOST_CWD=\"\$5\"; DEREKALGOS_HOST_CPUARCH=\"\$6\"; DEREKALGOS_HOST_PLATFORM=\"\$7\"; DEREKALGOS_HOST_TRANSLATION=\"\$8\"; export DEREKALGOS_LAST_COMMAND_OUTPUT_ACTIVE DEREKALGOS_LAST_COMMAND_OUTPUT_LOG DEREKALGOS_EXECUTION_ROUTE DEREKALGOS_HOST_CWD DEREKALGOS_HOST_CPUARCH DEREKALGOS_HOST_PLATFORM DEREKALGOS_HOST_TRANSLATION; shift 8; sh /build/run.sh \"\$@\"' sh \"$docker_timeout_arg\" \"\" \"$lastCommandOutputLog\" \"docker-relay\" \"$startDir\" \"$hostCpuArch\" \"$hostPlatform\" \"$hostTranslation\" --compile-only \"$fileName\" <args>" >> "$docker_log"
-    RUN_AND_LOG_CLEAR_STATUS_LINE="$dockerStatusShown" RUN_AND_LOG_PHASE_MARKER="$dockerCompileDoneMarker" RUN_AND_LOG_PHASE_SWITCH_TEXT="$dockerStatusRunLine" RUN_AND_LOG_SKIP_SHARED_APPEND=1 run_and_log_output "$docker_log" docker run --rm --platform linux/amd64 -v "$CURRENT_GIT_DIR":/build -w "/build/src/$packName/$algoName/" $runOnDocker sh -c 'if [ -n "$1" ]; then DEREKALGOS_TIMEOUT="$1"; export DEREKALGOS_TIMEOUT; fi; DEREKALGOS_LAST_COMMAND_OUTPUT_ACTIVE="$2"; DEREKALGOS_LAST_COMMAND_OUTPUT_LOG="$3"; DEREKALGOS_EXECUTION_ROUTE="$4"; DEREKALGOS_HOST_CWD="$5"; DEREKALGOS_HOST_CPUARCH="$6"; DEREKALGOS_HOST_PLATFORM="$7"; DEREKALGOS_HOST_TRANSLATION="$8"; export DEREKALGOS_LAST_COMMAND_OUTPUT_ACTIVE DEREKALGOS_LAST_COMMAND_OUTPUT_LOG DEREKALGOS_EXECUTION_ROUTE DEREKALGOS_HOST_CWD DEREKALGOS_HOST_CPUARCH DEREKALGOS_HOST_PLATFORM DEREKALGOS_HOST_TRANSLATION; shift 8; sh /build/run.sh "$@"' sh "$docker_timeout_arg" "" "$lastCommandOutputLog" "docker-relay" "$startDir" "$hostCpuArch" "$hostPlatform" "$hostTranslation" --compile-only "$fileName" "$@"
+    echo "RUN_AND_LOG: docker relay -> /build/run.sh --compile-only $fileName <args>" >> "$docker_log"
+    RUN_AND_LOG_CLEAR_STATUS_LINE="$dockerStatusShown" \
+    RUN_AND_LOG_PHASE_MARKER="$dockerCompileDoneMarker" \
+    RUN_AND_LOG_PHASE_SWITCH_TEXT="$dockerStatusRunLine" \
+    RUN_AND_LOG_SKIP_SHARED_APPEND=1 \
+      run_and_log_output "$docker_log" \
+        docker run --rm --platform linux/amd64 \
+        -v "$CURRENT_GIT_DIR":/build \
+        -w "/build/src/$packName/$algoName/" \
+        $runOnDocker sh -c "$docker_inner_sh" \
+        sh "$docker_timeout_arg" "" "$lastCommandOutputLog" "docker-relay" \
+        "$startDir" "$hostCpuArch" "$hostPlatform" "$hostTranslation" \
+        --compile-only "$fileName" "$@"
   else
-    echo "RUN_AND_LOG_SKIP_SHARED_APPEND=1 docker run --rm --platform linux/amd64 -v \"<repo>\":/build -w \"/build/src/$packName/$algoName/\" $runOnDocker sh -c 'if [ -n \"\$1\" ]; then DEREKALGOS_TIMEOUT=\"\$1\"; export DEREKALGOS_TIMEOUT; fi; DEREKALGOS_LAST_COMMAND_OUTPUT_ACTIVE=\"\$2\"; DEREKALGOS_LAST_COMMAND_OUTPUT_LOG=\"\$3\"; DEREKALGOS_EXECUTION_ROUTE=\"\$4\"; DEREKALGOS_HOST_CWD=\"\$5\"; DEREKALGOS_HOST_CPUARCH=\"\$6\"; DEREKALGOS_HOST_PLATFORM=\"\$7\"; DEREKALGOS_HOST_TRANSLATION=\"\$8\"; export DEREKALGOS_LAST_COMMAND_OUTPUT_ACTIVE DEREKALGOS_LAST_COMMAND_OUTPUT_LOG DEREKALGOS_EXECUTION_ROUTE DEREKALGOS_HOST_CWD DEREKALGOS_HOST_CPUARCH DEREKALGOS_HOST_PLATFORM DEREKALGOS_HOST_TRANSLATION; shift 8; sh /build/run.sh \"\$@\"' sh \"$docker_timeout_arg\" \"\" \"$lastCommandOutputLog\" \"docker-relay\" \"$startDir\" \"$hostCpuArch\" \"$hostPlatform\" \"$hostTranslation\" \"$fileName\" <args>" >> "$docker_log"
-    RUN_AND_LOG_CLEAR_STATUS_LINE="$dockerStatusShown" RUN_AND_LOG_PHASE_MARKER="$dockerCompileDoneMarker" RUN_AND_LOG_PHASE_SWITCH_TEXT="$dockerStatusRunLine" RUN_AND_LOG_SKIP_SHARED_APPEND=1 run_and_log_output "$docker_log" docker run --rm --platform linux/amd64 -v "$CURRENT_GIT_DIR":/build -w "/build/src/$packName/$algoName/" $runOnDocker sh -c 'if [ -n "$1" ]; then DEREKALGOS_TIMEOUT="$1"; export DEREKALGOS_TIMEOUT; fi; DEREKALGOS_LAST_COMMAND_OUTPUT_ACTIVE="$2"; DEREKALGOS_LAST_COMMAND_OUTPUT_LOG="$3"; DEREKALGOS_EXECUTION_ROUTE="$4"; DEREKALGOS_HOST_CWD="$5"; DEREKALGOS_HOST_CPUARCH="$6"; DEREKALGOS_HOST_PLATFORM="$7"; DEREKALGOS_HOST_TRANSLATION="$8"; export DEREKALGOS_LAST_COMMAND_OUTPUT_ACTIVE DEREKALGOS_LAST_COMMAND_OUTPUT_LOG DEREKALGOS_EXECUTION_ROUTE DEREKALGOS_HOST_CWD DEREKALGOS_HOST_CPUARCH DEREKALGOS_HOST_PLATFORM DEREKALGOS_HOST_TRANSLATION; shift 8; sh /build/run.sh "$@"' sh "$docker_timeout_arg" "" "$lastCommandOutputLog" "docker-relay" "$startDir" "$hostCpuArch" "$hostPlatform" "$hostTranslation" "$fileName" "$@"
+    echo "RUN_AND_LOG: docker relay -> /build/run.sh $fileName <args>" >> "$docker_log"
+    RUN_AND_LOG_CLEAR_STATUS_LINE="$dockerStatusShown" \
+    RUN_AND_LOG_PHASE_MARKER="$dockerCompileDoneMarker" \
+    RUN_AND_LOG_PHASE_SWITCH_TEXT="$dockerStatusRunLine" \
+    RUN_AND_LOG_SKIP_SHARED_APPEND=1 \
+      run_and_log_output "$docker_log" \
+        docker run --rm --platform linux/amd64 \
+        -v "$CURRENT_GIT_DIR":/build \
+        -w "/build/src/$packName/$algoName/" \
+        $runOnDocker sh -c "$docker_inner_sh" \
+        sh "$docker_timeout_arg" "" "$lastCommandOutputLog" "docker-relay" \
+        "$startDir" "$hostCpuArch" "$hostPlatform" "$hostTranslation" \
+        "$fileName" "$@"
   fi
   retValue="$?"
   rm -f "$dockerCompileDoneMarker"
@@ -263,6 +298,15 @@ run_ssh_relay_or_exit() {
   ssh_log="./output/${lang}-build-last"
 
   echo "STARTING SSH RELAY BUILD..." > "$ssh_log"
+  echo "Compiling and executing on SSH..." >> "$ssh_log"
+  sshStatusShown=0
+  if [ -n "$termColorBlue" ]; then
+    printf "${termColorBlue}${termStyleBold}Compiling and executing on SSH...${termStyleReset}\n"
+    sshStatusShown=1
+  elif [ -t 1 ]; then
+    printf "Compiling and executing on SSH...\n"
+    sshStatusShown=1
+  fi
   echo "ROUTE: SSH target $runOnSsh" >> "$ssh_log"
 
   if [ "$checkOnlyMode" -eq 1 ] && [ "$checkOnlyRoute" = "ssh" ]; then
@@ -302,11 +346,12 @@ run_ssh_relay_or_exit() {
 
   if [ -n "$ssh_port" ]; then
     echo "scp -P \"$ssh_port\" \"./$fileName\" \"$ssh_destination:$ssh_codedir/$fileName\"" >> "$ssh_log"
-    run_and_log_output "$ssh_log" scp -P "$ssh_port" "./$fileName" "$ssh_destination:$ssh_codedir/$fileName"
+    RUN_AND_LOG_CLEAR_STATUS_LINE="$sshStatusShown" run_and_log_output "$ssh_log" scp -P "$ssh_port" "./$fileName" "$ssh_destination:$ssh_codedir/$fileName"
   else
     echo "scp \"./$fileName\" \"$ssh_destination:$ssh_codedir/$fileName\"" >> "$ssh_log"
-    run_and_log_output "$ssh_log" scp "./$fileName" "$ssh_destination:$ssh_codedir/$fileName"
+    RUN_AND_LOG_CLEAR_STATUS_LINE="$sshStatusShown" run_and_log_output "$ssh_log" scp "./$fileName" "$ssh_destination:$ssh_codedir/$fileName"
   fi
+  sshStatusShown=0
   retValue="$?"
   echo "-- scp returned: $retValue" >> "$ssh_log"
   if [ "$retValue" -ne 0 ]; then

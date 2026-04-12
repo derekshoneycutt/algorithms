@@ -108,6 +108,8 @@ print_usage_general_section() {
   echo "  or a shortened suffix of the algorithm name (for example: hello for hello_world)."
   echo "  If first parameter is not a recognized language key, it is treated as filename."
   echo "  Following parameters are passed to the final executable as argv."
+  echo "  All execution routes buffer command output before printing to the terminal."
+  echo "  Command-line argv is supported; interactive stdin during execution is not."
   echo "  Supported filename input compiles and runs where possible."
   echo "  select shows language availability and prompts for one language to run."
   echo "  Build and run artifacts/logs are written to ./output."
