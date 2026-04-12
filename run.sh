@@ -218,6 +218,23 @@ suggest_help_topic_for_unknown() {
   suggest_from_catalog "$unknownTopic" "$topicCatalog" | head -n 1
 }
 
+# Suggest the closest check-only route token.
+suggest_check_only_route_for_unknown() {
+  unknownRoute="$1"
+  routeCatalog="native
+docker
+ssh"
+  suggest_from_catalog "$unknownRoute" "$routeCatalog" | head -n 1
+}
+
+# Suggest the closest clean option token.
+suggest_clean_option_for_unknown() {
+  unknownCleanOption="$1"
+  cleanOptionCatalog="--defaults
+--defaults="
+  suggest_from_catalog "$unknownCleanOption" "$cleanOptionCatalog" | head -n 1
+}
+
 sourceProfileOverrideSet=0
 sourceProfileOverridePath=
 checkOnlyMode=0
@@ -286,6 +303,10 @@ case "$checkOnlyRoute" in
   "native"|"docker"|"ssh") ;;
   *)
     echo "Unsupported check-only route '$checkOnlyRoute' (expected: native, docker, or ssh)." >&2
+    routeSuggestion=$(suggest_check_only_route_for_unknown "$checkOnlyRoute")
+    if [ -n "$routeSuggestion" ]; then
+      echo "Did you mean: --check-only=$routeSuggestion" >&2
+    fi
     exit 64
     ;;
 esac
@@ -2780,6 +2801,12 @@ if [ "$fileName" = "clean" ]; then
         ;;
       *)
         echo "Unknown clean option: $1" >&2
+        if [ "${1#--}" != "$1" ]; then
+          cleanOptionSuggestion=$(suggest_clean_option_for_unknown "$1")
+          if [ -n "$cleanOptionSuggestion" ]; then
+            echo "Did you mean: $cleanOptionSuggestion" >&2
+          fi
+        fi
         echo "Usage: $0 clean [--defaults|--defaults=y|--defaults=n|--defaults=yes|--defaults=no|--defaults=y|n|--defaults=yes|no]" >&2
         exit 64
         ;;

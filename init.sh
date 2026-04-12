@@ -325,6 +325,21 @@ suggest_option_for_unknown() {
     suggest_from_catalog "$normalizedOption" "$optionCatalog" | head -n 1
 }
 
+# Suggest the closest language target key for run-on map edits.
+suggest_language_key_for_unknown() {
+    unknownKey="$1"
+    languageCatalog=""
+    for langKey in $supportedLanguageKeys all; do
+        if [ -n "$languageCatalog" ]; then
+            languageCatalog="$languageCatalog
+$langKey"
+        else
+            languageCatalog="$langKey"
+        fi
+    done
+    suggest_from_catalog "$unknownKey" "$languageCatalog" | head -n 1
+}
+
 # Suggest the closest help topic for unknown topic values.
 suggest_help_topic_for_unknown() {
     unknownTopic="$1"
@@ -861,6 +876,10 @@ apply_runondocker_cli_changes() {
                     *)
                         if ! is_known_runondocker_language "$op_value"; then
                             echo "Unknown runondocker remove target: $op_value" >&2
+                            targetSuggestion=$(suggest_language_key_for_unknown "$op_value")
+                            if [ -n "$targetSuggestion" ]; then
+                                echo "Did you mean target: $targetSuggestion" >&2
+                            fi
                             exit 64
                         fi
                         useRunOnDocker=$(runondocker_remove_lang "$useRunOnDocker" "$op_value")
@@ -885,6 +904,10 @@ apply_runondocker_cli_changes() {
                     *)
                         if ! is_known_runondocker_language "$set_target"; then
                             echo "Unknown runondocker set target: $set_target" >&2
+                            targetSuggestion=$(suggest_language_key_for_unknown "$set_target")
+                            if [ -n "$targetSuggestion" ]; then
+                                echo "Did you mean target: $targetSuggestion" >&2
+                            fi
                             exit 64
                         fi
                         useRunOnDocker=$(runondocker_set_lang "$useRunOnDocker" "$set_target" "$set_image")
@@ -921,6 +944,10 @@ apply_runonssh_cli_changes() {
                     *)
                         if ! is_known_runondocker_language "$op_value"; then
                             echo "Unknown runonssh remove target: $op_value" >&2
+                            targetSuggestion=$(suggest_language_key_for_unknown "$op_value")
+                            if [ -n "$targetSuggestion" ]; then
+                                echo "Did you mean target: $targetSuggestion" >&2
+                            fi
                             exit 64
                         fi
                         useRunOnSsh=$(runonssh_remove_lang "$useRunOnSsh" "$op_value")
@@ -949,6 +976,10 @@ apply_runonssh_cli_changes() {
                     *)
                         if ! is_known_runondocker_language "$set_target"; then
                             echo "Unknown runonssh set target: $set_target" >&2
+                            targetSuggestion=$(suggest_language_key_for_unknown "$set_target")
+                            if [ -n "$targetSuggestion" ]; then
+                                echo "Did you mean target: $targetSuggestion" >&2
+                            fi
                             exit 64
                         fi
                         useRunOnSsh=$(runonssh_set_lang "$useRunOnSsh" "$set_target" "$set_route")
@@ -1013,6 +1044,10 @@ edit_runondocker_interactive() {
             *)
                 if ! is_known_runondocker_language "$target_lang"; then
                     echo "Unknown language '$target_lang'. Use 'show' to view available keys."
+                    targetSuggestion=$(suggest_language_key_for_unknown "$target_lang")
+                    if [ -n "$targetSuggestion" ]; then
+                        echo "Did you mean target: $targetSuggestion"
+                    fi
                     continue
                 fi
                 current_image=$(runondocker_get_image_for_lang "$useRunOnDocker" "$target_lang")
@@ -1097,6 +1132,10 @@ edit_runonssh_interactive() {
             *)
                 if ! is_known_runondocker_language "$target_lang"; then
                     echo "Unknown language '$target_lang'. Use 'show' to view available keys."
+                    targetSuggestion=$(suggest_language_key_for_unknown "$target_lang")
+                    if [ -n "$targetSuggestion" ]; then
+                        echo "Did you mean target: $targetSuggestion"
+                    fi
                     continue
                 fi
                 current_route=$(runonssh_get_route_for_lang "$useRunOnSsh" "$target_lang")
@@ -1313,6 +1352,12 @@ for arg in "$@"; do
             setUseOnlyWaiting=0
         else
             echo "--set-use-only expects the next flag to be --use-* or --runondocker/--runonssh with optional set/remove." >&2
+            if [ "${arg#--}" != "$arg" ]; then
+                optionSuggestion=$(suggest_option_for_unknown "$arg")
+                if [ -n "$optionSuggestion" ]; then
+                    echo "Did you mean: $optionSuggestion" >&2
+                fi
+            fi
             exit 64
         fi
         continue
