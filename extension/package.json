@@ -1,0 +1,24 @@
+{
+  "name": "algorithms-runner-extension",
+  "displayName": "Derek's Algorithms Runner",
+  "description": "VS Code extension scaffold for run.sh integration.",
+  "version": "0.0.1",
+  "publisher": "derekshoneycutt",
+  "engines": {
+    "vscode": "^1.90.0"
+  },
+  "main": "./src/extension.js",
+  "contributes": {
+    "commands": [
+      {
+        "command": "algos.runActiveFile",
+        "title": "Run Active File",
+        "category": "Derek's Algorithms"
+      }
+    ]
+  },
+  "scripts": {
+    "lint": "echo \"No lint configured\"",
+    "test": "echo \"No tests configured\""
+  }
+}
