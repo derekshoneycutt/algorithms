@@ -11,6 +11,50 @@ This proposal defines an MVP Visual Studio Code extension that integrates `run.s
 
 MVP callout: `init.sh` support is intentionally out of scope for this proposal.
 
+## Table Of Contents
+
+1. [Executive Summary](#executive-summary)
+2. [Intent And Success Criteria](#intent-and-success-criteria)
+3. [Scope](#scope)
+4. [Source Of Truth And Guardrails](#source-of-truth-and-guardrails)
+5. [Workspace Eligibility Contract](#workspace-eligibility-contract)
+6. [User Entry Points (Command Surfaces)](#user-entry-points-command-surfaces)
+7. [Command Inventory (MVP)](#command-inventory-mvp)
+8. [Normative Command-To-Script Mapping](#normative-command-to-script-mapping)
+9. [Directory Execution Invariant](#directory-execution-invariant)
+10. [Validation, Precedence, And Error Semantics](#validation-precedence-and-error-semantics)
+11. [Active File And Language Resolution Strategy](#active-file-and-language-resolution-strategy)
+12. [Execution Model](#execution-model)
+13. [Activation And Non-Interference Rules](#activation-and-non-interference-rules)
+14. [Runtime Invocation Contract](#runtime-invocation-contract)
+15. [Extension Project Structure (Planned Files)](#extension-project-structure-planned-files)
+16. [Validation Data Source Contract](#validation-data-source-contract)
+17. [Copilot Execution Protocol (Human-In-The-Loop)](#copilot-execution-protocol-human-in-the-loop)
+18. [FEAT Definition Of Done Template](#feat-definition-of-done-template)
+19. [FEAT Sizing And Numbering Policy](#feat-sizing-and-numbering-policy)
+20. [Agent Handoff Packets](#agent-handoff-packets)
+21. [FEAT Packet Alignment Matrix](#feat-packet-alignment-matrix)
+22. [Configuration And State Handling](#configuration-and-state-handling)
+23. [Local Packaging Requirements (MVP Final Gate)](#local-packaging-requirements-mvp-final-gate)
+24. [Risks And Mitigations](#risks-and-mitigations)
+25. [Repository Coexistence Constraints (Blog + Extension)](#repository-coexistence-constraints-blog--extension)
+26. [Post-MVP Deferred Records (No MVP Action)](#post-mvp-deferred-records-no-mvp-action)
+27. [Phased Delivery Plan](#phased-delivery-plan)
+28. [MVP Delivery Gating Rule](#mvp-delivery-gating-rule)
+29. [Implementation Artifact Checklist (MVP)](#implementation-artifact-checklist-mvp)
+30. [FEAT Backlog (Scrum-Style Scoped Tickets)](#feat-backlog-scrum-style-scoped-tickets)
+31. [MVP Estimates Summary](#mvp-estimates-summary)
+32. [FEAT Traceability Matrix](#feat-traceability-matrix)
+33. [Acceptance Criteria](#acceptance-criteria)
+34. [Verification Plan](#verification-plan)
+35. [Compatibility And Regression Boundaries](#compatibility-and-regression-boundaries)
+36. [Documentation Drift Policy](#documentation-drift-policy)
+37. [Reviewer Checklist](#reviewer-checklist)
+38. [Change Log](#change-log)
+39. [Appendix A: Canonical MVP Command Examples (User-Facing Display)](#appendix-a-canonical-mvp-command-examples-user-facing-display)
+40. [Appendix B: Language Key Coverage Sync Strategy](#appendix-b-language-key-coverage-sync-strategy)
+41. [Appendix C: Explicitly Excluded from MVP](#appendix-c-explicitly-excluded-from-mvp)
+
 ## Intent And Success Criteria
 
 ### Intent
@@ -1337,6 +1381,7 @@ Any behavioral change to `run.sh` option handling, accepted values, precedence, 
 | 2026-04-13 | Added lightweight extension logging policy: metadata-only orchestration diagnostics, no extension-owned persistent archive logging, and FEAT-204/verification guardrails | Keep MVP logging minimal because `run.sh` already owns canonical runtime logging and archival | Approved by Derek |
 | 2026-04-13 | Applied Route C governance hardening: MVP constraint taxonomy, pre-implementation approval gate, profile-sourcing MVP contract, and deferred-record conversion | Prevent MVP scope leakage and make boundary-changing edits require explicit approval plus changelog traceability | Approved by Derek |
 | 2026-04-13 | Applied human approvals for kickoff: status moved to Proposed, reviewer owner recorded, and Route C pre-implementation gate approval recorded | Confirm governance prerequisites for human-led, FEAT-gated Copilot implementation flow | Approved by Derek |
+| 2026-04-13 | Added full proposal table of contents near the top of the document | Improve navigation and review speed for human-led, Copilot-assisted FEAT execution | Approved by Derek |
 
 ## Appendix A: Canonical MVP Command Examples (User-Facing Display)
 
