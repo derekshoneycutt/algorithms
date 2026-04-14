@@ -1,6 +1,6 @@
 # VS Code Script Integration Extension - Build Proposal
 
-> Status: Draft
+> Status: Proposed
 > Owner: Senior engineer
 > Date: 2026-04-13
 > Scope target: MVP
@@ -47,12 +47,26 @@ Success criteria summarize discoverability goals and must not weaken the detaile
 4. Debugger integration.
 5. Non-VS Code editor integrations.
 6. Language-key run command surface (`./run.sh <language-key>`) from extension UI; deferred post-MVP.
+7. Extension-owned persistent archival logging mechanisms; `run.sh` remains the canonical runtime logging/archive owner.
+
+### MVP Constraint Taxonomy
+
+All requirement statements in this proposal must be classified into one of these tiers. Tiering is normative and governs implementation and FEAT acceptance.
+
+1. `MVP-BLOCKING`: mandatory for MVP completion; must have FEAT coverage, acceptance criteria, and verification evidence.
+2. `MVP-GUARDRAIL`: mandatory safety/behavior constraints for MVP execution quality; must be enforced in implementation and verified where applicable.
+3. `POST-MVP-DEFERRED`: explicitly not implemented in MVP; recorded for later planning only.
+
+Classification rule:
+
+1. A statement that implies new command surface, configurable behavior expansion, or additional logging/archive ownership beyond current MVP constraints is `POST-MVP-DEFERRED` unless explicitly promoted by senior-engineer approval and changelog entry.
 
 ### Out-Of-Scope Parking Lot
 
 1. Full `init.sh` integration proposal and command surface design.
 2. Tree/panel UX for route-map editing and advanced configuration.
 3. Smoke-test UI workflows and value-shape assistants.
+4. Rich extension log retention controls (custom TTL/size cache policy) beyond VS Code-managed log lifecycle.
 
 ## Source Of Truth And Guardrails
 
@@ -85,7 +99,7 @@ The extension must run full functionality only in an eligible workspace and fail
 
 1. Eligible:
    - required hard repository markers are present (`run.sh`, `init.sh`, `src/`, `shlib/`, `stdlib/`, and `templates/` at resolved repository root)
-   - canary command `run.sh --help-all` succeeds from resolved repository root.
+   - canary command `<run-script-path> --help-all` succeeds from resolved repository-root context.
    - full command/UI surface is enabled.
 2. Partial:
    - hard markers are mostly present but one or more are missing with clear remediation guidance, or
@@ -113,6 +127,18 @@ Marker policy:
 1. No run execution is allowed outside resolved eligible repository root.
 2. Do not infer fallback roots when eligibility markers are missing or ambiguous.
 3. Eligibility failures block command execution before argument assembly and before terminal creation.
+
+### Path Policy Terminology Lock
+
+1. Use this exact phrase whenever path-format behavior is specified: `Path Policy: Internal Absolute, Display Relative With Safe Fallback`.
+2. Internal path policy: repository root, algorithm directory, and script path are canonical absolute filesystem paths for resolution, validation, argument assembly, and evidence capture.
+3. User-facing display policy: terminal command display may render a relative script path from resolved algorithm-directory context (for example `../../../run.sh`) only when safely derivable; otherwise display absolute script path.
+
+### Logging Policy Terminology Lock
+
+1. Use this exact phrase whenever extension logging scope is specified: `Logging Policy: Extension Light, Script Canonical`.
+2. MVP extension logging is orchestration metadata only and intentionally minimal.
+3. Extension logging must not duplicate `run.sh` build/archive logging or add extension-owned persistent archive logs in MVP.
 
 ## User Entry Points (Command Surfaces)
 
@@ -222,10 +248,11 @@ Algorithm-directory base rule:
 
 1. CWD for all current MVP commands is always one resolved algorithm directory.
 2. For any valid source-file target, resolve CWD to that file's parent algorithm directory (never a subdirectory).
-3. Repository root is always three levels above algorithm directory (`../../../`), and MVP run script invocation is `../../../run.sh` from algorithm-directory CWD.
-4. The resolved repository root must contain required repository markers.
+3. Internal script path resolution is canonical absolute: `<run-script-path> = <repo-root>/run.sh`.
+4. User-facing terminal command display may render `../../../run.sh` from algorithm-directory CWD when safely derivable; if not safely derivable, display absolute `<run-script-path>`.
+5. The resolved repository root must contain required repository markers.
 
-- Filename mode: `cd` into algorithm directory, then invoke `<run-script-path> <filename>` (for shell examples this is `../../../run.sh <filename>` from `src/<category>/<algorithm>/`).
+- Filename mode: `cd` into algorithm directory, then invoke `<run-script-path> <filename>`; terminal display may show `../../../run.sh <filename>` when safe, but internal execution artifacts remain absolute-path based.
 - Clean mode uses deterministic invocation (`clean --defaults=y`) and resolves algorithm directory context from an active compatible source file, selected algorithm directory, or immediate-child Explorer file/directory selection normalized to the parent algorithm directory.
 - Local cleanup modes execute from algorithm directory context so `./output` and related cleanup behavior match user expectation for that algorithm scope.
 
@@ -269,7 +296,7 @@ MVP explicitly does not add filename-bracketing or advanced filename interpretat
 
 1. Resolve candidate repository root from active workspace selection.
 2. Validate hard required markers at resolved root: `run.sh`, `init.sh`, `src/`, `shlib/`, `stdlib/`, `templates/`.
-3. Execute canary from resolved root: `run.sh --help-all`; expected exit code is `0`.
+3. Execute canary with resolved absolute script path from resolved repository-root context: `<run-script-path> --help-all`; expected exit code is `0`.
 4. If workspace is partial or ineligible, block execution before command assembly and show missing-marker or canary guidance.
 5. Record eligibility outcome (`eligible`, `partial`, `ineligible`) in FEAT evidence for eligibility-related FEATs, including marker and canary results.
 
@@ -309,8 +336,12 @@ Note: this section is resolution policy only; normative CWD behavior is defined 
 4. The "reuse" option in configuration refers only to reusing the extension's own previously created terminal, not any external terminal.
 5. Enforce the `Directory Execution Invariant` for all file-context commands.
 6. Cleanup command contexts are algorithm-directory only; repository-context cleanup execution is not part of MVP.
-7. Emit the exact command string before invocation in extension output channel.
-8. Track terminal lifecycle for user feedback (started, completed, failed).
+7. `Path Policy: Internal Absolute, Display Relative With Safe Fallback` applies to all run invocations.
+8. Emit the exact user-facing command string before invocation in extension output channel; show relative script path when safely derivable from resolved algorithm-directory CWD, otherwise show absolute script path.
+9. `Logging Policy: Extension Light, Script Canonical` applies to all extension diagnostics.
+10. Internal runner diagnostics and FEAT evidence capture must record only compact orchestration metadata: canonical absolute script path, canonical absolute CWD, command family, lifecycle state, and exit result.
+11. Do not add extension-owned persistent archive logs in MVP; rely on VS Code-managed extension log lifecycle and script-owned runtime/archive logs.
+12. Track terminal lifecycle for user feedback (started, completed, failed).
 
 ## Activation And Non-Interference Rules
 
@@ -326,23 +357,28 @@ Note: this section is resolution policy only; normative CWD behavior is defined 
 
 Define deterministic command construction so implementation cannot drift.
 
+`Path Policy: Internal Absolute, Display Relative With Safe Fallback` is normative for this contract.
+
 ### Contract Rules
 
 1. Script location is repository-root anchored, not source-folder anchored.
 2. Execution CWD for file-targeted commands is the resolved algorithm directory, not the source file path itself.
 3. Cleanup commands run from resolved algorithm-directory context.
 4. Command argument assembly is strict and positional order is preserved.
-5. Extension logs resolved script path and execution CWD before launch.
+5. Extension logs resolved canonical absolute script path and canonical absolute execution CWD before launch.
 6. File-context validation and algorithm targeting are driven by the path structure under `src/<category>/<algorithm>/`, independent of which workspace folder was opened.
+7. Internal runtime artifacts are canonical absolute filesystem paths: resolved repository root, resolved algorithm directory, and resolved `<run-script-path>`.
+8. User-facing terminal command display may render a relative script path from resolved algorithm-directory CWD only when safely derivable; otherwise use absolute script path display.
 
 ### Resolution Algorithms
 
-1. Repository root resolution base: first normalize command target context to one algorithm directory, then search upward from that algorithm directory until repository root markers are found.
+1. Repository root resolution base: first normalize command target context to one algorithm directory, then search upward from that algorithm directory until repository root markers are found; resolver output is canonical absolute path.
 2. Canonicalize and deduplicate resolved roots by absolute path; nested folders that resolve to the same root remain one repository context.
-3. Script path resolution: `<run-script-path> = <repo-root>/run.sh`.
-4. File-target CWD resolution: parent algorithm directory of selected/active compatible source file.
+3. Script path resolution: `<run-script-path> = <repo-root>/run.sh` as canonical absolute path.
+4. File-target CWD resolution: parent algorithm directory of selected/active compatible source file as canonical absolute path.
 5. Explorer cleanup target normalization: algorithm-directory selection stays unchanged; immediate-child file or immediate-child directory selection normalizes to its parent algorithm directory; any deeper descendant selection is invalid in MVP.
 6. Cleanup-command CWD resolution: resolved algorithm directory context from active file (palette/editor-title) or normalized Explorer selection (Explorer context menu).
+7. Display-path rendering: derive relative script path display from resolved algorithm-directory CWD only when safe and unambiguous; otherwise display absolute `<run-script-path>`.
 
 ### Canonical Invocation Shapes
 
@@ -451,6 +487,21 @@ Define how Copilot executes each FEAT under human guidance.
 5. Produce FEAT evidence packet.
 6. Pause for human approval before starting next FEAT.
 
+### Copilot Path-Policy Execution Aid
+
+1. Terminology lock in all touched sections: include `Path Policy: Internal Absolute, Display Relative With Safe Fallback`.
+2. Copilot section self-check prompt: does this section explicitly distinguish internal canonical absolute path artifacts from user-facing relative command display behavior?
+3. Copilot sequence lock for this change set: update Runtime Invocation Contract and Directory Execution Invariant first, then FEAT packet/evidence schema, then Verification Plan and Reviewer Checklist, and update Appendix examples last.
+4. Copilot logging self-check prompt: did this change keep extension logging MVP-light and avoid introducing persistent archive logging or script-log duplication?
+
+### Copilot Boundary And Approval Execution Aid
+
+1. Before editing any section, classify the intended change as `MVP-BLOCKING`, `MVP-GUARDRAIL`, or `POST-MVP-DEFERRED`; if classification is unclear, stop and request human decision.
+2. For any edit that changes scope boundaries, command surface scope, or guardrail strictness, require explicit human approval before implementation.
+3. After approved boundary-affecting edits, append a change-log row in this proposal with date, concise change summary, rationale, and approver.
+4. If a requested change is `POST-MVP-DEFERRED`, record it in deferred records and do not add FEAT implementation requirements in MVP sections.
+5. FEAT packet and acceptance wording must remain aligned with the MVP Constraint Taxonomy and must not silently promote deferred items.
+
 ### Mandatory Stop-And-Ask Conditions
 
 1. Contract ambiguity between proposal and scripts.
@@ -507,9 +558,12 @@ Use this exact structure for every FEAT closeout:
    - document section or artifact path where logs/screenshots are attached.
 8. Normalization and context evidence:
    - source surface (`Explorer`, `Editor Title`, `Command Palette`)
-   - raw selection path (or `NA` when not selection-driven)
-   - normalized algorithm directory
-   - resolved repository root
+   - raw selection path (or `NA` when not selection-driven); use absolute path when path exists
+   - normalized algorithm directory (absolute path)
+   - resolved repository root (absolute path)
+   - resolved script path for internal runtime (`<run-script-path>` absolute path)
+   - user-facing script path display form (`relative` when safely derivable, otherwise `absolute`)
+   - extension logging scope evidence: metadata-only orchestration fields captured; no duplicated script payload/archive output
    - reject reason enum when execution is blocked/no-op (`invalid-context`, `invalid-target`, `unsupported-extension`, `missing-active-file`, `deeper-descendant-selection`) or `NA` when execution succeeds.
 
 ### Human Approval Roles
@@ -517,6 +571,10 @@ Use this exact structure for every FEAT closeout:
 1. Senior engineer: architecture-sensitive FEAT approvals.
 2. Reviewer: behavior and UX guardrail approvals.
 3. MVP close: senior engineer sign-off required.
+
+Current role assignment for this proposal execution:
+
+1. Reviewer owner: Derek.
 
 ## FEAT Definition Of Done Template
 
@@ -570,7 +628,7 @@ Use this exact structure for every FEAT closeout:
    - Forbidden: command behavior modules beyond eligibility guard wiring.
 3. Contract constraints: hard eligibility markers are mandatory (`run.sh`, `init.sh`, `src/`, `shlib/`, `stdlib/`, `templates/`); partial/ineligible workspaces must not execute run flows.
 4. Required command behavior: activation and run handlers enforce eligibility preflight and scope execution to one eligible root only.
-5. Verification output expectations: eligible, partial, and ineligible scenarios are captured, including hard marker checks, canary command result (`run.sh --help-all`, exit `0` expected for eligible), multi-root ambiguity handling, and inert no-terminal behavior for ineligible roots.
+5. Verification output expectations: eligible, partial, and ineligible scenarios are captured, including hard marker checks, canary command result (`<run-script-path> --help-all`, exit `0` expected for eligible), multi-root ambiguity handling, inert no-terminal behavior for ineligible roots, and canonical absolute resolved-root evidence.
 6. Pause-and-approval requirement: pause and request senior engineer approval.
 
 ### FEAT-203 Packet: Path And CWD Resolution Core
@@ -580,8 +638,8 @@ Use this exact structure for every FEAT closeout:
    - Allowed: `extension/src/runtime/pathResolver.js`.
    - Forbidden: command handlers and UI modules.
 3. Contract constraints: follow Runtime Invocation Contract resolution algorithms exactly.
-4. Required command behavior: resolver returns deterministic `<run-script-path>` and algorithm-directory CWD.
-5. Verification output expectations: resolver outputs validated for active file and explorer selection contexts.
+4. Required command behavior: resolver returns deterministic canonical absolute `<run-script-path>` and canonical absolute algorithm-directory CWD.
+5. Verification output expectations: resolver outputs validated for active file and explorer selection contexts, including absolute-path format and safe display-path derivation inputs.
 6. Pause-and-approval requirement: pause and request senior engineer approval.
 
 ### FEAT-204 Packet: Process Runner + Execution Logging
@@ -590,9 +648,9 @@ Use this exact structure for every FEAT closeout:
 2. Allowed and forbidden files:
    - Allowed: `extension/src/runtime/runScriptRunner.js`, `extension/src/runtime/argumentBuilder.js`.
    - Forbidden: UI contribution files.
-3. Contract constraints: command string, script path, and CWD must be logged before execution; runner must call `terminal.show()` on every invocation so output is always visible — background/silent execution is forbidden; runner must only operate on a terminal it created via `vscode.window.createTerminal()` and must never adopt a terminal from an external source.
-4. Required command behavior: runner creates (or, if configured, reuses its own previously created) named terminal, reveals it to the user, sends the command, and returns structured status/exit outcome.
-5. Verification output expectations: sample invocation log includes script path, CWD, exit code.
+3. Contract constraints: command string, script path, and CWD must be logged before execution; internal logs must use canonical absolute script path and canonical absolute CWD; user-facing terminal command display may show relative script path when safely derivable and must fall back to absolute script path otherwise; `Logging Policy: Extension Light, Script Canonical` is required for MVP (metadata-only orchestration logging, no extension-owned persistent archive logs, no duplication of script-owned archive/build payload logs); runner must call `terminal.show()` on every invocation so output is always visible — background/silent execution is forbidden; runner must only operate on a terminal it created via `vscode.window.createTerminal()` and must never adopt a terminal from an external source.
+4. Required command behavior: runner creates (or, if configured, reuses its own previously created) named terminal, reveals it to the user, sends the command using the display-path policy, and returns structured status/exit outcome.
+5. Verification output expectations: sample invocation evidence includes internal absolute script path, internal absolute CWD, displayed script path form, command family/lifecycle/exit metadata, and confirmation that no extension-owned persistent archive logs were created.
 6. Pause-and-approval requirement: pause and request senior engineer approval.
 
 ### FEAT-205 Packet: Run Active File Handler
@@ -601,7 +659,7 @@ Use this exact structure for every FEAT closeout:
 2. Allowed and forbidden files:
    - Allowed: `extension/src/commands/fileCommands.js`, `extension/src/validation/inputValidation.js`.
    - Forbidden: package contribution metadata.
-3. Contract constraints: algorithm-directory CWD semantics, basename behavior, and valid-active-script contract are mandatory for palette invocation.
+3. Contract constraints: algorithm-directory CWD semantics, basename behavior, valid-active-script contract, and handoff of canonical absolute path artifacts to the runner are mandatory for palette invocation.
 4. Required command behavior: run-active-file executes for saved valid scripts and performs no execution for unsaved/untitled/invalid-script contexts while showing actionable `nothing to do` guidance.
 5. Verification output expectations: palette invocation success path and failure paths for unsaved, non-algorithm path, and unsupported extension are captured.
 6. Pause-and-approval requirement: pause and request reviewer approval.
@@ -754,8 +812,13 @@ Use this exact structure for every FEAT closeout:
    - default check-only route preference
    - fixed clean invocation for `algos.runClean`: always `clean --defaults=y`
    - whether to reuse the extension's own previously created terminal or always open a new one (terminal **must** be shown regardless; this setting controls reuse of the extension-owned terminal only — terminals from other sources are never used)
-   - optional source-profile override path
 2. No hidden mutation of shell profiles by extension itself.
+
+### Profile Sourcing Contract (MVP)
+
+1. MVP uses script-default profile sourcing behavior only; extension-managed profile override inputs are out of scope.
+2. If profile sourcing emits warnings or failures, extension behavior is to surface terminal output and actionable notification only; do not add alternate profile-selection logic in MVP.
+3. Any profile-source configurability expansion is `POST-MVP-DEFERRED` and requires explicit scope-approval before FEAT planning.
 
 ## Local Packaging Requirements (MVP Final Gate)
 
@@ -795,13 +858,31 @@ Use this exact structure for every FEAT closeout:
    - `git diff -- package.json package-lock.json` (expected: empty or additive-safe with approval note)
 5. If any protected/shared surface is touched, FEAT evidence must include baseline parity confirmation that blog build/runtime behavior is unchanged.
 
-## Deferred Decisions Requiring Reviewer Sign-Off
+## Post-MVP Deferred Records (No MVP Action)
 
-1. Should smoke test be included in MVP command inventory or deferred?
-2. Should language-key run mode be added as a post-MVP command family, and if so which surfaces should expose it?
-3. Should profile file auto-detection be configurable beyond explicit override?
+1. Smoke-test command surface remains deferred; no MVP FEAT work is authorized for smoke-test commands.
+2. Language-key run command family remains deferred post-MVP; no MVP surface planning is authorized here.
+3. Profile-source configurability beyond script-default behavior remains deferred post-MVP; no MVP configuration key is authorized.
 
 ## Phased Delivery Plan
+
+### Pre-Implementation Approval Gate (Route C)
+
+Before FEAT-201 implementation begins, reviewer and senior engineer must explicitly approve this gate checklist.
+
+1. MVP Constraint Taxonomy accepted as normative (`MVP-BLOCKING`, `MVP-GUARDRAIL`, `POST-MVP-DEFERRED`).
+2. All deferred records are confirmed as non-implementable in MVP.
+3. Profile Sourcing Contract accepted: script-default behavior only; no extension override path in MVP.
+4. Copilot boundary-and-approval execution aid accepted, including mandatory changelog updates for approved boundary edits.
+5. FEAT packet/evidence expectations confirmed to preserve taxonomy boundaries and avoid deferred-item leakage.
+
+Execution lock: if this gate is not approved, implementation must pause at planning-only state.
+
+Approval record (2026-04-13):
+
+1. Gate approved by Senior engineer: Derek.
+2. Gate approved by Reviewer: Derek.
+3. FEAT-by-FEAT pause/resume cadence confirmed (no auto-advance without explicit approval response).
 
 ### Phase 1: Foundation
 
@@ -883,7 +964,7 @@ Final MVP closeout requires FEAT-216 completion and senior engineer sign-off.
 - Estimates:
   - Human-Primary: 8 SP, 30 h
   - Copilot-Led: 5 SP, 20 h
-- Acceptance Criteria: hard eligibility markers (`run.sh`, `init.sh`, `src/`, `shlib/`, `stdlib/`, `templates/`) are enforced; canary command `run.sh --help-all` is evaluated; ineligible/partial workspaces block run execution with actionable guidance; nested workspace folders resolving to the same repository root are deduplicated; only multiple distinct eligible roots trigger ambiguity pause/escalation.
+- Acceptance Criteria: hard eligibility markers (`run.sh`, `init.sh`, `src/`, `shlib/`, `stdlib/`, `templates/`) are enforced; canary command `<run-script-path> --help-all` is evaluated using resolved absolute script path and repository-root context; ineligible/partial workspaces block run execution with actionable guidance; nested workspace folders resolving to the same repository root are deduplicated; only multiple distinct eligible roots trigger ambiguity pause/escalation.
 - Definition Of Done: eligibility resolver is wired to activation and command preflight with marker and canary evidence, and no run terminal is created when workspace is ineligible.
 - Human Approval: Senior engineer approves workspace safety and non-interference behavior.
 
@@ -895,7 +976,7 @@ Final MVP closeout requires FEAT-216 completion and senior engineer sign-off.
 - Estimates:
   - Human-Primary: 5 SP, 18 h
   - Copilot-Led: 3 SP, 12 h
-- Acceptance Criteria: resolves `<run-script-path>` and correct CWD for active and selected files; behavior is correct when repository root only is open, when only `src/` is open, and when both are open together in a nested multi-root workspace.
+- Acceptance Criteria: resolves canonical absolute `<run-script-path>` and canonical absolute CWD for active and selected files; behavior is correct when repository root only is open, when only `src/` is open, and when both are open together in a nested multi-root workspace.
 - Definition Of Done: path resolver is unit-testable and consumed by command runner.
 - Human Approval: Senior engineer approves resolution behavior.
 
@@ -907,7 +988,7 @@ Final MVP closeout requires FEAT-216 completion and senior engineer sign-off.
 - Estimates:
   - Human-Primary: 5 SP, 15 h
   - Copilot-Led: 3 SP, 10 h
-- Acceptance Criteria: runner executes exact invocation, logs script path and CWD, reports status.
+- Acceptance Criteria: runner executes exact invocation, logs internal absolute script path and internal absolute CWD, applies display-path policy (`relative` when safely derivable, otherwise `absolute`) for user-facing terminal command output, reports status, and enforces `Logging Policy: Extension Light, Script Canonical` (metadata-only extension diagnostics, no extension-owned persistent archive logging).
 - Definition Of Done: runner is integrated and used by at least one command handler.
 - Human Approval: Senior engineer approves runtime safety and logging.
 
@@ -1103,7 +1184,7 @@ Final MVP closeout requires FEAT-216 completion and senior engineer sign-off.
 | FEAT-201 | Extension scaffold and activation wiring | Extension host startup and command discovery check |
 | FEAT-202 | Workspace eligibility resolver and activation guard | Eligible/partial/ineligible plus multi-root ambiguity checks with inert behavior validation |
 | FEAT-203 | Path resolver module | Resolver returns repo-root script path and algorithm-directory CWD |
-| FEAT-204 | Runner module | Command execution log includes script path, CWD, and exit result |
+| FEAT-204 | Runner module | Command execution evidence includes internal absolute script path/CWD, displayed script path form, and exit result |
 | FEAT-205 | Run-active-file handler | Manual check: run from palette with saved and unsaved files |
 | FEAT-206 | Surface contributions | Manual check: Explorer, editor title, and palette invocation |
 | FEAT-207 | Launcher contribution and dispatch | Manual check: launcher discoverability and grouped action dispatch wiring |
@@ -1129,6 +1210,7 @@ Final MVP closeout requires FEAT-216 completion and senior engineer sign-off.
 8. Reviewer can trace every command to documented script behavior in this proposal's mapping and verification sections.
 9. Extension remains inert in ineligible workspaces and does not attempt run terminal execution outside eligible repository roots; nested workspace folders that resolve to one repository root do not trigger false ambiguity.
 10. Only the Play action is inline; non-Play run actions are exposed through explicit `Derek's Algorithms` menu paths and launcher flow.
+11. `Path Policy: Internal Absolute, Display Relative With Safe Fallback` is enforced across runtime contract, FEAT evidence, and verification checks.
 
 ## Verification Plan
 
@@ -1136,7 +1218,7 @@ Final MVP closeout requires FEAT-216 completion and senior engineer sign-off.
 
 1. Run active file from all three command surfaces and verify same script behavior.
 2. Verify hard-marker checks (`run.sh`, `init.sh`, `src/`, `shlib/`, `stdlib/`, `templates/`) drive eligible/partial/ineligible classification.
-3. Verify canary execution `run.sh --help-all` from resolved root and confirm expected exit `0` for eligible state.
+3. Verify canary execution `<run-script-path> --help-all` from resolved repository-root context and confirm expected exit `0` for eligible state.
 4. Verify repo-root-only workspace scenario resolves the same repository root used for eligibility and execution.
 5. Verify `src/`-only workspace scenario resolves upward to repository root and remains eligible when markers and canary pass.
 6. Verify nested multi-root scenario (`repo root` + `src/`) deduplicates to one repository context and does not trigger ambiguity.
@@ -1157,6 +1239,11 @@ Final MVP closeout requires FEAT-216 completion and senior engineer sign-off.
 21. Run `npm run buildextension` from repository root and verify VSIX artifact is emitted under `extension/dist/`.
 22. Verify `buildextension` output includes explicit instruction to close VS Code and install the VSIX from the printed path.
 23. Verify packaging command-chain ownership is explicit: root `package.json` `buildextension` delegates to `extension/package.json` executor command, and that executor invokes `vsce package`.
+24. Verify path policy internals: resolver output and runner diagnostics record canonical absolute repository root, canonical absolute algorithm directory CWD, and canonical absolute `<run-script-path>`.
+25. Verify user-facing terminal command display uses relative script path when safely derivable from algorithm-directory CWD (for example `../../../run.sh`) and absolute script path fallback when relative display is unsafe or ambiguous.
+26. Verify FEAT evidence captures both path representations where applicable: internal absolute script path and displayed script path form.
+27. Verify `Logging Policy: Extension Light, Script Canonical`: extension diagnostics remain metadata-only orchestration logs and do not duplicate script-owned archive/build payload logs.
+28. Verify no extension-owned persistent archive log files are created in MVP flows.
 
 Named negative test vectors:
 
@@ -1164,12 +1251,16 @@ Named negative test vectors:
 2. `NEG-CLEAN-PALETTE-NO-ACTIVE`: invoking `clean` from Command Palette with no active compatible source file must no-op with actionable guidance.
 3. `NEG-LOCALCLEAN-PALETTE-NO-ACTIVE`: invoking `localclean` from Command Palette with no active compatible source file must no-op with actionable guidance.
 4. `NEG-RUN-FAMILY-INVALID-ACTIVE`: invoking run-active, compile-only, or check-only with invalid active file context (missing active file, outside algorithm path, or unsupported extension) must no-op with actionable guidance.
+5. `NEG-PATH-RELATIVE-UNSAFE`: when relative script display cannot be safely derived, terminal display must fall back to absolute script path rather than emit malformed relative path.
+6. `NEG-PATH-ABSOLUTE-LEAKAGE`: when relative script display is safely derivable, terminal display should not leak unnecessary absolute script path text.
 
 ### Regression Checks
 
 1. Verify commands do not alter `run.sh` script.
 2. Verify no behavior drift against `run.sh`-owned precedence rules and invocation behavior.
 3. Verify unsupported command inputs fail clearly and do not execute malformed commands.
+4. Verify path policy remains intact after refactors: internal artifacts are absolute, and user-facing display preserves relative-with-safe-fallback behavior.
+5. Verify logging policy remains intact after refactors: extension logging stays metadata-only and does not add persistent archive logging scope.
 
 ## Compatibility And Regression Boundaries
 
@@ -1192,14 +1283,19 @@ Any behavioral change to `run.sh` option handling, accepted values, precedence, 
 - [ ] FEAT Packet Alignment Matrix passed: all FEAT IDs are marked aligned.
 - [ ] Evidence template compliance passed: FEAT closeouts follow the defined evidence packet structure.
 - [ ] Phrase-level drift guard passed: normative sections, FEAT packets, and FEAT backlog acceptance lines contain no legacy shorthand that weakens current normalization policy.
+- [ ] Path Policy terminology lock passed: `Path Policy: Internal Absolute, Display Relative With Safe Fallback` appears consistently in path-policy sections and FEAT packet wording.
+- [ ] Logging Policy terminology lock passed: `Logging Policy: Extension Light, Script Canonical` appears consistently in execution/logging sections and FEAT-204 constraints.
+- [ ] MVP Constraint Taxonomy lock passed: normative statements and FEAT acceptance wording remain classified/aligned as `MVP-BLOCKING`, `MVP-GUARDRAIL`, or `POST-MVP-DEFERRED` without silent tier promotion.
 - [ ] Named negative vector coverage passed: Verification Plan named negative test vectors are executed and evidence is recorded in FEAT closeouts where applicable.
+- [ ] Path policy evidence coverage passed: FEAT evidence captures internal absolute path artifacts and user-facing display-path form where applicable.
+- [ ] Lightweight logging compliance passed: extension evidence confirms metadata-only orchestration logging and no extension-owned persistent archive logging in MVP.
 - [ ] Stop-and-ask protocol passed: each FEAT closure includes explicit pause-and-approval before next FEAT.
 - [ ] Blog Coexistence Gate passed: protected blog surfaces are unchanged unless explicitly approved, shared-surface changes are additive-safe, and coexistence evidence command output is attached.
 - [ ] Workspace Safety Gate passed: hard marker and canary checks are evidenced, eligible/partial/ineligible detection works, ineligible mode is inert, and no run execution occurs outside resolved eligible root.
 - [ ] FEAT-201 passed: extension scaffold loads and bootstrap command is discoverable.
 - [ ] FEAT-202 passed: workspace eligibility and activation guard behavior is correct.
 - [ ] FEAT-203 passed: path and CWD resolution are contract-correct.
-- [ ] FEAT-204 passed: runner logs script path, CWD, and exit status.
+- [ ] FEAT-204 passed: runner logs required orchestration metadata, preserves path display policy, and complies with lightweight logging policy.
 - [ ] FEAT-205 passed: run-active-file handler works with proper preconditions.
 - [ ] FEAT-206 passed: run-active-file is wired to Explorer, editor title, and palette.
 - [ ] FEAT-207 passed: launcher command coverage is implemented and verified.
@@ -1217,30 +1313,34 @@ Any behavioral change to `run.sh` option handling, accepted values, precedence, 
 
 | Date | Change | Rationale | Approver |
 | --- | --- | --- | --- |
-| 2026-04-13 | Initial proposal draft created | Establish implementation-ready MVP blueprint | Pending |
-| 2026-04-13 | Reviewer polish pass with two-table mapping, FEAT backlog, and FEAT traceability matrix | Improve reviewer throughput and planning handoff quality | Pending |
-| 2026-04-13 | Backlog standardized to FEAT-200 implementation track only | Align planning taxonomy with executable extension delivery | Pending |
-| 2026-04-13 | Added runtime invocation contract, planned extension structure, and Copilot execution protocol | Make FEAT execution deterministic for guided Copilot implementation | Pending |
-| 2026-04-13 | FEAT backlog decomposed from FEAT-201..208 into FEAT-201..215 with per-ticket AC and DoD focus | Improve execution granularity and reviewability under guided Copilot workflow | Pending |
-| 2026-04-13 | Copilot-centric hardening pass: FEAT-201..215 packet expansion, alignment matrix, and operational evidence/approval rules | Eliminate packet/backlog drift and enforce deterministic human-guided execution | Pending |
-| 2026-04-13 | Added Appendix C: Explicitly Excluded from MVP, covering all run.sh features intentionally out of scope | Prevent scope creep during FEAT implementation and give Copilot a hard stop list | Pending |
-| 2026-04-13 | Added repository coexistence gating for protected blog/shared surfaces with mandatory evidence commands | Prevent blog regressions from extension work and enforce explicit human approval on shared-surface edits | Pending |
-| 2026-04-13 | Added EDH-first bootstrap requirements and FEAT-216 local VSIX package/install validation gate | Ensure MVP proves Extension Development Host operation early and local formal installation at closeout | Pending |
-| 2026-04-13 | Added workspace eligibility/non-interference MVP gate and inserted FEAT-202 with full downstream renumbering to FEAT-215 | Ensure extension behavior is scoped to eligible repository workspaces and remains inert elsewhere | Pending |
-| 2026-04-13 | Hardened workspace eligibility with runtime-capability markers plus canary check | Ensure eligibility reflects repository runtime shape and execution safety | Pending |
-| 2026-04-13 | Removed ScriptsReference.md from runtime decision paths and removed lookup command references | Ensure final code decisions are driven only by runtime markers, parser behavior, and proposal mapping | Pending |
-| 2026-04-13 | Adopted explicit `Derek's Algorithms` menu model for non-Play run actions and added valid-active-script gating for direct palette run | Improve discoverability while preventing ambiguous or invalid direct run execution | Pending |
-| 2026-04-13 | Updated FEAT-216 packaging contract to require `npm run buildextension`, VSIX output in `extension/dist/`, and explicit close/install operator guidance in build output | Provide a single human-friendly build path and clear post-build installation instructions | Pending |
-| 2026-04-13 | Clarified FEAT-216 packaging ownership chain so root `buildextension` delegates to extension executor that invokes `vsce` | Remove ambiguity about where packaging logic lives and how VSIX creation is executed | Pending |
-| 2026-04-13 | Renumbered FEAT sequence to strict numeric IDs and added FEAT sizing/numbering policy | Keep FEAT IDs strictly numeric and preserve small-scope FEAT boundaries without suffix IDs | Pending |
-| 2026-04-13 | Tightened surface availability model: editor-title clean/localclean on valid source files, Explorer context gating for clean/localclean/run, and aligned FEAT/verification contracts | Eliminate command-surface ambiguity and ensure context-driven visibility is testable and implementable | Pending |
-| 2026-04-13 | Added explicit compile/check surface parity wording, standardized MVP non-interactive clean to `--defaults=y`, and hardened strict supported-target-only execution contract (with filename-bracketing deferred post-MVP) | Keep MVP simple, deterministic, and unambiguous while preventing unsupported file execution paths | Pending |
-| 2026-04-13 | Corrected filename-mode shell examples and invariant wording to algorithm-directory basename invocation for file-context commands | Remove conflicting `./run.sh src/...` examples and align Appendix A with normative mapping/CWD contract | Pending |
-| 2026-04-13 | Simplified MVP scope by deferring list/flag command surfaces post-MVP, collapsing to one clean command (`clean --defaults=y`), and enforcing algorithm-directory-only execution contexts for all remaining commands | Keep MVP minimal, deterministic, and strictly aligned to supported algorithm targets | Pending |
+| 2026-04-13 | Initial proposal draft created | Establish implementation-ready MVP blueprint | Approved by Derek |
+| 2026-04-13 | Reviewer polish pass with two-table mapping, FEAT backlog, and FEAT traceability matrix | Improve reviewer throughput and planning handoff quality | Approved by Derek |
+| 2026-04-13 | Backlog standardized to FEAT-200 implementation track only | Align planning taxonomy with executable extension delivery | Approved by Derek |
+| 2026-04-13 | Added runtime invocation contract, planned extension structure, and Copilot execution protocol | Make FEAT execution deterministic for guided Copilot implementation | Approved by Derek |
+| 2026-04-13 | FEAT backlog decomposed from FEAT-201..208 into FEAT-201..215 with per-ticket AC and DoD focus | Improve execution granularity and reviewability under guided Copilot workflow | Approved by Derek |
+| 2026-04-13 | Copilot-centric hardening pass: FEAT-201..215 packet expansion, alignment matrix, and operational evidence/approval rules | Eliminate packet/backlog drift and enforce deterministic human-guided execution | Approved by Derek |
+| 2026-04-13 | Added Appendix C: Explicitly Excluded from MVP, covering all run.sh features intentionally out of scope | Prevent scope creep during FEAT implementation and give Copilot a hard stop list | Approved by Derek |
+| 2026-04-13 | Added repository coexistence gating for protected blog/shared surfaces with mandatory evidence commands | Prevent blog regressions from extension work and enforce explicit human approval on shared-surface edits | Approved by Derek |
+| 2026-04-13 | Added EDH-first bootstrap requirements and FEAT-216 local VSIX package/install validation gate | Ensure MVP proves Extension Development Host operation early and local formal installation at closeout | Approved by Derek |
+| 2026-04-13 | Added workspace eligibility/non-interference MVP gate and inserted FEAT-202 with full downstream renumbering to FEAT-215 | Ensure extension behavior is scoped to eligible repository workspaces and remains inert elsewhere | Approved by Derek |
+| 2026-04-13 | Hardened workspace eligibility with runtime-capability markers plus canary check | Ensure eligibility reflects repository runtime shape and execution safety | Approved by Derek |
+| 2026-04-13 | Removed ScriptsReference.md from runtime decision paths and removed lookup command references | Ensure final code decisions are driven only by runtime markers, parser behavior, and proposal mapping | Approved by Derek |
+| 2026-04-13 | Adopted explicit `Derek's Algorithms` menu model for non-Play run actions and added valid-active-script gating for direct palette run | Improve discoverability while preventing ambiguous or invalid direct run execution | Approved by Derek |
+| 2026-04-13 | Updated FEAT-216 packaging contract to require `npm run buildextension`, VSIX output in `extension/dist/`, and explicit close/install operator guidance in build output | Provide a single human-friendly build path and clear post-build installation instructions | Approved by Derek |
+| 2026-04-13 | Clarified FEAT-216 packaging ownership chain so root `buildextension` delegates to extension executor that invokes `vsce` | Remove ambiguity about where packaging logic lives and how VSIX creation is executed | Approved by Derek |
+| 2026-04-13 | Renumbered FEAT sequence to strict numeric IDs and added FEAT sizing/numbering policy | Keep FEAT IDs strictly numeric and preserve small-scope FEAT boundaries without suffix IDs | Approved by Derek |
+| 2026-04-13 | Tightened surface availability model: editor-title clean/localclean on valid source files, Explorer context gating for clean/localclean/run, and aligned FEAT/verification contracts | Eliminate command-surface ambiguity and ensure context-driven visibility is testable and implementable | Approved by Derek |
+| 2026-04-13 | Added explicit compile/check surface parity wording, standardized MVP non-interactive clean to `--defaults=y`, and hardened strict supported-target-only execution contract (with filename-bracketing deferred post-MVP) | Keep MVP simple, deterministic, and unambiguous while preventing unsupported file execution paths | Approved by Derek |
+| 2026-04-13 | Corrected filename-mode shell examples and invariant wording to algorithm-directory basename invocation for file-context commands | Remove conflicting `./run.sh src/...` examples and align Appendix A with normative mapping/CWD contract | Approved by Derek |
+| 2026-04-13 | Simplified MVP scope by deferring list/flag command surfaces post-MVP, collapsing to one clean command (`clean --defaults=y`), and enforcing algorithm-directory-only execution contexts for all remaining commands | Keep MVP minimal, deterministic, and strictly aligned to supported algorithm targets | Approved by Derek |
+| 2026-04-13 | Added path-policy hardening: internal canonical absolute runtime artifacts, relative-with-safe-fallback terminal display, and evidence/verification updates | Preserve terminal readability while making runtime behavior and Copilot implementation guidance deterministic | Approved by Derek |
+| 2026-04-13 | Added lightweight extension logging policy: metadata-only orchestration diagnostics, no extension-owned persistent archive logging, and FEAT-204/verification guardrails | Keep MVP logging minimal because `run.sh` already owns canonical runtime logging and archival | Approved by Derek |
+| 2026-04-13 | Applied Route C governance hardening: MVP constraint taxonomy, pre-implementation approval gate, profile-sourcing MVP contract, and deferred-record conversion | Prevent MVP scope leakage and make boundary-changing edits require explicit approval plus changelog traceability | Approved by Derek |
+| 2026-04-13 | Applied human approvals for kickoff: status moved to Proposed, reviewer owner recorded, and Route C pre-implementation gate approval recorded | Confirm governance prerequisites for human-led, FEAT-gated Copilot implementation flow | Approved by Derek |
 
-## Appendix A: Canonical MVP Command Examples
+## Appendix A: Canonical MVP Command Examples (User-Facing Display)
 
-Note: the commands below are shell examples; extension execution uses the resolved `<run-script-path>` plus the CWD rules defined in Runtime Invocation Contract.
+Note: the commands below are user-facing shell display examples. Internal runtime resolution, validation, and evidence use canonical absolute `<run-script-path>` and canonical absolute CWD artifacts as defined in Runtime Invocation Contract.
 
 ```bash
 # File-context examples from algorithm directory (basename invocation mode)
@@ -1252,6 +1352,14 @@ cd src/numeric/euclidgcd
 ../../../run.sh --check-only=ssh euclidgcd.py
 ../../../run.sh localclean
 ../../../run.sh clean --defaults=y
+```
+
+Internal path evidence example (diagnostic/evidence, not terminal display):
+
+```text
+Resolved Script Path (absolute): /home/user/path/to/repo/run.sh
+Resolved Algorithm CWD (absolute): /home/user/path/to/repo/src/numeric/euclidgcd
+Displayed Script Path Form: ../../../run.sh
 ```
 
 ## Appendix B: Language Key Coverage Sync Strategy
@@ -1270,7 +1378,7 @@ These features exist in `run.sh` but will not be surfaced as VS Code commands at
 
 | Feature / Flag | Description | Exclusion Rationale |
 | --- | --- | --- |
-| `--smoke-test` | Runs the smoke test suite and exits | CI/development tooling; not a user-facing editor action. See Deferred Decision \#1: if approved there, remove from this list and add to the FEAT backlog. |
+| `--smoke-test` | Runs the smoke test suite and exits | CI/development tooling; not a user-facing editor action. See Post-MVP Deferred Records item 1: if explicitly promoted out of deferred status, remove from this list and add to the FEAT backlog. |
 | `--smoke-test --langs=<keys>` | Filters smoke run to named language keys | Same as above; forwarded smoke option. |
 | `--smoke-test --timeout=<duration>` | Overrides main smoke timeout | Same as above; forwarded smoke option. |
 | `--smoke-test --slow-timeout=<duration>` | Overrides slow-language smoke timeout | Same as above; forwarded smoke option. |
