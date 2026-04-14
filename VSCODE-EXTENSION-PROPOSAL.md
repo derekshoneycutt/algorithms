@@ -621,8 +621,9 @@ Required fields:
 8. Assumption register for this FEAT.
 9. Evidence basis for each material assumption.
 10. Disconfirming check plan for each material assumption.
-11. Ambiguity severity and escalation threshold.
-12. Minimal-safe implementation boundary for this FEAT.
+11. Ambiguity severity score (`A0`/`A1`/`A2`/`A3`) and escalation threshold per Skeptical Quality Rubrics.
+12. Minimum evidence quality tier target (`E2` or `E3`) for this FEAT per Skeptical Quality Rubrics.
+13. Minimal-safe implementation boundary for this FEAT.
 
 Guidance quality rule: broad instructions such as "read the whole proposal" are not acceptable as a Guidance Planning Agreement.
 
@@ -643,8 +644,87 @@ Required fields:
 9. Assumptions falsified during execution.
 10. Eagerness-pressure points observed and how they were mitigated.
 11. Skeptical checks that prevented drift or rework.
+12. Ambiguity severity score observed during execution and escalation decision (`A0`/`A1`/`A2`/`A3`).
+13. Evidence quality tier achieved for the FEAT evidence set (`E0`/`E1`/`E2`/`E3`) with rationale.
+14. Contradiction Resolution Record references used in this FEAT (or `NA` if no contradiction triggered).
 
 Scope guardrail: Empirical Process Reports may refine guidance and section targeting but must not silently rewrite MVP runtime requirements, scope boundaries, or guardrail strictness.
+
+### Structural Change Control Block (Normative For Structural Proposal Updates)
+
+Any proposal update that changes document structure must include an explicit Structural Change Control Block before structural edits begin.
+
+Required fields:
+
+1. Structural objective and scope boundaries.
+2. Canonical after-state specimen showing final hierarchy and TOC presentation format.
+3. Heading-level expectations (`##`, `###`, and any TOC-only grouping expectations).
+4. Invalid-interpretation guardrails (`Do Not Implement As` list).
+5. Structural safety constraints (what sections/headings are immutable for the change set).
+6. Required structural evidence outputs for gate review.
+
+Normative enforcement rules:
+
+1. Canonical after-state specimen is mandatory; prose-only structural intent is insufficient.
+2. Invalid-interpretation guardrails are mandatory for any structural split, grouping, or reordering change.
+3. Structural updates must not alter runtime behavior, command semantics, or MVP scope boundaries unless separately approved.
+
+### Structural Addendum Supersession Declaration (Normative)
+
+Any structural addendum must include one and only one supersession declaration.
+
+Allowed declarations (binary rule):
+
+1. `Supersedes prior target hierarchy section(s)`: the addendum explicitly names the section(s) it supersedes and defines the new controlling target hierarchy.
+2. `Execution refinement only (no target-state override)`: the addendum clarifies execution process only and does not redefine target hierarchy.
+
+Normative enforcement rules:
+
+1. Structural addenda without one of the two declarations above are invalid for execution and review approval.
+2. Dual-active-truth structural addenda are disallowed: an addendum cannot simultaneously claim target-hierarchy supersession and no target-state override.
+3. If declaration type is supersession, the superseded section references and replacement controlling hierarchy must be explicit and reviewer-verifiable.
+
+### Skeptical Quality Rubrics (Normative)
+
+Ambiguity Severity Rubric (`A*`):
+
+1. `A0 - None`: no meaningful ambiguity; one stable interpretation is supported by authoritative sections.
+2. `A1 - Low`: minor wording ambiguity exists, but implementation impact is non-material and bounded.
+3. `A2 - Medium`: ambiguity has material implementation impact but remains bounded to limited sections/options.
+4. `A3 - High`: authoritative sections conflict or permit multiple materially different implementations.
+
+Ambiguity escalation thresholds:
+
+1. `A0` or `A1`: implementation may proceed with documented rationale.
+2. `A2`: implementation may proceed only after explicit reviewer acknowledgement in FEAT evidence.
+3. `A3`: mandatory stop-and-ask escalation before implementation.
+
+Evidence Quality Rubric (`E*`):
+
+1. `E0 - Unsupported`: assertion-only; no reproducible artifacts.
+2. `E1 - Partial`: artifacts exist but are incomplete, non-reproducible, or single-angle only.
+3. `E2 - Reproducible`: commands/artifacts are reproducible and cover primary expected behavior.
+4. `E3 - Reproducible + Disconfirming`: reproducible evidence plus disconfirming checks and contradiction handling outcomes when applicable.
+
+Evidence quality thresholds:
+
+1. Minimum required for FEAT implementation evidence acceptance: `E2`.
+2. Required for structural-change gate acceptance: `E3`.
+
+### Contradiction Resolution Record Template (Normative)
+
+When contradiction escalation is triggered, create one contradiction-resolution record with all required fields:
+
+1. Contradiction statement.
+2. Conflicting authorities.
+3. Chosen resolution.
+4. Approver.
+5. Downstream guidance update impact.
+
+Normative enforcement rules:
+
+1. Contradiction cases are not considered closed without a complete contradiction-resolution record.
+2. FEAT evidence and Empirical Process Report entries must reference the record when contradiction escalation occurs.
 
 ### Mandatory Stop-And-Ask Conditions
 
@@ -721,9 +801,21 @@ Use this exact structure for every FEAT closeout:
    - Guidance Planning Agreement location and approval record for this FEAT.
    - FEAT-202 and later: prior approved FEAT Empirical Process Report reference and approved guidance-update summary applied to this FEAT.
    - Post-approval Empirical Process Report location for this FEAT.
+   - Ambiguity severity score and escalation decision used for this FEAT (`A0`/`A1`/`A2`/`A3`) per Skeptical Quality Rubrics.
+   - Evidence quality tier achieved by this FEAT evidence set (`E0`/`E1`/`E2`/`E3`) per Skeptical Quality Rubrics.
    - Assumption register reference for this FEAT and disconfirming check outcomes.
-   - Contradiction outcomes and escalation decisions (or `NA` if no contradiction triggered).
+   - Contradiction Resolution Record reference with required fields completed (or `NA` if no contradiction triggered).
    - Minimal-safe implementation boundary confirmation.
+
+Render-facing structural gate contract (mandatory when a FEAT changes proposal/document structure):
+
+1. Acceptance criteria must include independent checks for:
+   - content preservation,
+   - navigation preservation,
+   - hierarchy/render preservation.
+2. Evidence location must include reviewer-verifiable artifacts for each independent check (content, navigation, hierarchy/render).
+3. Render-facing acceptance checks are mandatory and must state what the reviewer should visibly observe (for example heading hierarchy/TOC presentation).
+4. Evidence packets that provide only no-data-loss/content-preservation proof without navigation and hierarchy/render proof are rejected.
 
 ### Human Approval Roles
 
@@ -1398,8 +1490,18 @@ Named negative test vectors:
 - [ ] Guidance Planning Agreement gate passed: every FEAT starts only after an approved FEAT-specific Guidance Planning Agreement with exact proposal section references.
 - [ ] Empirical Process Report gate passed: every approved FEAT has a completed Empirical Process Report recorded as process evidence.
 - [ ] FEAT feedback-loop gate passed: FEAT-202 and later include an approved Guidance Planning Agreement update derived from the immediately prior approved FEAT's Empirical Process Report.
-- [ ] Skeptical planning gate passed: every FEAT Guidance Planning Agreement includes assumption register, evidence basis, disconfirming checks, ambiguity severity, and minimal-safe boundary.
+- [ ] Skeptical planning gate passed: every FEAT Guidance Planning Agreement includes assumption register, evidence basis, disconfirming checks, ambiguity severity score, evidence-quality tier target, and minimal-safe boundary.
 - [ ] Skeptical execution gate passed: FEAT evidence links include disconfirming-check outcomes and contradiction handling decisions when applicable.
+- [ ] Structural control block gate passed: structural-change proposals include canonical after-state specimen and explicit heading-level expectations.
+- [ ] Invalid-interpretation guardrails gate passed: structural-change proposals include explicit `Do Not Implement As` guardrails.
+- [ ] Ambiguity rubric gate passed: FEAT guidance and evidence use explicit `A0`/`A1`/`A2`/`A3` scoring with threshold-consistent escalation behavior.
+- [ ] Evidence quality rubric gate passed: FEAT evidence quality is tiered (`E0`/`E1`/`E2`/`E3`) and meets required threshold for the change type.
+- [ ] Rubric field completeness gate passed: ambiguity/evidence-quality/contradiction fields are complete and reviewer-usable across Guidance Planning Agreement, FEAT Evidence Packet process linkage, and Empirical Process Report.
+- [ ] Contradiction record gate passed: contradiction escalations include a complete Contradiction Resolution Record with required fields and cross-references.
+- [ ] Structural addendum supersession gate passed: every structural addendum has an explicit binary supersession declaration, and addenda without declaration are rejected.
+- [ ] Structural gate contract split-proof passed: structural-change evidence independently proves content preservation, navigation preservation, and hierarchy/render preservation.
+- [ ] Render-facing structural acceptance passed: evidence includes explicit reviewer-visible checks for hierarchy and TOC presentation.
+- [ ] No-data-loss-only rejection gate passed: packets with only content/no-data-loss proof and no navigation/hierarchy-render proof are rejected.
 - [ ] Anti-eagerness gate passed: no FEAT implementation begins on confidence-only rationale without evidenced assumptions and challenge checks.
 - [ ] Contradiction escalation gate passed: when disconfirming evidence conflicts with planned implementation, stop-and-ask escalation is recorded before continued work.
 - [ ] FEAT Packet Alignment Matrix passed: all FEAT IDs are marked aligned.
@@ -1470,6 +1572,7 @@ Any behavioral change to `run.sh` option handling, accepted values, precedence, 
 
 | Date | Change | Rationale | Approver |
 | --- | --- | --- | --- |
+| 2026-04-14 | Added structural determinism hardening controls (structural control block enforcement, addendum supersession declarations, render-facing split-proof gate contract, skeptical rubrics, contradiction record template, and checklist enforcement updates) | Close interpretation-drift gaps and require reviewer-verifiable structural evidence across planning, execution, and closeout | Approved by Derek |
 | 2026-04-14 | Added Route 2 evidence-first skepticism controls (assumption register, disconfirming checks, contradiction stop gate, anti-eagerness reviewer gates) | Bias Copilot execution toward skeptical and pedantic validation before action and reduce eager implementation drift | Approved by Derek |
 | 2026-04-14 | Added per-FEAT Guidance Planning Agreement pre-implementation gate plus post-approval Empirical Process Report loop, including FEAT-202+ prior-report guidance-update requirement | Convert FEAT execution learning into a required, reviewer-approved feedback loop and tighten section-targeted Copilot guidance | Approved by Derek |
 | 2026-04-13 | Initial proposal draft created | Establish implementation-ready MVP blueprint | Approved by Derek |
