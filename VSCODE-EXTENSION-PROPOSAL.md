@@ -13,47 +13,64 @@ MVP callout: `init.sh` support is intentionally out of scope for this proposal.
 
 ## Table Of Contents
 
+### Part I: Decision And Scope
+
 1. [Executive Summary](#executive-summary)
 2. [Intent And Success Criteria](#intent-and-success-criteria)
 3. [Scope](#scope)
-4. [Source Of Truth And Guardrails](#source-of-truth-and-guardrails)
-5. [Workspace Eligibility Contract](#workspace-eligibility-contract)
-6. [User Entry Points (Command Surfaces)](#user-entry-points-command-surfaces)
-7. [Command Inventory (MVP)](#command-inventory-mvp)
-8. [Normative Command-To-Script Mapping](#normative-command-to-script-mapping)
-9. [Directory Execution Invariant](#directory-execution-invariant)
-10. [Validation, Precedence, And Error Semantics](#validation-precedence-and-error-semantics)
-11. [Active File And Language Resolution Strategy](#active-file-and-language-resolution-strategy)
-12. [Execution Model](#execution-model)
-13. [Activation And Non-Interference Rules](#activation-and-non-interference-rules)
-14. [Runtime Invocation Contract](#runtime-invocation-contract)
-15. [Extension Project Structure (Planned Files)](#extension-project-structure-planned-files)
-16. [Validation Data Source Contract](#validation-data-source-contract)
-17. [Copilot Execution Protocol (Human-In-The-Loop)](#copilot-execution-protocol-human-in-the-loop)
-18. [FEAT Definition Of Done Template](#feat-definition-of-done-template)
-19. [FEAT Sizing And Numbering Policy](#feat-sizing-and-numbering-policy)
-20. [Agent Handoff Packets](#agent-handoff-packets)
-21. [FEAT Packet Alignment Matrix](#feat-packet-alignment-matrix)
-22. [Configuration And State Handling](#configuration-and-state-handling)
-23. [Local Packaging Requirements (MVP Final Gate)](#local-packaging-requirements-mvp-final-gate)
-24. [Risks And Mitigations](#risks-and-mitigations)
-25. [Repository Coexistence Constraints (Blog + Extension)](#repository-coexistence-constraints-blog--extension)
-26. [Post-MVP Deferred Records (No MVP Action)](#post-mvp-deferred-records-no-mvp-action)
-27. [Phased Delivery Plan](#phased-delivery-plan)
-28. [MVP Delivery Gating Rule](#mvp-delivery-gating-rule)
-29. [Implementation Artifact Checklist (MVP)](#implementation-artifact-checklist-mvp)
-30. [FEAT Backlog (Scrum-Style Scoped Tickets)](#feat-backlog-scrum-style-scoped-tickets)
-31. [MVP Estimates Summary](#mvp-estimates-summary)
-32. [FEAT Traceability Matrix](#feat-traceability-matrix)
-33. [Acceptance Criteria](#acceptance-criteria)
-34. [Verification Plan](#verification-plan)
-35. [Compatibility And Regression Boundaries](#compatibility-and-regression-boundaries)
-36. [Documentation Drift Policy](#documentation-drift-policy)
-37. [Reviewer Checklist](#reviewer-checklist)
-38. [Change Log](#change-log)
-39. [Appendix A: Canonical MVP Command Examples (User-Facing Display)](#appendix-a-canonical-mvp-command-examples-user-facing-display)
-40. [Appendix B: Language Key Coverage Sync Strategy](#appendix-b-language-key-coverage-sync-strategy)
-41. [Appendix C: Explicitly Excluded from MVP](#appendix-c-explicitly-excluded-from-mvp)
+4. [MVP Delivery Gating Rule](#mvp-delivery-gating-rule)
+5. [Post-MVP Deferred Records (No MVP Action)](#post-mvp-deferred-records-no-mvp-action)
+
+### Part II: Product Runtime Contract
+
+1. [Source Of Truth And Guardrails](#source-of-truth-and-guardrails)
+2. [Workspace Eligibility Contract](#workspace-eligibility-contract)
+3. [User Entry Points (Command Surfaces)](#user-entry-points-command-surfaces)
+4. [Command Inventory (MVP)](#command-inventory-mvp)
+5. [Normative Command-To-Script Mapping](#normative-command-to-script-mapping)
+6. [Directory Execution Invariant](#directory-execution-invariant)
+7. [Validation, Precedence, And Error Semantics](#validation-precedence-and-error-semantics)
+8. [Active File And Language Resolution Strategy](#active-file-and-language-resolution-strategy)
+9. [Activation And Non-Interference Rules](#activation-and-non-interference-rules)
+10. [Runtime Invocation Contract](#runtime-invocation-contract)
+11. [Execution Model](#execution-model)
+12. [Validation Data Source Contract](#validation-data-source-contract)
+13. [Extension Project Structure (Planned Files)](#extension-project-structure-planned-files)
+14. [Configuration And State Handling](#configuration-and-state-handling)
+
+### Part III: Delivery System (Copilot + Human)
+
+1. [Copilot Execution Protocol (Human-In-The-Loop)](#copilot-execution-protocol-human-in-the-loop)
+2. [FEAT Definition Of Done Template](#feat-definition-of-done-template)
+3. [FEAT Sizing And Numbering Policy](#feat-sizing-and-numbering-policy)
+4. [Agent Handoff Packets](#agent-handoff-packets)
+5. [FEAT Packet Alignment Matrix](#feat-packet-alignment-matrix)
+6. [Phased Delivery Plan](#phased-delivery-plan)
+7. [Implementation Artifact Checklist (MVP)](#implementation-artifact-checklist-mvp)
+8. [Local Packaging Requirements (MVP Final Gate)](#local-packaging-requirements-mvp-final-gate)
+
+### Part IV: Scrum Planning And Tracking
+
+1. [FEAT Backlog (Scrum-Style Scoped Tickets)](#feat-backlog-scrum-style-scoped-tickets)
+2. [MVP Estimates Summary](#mvp-estimates-summary)
+3. [FEAT Traceability Matrix](#feat-traceability-matrix)
+
+### Part V: Verification, Risk, And Governance
+
+1. [Acceptance Criteria](#acceptance-criteria)
+2. [Verification Plan](#verification-plan)
+3. [Reviewer Checklist](#reviewer-checklist)
+4. [Documentation Drift Policy](#documentation-drift-policy)
+5. [Risks And Mitigations](#risks-and-mitigations)
+6. [Repository Coexistence Constraints (Blog + Extension)](#repository-coexistence-constraints-blog--extension)
+7. [Compatibility And Regression Boundaries](#compatibility-and-regression-boundaries)
+
+### Part VI: References And Audit
+
+1. [Change Log](#change-log)
+2. [Appendix A: Canonical MVP Command Examples (User-Facing Display)](#appendix-a-canonical-mvp-command-examples-user-facing-display)
+3. [Appendix B: Language Key Coverage Sync Strategy](#appendix-b-language-key-coverage-sync-strategy)
+4. [Appendix C: Explicitly Excluded from MVP](#appendix-c-explicitly-excluded-from-mvp)
 
 ## Intent And Success Criteria
 
@@ -111,6 +128,17 @@ Classification rule:
 2. Tree/panel UX for route-map editing and advanced configuration.
 3. Smoke-test UI workflows and value-shape assistants.
 4. Rich extension log retention controls (custom TTL/size cache policy) beyond VS Code-managed log lifecycle.
+
+## MVP Delivery Gating Rule
+
+MVP delivery is gated by FEAT-200+ implementation tickets only. This proposal defines a single implementation ticket track.
+Final MVP closeout requires FEAT-216 completion and senior engineer sign-off.
+
+## Post-MVP Deferred Records (No MVP Action)
+
+1. Smoke-test command surface remains deferred; no MVP FEAT work is authorized for smoke-test commands.
+2. Language-key run command family remains deferred post-MVP; no MVP surface planning is authorized here.
+3. Profile-source configurability beyond script-default behavior remains deferred post-MVP; no MVP configuration key is authorized.
 
 ## Source Of Truth And Guardrails
 
@@ -372,21 +400,6 @@ MVP explicitly does not add filename-bracketing or advanced filename interpretat
 
 Note: this section is resolution policy only; normative CWD behavior is defined in `Directory Execution Invariant`.
 
-## Execution Model
-
-1. Use VS Code terminal execution for MVP to preserve visibility and script parity.
-2. The extension must own its terminal: always create it via `vscode.window.createTerminal()` with a fixed, extension-specific name (e.g., `Algorithms Runner`). Never write to, read from, or reuse a terminal created by another extension or by VS Code itself — those terminals have unknown shell state, environment variables, and CWD that cannot be trusted.
-3. Every run invocation shows the owned terminal via `terminal.show()` so output is immediately visible to the user — output must **never** be captured silently in the background.
-4. The "reuse" option in configuration refers only to reusing the extension's own previously created terminal, not any external terminal.
-5. Enforce the `Directory Execution Invariant` for all file-context commands.
-6. Cleanup command contexts are algorithm-directory only; repository-context cleanup execution is not part of MVP.
-7. `Path Policy: Internal Absolute, Display Relative With Safe Fallback` applies to all run invocations.
-8. Emit the exact user-facing command string before invocation in extension output channel; show relative script path when safely derivable from resolved algorithm-directory CWD, otherwise show absolute script path.
-9. `Logging Policy: Extension Light, Script Canonical` applies to all extension diagnostics.
-10. Internal runner diagnostics and FEAT evidence capture must record only compact orchestration metadata: canonical absolute script path, canonical absolute CWD, command family, lifecycle state, and exit result.
-11. Do not add extension-owned persistent archive logs in MVP; rely on VS Code-managed extension log lifecycle and script-owned runtime/archive logs.
-12. Track terminal lifecycle for user feedback (started, completed, failed).
-
 ## Activation And Non-Interference Rules
 
 1. Activation may be command-triggered, but all functional handlers must hard-check workspace eligibility before execution.
@@ -441,6 +454,50 @@ Define deterministic command construction so implementation cannot drift.
 4. If `algos.runLocalClean` has no valid context for the invoking surface (active compatible source file for palette/editor-title, or normalized Explorer algorithm-directory target from algorithm-directory/immediate-child file/immediate-child directory selection), perform no execution and show actionable `nothing to do` guidance.
 5. If `algos.runClean` has no valid context for the invoking surface (active compatible source file for palette/editor-title, or normalized Explorer algorithm-directory target from algorithm-directory/immediate-child file/immediate-child directory selection), perform no execution and show actionable guidance.
 
+## Execution Model
+
+1. Use VS Code terminal execution for MVP to preserve visibility and script parity.
+2. The extension must own its terminal: always create it via `vscode.window.createTerminal()` with a fixed, extension-specific name (e.g., `Algorithms Runner`). Never write to, read from, or reuse a terminal created by another extension or by VS Code itself — those terminals have unknown shell state, environment variables, and CWD that cannot be trusted.
+3. Every run invocation shows the owned terminal via `terminal.show()` so output is immediately visible to the user — output must **never** be captured silently in the background.
+4. The "reuse" option in configuration refers only to reusing the extension's own previously created terminal, not any external terminal.
+5. Enforce the `Directory Execution Invariant` for all file-context commands.
+6. Cleanup command contexts are algorithm-directory only; repository-context cleanup execution is not part of MVP.
+7. `Path Policy: Internal Absolute, Display Relative With Safe Fallback` applies to all run invocations.
+8. Emit the exact user-facing command string before invocation in extension output channel; show relative script path when safely derivable from resolved algorithm-directory CWD, otherwise show absolute script path.
+9. `Logging Policy: Extension Light, Script Canonical` applies to all extension diagnostics.
+10. Internal runner diagnostics and FEAT evidence capture must record only compact orchestration metadata: canonical absolute script path, canonical absolute CWD, command family, lifecycle state, and exit result.
+11. Do not add extension-owned persistent archive logs in MVP; rely on VS Code-managed extension log lifecycle and script-owned runtime/archive logs.
+12. Track terminal lifecycle for user feedback (started, completed, failed).
+
+## Validation Data Source Contract
+
+### Validation Purpose
+
+Prevent language and option validation drift.
+
+### Source Of Truth
+
+1. Runtime behavior reference: `run.sh`.
+
+### Implementation Rule
+
+1. Use one internal language catalog source only.
+2. Document a repeatable catalog update path.
+3. Do not duplicate ad hoc language lists in command handlers.
+
+### Required Validations
+
+1. `--check-only` route is one of `native`, `docker`, `ssh`.
+2. MVP `algos.runClean` always maps to `clean --defaults=y`; broader `run.sh` accepted forms are post-MVP command-surface considerations.
+3. Commands preserve canonical parser-owned argument ordering.
+
+### Drift Gate
+
+Any option or language-key contract change requires updates to:
+
+1. proposal mapping sections
+2. extension catalog source
+
 ## Extension Project Structure (Planned Files)
 
 ### Structure Purpose
@@ -487,34 +544,19 @@ Packaging command-chain ownership (FEAT-216 required):
 2. `extension/package.json` owns VSIX executor command (for example `build:vsix`) that invokes `vsce`.
 3. Root entrypoint delegates to extension executor; operators should not need direct `vsce` invocation.
 
-## Validation Data Source Contract
+## Configuration And State Handling
 
-### Validation Purpose
+1. MVP configuration keys:
+   - default check-only route preference
+   - fixed clean invocation for `algos.runClean`: always `clean --defaults=y`
+   - whether to reuse the extension's own previously created terminal or always open a new one (terminal **must** be shown regardless; this setting controls reuse of the extension-owned terminal only — terminals from other sources are never used)
+2. No hidden mutation of shell profiles by extension itself.
 
-Prevent language and option validation drift.
+### Profile Sourcing Contract (MVP)
 
-### Source Of Truth
-
-1. Runtime behavior reference: `run.sh`.
-
-### Implementation Rule
-
-1. Use one internal language catalog source only.
-2. Document a repeatable catalog update path.
-3. Do not duplicate ad hoc language lists in command handlers.
-
-### Required Validations
-
-1. `--check-only` route is one of `native`, `docker`, `ssh`.
-2. MVP `algos.runClean` always maps to `clean --defaults=y`; broader `run.sh` accepted forms are post-MVP command-surface considerations.
-3. Commands preserve canonical parser-owned argument ordering.
-
-### Drift Gate
-
-Any option or language-key contract change requires updates to:
-
-1. proposal mapping sections
-2. extension catalog source
+1. MVP uses script-default profile sourcing behavior only; extension-managed profile override inputs are out of scope.
+2. If profile sourcing emits warnings or failures, extension behavior is to surface terminal output and actionable notification only; do not add alternate profile-selection logic in MVP.
+3. Any profile-source configurability expansion is `POST-MVP-DEFERRED` and requires explicit scope-approval before FEAT planning.
 
 ## Copilot Execution Protocol (Human-In-The-Loop)
 
@@ -524,12 +566,29 @@ Define how Copilot executes each FEAT under human guidance.
 
 ### FEAT Execution Loop
 
-1. Read FEAT scope and non-goals.
-2. Resolve and touch only declared target files.
-3. Implement required behavior.
-4. Run FEAT-specific verification checks.
-5. Produce FEAT evidence packet.
-6. Pause for human approval before starting next FEAT.
+1. Draft a FEAT-specific Guidance Planning Agreement before implementation begins.
+2. FEAT-201 creates the baseline Guidance Planning Agreement; FEAT-202 and later must include an approved guidance update derived from the prior approved FEAT's Empirical Process Report.
+3. Request and obtain explicit pre-implementation approval for the Guidance Planning Agreement.
+4. Resolve and touch only declared target files.
+5. Implement required behavior.
+6. Run FEAT-specific verification checks.
+7. Produce FEAT evidence packet.
+8. Request FEAT approval and pause for human decision.
+9. After FEAT approval, produce an Empirical Process Report and record approved guidance updates for the next FEAT.
+
+### Skeptical And Pedantic Operating Posture (Normative)
+
+Copilot must prefer skeptical, pedantic, evidence-first execution over eager speed-first execution.
+
+Required pre-implementation checks for every FEAT:
+
+1. Assumption articulation: list each assumption that affects implementation choices.
+2. Evidence basis: identify the proposal text or execution evidence supporting each assumption.
+3. Disconfirming checks: define at least one falsification check per material assumption.
+4. Contradiction handling: if disconfirming evidence conflicts with planned implementation, stop and escalate.
+5. Minimal-safe-next-action: constrain implementation scope to the smallest safe action consistent with approved guidance.
+
+Anti-eagerness rule: implementation may not begin on confidence statements alone; assumptions must be evidenced and challenge-tested.
 
 ### Copilot Path-Policy Execution Aid
 
@@ -545,6 +604,47 @@ Define how Copilot executes each FEAT under human guidance.
 3. After approved boundary-affecting edits, append a change-log row in this proposal with date, concise change summary, rationale, and approver.
 4. If a requested change is `POST-MVP-DEFERRED`, record it in deferred records and do not add FEAT implementation requirements in MVP sections.
 5. FEAT packet and acceptance wording must remain aligned with the MVP Constraint Taxonomy and must not silently promote deferred items.
+
+### Guidance Planning Agreement (Per-FEAT Pre-Implementation Gate)
+
+Every FEAT must begin with an approved Guidance Planning Agreement.
+
+Required fields:
+
+1. FEAT ID and title.
+2. Proposal sections of interest with exact heading references.
+3. Authoritative sections for the FEAT and any known ambiguity watchpoints.
+4. Allowed and forbidden files.
+5. Verification focus for this FEAT.
+6. Requested pre-implementation gate decision (`approved`, `approved with follow-up`, `rework required`, `blocked`).
+7. FEAT-202 and later: approved guidance update summary derived from the immediately prior approved FEAT's Empirical Process Report.
+8. Assumption register for this FEAT.
+9. Evidence basis for each material assumption.
+10. Disconfirming check plan for each material assumption.
+11. Ambiguity severity and escalation threshold.
+12. Minimal-safe implementation boundary for this FEAT.
+
+Guidance quality rule: broad instructions such as "read the whole proposal" are not acceptable as a Guidance Planning Agreement.
+
+### Empirical Process Report (Post-Approval Process Evidence)
+
+After each FEAT is approved, Copilot must produce an Empirical Process Report as process evidence (separate from FEAT implementation evidence).
+
+Required fields:
+
+1. FEAT ID and title.
+2. Guidance Planning Agreement used.
+3. Guidance elements that improved execution quality.
+4. Ambiguities, drift points, or conflicts encountered.
+5. Proposal sections that were insufficiently precise for this FEAT.
+6. Proposed guidance updates for the next FEAT.
+7. Reviewer decision for each proposed update (`accepted`, `deferred`, `rejected`).
+8. Assumptions validated during execution.
+9. Assumptions falsified during execution.
+10. Eagerness-pressure points observed and how they were mitigated.
+11. Skeptical checks that prevented drift or rework.
+
+Scope guardrail: Empirical Process Reports may refine guidance and section targeting but must not silently rewrite MVP runtime requirements, scope boundaries, or guardrail strictness.
 
 ### Mandatory Stop-And-Ask Conditions
 
@@ -572,8 +672,16 @@ Define how Copilot executes each FEAT under human guidance.
    - Copilot action: pause and attach per-root eligibility inputs/outputs and selected fallback decision (if any).
    - Decision owner: senior engineer.
    - Resume condition: explicit written root-selection directive or inert-mode confirmation.
+7. Disconfirming evidence contradicts planned implementation or reveals unresolved conflicts between authoritative proposal sections.
+   - Copilot action: pause, attach contradiction evidence, and request explicit resolution before proceeding.
+   - Decision owner: senior engineer.
+   - Resume condition: explicit written conflict resolution and approved guidance update.
 
-Operational rule: Copilot must pause after each FEAT completion and cannot begin the next FEAT without approval response.
+Operational rules:
+
+1. Copilot must pause after each FEAT completion and cannot begin the next FEAT without approval response.
+2. Copilot cannot begin implementation for any FEAT until that FEAT's Guidance Planning Agreement is approved.
+3. FEAT-202 and later cannot begin until the Guidance Planning Agreement includes an approved update derived from the prior approved FEAT's Empirical Process Report.
 
 ### FEAT Evidence Packet Format
 
@@ -609,6 +717,13 @@ Use this exact structure for every FEAT closeout:
    - user-facing script path display form (`relative` when safely derivable, otherwise `absolute`)
    - extension logging scope evidence: metadata-only orchestration fields captured; no duplicated script payload/archive output
    - reject reason enum when execution is blocked/no-op (`invalid-context`, `invalid-target`, `unsupported-extension`, `missing-active-file`, `deeper-descendant-selection`) or `NA` when execution succeeds.
+9. Process linkage:
+   - Guidance Planning Agreement location and approval record for this FEAT.
+   - FEAT-202 and later: prior approved FEAT Empirical Process Report reference and approved guidance-update summary applied to this FEAT.
+   - Post-approval Empirical Process Report location for this FEAT.
+   - Assumption register reference for this FEAT and disconfirming check outcomes.
+   - Contradiction outcomes and escalation decisions (or `NA` if no contradiction triggered).
+   - Minimal-safe implementation boundary confirmation.
 
 ### Human Approval Roles
 
@@ -632,6 +747,9 @@ Current role assignment for this proposal execution:
 8. Evidence required.
 9. Human approval owner.
 10. Exit status (`approved`, `approved with follow-up`, `rework required`, `blocked`).
+11. Guidance Planning Agreement approved before implementation begins.
+12. Empirical Process Report completed after FEAT approval.
+13. FEAT-202 and later: approved guidance update from prior approved FEAT Empirical Process Report is included and applied.
 
 ## FEAT Sizing And Numbering Policy
 
@@ -652,6 +770,11 @@ Current role assignment for this proposal execution:
 4. Required command behavior.
 5. Verification output expectations.
 6. Pause-and-approval requirement.
+7. Guidance Planning Agreement anchors (exact proposal heading references).
+8. Prior approved FEAT Empirical Process Report guidance-update summary (required for FEAT-202 and later; FEAT-201 uses baseline agreement and marks this field `NA`).
+9. Pre-implementation guidance gate evidence.
+
+Packet inheritance rule: FEAT-201 through FEAT-216 packet blocks in this proposal inherit these Packet Format requirements even when process fields are not restated inline in each packet body.
 
 ### FEAT-201 Packet: Extension Scaffold Bootstrap
 
@@ -850,64 +973,6 @@ Current role assignment for this proposal execution:
 | FEAT-215 | Pre-Package Approval Gate + Sign-Off Record | execute pre-package approval gate and record sign-off | aligned |
 | FEAT-216 | Local VSIX Package + Install Validation | package extension as VSIX and verify local install behavior | aligned |
 
-## Configuration And State Handling
-
-1. MVP configuration keys:
-   - default check-only route preference
-   - fixed clean invocation for `algos.runClean`: always `clean --defaults=y`
-   - whether to reuse the extension's own previously created terminal or always open a new one (terminal **must** be shown regardless; this setting controls reuse of the extension-owned terminal only — terminals from other sources are never used)
-2. No hidden mutation of shell profiles by extension itself.
-
-### Profile Sourcing Contract (MVP)
-
-1. MVP uses script-default profile sourcing behavior only; extension-managed profile override inputs are out of scope.
-2. If profile sourcing emits warnings or failures, extension behavior is to surface terminal output and actionable notification only; do not add alternate profile-selection logic in MVP.
-3. Any profile-source configurability expansion is `POST-MVP-DEFERRED` and requires explicit scope-approval before FEAT planning.
-
-## Local Packaging Requirements (MVP Final Gate)
-
-1. Packaging tool for MVP local install validation: `@vscode/vsce` (backend packager invoked by extension executor script).
-2. Canonical packaging entrypoint: run `npm run buildextension` from repository root.
-3. `buildextension` script contract: package VSIX and place artifact in `extension/dist/`.
-4. Command-chain contract (normative):
-   - root `package.json` defines `buildextension` script that delegates to extension packaging executor (for example `npm --prefix extension run build:vsix`).
-   - `extension/package.json` defines packaging executor command (for example `build:vsix`) that invokes `vsce package` and controls artifact/output messaging.
-5. Install validation command: `code --install-extension extension/dist/<extension-name>-<version>.vsix`.
-6. Packaging output verification must confirm required runtime files and command contributions are present in the VSIX.
-7. `buildextension` output must print both:
-   - final VSIX artifact path in `extension/dist/`
-   - operator instruction: close VS Code and install the VSIX from the printed path.
-8. MVP packaging scope is local formal installation only; marketplace publishing and distribution workflows are explicitly out of scope.
-
-## Risks And Mitigations
-
-| Risk | Mitigation |
-| --- | --- |
-| Script contract drift vs extension command assumptions | Tie extension release checklist to direct parser/mapping verification against `run.sh` behavior. |
-| Wrong execution directory causes incorrect file discovery or cleanup scope | Enforce algorithm-directory CWD invariant and show resolved CWD before execution. |
-| User confusion around `clean` interactive prompts | Use deterministic MVP non-interactive clean mapping (`clean --defaults=y`); defer interactive clean command surfaces to post-MVP. |
-| User confusion when profile source warnings appear | Surface terminal output clearly and add a short notification when profile source appears to fail. |
-
-## Repository Coexistence Constraints (Blog + Extension)
-
-1. Extension work must not change blog behavior, routes, build output, or deployment flow.
-2. Protected surfaces for this proposal are off-limits unless explicitly approved:
-   - `web/`
-   - `github-markdown-loader.mjs`
-   - `postcss.config.js`
-   - `webpack.config.js`
-3. Shared surfaces (`package.json`, `package-lock.json`) are additive-only and require explicit coexistence evidence when modified.
-4. Coexistence evidence command set for shared/protected-surface checks:
-   - `git status -- web/ github-markdown-loader.mjs postcss.config.js webpack.config.js` (expected: no modifications unless explicitly approved)
-   - `git diff -- package.json package-lock.json` (expected: empty or additive-safe with approval note)
-5. If any protected/shared surface is touched, FEAT evidence must include baseline parity confirmation that blog build/runtime behavior is unchanged.
-
-## Post-MVP Deferred Records (No MVP Action)
-
-1. Smoke-test command surface remains deferred; no MVP FEAT work is authorized for smoke-test commands.
-2. Language-key run command family remains deferred post-MVP; no MVP surface planning is authorized here.
-3. Profile-source configurability beyond script-default behavior remains deferred post-MVP; no MVP configuration key is authorized.
-
 ## Phased Delivery Plan
 
 ### Pre-Implementation Approval Gate (Route C)
@@ -927,6 +992,14 @@ Approval record (2026-04-13):
 1. Gate approved by Senior engineer: Derek.
 2. Gate approved by Reviewer: Derek.
 3. FEAT-by-FEAT pause/resume cadence confirmed (no auto-advance without explicit approval response).
+
+### Per-FEAT Guidance And Empirical Feedback Loop (Normative)
+
+1. FEAT-201 must begin with an approved baseline Guidance Planning Agreement before implementation begins.
+2. Each FEAT must produce FEAT implementation evidence and receive FEAT approval before the next FEAT begins.
+3. After each FEAT approval, Copilot must produce an Empirical Process Report.
+4. FEAT-202 and later must begin with an approved Guidance Planning Agreement update derived from the immediately prior approved FEAT's Empirical Process Report.
+5. Guidance updates are process controls and may not silently change scope, runtime contracts, or guardrail strictness without explicit approval.
 
 ### Phase 1: Foundation
 
@@ -967,22 +1040,6 @@ Approval record (2026-04-13):
 1. Tree/custom panel for richer workflows.
 2. Optional smoke test UX and advanced profile management.
 3. Separate `init.sh` integration proposal.
-
-## MVP Delivery Gating Rule
-
-MVP delivery is gated by FEAT-200+ implementation tickets only. This proposal defines a single implementation ticket track.
-Final MVP closeout requires FEAT-216 completion and senior engineer sign-off.
-
-## Implementation Artifact Checklist (MVP)
-
-1. Extension scaffold with VS Code metadata and activation wiring.
-2. Extension Development Host launch profile in `extension/.vscode/launch.json`.
-3. Command contributions for Explorer, editor title, and Command Palette.
-4. Command handler modules for all MVP command IDs.
-5. Runner module with safe argument assembly and CWD logging.
-6. Validation and notification module for preflight and user-facing errors.
-7. VSIX packaging boundary file `extension/.vscodeignore`.
-8. Verification evidence set for all MVP command paths, including local VSIX install checks.
 
 ## FEAT Backlog (Scrum-Style Scoped Tickets)
 
@@ -1242,6 +1299,32 @@ Final MVP closeout requires FEAT-216 completion and senior engineer sign-off.
 | FEAT-215 | Pre-package approval record | Approval review: FEAT-201 through FEAT-214 evidence complete and packaging authorized |
 | FEAT-216 | Local VSIX package and install evidence | Packaging review: VSIX generated, installed locally, and required command surfaces validated |
 
+## Implementation Artifact Checklist (MVP)
+
+1. Extension scaffold with VS Code metadata and activation wiring.
+2. Extension Development Host launch profile in `extension/.vscode/launch.json`.
+3. Command contributions for Explorer, editor title, and Command Palette.
+4. Command handler modules for all MVP command IDs.
+5. Runner module with safe argument assembly and CWD logging.
+6. Validation and notification module for preflight and user-facing errors.
+7. VSIX packaging boundary file `extension/.vscodeignore`.
+8. Verification evidence set for all MVP command paths, including local VSIX install checks.
+
+## Local Packaging Requirements (MVP Final Gate)
+
+1. Packaging tool for MVP local install validation: `@vscode/vsce` (backend packager invoked by extension executor script).
+2. Canonical packaging entrypoint: run `npm run buildextension` from repository root.
+3. `buildextension` script contract: package VSIX and place artifact in `extension/dist/`.
+4. Command-chain contract (normative):
+   - root `package.json` defines `buildextension` script that delegates to extension packaging executor (for example `npm --prefix extension run build:vsix`).
+   - `extension/package.json` defines packaging executor command (for example `build:vsix`) that invokes `vsce package` and controls artifact/output messaging.
+5. Install validation command: `code --install-extension extension/dist/<extension-name>-<version>.vsix`.
+6. Packaging output verification must confirm required runtime files and command contributions are present in the VSIX.
+7. `buildextension` output must print both:
+   - final VSIX artifact path in `extension/dist/`
+   - operator instruction: close VS Code and install the VSIX from the printed path.
+8. MVP packaging scope is local formal installation only; marketplace publishing and distribution workflows are explicitly out of scope.
+
 ## Acceptance Criteria
 
 1. All MVP commands execute with expected script invocation patterns.
@@ -1306,24 +1389,19 @@ Named negative test vectors:
 4. Verify path policy remains intact after refactors: internal artifacts are absolute, and user-facing display preserves relative-with-safe-fallback behavior.
 5. Verify logging policy remains intact after refactors: extension logging stays metadata-only and does not add persistent archive logging scope.
 
-## Compatibility And Regression Boundaries
-
-1. Existing shell-based workflows remain fully supported.
-2. Existing scripts remain the behavior source of truth.
-3. Proposal does not require changes to web editor project surfaces.
-
-## Documentation Drift Policy
-
-Any behavioral change to `run.sh` option handling, accepted values, precedence, or language key coverage requires updates in the same change set to:
-
-1. extension command mapping documentation (this proposal and implementation docs)
-
 ## Reviewer Checklist
 
 - [ ] Gating rule accepted: FEAT-200+ implementation tickets are the only MVP blockers in this proposal.
-- [ ] Packet schema split clarity passed: Agent Handoff Packet Format (6 fields) and FEAT Evidence Packet Format (8 fields) are treated as distinct schemas with distinct purposes.
-- [ ] Agent Handoff packet completeness passed: FEAT-201 through FEAT-216 packet definitions each contain all 6 Packet Format fields.
-- [ ] FEAT evidence packet completeness passed: FEAT closeouts include all 8 FEAT Evidence Packet Format fields.
+- [ ] Packet schema split clarity passed: Agent Handoff Packet Format (9 fields), FEAT Evidence Packet Format (9 fields), and Empirical Process Report requirements are treated as distinct schemas with distinct purposes.
+- [ ] Agent Handoff packet completeness passed: FEAT-201 through FEAT-216 packet definitions plus packet-inheritance rules satisfy all 9 Packet Format fields.
+- [ ] FEAT evidence packet completeness passed: FEAT closeouts include all 9 FEAT Evidence Packet Format fields.
+- [ ] Guidance Planning Agreement gate passed: every FEAT starts only after an approved FEAT-specific Guidance Planning Agreement with exact proposal section references.
+- [ ] Empirical Process Report gate passed: every approved FEAT has a completed Empirical Process Report recorded as process evidence.
+- [ ] FEAT feedback-loop gate passed: FEAT-202 and later include an approved Guidance Planning Agreement update derived from the immediately prior approved FEAT's Empirical Process Report.
+- [ ] Skeptical planning gate passed: every FEAT Guidance Planning Agreement includes assumption register, evidence basis, disconfirming checks, ambiguity severity, and minimal-safe boundary.
+- [ ] Skeptical execution gate passed: FEAT evidence links include disconfirming-check outcomes and contradiction handling decisions when applicable.
+- [ ] Anti-eagerness gate passed: no FEAT implementation begins on confidence-only rationale without evidenced assumptions and challenge checks.
+- [ ] Contradiction escalation gate passed: when disconfirming evidence conflicts with planned implementation, stop-and-ask escalation is recorded before continued work.
 - [ ] FEAT Packet Alignment Matrix passed: all FEAT IDs are marked aligned.
 - [ ] Evidence template compliance passed: FEAT closeouts follow the defined evidence packet structure.
 - [ ] Phrase-level drift guard passed: normative sections, FEAT packets, and FEAT backlog acceptance lines contain no legacy shorthand that weakens current normalization policy.
@@ -1353,10 +1431,47 @@ Any behavioral change to `run.sh` option handling, accepted values, precedence, 
 - [ ] FEAT-215 passed: pre-package approval record is complete and signed.
 - [ ] FEAT-216 passed: VSIX package/install validation evidence is complete and final MVP sign-off is recorded.
 
+## Documentation Drift Policy
+
+Any behavioral change to `run.sh` option handling, accepted values, precedence, or language key coverage requires updates in the same change set to:
+
+1. extension command mapping documentation (this proposal and implementation docs)
+
+## Risks And Mitigations
+
+| Risk | Mitigation |
+| --- | --- |
+| Script contract drift vs extension command assumptions | Tie extension release checklist to direct parser/mapping verification against `run.sh` behavior. |
+| Wrong execution directory causes incorrect file discovery or cleanup scope | Enforce algorithm-directory CWD invariant and show resolved CWD before execution. |
+| User confusion around `clean` interactive prompts | Use deterministic MVP non-interactive clean mapping (`clean --defaults=y`); defer interactive clean command surfaces to post-MVP. |
+| User confusion when profile source warnings appear | Surface terminal output clearly and add a short notification when profile source appears to fail. |
+
+## Repository Coexistence Constraints (Blog + Extension)
+
+1. Extension work must not change blog behavior, routes, build output, or deployment flow.
+2. Protected surfaces for this proposal are off-limits unless explicitly approved:
+   - `web/`
+   - `github-markdown-loader.mjs`
+   - `postcss.config.js`
+   - `webpack.config.js`
+3. Shared surfaces (`package.json`, `package-lock.json`) are additive-only and require explicit coexistence evidence when modified.
+4. Coexistence evidence command set for shared/protected-surface checks:
+   - `git status -- web/ github-markdown-loader.mjs postcss.config.js webpack.config.js` (expected: no modifications unless explicitly approved)
+   - `git diff -- package.json package-lock.json` (expected: empty or additive-safe with approval note)
+5. If any protected/shared surface is touched, FEAT evidence must include baseline parity confirmation that blog build/runtime behavior is unchanged.
+
+## Compatibility And Regression Boundaries
+
+1. Existing shell-based workflows remain fully supported.
+2. Existing scripts remain the behavior source of truth.
+3. Proposal does not require changes to web editor project surfaces.
+
 ## Change Log
 
 | Date | Change | Rationale | Approver |
 | --- | --- | --- | --- |
+| 2026-04-14 | Added Route 2 evidence-first skepticism controls (assumption register, disconfirming checks, contradiction stop gate, anti-eagerness reviewer gates) | Bias Copilot execution toward skeptical and pedantic validation before action and reduce eager implementation drift | Approved by Derek |
+| 2026-04-14 | Added per-FEAT Guidance Planning Agreement pre-implementation gate plus post-approval Empirical Process Report loop, including FEAT-202+ prior-report guidance-update requirement | Convert FEAT execution learning into a required, reviewer-approved feedback loop and tighten section-targeted Copilot guidance | Approved by Derek |
 | 2026-04-13 | Initial proposal draft created | Establish implementation-ready MVP blueprint | Approved by Derek |
 | 2026-04-13 | Reviewer polish pass with two-table mapping, FEAT backlog, and FEAT traceability matrix | Improve reviewer throughput and planning handoff quality | Approved by Derek |
 | 2026-04-13 | Backlog standardized to FEAT-200 implementation track only | Align planning taxonomy with executable extension delivery | Approved by Derek |
