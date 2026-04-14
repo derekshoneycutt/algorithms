@@ -3,15 +3,19 @@
  * @property {string} title Title of the page to display for the node
  * @property {string} page The page to display this node on
  */
-
 /**
  * @typedef {Object} Writings A description of a collection of writings to display on the page
  * @property {string} title Title of the page to display
  * @property {string} page The page to display this book on
  * @property {WritingNode} definitions Definitions to display
 
+*/
+
+/**
+ * @typedef {Object} AlgorithmsPagesModule Module containing a description of the pages for the algorithms project
+ * @property {Writings} ALGORITHMS_PAGES The main algorithms pages
  */
-const ALGORITHMS_PAGES = {
+export const ALGORITHMS_PAGES = {
     title: "Algorithms Home",
     page: "index.html",
     template: "README.md",
@@ -20,6 +24,11 @@ const ALGORITHMS_PAGES = {
             title: "1. Hello world",
             page: "random_helloworld.html",
             template: "src/random/hello_world/README.md"
+        },
+        {
+            title: "2. Euclid's GCD",
+            page: "numeric_euclidgcd.html",
+            template: "src/numeric/euclidgcd/README.md"
         },
         {
             title: "System Setup",
@@ -32,8 +41,4 @@ const ALGORITHMS_PAGES = {
             template: "gentoo-setup.md"
         },
     ]
-};
-
-module.exports = {
-    ALGORITHMS_PAGES
 };

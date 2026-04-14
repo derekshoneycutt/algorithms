@@ -23,12 +23,11 @@ m := 15.
 n := 10.
 " Attempt to use the command line arguments if they are available "
 argc := Smalltalk getArgc.
-(argc > 1)
-    ifTrue: [ 
-        argv := Smalltalk arguments.
-        m := (argv at: 1) asInteger.
-        n := (argv at: 2) asInteger.
-     ].
+( argc > 1 ) ifTrue: [ 
+    argv := Smalltalk arguments.
+    m := (argv at: 1) asInteger.
+    n := (argv at: 2) asInteger.
+].
 
 gcd := m euclidGcd: n.
 

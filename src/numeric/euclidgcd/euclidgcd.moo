@@ -18,13 +18,9 @@
  *  Calculates the GCD of M and N, putting it in Gcd
  */
 euclidgcd(M, 0, M) :- M > 0.
-euclidgcd(0, N, N) :- N > 0.
 euclidgcd(M, N, Gcd) :-
     R = M mod N,
     euclidgcd(N, R, Gcd).
-euclidgcd(M, N, Gcd) :-
-    N > M,
-    euclidgcd(N, M, Gcd).
 
 /**
  *  The main entry point to our application

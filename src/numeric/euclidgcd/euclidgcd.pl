@@ -10,12 +10,8 @@
  */
 euclidgcd(M, 0, M) :- M > 0.
 euclidgcd(M, N, Gcd) :-
-    N > 0,
     R is M mod N,
     euclidgcd(N, R, Gcd).
-euclidgcd(M, N, Gcd) :-
-    N > M,
-    euclidgcd(N, M, Gcd).
 
 /**
  * extract_args([], A, B)

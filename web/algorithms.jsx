@@ -1,4 +1,3 @@
-import './markdown.css';
 import '@material/web/fab/fab.js';
 import '@material/web/icon/icon.js';
 import './style.scss';
