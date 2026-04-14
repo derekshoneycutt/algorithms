@@ -1,3 +1,5 @@
+# Max
+
 Given n +int in X[n] find highest value of them.
 
 1. [Initialize.] k <- n - 1; j <- n. m <- X[n].

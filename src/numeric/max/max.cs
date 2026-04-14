@@ -1,9 +1,10 @@
-static int max(params IEnumerable<int> values)
+static T max<T>(params IEnumerable<T> values)
+    where T : IComparable<T>
 {
-    int current = 0;
-    foreach (int value in values)
+    T current = default(T);
+    foreach (T value in values)
     {
-        if (value > current)
+        if (value.CompareTo(current) > 0)
         {
             current = value;
         }
