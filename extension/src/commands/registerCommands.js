@@ -1,8 +1,8 @@
-// Global constants for this module.
+// VS Code API for command registration in the extension host process.
 const vscode = require("vscode");
 
 /**
- * Registers scaffold command handlers.
+ * Registers scaffold command handlers used during extension bootstrapping.
  *
  * @returns {import('vscode').Disposable[]} Command disposables.
  */
@@ -19,7 +19,7 @@ function registerCommands() {
   return [runActiveFileCommand];
 }
 
-// Module exports.
+// Public registration API used by extension entry points.
 module.exports = {
   registerCommands,
 };

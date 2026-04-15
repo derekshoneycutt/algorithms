@@ -1,9 +1,9 @@
-// Global constants for this module.
+// Node filesystem and process helpers for workspace/root eligibility checks.
 const fs = require("fs");
 const path = require("path");
 const { spawnSync } = require("child_process");
 
-// Global constants for this module.
+// Hard eligibility markers expected at a valid repository root.
 const HARD_MARKERS = [
   { name: "run.sh", type: "file" },
   { name: "init.sh", type: "file" },
@@ -331,7 +331,7 @@ function summarizeEligibilityState(state) {
   ].join(" ");
 }
 
-// ─── FEAT-203: Path and CWD Resolution Core ────────────────────────────────
+// FEAT-203 path and CWD resolution helpers.
 
 /**
  * Result returned by resolveActiveFileCwd.
@@ -450,7 +450,7 @@ function resolveExplorerTargetCwd(selectedPath, resolvedRepoRoot) {
     try {
       isDir = fs.statSync(canonicalSelectedPath).isDirectory();
     } catch (_) {
-      // assume not a directory if stat fails
+      // Treat stat failures as non-directory so selection stays conservative.
     }
     if (!isDir) {
       return { ok: false, cwd: null, scriptPath: null, displayScriptPath: null, selectionType: null, reason: "not-in-algorithm-dir" };
@@ -466,7 +466,7 @@ function resolveExplorerTargetCwd(selectedPath, resolvedRepoRoot) {
     try {
       isDir = fs.statSync(canonicalSelectedPath).isDirectory();
     } catch (_) {
-      // assume file if stat fails
+      // Treat stat failures as file-like to preserve immediate-child behavior.
     }
     const selectionType = isDir ? "immediate-child-dir" : "immediate-child-file";
     const cwd = path.join(srcBase, parts[0], parts[1]);
@@ -478,7 +478,7 @@ function resolveExplorerTargetCwd(selectedPath, resolvedRepoRoot) {
   return { ok: false, cwd: null, scriptPath: null, displayScriptPath: null, selectionType: null, reason: "deeper-descendant" };
 }
 
-// Module exports.
+// Public eligibility and path-resolution API consumed by extension entry points.
 module.exports = {
   HARD_MARKERS,
   resolveEligibilityState,

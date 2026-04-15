@@ -1,13 +1,17 @@
-// Global constants for this module.
+// VS Code extension API for command registration, workspace access, and UI messages.
 const vscode = require("vscode");
+// Eligibility and summary helpers used to gate command execution.
 const {
   resolveEligibilityState,
   summarizeEligibilityState,
 } = require("./runtime/pathResolver");
+// Validation helpers for converting eligibility state into user-facing outcomes.
 const {
   validateEligibilityForExecution,
   buildEligibilityBlockMessage,
 } = require("./validation/inputValidation");
+// Primary FEAT-205 command handler implementation.
+const { runActiveFileHandler } = require("./commands/fileCommands");
 
 /**
  * Returns the currently open workspace folders.
@@ -56,9 +60,7 @@ async function activate(context) {
         return;
       }
 
-      vscode.window.showInformationMessage(
-        "Workspace eligibility checks passed. FEAT-202 guard is active; FEAT-205 run behavior is not implemented yet."
-      );
+      await runActiveFileHandler(vscode, preflightState);
     }
   );
 
@@ -72,7 +74,7 @@ async function activate(context) {
  */
 function deactivate() {}
 
-// Module exports.
+// Public VS Code extension lifecycle exports.
 module.exports = {
   activate,
   deactivate,
