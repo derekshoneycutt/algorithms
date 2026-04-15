@@ -15,7 +15,8 @@
   "main": "web/algorithms.jsx",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
-    "build": "webpack"
+    "build": "webpack",
+    "buildextension": "npm --prefix extension run build:vsix"
   },
   "devDependencies": {
     "@babel/cli": "^7.28.6",
@@ -23,6 +24,7 @@
     "@babel/preset-env": "^7.29.2",
     "@babel/preset-react": "^7.28.5",
     "@fontsource/roboto": "^5.2.10",
+    "@vscode/vsce": "^3.8.0",
     "autoprefixer": "^10.4.27",
     "babel-loader": "^10.1.1",
     "cheerio": "^1.2.0",
