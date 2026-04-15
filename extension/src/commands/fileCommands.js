@@ -4,6 +4,7 @@ const fs = require("fs");
 // Runtime command assembly and terminal runner used by the Run Active File handler.
 const { buildRunCommand } = require("../runtime/argumentBuilder");
 const { runCommand } = require("../runtime/runScriptRunner");
+const { getEffectiveSidebarRunArgs } = require("../runtime/sidebarRunArgsState");
 // Validation and message helpers for active editor and language checks.
 const {
   validateActiveEditorContext,
@@ -44,16 +45,34 @@ function blockWithValidation(vscodeApi, validation, commandLabel) {
  *
  * @param {import("vscode")} vscodeApi VS Code API object.
  * @param {{algorithmDir: string, scriptPath: string, displayScriptPath: string}} contextResolution Resolved execution context.
- * @param {{commandFamily: string, args: string[], commandLabel: string, successMessage: string}} execution Execution metadata.
+ * @param {{commandFamily: string, args: string[], commandLabel: string, successMessage: string, includeSidebarRunArgs?: boolean}} execution Execution metadata.
  * @returns {{ok: boolean, status: string, reason: string|null}} Handler execution summary.
  */
 function executeContextCommand(vscodeApi, contextResolution, execution) {
+  let resolvedArgs = execution.args;
+
+  if (execution.includeSidebarRunArgs) {
+    const runArgs = getEffectiveSidebarRunArgs();
+
+    if (!runArgs.ok) {
+      const validation = {
+        reason: "invalid-sidebar-run-args",
+        guidance: runArgs.reason || "Custom run args are invalid.",
+        severity: "warning",
+      };
+
+      return blockWithValidation(vscodeApi, validation, execution.commandLabel);
+    }
+
+    resolvedArgs = [...execution.args, ...runArgs.tokens];
+  }
+
   const build = buildRunCommand({
     scriptPath: contextResolution.scriptPath,
     displayScriptPath: contextResolution.displayScriptPath,
     cwd: contextResolution.algorithmDir,
     commandFamily: execution.commandFamily,
-    args: execution.args,
+    args: resolvedArgs,
   });
 
   if (!build.ok) {
@@ -176,6 +195,7 @@ async function runLanguageAtSidebarItem(vscodeApi, eligibilityState, item, execu
     args: execution.buildArgs(contextResolution.languageKey),
     commandLabel: execution.commandLabel,
     successMessage: execution.successMessage,
+    includeSidebarRunArgs: true,
   });
 }
 
@@ -552,6 +572,7 @@ async function runFileAtPath(
     args: execution.buildArgs(path.basename(contextResolution.filename)),
     commandLabel: execution.commandLabel,
     successMessage: execution.successMessage,
+    includeSidebarRunArgs: true,
   });
 }
 

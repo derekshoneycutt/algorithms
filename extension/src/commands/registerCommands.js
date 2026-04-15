@@ -51,7 +51,7 @@ function registerRunMenuCommand(deps) {
 /**
  * Registers sidebar view-mode toggle commands used by the tree-view title toolbar.
  *
- * @param {{vscodeApi: import("vscode"), showSidebarFileView: () => Promise<void>, showSidebarLanguageView: () => Promise<void>, showSidebarAllFilter: () => Promise<void>, showSidebarProblemsFilter: () => Promise<void>, refreshSidebarView: () => Promise<void>, createLanguageFilePlaceholder: (item?: unknown) => Promise<void>}} deps Registration dependencies.
+ * @param {{vscodeApi: import("vscode"), showSidebarFileView: () => Promise<void>, showSidebarLanguageView: () => Promise<void>, showSidebarAllFilter: () => Promise<void>, showSidebarProblemsFilter: () => Promise<void>, refreshSidebarView: () => Promise<void>, createLanguageFilePlaceholder: (item?: unknown) => Promise<void>, sidebarToggleRunArgs: (item?: unknown) => Promise<void>, sidebarEditRunArgs: (item?: unknown) => Promise<void>, sidebarClearRunArgs: (item?: unknown) => Promise<void>}} deps Registration dependencies.
  * @returns {import("vscode").Disposable[]} Sidebar mode command disposables.
  */
 function registerSidebarModeCommands(deps) {
@@ -97,6 +97,27 @@ function registerSidebarModeCommands(deps) {
     }
   );
 
+  const sidebarToggleRunArgs = deps.vscodeApi.commands.registerCommand(
+    "algos.sidebarToggleRunArgs",
+    async (item) => {
+      await deps.sidebarToggleRunArgs(item);
+    }
+  );
+
+  const sidebarEditRunArgs = deps.vscodeApi.commands.registerCommand(
+    "algos.sidebarEditRunArgs",
+    async (item) => {
+      await deps.sidebarEditRunArgs(item);
+    }
+  );
+
+  const sidebarClearRunArgs = deps.vscodeApi.commands.registerCommand(
+    "algos.sidebarClearRunArgs",
+    async (item) => {
+      await deps.sidebarClearRunArgs(item);
+    }
+  );
+
   return [
     showFileView,
     showLanguageView,
@@ -104,6 +125,9 @@ function registerSidebarModeCommands(deps) {
     showProblemsFilter,
     refreshSidebarView,
     createLanguageFilePlaceholder,
+    sidebarToggleRunArgs,
+    sidebarEditRunArgs,
+    sidebarClearRunArgs,
   ];
 }
 
@@ -193,7 +217,10 @@ function deriveImplementedRunMenuCommandIds(guardedCommandDefs) {
  *   showSidebarAllFilter: () => Promise<void>,
  *   showSidebarProblemsFilter: () => Promise<void>,
  *   refreshSidebarView: () => Promise<void>,
- *   createLanguageFilePlaceholder: (item?: unknown) => Promise<void>
+ *   createLanguageFilePlaceholder: (item?: unknown) => Promise<void>,
+ *   sidebarToggleRunArgs: (item?: unknown) => Promise<void>,
+ *   sidebarEditRunArgs: (item?: unknown) => Promise<void>,
+ *   sidebarClearRunArgs: (item?: unknown) => Promise<void>
  * }} deps Command registration dependencies.
  * @returns {import("vscode").Disposable[]} Command disposables.
  */

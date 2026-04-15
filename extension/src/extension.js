@@ -306,6 +306,15 @@ async function activate(context) {
     createLanguageFilePlaceholder: async (item) => {
       await workspaceAlgorithmsRunViewRegistration.openMissingLanguageFile(item);
     },
+    sidebarToggleRunArgs: async () => {
+      await workspaceAlgorithmsRunViewRegistration.sidebarToggleRunArgs();
+    },
+    sidebarEditRunArgs: async () => {
+      await workspaceAlgorithmsRunViewRegistration.sidebarEditRunArgs(vscode);
+    },
+    sidebarClearRunArgs: async () => {
+      await workspaceAlgorithmsRunViewRegistration.sidebarClearRunArgs();
+    },
   });
 
   const visibilityDisposables = [

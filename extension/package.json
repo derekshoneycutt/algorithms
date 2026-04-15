@@ -184,6 +184,24 @@
         "title": "Create Language File",
         "category": "Derek's Algorithms",
         "icon": "$(add)"
+      },
+      {
+        "command": "algos.sidebarToggleRunArgs",
+        "title": "Toggle Run Args",
+        "category": "Derek's Algorithms",
+        "icon": "$(checklist)"
+      },
+      {
+        "command": "algos.sidebarEditRunArgs",
+        "title": "Edit Run Args",
+        "category": "Derek's Algorithms",
+        "icon": "$(terminal)"
+      },
+      {
+        "command": "algos.sidebarClearRunArgs",
+        "title": "Clear Run Args",
+        "category": "Derek's Algorithms",
+        "icon": "$(clear-all)"
       }
     ],
     "submenus": [
@@ -339,6 +357,21 @@
           "command": "algos.createLanguageFilePlaceholder",
           "when": "view == algosWorkspaceAlgorithmsRunView && (viewItem == algos.languageMissingUnflagged || viewItem == algos.languageMissingFlagged)",
           "group": "inline@1"
+        },
+        {
+          "command": "algos.sidebarToggleRunArgs",
+          "when": "view == algosWorkspaceAlgorithmsRunView && viewItem == algos.sidebarRunArgsToggleRow",
+          "group": "inline@1"
+        },
+        {
+          "command": "algos.sidebarEditRunArgs",
+          "when": "view == algosWorkspaceAlgorithmsRunView && viewItem == algos.sidebarRunArgsTextRow",
+          "group": "inline@1"
+        },
+        {
+          "command": "algos.sidebarClearRunArgs",
+          "when": "view == algosWorkspaceAlgorithmsRunView && viewItem == algos.sidebarRunArgsTextRow",
+          "group": "inline@2"
         }
       ],
       "view/title": [
