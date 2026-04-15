@@ -83,6 +83,8 @@ const FILE_EXTENSION_LANGUAGE_ALIASES = {
   ".zig": "zig",
 };
 
+const SUPPORTED_CHECK_ONLY_ROUTES = new Set(["native", "docker", "ssh"]);
+
 /**
  * Reads canonical supported language keys from run-language modules.
  *
@@ -328,13 +330,39 @@ function validateSupportedLanguage(editor, eligibilityState, filePath) {
 }
 
 /**
- * Builds a standardized user-facing message for active-file validation failures.
+ * Validates that a check-only route value is one of the supported enums.
+ *
+ * @param {string} route Route candidate.
+ * @returns {{ok: boolean, reason: string|null, guidance: string, severity: "info"|"warning"|"error"}} Validation result.
+ */
+function validateCheckOnlyRoute(route) {
+  if (SUPPORTED_CHECK_ONLY_ROUTES.has(String(route || ""))) {
+    return {
+      ok: true,
+      reason: null,
+      guidance: "Check-only route is supported.",
+      severity: "info",
+    };
+  }
+
+  return {
+    ok: false,
+    reason: "unsupported-check-only-route",
+    guidance:
+      "Check-only route must be one of native, docker, or ssh.",
+    severity: "error",
+  };
+}
+
+/**
+ * Builds a standardized user-facing message for file-context validation failures.
  *
  * @param {{reason: string|null, guidance: string}} validation Validation payload.
+ * @param {string} [commandLabel="Run Active File"] Command label prefix for the message.
  * @returns {string} User-facing actionable message.
  */
-function buildActiveFileValidationMessage(validation) {
-  return `Run Active File aborted. Reason: ${validation.reason}. Guidance: ${validation.guidance}`;
+function buildFileContextBlockMessage(validation, commandLabel = "Run Active File") {
+  return `${commandLabel} aborted. Reason: ${validation.reason}. Guidance: ${validation.guidance}`;
 }
 
 // Public validation and normalization helpers used by command handlers.
@@ -344,9 +372,11 @@ module.exports = {
   buildEligibilityBlockMessage,
   validateActiveEditorContext,
   validateSupportedLanguage,
-  buildActiveFileValidationMessage,
+  validateCheckOnlyRoute,
+  buildFileContextBlockMessage,
   getSupportedLanguageKeys,
   normalizeLanguageId,
   normalizeExtensionToLanguageKey,
   FILE_EXTENSION_LANGUAGE_ALIASES,
+  SUPPORTED_CHECK_ONLY_ROUTES,
 };

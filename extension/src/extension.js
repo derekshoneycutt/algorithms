@@ -17,6 +17,9 @@ const {
   runLocalCleanHandler,
   runCleanHandler,
   runActiveFileCompileOnlyHandler,
+  runActiveFileCheckOnlyNativeHandler,
+  runActiveFileCheckOnlyDockerHandler,
+  runActiveFileCheckOnlySshHandler,
 } = require("./commands/fileCommands");
 // FEAT-207 centralized command registration.
 const { registerCommands } = require("./commands/registerCommands");
@@ -96,6 +99,9 @@ async function activate(context) {
     runLocalCleanHandler,
     runCleanHandler,
     runActiveFileCompileOnlyHandler,
+    runActiveFileCheckOnlyNativeHandler,
+    runActiveFileCheckOnlyDockerHandler,
+    runActiveFileCheckOnlySshHandler,
     openRunMenuFlow,
   });
 

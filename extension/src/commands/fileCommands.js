@@ -8,7 +8,8 @@ const { runCommand } = require("../runtime/runScriptRunner");
 const {
   validateActiveEditorContext,
   validateSupportedLanguage,
-  buildActiveFileValidationMessage,
+  validateCheckOnlyRoute,
+  buildFileContextBlockMessage,
 } = require("../validation/inputValidation");
 
 /**
@@ -38,13 +39,14 @@ function showBySeverity(vscodeApi, severity, message) {
  *
  * @param {import("vscode")} vscodeApi VS Code API object.
  * @param {{reason: string, guidance: string, severity: "info"|"warning"|"error"}} validation Validation payload.
+ * @param {string} [commandLabel] Command label prefix for the message.
  * @returns {{ok: false, status: "blocked", reason: string}} Blocked execution result.
  */
-function blockWithValidation(vscodeApi, validation) {
+function blockWithValidation(vscodeApi, validation, commandLabel) {
   showBySeverity(
     vscodeApi,
     validation.severity,
-    buildActiveFileValidationMessage(validation)
+    buildFileContextBlockMessage(validation, commandLabel)
   );
   return {
     ok: false,
@@ -470,13 +472,13 @@ async function runFileAtPath(
   );
 
   if (!languageValidation.ok) {
-    return blockWithValidation(vscodeApi, languageValidation);
+    return blockWithValidation(vscodeApi, languageValidation, execution.commandLabel);
   }
 
   const contextResolution = resolveActiveFileRunContext(filePath, eligibilityState);
 
   if (!contextResolution.ok) {
-    return blockWithValidation(vscodeApi, contextResolution);
+    return blockWithValidation(vscodeApi, contextResolution, execution.commandLabel);
   }
 
   return executeContextCommand(vscodeApi, contextResolution, {
@@ -503,7 +505,7 @@ async function runActiveFileHandler(vscodeApi, eligibilityState) {
   const editorValidation = validateActiveEditorContext(editor);
 
   if (!editorValidation.ok) {
-    return blockWithValidation(vscodeApi, editorValidation);
+    return blockWithValidation(vscodeApi, editorValidation, "Run Active File");
   }
 
   return runFileAtPath(
@@ -536,7 +538,7 @@ async function runFileHandler(vscodeApi, eligibilityState, targetUri) {
       guidance: "Select a file in Explorer and try again.",
       severity: "info",
     };
-    return blockWithValidation(vscodeApi, validation);
+    return blockWithValidation(vscodeApi, validation, "Run File");
   }
 
   return runFileAtPath(
@@ -576,7 +578,7 @@ async function runLocalCleanHandler(vscodeApi, eligibilityState, targetUri) {
     );
 
     if (!activeSource.ok) {
-      return blockWithValidation(vscodeApi, activeSource);
+      return blockWithValidation(vscodeApi, activeSource, "Localclean");
     }
 
     contextResolution = resolveActiveFileRunContext(
@@ -586,7 +588,7 @@ async function runLocalCleanHandler(vscodeApi, eligibilityState, targetUri) {
   }
 
   if (!contextResolution.ok) {
-    return blockWithValidation(vscodeApi, contextResolution);
+    return blockWithValidation(vscodeApi, contextResolution, "Localclean");
   }
 
   return executeContextCommand(vscodeApi, contextResolution, {
@@ -621,7 +623,7 @@ async function runCleanHandler(vscodeApi, eligibilityState, targetUri) {
     );
 
     if (!activeSource.ok) {
-      return blockWithValidation(vscodeApi, activeSource);
+      return blockWithValidation(vscodeApi, activeSource, "Clean");
     }
 
     contextResolution = resolveActiveFileRunContext(
@@ -631,7 +633,7 @@ async function runCleanHandler(vscodeApi, eligibilityState, targetUri) {
   }
 
   if (!contextResolution.ok) {
-    return blockWithValidation(vscodeApi, contextResolution);
+    return blockWithValidation(vscodeApi, contextResolution, "Clean");
   }
 
   return executeContextCommand(vscodeApi, contextResolution, {
@@ -669,7 +671,7 @@ async function runActiveFileCompileOnlyHandler(
   const activeSource = resolveActiveCompatibleSourceFile(vscodeApi, eligibilityState);
 
   if (!activeSource.ok) {
-    return blockWithValidation(vscodeApi, activeSource);
+    return blockWithValidation(vscodeApi, activeSource, "Compile Only");
   }
 
   return runFileAtPath(vscodeApi, eligibilityState, activeSource.filePath, {
@@ -680,6 +682,110 @@ async function runActiveFileCompileOnlyHandler(
   });
 }
 
+/**
+ * Handles one route-specific check-only invocation from active-file or
+ * selected-file contexts.
+ *
+ * @param {import("vscode")} vscodeApi VS Code API object.
+ * @param {{selected?: {resolvedRoot?: string, scriptPath?: string}}|null|undefined} eligibilityState Eligible workspace state.
+ * @param {import("vscode").Uri|undefined} targetUri Explorer-selected URI when invoked from Explorer.
+ * @param {{route: "native"|"docker"|"ssh", commandLabel: string}} execution Route execution metadata.
+ * @returns {Promise<{ok: boolean, status: string, reason: string|null}>} Handler execution summary.
+ */
+async function runCheckOnlyRouteHandler(
+  vscodeApi,
+  eligibilityState,
+  targetUri,
+  execution
+) {
+  const routeValidation = validateCheckOnlyRoute(execution.route);
+
+  if (!routeValidation.ok) {
+    return blockWithValidation(vscodeApi, routeValidation, execution.commandLabel);
+  }
+
+  const selectedFilePath = targetUri?.fsPath;
+
+  if (selectedFilePath) {
+    return runFileAtPath(vscodeApi, eligibilityState, selectedFilePath, {
+      commandFamily: "run-check-only",
+      commandLabel: execution.commandLabel,
+      successMessage: `${execution.commandLabel} started in ${"Algorithms Runner"}.`,
+      buildArgs: (filename) => [`--check-only=${execution.route}`, filename],
+    });
+  }
+
+  const activeSource = resolveActiveCompatibleSourceFile(vscodeApi, eligibilityState);
+
+  if (!activeSource.ok) {
+    return blockWithValidation(vscodeApi, activeSource, execution.commandLabel);
+  }
+
+  return runFileAtPath(vscodeApi, eligibilityState, activeSource.filePath, {
+    commandFamily: "run-check-only",
+    commandLabel: execution.commandLabel,
+    successMessage: `${execution.commandLabel} started in ${"Algorithms Runner"}.`,
+    buildArgs: (filename) => [`--check-only=${execution.route}`, filename],
+  });
+}
+
+/**
+ * Handles native check-only invocation from active-file or selected-file contexts.
+ *
+ * @param {import("vscode")} vscodeApi VS Code API object.
+ * @param {{selected?: {resolvedRoot?: string, scriptPath?: string}}|null|undefined} eligibilityState Eligible workspace state.
+ * @param {import("vscode").Uri|undefined} targetUri Explorer-selected URI when invoked from Explorer.
+ * @returns {Promise<{ok: boolean, status: string, reason: string|null}>} Handler execution summary.
+ */
+async function runActiveFileCheckOnlyNativeHandler(
+  vscodeApi,
+  eligibilityState,
+  targetUri
+) {
+  return runCheckOnlyRouteHandler(vscodeApi, eligibilityState, targetUri, {
+    route: "native",
+    commandLabel: "Check Only (Native)",
+  });
+}
+
+/**
+ * Handles docker check-only invocation from active-file or selected-file contexts.
+ *
+ * @param {import("vscode")} vscodeApi VS Code API object.
+ * @param {{selected?: {resolvedRoot?: string, scriptPath?: string}}|null|undefined} eligibilityState Eligible workspace state.
+ * @param {import("vscode").Uri|undefined} targetUri Explorer-selected URI when invoked from Explorer.
+ * @returns {Promise<{ok: boolean, status: string, reason: string|null}>} Handler execution summary.
+ */
+async function runActiveFileCheckOnlyDockerHandler(
+  vscodeApi,
+  eligibilityState,
+  targetUri
+) {
+  return runCheckOnlyRouteHandler(vscodeApi, eligibilityState, targetUri, {
+    route: "docker",
+    commandLabel: "Check Only (Docker)",
+  });
+}
+
+/**
+ * Handles ssh check-only invocation from active-file or selected-file contexts.
+ *
+ * @param {import("vscode")} vscodeApi VS Code API object.
+ * @param {{selected?: {resolvedRoot?: string, scriptPath?: string}}|null|undefined} eligibilityState Eligible workspace state.
+ * @param {import("vscode").Uri|undefined} targetUri Explorer-selected URI when invoked from Explorer.
+ * @returns {Promise<{ok: boolean, status: string, reason: string|null}>} Handler execution summary.
+ */
+async function runActiveFileCheckOnlySshHandler(
+  vscodeApi,
+  eligibilityState,
+  targetUri
+) {
+  return runCheckOnlyRouteHandler(vscodeApi, eligibilityState, targetUri, {
+    route: "ssh",
+    commandLabel: "Check Only (SSH)",
+  });
+}
+
 // Public command handlers consumed by extension activation and tests.
 module.exports = {
   runActiveFileHandler,
@@ -687,6 +793,9 @@ module.exports = {
   runLocalCleanHandler,
   runCleanHandler,
   runActiveFileCompileOnlyHandler,
+  runActiveFileCheckOnlyNativeHandler,
+  runActiveFileCheckOnlyDockerHandler,
+  runActiveFileCheckOnlySshHandler,
   resolveActiveFileRunContext,
   resolveLocalCleanContextFromExplorer,
   resolveCleanContextFromExplorer,

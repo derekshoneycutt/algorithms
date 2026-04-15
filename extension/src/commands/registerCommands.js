@@ -114,7 +114,10 @@ function deriveImplementedRunMenuCommandIds(guardedCommandDefs) {
  *   runFileHandler: (vscodeApi: import("vscode"), eligibilityState: object, targetUri?: import("vscode").Uri) => Promise<unknown>,
  *   runLocalCleanHandler: (vscodeApi: import("vscode"), eligibilityState: object, targetUri?: import("vscode").Uri) => Promise<unknown>,
  *   runCleanHandler: (vscodeApi: import("vscode"), eligibilityState: object, targetUri?: import("vscode").Uri) => Promise<unknown>,
- *   runActiveFileCompileOnlyHandler: (vscodeApi: import("vscode"), eligibilityState: object) => Promise<unknown>,
+ *   runActiveFileCompileOnlyHandler: (vscodeApi: import("vscode"), eligibilityState: object, targetUri?: import("vscode").Uri) => Promise<unknown>,
+ *   runActiveFileCheckOnlyNativeHandler: (vscodeApi: import("vscode"), eligibilityState: object, targetUri?: import("vscode").Uri) => Promise<unknown>,
+ *   runActiveFileCheckOnlyDockerHandler: (vscodeApi: import("vscode"), eligibilityState: object, targetUri?: import("vscode").Uri) => Promise<unknown>,
+ *   runActiveFileCheckOnlySshHandler: (vscodeApi: import("vscode"), eligibilityState: object, targetUri?: import("vscode").Uri) => Promise<unknown>,
  *   openRunMenuFlow: (vscodeApi: import("vscode")) => Promise<string|null>
  * }} deps Command registration dependencies.
  * @returns {import("vscode").Disposable[]} Command disposables.
@@ -140,6 +143,18 @@ function registerCommands(deps) {
     {
       commandId: "algos.runActiveFileCompileOnly",
       handler: deps.runActiveFileCompileOnlyHandler,
+    },
+    {
+      commandId: "algos.runActiveFileCheckOnlyNative",
+      handler: deps.runActiveFileCheckOnlyNativeHandler,
+    },
+    {
+      commandId: "algos.runActiveFileCheckOnlyDocker",
+      handler: deps.runActiveFileCheckOnlyDockerHandler,
+    },
+    {
+      commandId: "algos.runActiveFileCheckOnlySsh",
+      handler: deps.runActiveFileCheckOnlySshHandler,
     },
   ];
   const implementedMenuCommandIds = deriveImplementedRunMenuCommandIds(
