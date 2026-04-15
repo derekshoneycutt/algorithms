@@ -51,7 +51,7 @@ function registerRunMenuCommand(deps) {
 /**
  * Registers sidebar view-mode toggle commands used by the tree-view title toolbar.
  *
- * @param {{vscodeApi: import("vscode"), showSidebarFileView: () => Promise<void>, showSidebarLanguageView: () => Promise<void>}} deps Registration dependencies.
+ * @param {{vscodeApi: import("vscode"), showSidebarFileView: () => Promise<void>, showSidebarLanguageView: () => Promise<void>, createLanguageFilePlaceholder: (item?: unknown) => Promise<void>}} deps Registration dependencies.
  * @returns {import("vscode").Disposable[]} Sidebar mode command disposables.
  */
 function registerSidebarModeCommands(deps) {
@@ -69,7 +69,14 @@ function registerSidebarModeCommands(deps) {
     }
   );
 
-  return [showFileView, showLanguageView];
+  const createLanguageFilePlaceholder = deps.vscodeApi.commands.registerCommand(
+    "algos.createLanguageFilePlaceholder",
+    async (item) => {
+      await deps.createLanguageFilePlaceholder(item);
+    }
+  );
+
+  return [showFileView, showLanguageView, createLanguageFilePlaceholder];
 }
 
 /**
@@ -136,15 +143,21 @@ function deriveImplementedRunMenuCommandIds(guardedCommandDefs) {
  *   runWithPreflightGuard: (handler: (...args: unknown[]) => Promise<unknown>) => (...args: unknown[]) => Promise<unknown>,
  *   runActiveFileHandler: (vscodeApi: import("vscode"), eligibilityState: object) => Promise<unknown>,
  *   runFileHandler: (vscodeApi: import("vscode"), eligibilityState: object, targetUri?: import("vscode").Uri) => Promise<unknown>,
+ *   runLanguageHandler: (vscodeApi: import("vscode"), eligibilityState: object, item?: unknown) => Promise<unknown>,
  *   runLocalCleanHandler: (vscodeApi: import("vscode"), eligibilityState: object, targetUri?: import("vscode").Uri) => Promise<unknown>,
  *   runCleanHandler: (vscodeApi: import("vscode"), eligibilityState: object, targetUri?: import("vscode").Uri) => Promise<unknown>,
  *   runActiveFileCompileOnlyHandler: (vscodeApi: import("vscode"), eligibilityState: object, targetUri?: import("vscode").Uri) => Promise<unknown>,
+ *   runLanguageCompileOnlyHandler: (vscodeApi: import("vscode"), eligibilityState: object, item?: unknown) => Promise<unknown>,
  *   runActiveFileCheckOnlyNativeHandler: (vscodeApi: import("vscode"), eligibilityState: object, targetUri?: import("vscode").Uri) => Promise<unknown>,
  *   runActiveFileCheckOnlyDockerHandler: (vscodeApi: import("vscode"), eligibilityState: object, targetUri?: import("vscode").Uri) => Promise<unknown>,
  *   runActiveFileCheckOnlySshHandler: (vscodeApi: import("vscode"), eligibilityState: object, targetUri?: import("vscode").Uri) => Promise<unknown>,
+ *   runLanguageCheckOnlyNativeHandler: (vscodeApi: import("vscode"), eligibilityState: object, item?: unknown) => Promise<unknown>,
+ *   runLanguageCheckOnlyDockerHandler: (vscodeApi: import("vscode"), eligibilityState: object, item?: unknown) => Promise<unknown>,
+ *   runLanguageCheckOnlySshHandler: (vscodeApi: import("vscode"), eligibilityState: object, item?: unknown) => Promise<unknown>,
  *   openRunMenuFlow: (vscodeApi: import("vscode")) => Promise<string|null>,
  *   showSidebarFileView: () => Promise<void>,
- *   showSidebarLanguageView: () => Promise<void>
+ *   showSidebarLanguageView: () => Promise<void>,
+ *   createLanguageFilePlaceholder: (item?: unknown) => Promise<void>
  * }} deps Command registration dependencies.
  * @returns {import("vscode").Disposable[]} Command disposables.
  */
@@ -159,6 +172,10 @@ function registerCommands(deps) {
       handler: deps.runFileHandler,
     },
     {
+      commandId: "algos.runLanguage",
+      handler: deps.runLanguageHandler,
+    },
+    {
       commandId: "algos.runLocalClean",
       handler: deps.runLocalCleanHandler,
     },
@@ -171,16 +188,32 @@ function registerCommands(deps) {
       handler: deps.runActiveFileCompileOnlyHandler,
     },
     {
+      commandId: "algos.runLanguageCompileOnly",
+      handler: deps.runLanguageCompileOnlyHandler,
+    },
+    {
       commandId: "algos.runActiveFileCheckOnlyNative",
       handler: deps.runActiveFileCheckOnlyNativeHandler,
+    },
+    {
+      commandId: "algos.runLanguageCheckOnlyNative",
+      handler: deps.runLanguageCheckOnlyNativeHandler,
     },
     {
       commandId: "algos.runActiveFileCheckOnlyDocker",
       handler: deps.runActiveFileCheckOnlyDockerHandler,
     },
     {
+      commandId: "algos.runLanguageCheckOnlyDocker",
+      handler: deps.runLanguageCheckOnlyDockerHandler,
+    },
+    {
       commandId: "algos.runActiveFileCheckOnlySsh",
       handler: deps.runActiveFileCheckOnlySshHandler,
+    },
+    {
+      commandId: "algos.runLanguageCheckOnlySsh",
+      handler: deps.runLanguageCheckOnlySshHandler,
     },
     {
       commandId: "algos.runMenuClean",

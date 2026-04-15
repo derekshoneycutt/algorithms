@@ -18,12 +18,17 @@ const {
 const {
   runActiveFileHandler,
   runFileHandler,
+  runLanguageHandler,
   runLocalCleanHandler,
   runCleanHandler,
   runActiveFileCompileOnlyHandler,
+  runLanguageCompileOnlyHandler,
   runActiveFileCheckOnlyNativeHandler,
   runActiveFileCheckOnlyDockerHandler,
   runActiveFileCheckOnlySshHandler,
+  runLanguageCheckOnlyNativeHandler,
+  runLanguageCheckOnlyDockerHandler,
+  runLanguageCheckOnlySshHandler,
   resolveActiveFileRunContext,
 } = require("./commands/fileCommands");
 // FEAT-207 centralized command registration.
@@ -240,18 +245,26 @@ async function activate(context) {
     runWithPreflightGuard,
     runActiveFileHandler,
     runFileHandler,
+    runLanguageHandler,
     runLocalCleanHandler,
     runCleanHandler,
     runActiveFileCompileOnlyHandler,
+    runLanguageCompileOnlyHandler,
     runActiveFileCheckOnlyNativeHandler,
     runActiveFileCheckOnlyDockerHandler,
     runActiveFileCheckOnlySshHandler,
+    runLanguageCheckOnlyNativeHandler,
+    runLanguageCheckOnlyDockerHandler,
+    runLanguageCheckOnlySshHandler,
     openRunMenuFlow,
     showSidebarFileView: async () => {
       await workspaceAlgorithmsRunViewRegistration.setViewMode("files");
     },
     showSidebarLanguageView: async () => {
       await workspaceAlgorithmsRunViewRegistration.setViewMode("language");
+    },
+    createLanguageFilePlaceholder: async (item) => {
+      await workspaceAlgorithmsRunViewRegistration.openMissingLanguageFile(item);
     },
   });
 

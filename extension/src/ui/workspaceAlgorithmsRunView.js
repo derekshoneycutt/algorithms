@@ -8,6 +8,8 @@ const {
 } = require("../validation/inputValidation");
 
 const LANGUAGE_ICON_DIRECTORY_SEGMENT = ".algos-language-icons";
+const LANGUAGE_PRESENT_URI_FRAGMENT = "algos-language-present";
+const LANGUAGE_ABSENT_URI_FRAGMENT = "algos-language-absent";
 
 const LANGUAGE_ICON_SAMPLE_EXTENSIONS = {
   ada: "adb",
@@ -381,36 +383,160 @@ function createSidebarTreeNode(entryPath, entry, isRunnableFile) {
  * @param {string} languageKey Canonical language key.
  * @param {number} fileCount Count of matching algorithm files.
  * @param {string} algorithmPath Algorithm directory absolute path.
- * @param {string|null} openTargetPath Deterministic first-sorted matching file path.
- * @returns {{label: string, fileCount: number, hasFiles: boolean, isLanguageSummary: boolean, resourceUri: import("vscode").Uri, openTargetUri: import("vscode").Uri|null, tooltip: string}} Language summary node.
+ * @param {string|null} openTargetPath Deterministic matching file path.
+ * @param {boolean} targetIsRunnable Whether the matching file is a direct algorithm-root file.
+ * @param {import("vscode").Uri} suggestedUntitledUri Suggested untitled file URI for missing-language creation.
+ * @returns {{label: string, languageKey: string, algorithmPath: string, filePath: string, fsPath: string, fileCount: number, hasFiles: boolean, isLanguageSummary: boolean, resourceUri: import("vscode").Uri, openTargetUri: import("vscode").Uri|null, suggestedUntitledUri: import("vscode").Uri, contextValue: string, tooltip: string}} Language summary node.
  */
 function createLanguageSummaryTreeNode(
   languageKey,
   fileCount,
   algorithmPath,
-  openTargetPath
+  openTargetPath,
+  targetIsRunnable,
+  suggestedUntitledUri
 ) {
   const sampleExtension = LANGUAGE_ICON_SAMPLE_EXTENSIONS[languageKey] || "txt";
   const sampleFileName = `${languageKey}.${sampleExtension}`;
-  const resourceUri = vscode.Uri.file(
-    path.join(algorithmPath, LANGUAGE_ICON_DIRECTORY_SEGMENT, sampleFileName)
-  ).with({
-    fragment: fileCount > 0 ? "present" : "absent",
-  });
   const openTargetUri = openTargetPath ? vscode.Uri.file(openTargetPath) : null;
+  const resourceUri = openTargetUri
+    ? openTargetUri.with({ fragment: LANGUAGE_PRESENT_URI_FRAGMENT })
+    : vscode.Uri.file(
+        path.join(algorithmPath, LANGUAGE_ICON_DIRECTORY_SEGMENT, sampleFileName)
+      ).with({ fragment: LANGUAGE_ABSENT_URI_FRAGMENT });
 
   return {
     label: languageKey,
+    languageKey,
+    algorithmPath,
+    filePath: algorithmPath,
+    fsPath: algorithmPath,
     fileCount,
     hasFiles: fileCount > 0,
     isLanguageSummary: true,
     resourceUri,
     openTargetUri,
+    suggestedUntitledUri,
+    contextValue: openTargetUri ? "algos.languagePresent" : "algos.languageMissing",
     tooltip:
       fileCount > 0 && openTargetPath
         ? `${languageKey}: present (${fileCount})\nOpens: ${openTargetPath}`
-        : `${languageKey}: not present (${fileCount})`,
+        : `${languageKey}: not present (${fileCount})\nCreate: ${suggestedUntitledUri.fsPath}`,
   };
+}
+
+/**
+ * Builds a deterministic representative language file candidate.
+ *
+ * Direct algorithm-root files are preferred so existing inline Play actions can
+ * be reused. When none exist, the first sorted nested match is used.
+ *
+ * @param {string[]} matchingFiles Matching file paths for one language.
+ * @param {string|null} resolvedRoot Canonical repository root path.
+ * @returns {{filePath: string|null, isRunnable: boolean}} Representative file metadata.
+ */
+function selectRepresentativeLanguageFile(matchingFiles, resolvedRoot) {
+  const sortedFiles = [...matchingFiles].sort((left, right) =>
+    left.localeCompare(right)
+  );
+  const directAlgorithmFiles = sortedFiles.filter((filePath) =>
+    isDirectAlgorithmRootFile(filePath, resolvedRoot)
+  );
+
+  if (directAlgorithmFiles.length > 0) {
+    return {
+      filePath: directAlgorithmFiles[0],
+      isRunnable: true,
+    };
+  }
+
+  return {
+    filePath: sortedFiles.length > 0 ? sortedFiles[0] : null,
+    isRunnable: false,
+  };
+}
+
+/**
+ * Returns the preferred basename for a new language file suggestion.
+ *
+ * The basename with the highest frequency among direct algorithm-root files is
+ * used. Ties or empty sets fall back to the algorithm directory name.
+ *
+ * @param {string} algorithmPath Algorithm directory path.
+ * @param {string|null} resolvedRoot Canonical repository root path.
+ * @param {Set<string>} supportedLanguageKeys Supported language keys.
+ * @returns {string} Suggested basename for new files.
+ */
+function determineSuggestedAlgorithmBaseName(
+  algorithmPath,
+  resolvedRoot,
+  supportedLanguageKeys
+) {
+  const basenameCounts = new Map();
+  const directAlgorithmFiles = collectAllowedSidebarFiles(
+    algorithmPath,
+    resolvedRoot,
+    supportedLanguageKeys
+  )
+    .filter((filePath) => isDirectAlgorithmRootFile(filePath, resolvedRoot))
+    .sort((left, right) => left.localeCompare(right));
+
+  for (const filePath of directAlgorithmFiles) {
+    const basename = path.parse(filePath).name;
+    basenameCounts.set(basename, (basenameCounts.get(basename) || 0) + 1);
+  }
+
+  let bestBasename = null;
+  let bestCount = 0;
+  let hasTie = false;
+
+  for (const [basename, count] of basenameCounts.entries()) {
+    if (count > bestCount) {
+      bestBasename = basename;
+      bestCount = count;
+      hasTie = false;
+      continue;
+    }
+
+    if (count === bestCount) {
+      hasTie = true;
+    }
+  }
+
+  if (!bestBasename || hasTie) {
+    return path.basename(algorithmPath);
+  }
+
+  return bestBasename;
+}
+
+/**
+ * Creates the untitled URI used when a missing language row is created.
+ *
+ * @param {string} languageKey Canonical language key.
+ * @param {string} algorithmPath Algorithm directory path.
+ * @param {string|null} resolvedRoot Canonical repository root path.
+ * @param {Set<string>} supportedLanguageKeys Supported language keys.
+ * @returns {import("vscode").Uri} Suggested untitled file URI.
+ */
+function createSuggestedUntitledLanguageUri(
+  languageKey,
+  algorithmPath,
+  resolvedRoot,
+  supportedLanguageKeys
+) {
+  const suggestedBasename = determineSuggestedAlgorithmBaseName(
+    algorithmPath,
+    resolvedRoot,
+    supportedLanguageKeys
+  );
+  const sampleExtension = LANGUAGE_ICON_SAMPLE_EXTENSIONS[languageKey] || "txt";
+  const targetFilePath = path.join(
+    algorithmPath,
+    `${suggestedBasename}.${sampleExtension}`
+  );
+
+  return vscode.Uri.file(targetFilePath).with({ scheme: "untitled" });
 }
 
 /**
@@ -564,7 +690,7 @@ function collectAllowedSidebarFiles(directoryPath, resolvedRoot, supportedLangua
  * @param {string} algorithmPath Algorithm directory path.
  * @param {string|null} resolvedRoot Canonical repository root path.
  * @param {Set<string>} supportedLanguageKeys Supported language keys.
- * @returns {{label: string, fileCount: number, hasFiles: boolean, isLanguageSummary: boolean, resourceUri: import("vscode").Uri, openTargetUri: import("vscode").Uri|null, tooltip: string}[]} Language summary nodes.
+ * @returns {{label: string, fileCount: number, hasFiles: boolean, isLanguageSummary: boolean, resourceUri: import("vscode").Uri, openTargetUri: import("vscode").Uri|null, suggestedUntitledUri: import("vscode").Uri, contextValue: string, tooltip: string}[]} Language summary nodes.
  */
 function readAlgorithmLanguageSummary(algorithmPath, resolvedRoot, supportedLanguageKeys) {
   const sortedLanguageKeys = [...supportedLanguageKeys].sort((left, right) =>
@@ -613,13 +739,24 @@ function readAlgorithmLanguageSummary(algorithmPath, resolvedRoot, supportedLang
 
   return sortedLanguageKeys.map((languageKey) => {
     const matchingFiles = languageFilePathMap.get(languageKey);
-    matchingFiles.sort((left, right) => left.localeCompare(right));
+    const representativeFile = selectRepresentativeLanguageFile(
+      matchingFiles,
+      resolvedRoot
+    );
+    const suggestedUntitledUri = createSuggestedUntitledLanguageUri(
+      languageKey,
+      algorithmPath,
+      resolvedRoot,
+      supportedLanguageKeys
+    );
 
     return createLanguageSummaryTreeNode(
       languageKey,
       languageCountMap.get(languageKey),
       algorithmPath,
-      matchingFiles.length > 0 ? matchingFiles[0] : null
+      representativeFile.filePath,
+      representativeFile.isRunnable,
+      suggestedUntitledUri
     );
   });
 }
@@ -728,7 +865,7 @@ class WorkspaceStatusTreeDataProvider {
   /**
    * Returns tree item metadata for a file-system tree node.
    *
-  * @param {{filePath?: string, fsPath?: string, label: string, isDirectory?: boolean, isRunnableFile?: boolean, isLanguageSummary?: boolean, fileCount?: number, hasFiles?: boolean, resourceUri?: import("vscode").Uri, openTargetUri?: import("vscode").Uri|null, tooltip?: string}} element Tree element.
+  * @param {{filePath?: string, fsPath?: string, label: string, languageKey?: string, algorithmPath?: string, isDirectory?: boolean, isRunnableFile?: boolean, isLanguageSummary?: boolean, fileCount?: number, hasFiles?: boolean, resourceUri?: import("vscode").Uri, openTargetUri?: import("vscode").Uri|null, suggestedUntitledUri?: import("vscode").Uri, contextValue?: string, tooltip?: string}} element Tree element.
    * @returns {import("vscode").TreeItem} Tree item.
    */
   getTreeItem(element) {
@@ -741,7 +878,7 @@ class WorkspaceStatusTreeDataProvider {
       treeItem.label = element.label;
       treeItem.resourceUri = element.resourceUri;
       treeItem.description = String(element.fileCount);
-      treeItem.contextValue = "algos.languageSummaryItem";
+      treeItem.contextValue = element.contextValue;
       treeItem.tooltip = element.tooltip;
 
       if (element.hasFiles && element.openTargetUri) {
@@ -879,11 +1016,14 @@ function registerWorkspaceAlgorithmsRunView() {
   const provider = new WorkspaceStatusTreeDataProvider();
   const languageStatusDecorationProvider = {
     provideFileDecoration(uri) {
-      if (uri.scheme !== "file" || !uri.path.includes(`/${LANGUAGE_ICON_DIRECTORY_SEGMENT}/`)) {
+      if (
+        uri.fragment !== LANGUAGE_PRESENT_URI_FRAGMENT
+        && uri.fragment !== LANGUAGE_ABSENT_URI_FRAGMENT
+      ) {
         return undefined;
       }
 
-      const hasFiles = uri.fragment === "present";
+      const hasFiles = uri.fragment === LANGUAGE_PRESENT_URI_FRAGMENT;
 
       return {
         badge: "●",
@@ -946,6 +1086,25 @@ function registerWorkspaceAlgorithmsRunView() {
   void refreshWorkspaceViewState();
   void applySidebarViewMode("files");
 
+  /**
+   * Opens an untitled suggested file for a missing-language row.
+   *
+   * @param {{suggestedUntitledUri?: import("vscode").Uri}} element Missing-language tree element.
+   * @returns {Promise<void>} Completion result.
+   */
+  async function openMissingLanguageFile(element) {
+    if (!element?.suggestedUntitledUri) {
+      return;
+    }
+
+    const document = await vscode.workspace.openTextDocument(
+      element.suggestedUntitledUri
+    );
+    await vscode.window.showTextDocument(document, {
+      preview: false,
+    });
+  }
+
   return {
     refresh: () => {
       void refreshWorkspaceViewState();
@@ -953,6 +1112,7 @@ function registerWorkspaceAlgorithmsRunView() {
     setViewMode: async (viewMode) => {
       await applySidebarViewMode(viewMode);
     },
+    openMissingLanguageFile,
     disposables: [view, refreshOnFolderChange, provider, decorationRegistration],
   };
 }

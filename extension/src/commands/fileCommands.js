@@ -102,6 +102,84 @@ function executeContextCommand(vscodeApi, contextResolution, execution) {
 }
 
 /**
+ * Resolves one sidebar language item into algorithm/script execution context.
+ *
+ * @param {{algorithmPath?: string, languageKey?: string}|undefined} item Sidebar language item.
+ * @param {{selected?: {resolvedRoot?: string, scriptPath?: string}}|null|undefined} eligibilityState Eligible workspace state.
+ * @returns {{ok: boolean, reason: string|null, guidance: string, severity: "info"|"warning"|"error", algorithmDir: string|null, scriptPath: string|null, displayScriptPath: string|null, languageKey: string|null}} Resolution result.
+ */
+function resolveLanguageSidebarContext(item, eligibilityState) {
+  const selected = eligibilityState?.selected;
+  const scriptPath = selected?.scriptPath;
+  const algorithmDir = item?.algorithmPath;
+  const languageKey = item?.languageKey;
+
+  if (!scriptPath) {
+    return {
+      ok: false,
+      reason: "missing-run-script-path",
+      guidance: "Run script path is unavailable. Reopen the workspace and retry.",
+      severity: "error",
+      algorithmDir: null,
+      scriptPath: null,
+      displayScriptPath: null,
+      languageKey: null,
+    };
+  }
+
+  if (!algorithmDir || !languageKey) {
+    return {
+      ok: false,
+      reason: "missing-language-sidebar-item",
+      guidance: "Select a language row in the sidebar and try again.",
+      severity: "info",
+      algorithmDir: null,
+      scriptPath: null,
+      displayScriptPath: null,
+      languageKey: null,
+    };
+  }
+
+  const relativeScriptPath = path.relative(algorithmDir, scriptPath);
+  const displayScriptPath = relativeScriptPath || scriptPath;
+
+  return {
+    ok: true,
+    reason: null,
+    guidance: "Language sidebar context resolved.",
+    severity: "info",
+    algorithmDir,
+    scriptPath,
+    displayScriptPath,
+    languageKey,
+  };
+}
+
+/**
+ * Executes one language-targeted run.sh command from a sidebar language row.
+ *
+ * @param {import("vscode")} vscodeApi VS Code API object.
+ * @param {{selected?: {resolvedRoot?: string, scriptPath?: string}}|null|undefined} eligibilityState Eligible workspace state.
+ * @param {{algorithmPath?: string, languageKey?: string}|undefined} item Sidebar language item.
+ * @param {{commandFamily: string, commandLabel: string, successMessage: string, buildArgs: (languageKey: string) => string[]}} execution Execution metadata.
+ * @returns {Promise<{ok: boolean, status: string, reason: string|null}>} Handler execution summary.
+ */
+async function runLanguageAtSidebarItem(vscodeApi, eligibilityState, item, execution) {
+  const contextResolution = resolveLanguageSidebarContext(item, eligibilityState);
+
+  if (!contextResolution.ok) {
+    return blockWithValidation(vscodeApi, contextResolution, execution.commandLabel);
+  }
+
+  return executeContextCommand(vscodeApi, contextResolution, {
+    commandFamily: execution.commandFamily,
+    args: execution.buildArgs(contextResolution.languageKey),
+    commandLabel: execution.commandLabel,
+    successMessage: execution.successMessage,
+  });
+}
+
+/**
  * Resolves active editor to a compatible source-file path.
  *
  * @param {import("vscode")} vscodeApi VS Code API object.
@@ -774,16 +852,124 @@ async function runActiveFileCheckOnlySshHandler(
   });
 }
 
+/**
+ * Handles sidebar language-row Run invocation.
+ *
+ * @param {import("vscode")} vscodeApi VS Code API object.
+ * @param {{selected?: {resolvedRoot?: string, scriptPath?: string}}|null|undefined} eligibilityState Eligible workspace state.
+ * @param {{algorithmPath?: string, languageKey?: string}|undefined} item Sidebar language item.
+ * @returns {Promise<{ok: boolean, status: string, reason: string|null}>} Handler execution summary.
+ */
+async function runLanguageHandler(vscodeApi, eligibilityState, item) {
+  return runLanguageAtSidebarItem(vscodeApi, eligibilityState, item, {
+    commandFamily: "run-language",
+    commandLabel: "Run Language",
+    successMessage: `Run Language started in ${"Algorithms Runner"}.`,
+    buildArgs: (languageKey) => [languageKey],
+  });
+}
+
+/**
+ * Handles sidebar language-row Compile Only invocation.
+ *
+ * @param {import("vscode")} vscodeApi VS Code API object.
+ * @param {{selected?: {resolvedRoot?: string, scriptPath?: string}}|null|undefined} eligibilityState Eligible workspace state.
+ * @param {{algorithmPath?: string, languageKey?: string}|undefined} item Sidebar language item.
+ * @returns {Promise<{ok: boolean, status: string, reason: string|null}>} Handler execution summary.
+ */
+async function runLanguageCompileOnlyHandler(vscodeApi, eligibilityState, item) {
+  return runLanguageAtSidebarItem(vscodeApi, eligibilityState, item, {
+    commandFamily: "run-language-compile-only",
+    commandLabel: "Compile Only",
+    successMessage: `Compile Only started in ${"Algorithms Runner"}.`,
+    buildArgs: (languageKey) => ["--compile-only", languageKey],
+  });
+}
+
+/**
+ * Handles one route-specific sidebar language-row check-only invocation.
+ *
+ * @param {import("vscode")} vscodeApi VS Code API object.
+ * @param {{selected?: {resolvedRoot?: string, scriptPath?: string}}|null|undefined} eligibilityState Eligible workspace state.
+ * @param {{algorithmPath?: string, languageKey?: string}|undefined} item Sidebar language item.
+ * @param {{route: "native"|"docker"|"ssh", commandLabel: string}} execution Route execution metadata.
+ * @returns {Promise<{ok: boolean, status: string, reason: string|null}>} Handler execution summary.
+ */
+async function runLanguageCheckOnlyHandler(vscodeApi, eligibilityState, item, execution) {
+  const routeValidation = validateCheckOnlyRoute(execution.route);
+
+  if (!routeValidation.ok) {
+    return blockWithValidation(vscodeApi, routeValidation, execution.commandLabel);
+  }
+
+  return runLanguageAtSidebarItem(vscodeApi, eligibilityState, item, {
+    commandFamily: "run-language-check-only",
+    commandLabel: execution.commandLabel,
+    successMessage: `${execution.commandLabel} started in ${"Algorithms Runner"}.`,
+    buildArgs: (languageKey) => [`--check-only=${execution.route}`, languageKey],
+  });
+}
+
+/**
+ * Handles sidebar language-row Check Only (Native) invocation.
+ *
+ * @param {import("vscode")} vscodeApi VS Code API object.
+ * @param {{selected?: {resolvedRoot?: string, scriptPath?: string}}|null|undefined} eligibilityState Eligible workspace state.
+ * @param {{algorithmPath?: string, languageKey?: string}|undefined} item Sidebar language item.
+ * @returns {Promise<{ok: boolean, status: string, reason: string|null}>} Handler execution summary.
+ */
+async function runLanguageCheckOnlyNativeHandler(vscodeApi, eligibilityState, item) {
+  return runLanguageCheckOnlyHandler(vscodeApi, eligibilityState, item, {
+    route: "native",
+    commandLabel: "Check Only (Native)",
+  });
+}
+
+/**
+ * Handles sidebar language-row Check Only (Docker) invocation.
+ *
+ * @param {import("vscode")} vscodeApi VS Code API object.
+ * @param {{selected?: {resolvedRoot?: string, scriptPath?: string}}|null|undefined} eligibilityState Eligible workspace state.
+ * @param {{algorithmPath?: string, languageKey?: string}|undefined} item Sidebar language item.
+ * @returns {Promise<{ok: boolean, status: string, reason: string|null}>} Handler execution summary.
+ */
+async function runLanguageCheckOnlyDockerHandler(vscodeApi, eligibilityState, item) {
+  return runLanguageCheckOnlyHandler(vscodeApi, eligibilityState, item, {
+    route: "docker",
+    commandLabel: "Check Only (Docker)",
+  });
+}
+
+/**
+ * Handles sidebar language-row Check Only (SSH) invocation.
+ *
+ * @param {import("vscode")} vscodeApi VS Code API object.
+ * @param {{selected?: {resolvedRoot?: string, scriptPath?: string}}|null|undefined} eligibilityState Eligible workspace state.
+ * @param {{algorithmPath?: string, languageKey?: string}|undefined} item Sidebar language item.
+ * @returns {Promise<{ok: boolean, status: string, reason: string|null}>} Handler execution summary.
+ */
+async function runLanguageCheckOnlySshHandler(vscodeApi, eligibilityState, item) {
+  return runLanguageCheckOnlyHandler(vscodeApi, eligibilityState, item, {
+    route: "ssh",
+    commandLabel: "Check Only (SSH)",
+  });
+}
+
 // Public command handlers consumed by extension activation and tests.
 module.exports = {
   runActiveFileHandler,
   runFileHandler,
+  runLanguageHandler,
   runLocalCleanHandler,
   runCleanHandler,
   runActiveFileCompileOnlyHandler,
+  runLanguageCompileOnlyHandler,
   runActiveFileCheckOnlyNativeHandler,
   runActiveFileCheckOnlyDockerHandler,
   runActiveFileCheckOnlySshHandler,
+  runLanguageCheckOnlyNativeHandler,
+  runLanguageCheckOnlyDockerHandler,
+  runLanguageCheckOnlySshHandler,
   resolveActiveFileRunContext,
   resolveLocalCleanContextFromExplorer,
   resolveCleanContextFromExplorer,

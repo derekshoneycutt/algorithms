@@ -45,6 +45,12 @@
         "icon": "$(play)"
       },
       {
+        "command": "algos.runLanguage",
+        "title": "Run Language",
+        "category": "Derek's Algorithms",
+        "icon": "$(play)"
+      },
+      {
         "command": "algos.openRunMenu",
         "title": "Run Menu",
         "category": "Derek's Algorithms"
@@ -65,7 +71,17 @@
         "category": "Derek's Algorithms"
       },
       {
+        "command": "algos.runLanguageCompileOnly",
+        "title": "Compile Only",
+        "category": "Derek's Algorithms"
+      },
+      {
         "command": "algos.runActiveFileCheckOnlyNative",
+        "title": "Check Only (Native)",
+        "category": "Derek's Algorithms"
+      },
+      {
+        "command": "algos.runLanguageCheckOnlyNative",
         "title": "Check Only (Native)",
         "category": "Derek's Algorithms"
       },
@@ -75,7 +91,17 @@
         "category": "Derek's Algorithms"
       },
       {
+        "command": "algos.runLanguageCheckOnlyDocker",
+        "title": "Check Only (Docker)",
+        "category": "Derek's Algorithms"
+      },
+      {
         "command": "algos.runActiveFileCheckOnlySsh",
+        "title": "Check Only (SSH)",
+        "category": "Derek's Algorithms"
+      },
+      {
+        "command": "algos.runLanguageCheckOnlySsh",
         "title": "Check Only (SSH)",
         "category": "Derek's Algorithms"
       },
@@ -110,6 +136,12 @@
         "title": "Show Language View",
         "category": "Derek's Algorithms",
         "icon": "$(symbol-keyword)"
+      },
+      {
+        "command": "algos.createLanguageFilePlaceholder",
+        "title": "Create Language File",
+        "category": "Derek's Algorithms",
+        "icon": "$(add)"
       }
     ],
     "submenus": [
@@ -119,6 +151,11 @@
       },
       {
         "id": "algos.runMenuSidebar",
+        "label": "Run Menu",
+        "icon": "$(kebab-vertical)"
+      },
+      {
+        "id": "algos.runMenuSidebarLanguage",
         "label": "Run Menu",
         "icon": "$(kebab-vertical)"
       }
@@ -187,8 +224,18 @@
           "group": "inline@1"
         },
         {
+          "command": "algos.runLanguage",
+          "when": "view == algosWorkspaceAlgorithmsRunView && viewItem == algos.languagePresent",
+          "group": "inline@1"
+        },
+        {
           "command": "algos.runFile",
           "when": "view == algosWorkspaceAlgorithmsRunView && (viewItem == algos.workspaceFile || viewItem == algos.workspaceRunnableFile)",
+          "group": "1_modification@-2"
+        },
+        {
+          "command": "algos.runLanguage",
+          "when": "view == algosWorkspaceAlgorithmsRunView && viewItem == algos.languagePresent",
           "group": "1_modification@-2"
         },
         {
@@ -197,9 +244,24 @@
           "group": "inline@2"
         },
         {
+          "submenu": "algos.runMenuSidebarLanguage",
+          "when": "view == algosWorkspaceAlgorithmsRunView && viewItem == algos.languagePresent",
+          "group": "inline@2"
+        },
+        {
           "submenu": "algos.runMenuSidebar",
           "when": "view == algosWorkspaceAlgorithmsRunView && (viewItem == algos.workspaceFile || viewItem == algos.workspaceRunnableFile)",
           "group": "1_modification@-1"
+        },
+        {
+          "submenu": "algos.runMenuSidebarLanguage",
+          "when": "view == algosWorkspaceAlgorithmsRunView && viewItem == algos.languagePresent",
+          "group": "1_modification@-1"
+        },
+        {
+          "command": "algos.createLanguageFilePlaceholder",
+          "when": "view == algosWorkspaceAlgorithmsRunView && viewItem == algos.languageMissing",
+          "group": "inline@1"
         }
       ],
       "view/title": [
@@ -250,6 +312,29 @@
         },
         {
           "command": "algos.runMenuCheckOnly"
+        }
+      ],
+      "algos.runMenuSidebarLanguage": [
+        {
+          "command": "algos.runLanguage"
+        },
+        {
+          "command": "algos.runMenuClean"
+        },
+        {
+          "command": "algos.runMenuLocalclean"
+        },
+        {
+          "command": "algos.runLanguageCompileOnly"
+        },
+        {
+          "command": "algos.runLanguageCheckOnlyNative"
+        },
+        {
+          "command": "algos.runLanguageCheckOnlyDocker"
+        },
+        {
+          "command": "algos.runLanguageCheckOnlySsh"
         }
       ]
     }
