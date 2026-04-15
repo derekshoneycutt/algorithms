@@ -254,6 +254,13 @@ async function activate(context) {
     runActiveFileHandler,
     runFileHandler,
     runLanguageHandler,
+    runSmokeTestHandler: async (vscodeApi, eligibilityState, item) => {
+      return workspaceAlgorithmsRunViewRegistration.runSmokeTest(
+        vscodeApi,
+        eligibilityState,
+        item
+      );
+    },
     flagLanguageHandler,
     unflagLanguageHandler,
     runLocalCleanHandler,

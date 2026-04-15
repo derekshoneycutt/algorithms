@@ -51,6 +51,12 @@
         "icon": "$(play)"
       },
       {
+        "command": "algos.runSmokeTest",
+        "title": "Smoke Test",
+        "category": "Derek's Algorithms",
+        "icon": "$(play)"
+      },
+      {
         "command": "algos.flagLanguage",
         "title": "Flag Language",
         "category": "Derek's Algorithms",
@@ -242,6 +248,11 @@
         }
       ],
       "view/item/context": [
+        {
+          "command": "algos.runSmokeTest",
+          "when": "view == algosWorkspaceAlgorithmsRunView && viewItem == algos.workspaceAlgorithmDirectory",
+          "group": "inline@1"
+        },
         {
           "command": "algos.runFile",
           "when": "view == algosWorkspaceAlgorithmsRunView && (viewItem == algos.workspaceRunnableFileUnflagged || viewItem == algos.workspaceRunnableFileFlagged)",

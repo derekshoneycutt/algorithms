@@ -172,6 +172,7 @@ function deriveImplementedRunMenuCommandIds(guardedCommandDefs) {
  *   runActiveFileHandler: (vscodeApi: import("vscode"), eligibilityState: object) => Promise<unknown>,
  *   runFileHandler: (vscodeApi: import("vscode"), eligibilityState: object, targetUri?: import("vscode").Uri) => Promise<unknown>,
  *   runLanguageHandler: (vscodeApi: import("vscode"), eligibilityState: object, item?: unknown) => Promise<unknown>,
+ *   runSmokeTestHandler: (vscodeApi: import("vscode"), eligibilityState: object, item?: unknown) => Promise<unknown>,
  *   flagLanguageHandler: (vscodeApi: import("vscode"), eligibilityState: object, item?: unknown) => Promise<unknown>,
  *   unflagLanguageHandler: (vscodeApi: import("vscode"), eligibilityState: object, item?: unknown) => Promise<unknown>,
  *   runLocalCleanHandler: (vscodeApi: import("vscode"), eligibilityState: object, targetUri?: import("vscode").Uri) => Promise<unknown>,
@@ -207,6 +208,10 @@ function registerCommands(deps) {
     {
       commandId: "algos.runLanguage",
       handler: deps.runLanguageHandler,
+    },
+    {
+      commandId: "algos.runSmokeTest",
+      handler: deps.runSmokeTestHandler,
     },
     {
       commandId: "algos.flagLanguage",
