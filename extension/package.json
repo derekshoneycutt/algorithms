@@ -372,40 +372,50 @@
       ],
       "algos.runMenuExplorer": [
         {
-          "command": "algos.runFile"
+          "command": "algos.runFile",
+          "group": "run@1"
         },
         {
           "command": "algos.runMenuCompileOnly",
-          "when": "resourcePath =~ /[\\\\/]src[\\\\/][^\\\\/]+[\\\\/][^\\\\/]+(?:[\\\\/][^\\\\/]+)?$/"
+          "when": "resourcePath =~ /[\\\\/]src[\\\\/][^\\\\/]+[\\\\/][^\\\\/]+(?:[\\\\/][^\\\\/]+)?$/",
+          "group": "run@2"
         },
         {
           "command": "algos.runMenuCheckOnly",
-          "when": "resourcePath =~ /[\\\\/]src[\\\\/][^\\\\/]+[\\\\/][^\\\\/]+(?:[\\\\/][^\\\\/]+)?$/"
+          "when": "resourcePath =~ /[\\\\/]src[\\\\/][^\\\\/]+[\\\\/][^\\\\/]+(?:[\\\\/][^\\\\/]+)?$/",
+          "group": "run@3"
         },
         {
           "command": "algos.runMenuClean",
-          "when": "resourcePath =~ /[\\\\/]src[\\\\/][^\\\\/]+[\\\\/][^\\\\/]+(?:[\\\\/][^\\\\/]+)?$/"
+          "when": "resourcePath =~ /[\\\\/]src[\\\\/][^\\\\/]+[\\\\/][^\\\\/]+(?:[\\\\/][^\\\\/]+)?$/",
+          "group": "run@4"
         },
         {
           "command": "algos.runMenuLocalclean",
-          "when": "resourcePath =~ /[\\\\/]src[\\\\/][^\\\\/]+[\\\\/][^\\\\/]+(?:[\\\\/][^\\\\/]+)?$/"
+          "when": "resourcePath =~ /[\\\\/]src[\\\\/][^\\\\/]+[\\\\/][^\\\\/]+(?:[\\\\/][^\\\\/]+)?$/",
+          "group": "run@5"
         }
       ],
       "algos.runMenuSidebar": [
         {
-          "command": "algos.runFile"
+          "command": "algos.runFile",
+          "group": "run@1"
         },
         {
-          "command": "algos.runMenuCompileOnly"
+          "command": "algos.runMenuCompileOnly",
+          "group": "run@2"
         },
         {
-          "command": "algos.runMenuCheckOnly"
+          "command": "algos.runMenuCheckOnly",
+          "group": "run@3"
         },
         {
-          "command": "algos.runMenuClean"
+          "command": "algos.runMenuClean",
+          "group": "run@4"
         },
         {
-          "command": "algos.runMenuLocalclean"
+          "command": "algos.runMenuLocalclean",
+          "group": "run@5"
         }
       ],
       "algos.runMenuSidebarLanguage": [
