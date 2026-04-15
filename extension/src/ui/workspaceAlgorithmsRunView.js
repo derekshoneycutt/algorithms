@@ -295,11 +295,12 @@ function compareDirectoryEntries(left, right) {
  *
  * @param {string} entryPath Canonical entry path.
  * @param {fs.Dirent} entry Directory entry metadata.
- * @returns {{filePath: string, label: string, isDirectory: boolean, resourceUri: import("vscode").Uri}} Sidebar tree node.
+ * @returns {{filePath: string, fsPath: string, label: string, isDirectory: boolean, resourceUri: import("vscode").Uri}} Sidebar tree node.
  */
 function createSidebarTreeNode(entryPath, entry) {
   return {
     filePath: entryPath,
+    fsPath: entryPath,
     label: entry.name,
     isDirectory: entry.isDirectory(),
     resourceUri: vscode.Uri.file(entryPath),
@@ -310,7 +311,7 @@ function createSidebarTreeNode(entryPath, entry) {
  * Reads direct children for a directory path as sidebar tree nodes.
  *
  * @param {string|null} directoryPath Canonical directory path.
- * @returns {{filePath: string, label: string, isDirectory: boolean, resourceUri: import("vscode").Uri}[]} Child nodes.
+ * @returns {{filePath: string, fsPath: string, label: string, isDirectory: boolean, resourceUri: import("vscode").Uri}[]} Child nodes.
  */
 function readSidebarDirectoryChildren(directoryPath, resolvedRoot, supportedLanguageKeys) {
   if (!directoryPath) {
@@ -393,7 +394,7 @@ class WorkspaceStatusTreeDataProvider {
   /**
    * Returns tree item metadata for a file-system tree node.
    *
-   * @param {{filePath: string, label: string, isDirectory: boolean, resourceUri: import("vscode").Uri}} element Tree element.
+  * @param {{filePath: string, fsPath: string, label: string, isDirectory: boolean, resourceUri: import("vscode").Uri}} element Tree element.
    * @returns {import("vscode").TreeItem} Tree item.
    */
   getTreeItem(element) {
@@ -411,13 +412,21 @@ class WorkspaceStatusTreeDataProvider {
       : "algos.workspaceFile";
     treeItem.tooltip = element.filePath;
 
+    if (!element.isDirectory) {
+      treeItem.command = {
+        command: "vscode.open",
+        title: "Open File",
+        arguments: [element.resourceUri],
+      };
+    }
+
     return treeItem;
   }
 
   /**
    * Returns child entries for the root or a directory node.
    *
-   * @param {{filePath: string, label: string, isDirectory: boolean, resourceUri: import("vscode").Uri}|undefined} element Parent element.
+  * @param {{filePath: string, fsPath: string, label: string, isDirectory: boolean, resourceUri: import("vscode").Uri}|undefined} element Parent element.
    * @returns {Thenable<import("vscode").TreeItem[]>} Tree items.
    */
   getChildren(element) {

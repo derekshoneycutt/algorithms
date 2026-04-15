@@ -103,6 +103,10 @@
       {
         "id": "algos.runMenuExplorer",
         "label": "Run Menu"
+      },
+      {
+        "id": "algos.runMenuSidebar",
+        "label": "Run Menu"
       }
     ],
     "menus": {
@@ -162,10 +166,22 @@
           "submenu": "algos.runMenuExplorer"
         }
       ],
+      "view/item/context": [
+        {
+          "command": "algos.runFile",
+          "when": "view == algosWorkspaceAlgorithmsRunView && viewItem == algos.workspaceFile",
+          "group": "1_modification@-2"
+        },
+        {
+          "submenu": "algos.runMenuSidebar",
+          "when": "view == algosWorkspaceAlgorithmsRunView && viewItem == algos.workspaceFile",
+          "group": "1_modification@-1"
+        }
+      ],
       "algos.runMenuExplorer": [
-          {
-            "command": "algos.runFile"
-          },
+        {
+          "command": "algos.runFile"
+        },
         {
           "command": "algos.runMenuClean",
           "when": "resourcePath =~ /[\\\\/]src[\\\\/][^\\\\/]+[\\\\/][^\\\\/]+(?:[\\\\/][^\\\\/]+)?$/"
@@ -181,6 +197,23 @@
         {
           "command": "algos.runMenuCheckOnly",
           "when": "resourcePath =~ /[\\\\/]src[\\\\/][^\\\\/]+[\\\\/][^\\\\/]+(?:[\\\\/][^\\\\/]+)?$/"
+        }
+      ],
+      "algos.runMenuSidebar": [
+        {
+          "command": "algos.runFile"
+        },
+        {
+          "command": "algos.runMenuClean"
+        },
+        {
+          "command": "algos.runMenuLocalclean"
+        },
+        {
+          "command": "algos.runMenuCompileOnly"
+        },
+        {
+          "command": "algos.runMenuCheckOnly"
         }
       ]
     }
