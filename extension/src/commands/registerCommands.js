@@ -49,6 +49,30 @@ function registerRunMenuCommand(deps) {
 }
 
 /**
+ * Registers sidebar view-mode toggle commands used by the tree-view title toolbar.
+ *
+ * @param {{vscodeApi: import("vscode"), showSidebarFileView: () => Promise<void>, showSidebarLanguageView: () => Promise<void>}} deps Registration dependencies.
+ * @returns {import("vscode").Disposable[]} Sidebar mode command disposables.
+ */
+function registerSidebarModeCommands(deps) {
+  const showFileView = deps.vscodeApi.commands.registerCommand(
+    "algos.sidebarShowFileView",
+    async () => {
+      await deps.showSidebarFileView();
+    }
+  );
+
+  const showLanguageView = deps.vscodeApi.commands.registerCommand(
+    "algos.sidebarShowLanguageView",
+    async () => {
+      await deps.showSidebarLanguageView();
+    }
+  );
+
+  return [showFileView, showLanguageView];
+}
+
+/**
  * Registers all guarded command handlers declared in command definitions.
  *
  * @param {{vscodeApi: import("vscode"), runWithPreflightGuard: (handler: (...args: unknown[]) => Promise<unknown>) => (...args: unknown[]) => Promise<unknown>}} deps Registration dependencies.
@@ -118,7 +142,9 @@ function deriveImplementedRunMenuCommandIds(guardedCommandDefs) {
  *   runActiveFileCheckOnlyNativeHandler: (vscodeApi: import("vscode"), eligibilityState: object, targetUri?: import("vscode").Uri) => Promise<unknown>,
  *   runActiveFileCheckOnlyDockerHandler: (vscodeApi: import("vscode"), eligibilityState: object, targetUri?: import("vscode").Uri) => Promise<unknown>,
  *   runActiveFileCheckOnlySshHandler: (vscodeApi: import("vscode"), eligibilityState: object, targetUri?: import("vscode").Uri) => Promise<unknown>,
- *   openRunMenuFlow: (vscodeApi: import("vscode")) => Promise<string|null>
+ *   openRunMenuFlow: (vscodeApi: import("vscode")) => Promise<string|null>,
+ *   showSidebarFileView: () => Promise<void>,
+ *   showSidebarLanguageView: () => Promise<void>
  * }} deps Command registration dependencies.
  * @returns {import("vscode").Disposable[]} Command disposables.
  */
@@ -179,12 +205,18 @@ function registerCommands(deps) {
 
   const guardedCommands = registerGuardedCommands(deps, guardedCommandDefs);
   const openRunMenuCommand = registerRunMenuCommand(deps);
+  const sidebarModeCommands = registerSidebarModeCommands(deps);
   const placeholderCommands = registerPlaceholderMenuCommands(
     deps,
     implementedMenuCommandIds
   );
 
-  return [...guardedCommands, openRunMenuCommand, ...placeholderCommands];
+  return [
+    ...guardedCommands,
+    openRunMenuCommand,
+    ...sidebarModeCommands,
+    ...placeholderCommands,
+  ];
 }
 
 // Public registration API used by extension entry points.

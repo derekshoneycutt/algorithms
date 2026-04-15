@@ -7,6 +7,73 @@ const {
   normalizeExtensionToLanguageKey,
 } = require("../validation/inputValidation");
 
+const LANGUAGE_ICON_DIRECTORY_SEGMENT = ".algos-language-icons";
+
+const LANGUAGE_ICON_SAMPLE_EXTENSIONS = {
+  ada: "adb",
+  arm64asm: "s",
+  asm: "asm",
+  ballerina: "bal",
+  c: "c",
+  clojure: "clj",
+  cobol: "cob",
+  cpp: "cpp",
+  csharp: "cs",
+  d: "d",
+  dart: "dart",
+  eiffel: "e",
+  elixir: "exs",
+  erlang: "erl",
+  factor: "factor",
+  forth: "fth",
+  fortran: "f90",
+  freebasic: "bas",
+  fsharp: "fs",
+  gleam: "gleam",
+  go: "go",
+  haskell: "hs",
+  haxe: "hx",
+  icon: "icn",
+  idris: "idr",
+  java: "java",
+  javascript: "js",
+  julia: "jl",
+  kit: "kit",
+  kotlin: "kt",
+  llvmir: "ll",
+  lua: "lua",
+  mercury: "moo",
+  mmixal: "mms",
+  modula3: "m3",
+  mojo: "mojo",
+  nasm: "nasm",
+  nim: "nim",
+  oberon: "mod",
+  objectivec: "m",
+  ocaml: "ml",
+  octave: "mat",
+  pascal: "pas",
+  perl: "plx",
+  php: "php",
+  prolog: "pl",
+  python: "py",
+  r: "r",
+  racket: "rkt",
+  ruby: "rb",
+  rust: "rs",
+  scala: "scala",
+  scheme: "scm",
+  simula: "sim",
+  smalltalk: "st",
+  swift: "swift",
+  tcl: "tcl",
+  typescript: "ts",
+  v: "v",
+  visualbasic: "vb",
+  wat: "wat",
+  zig: "zig",
+};
+
 /**
  * Creates a default ineligible state for empty workspaces.
  *
@@ -309,6 +376,60 @@ function createSidebarTreeNode(entryPath, entry, isRunnableFile) {
 }
 
 /**
+ * Creates a language summary tree node for language-mode sidebar rendering.
+ *
+ * @param {string} languageKey Canonical language key.
+ * @param {number} fileCount Count of matching algorithm files.
+ * @param {string} algorithmPath Algorithm directory absolute path.
+ * @param {string|null} openTargetPath Deterministic first-sorted matching file path.
+ * @returns {{label: string, fileCount: number, hasFiles: boolean, isLanguageSummary: boolean, resourceUri: import("vscode").Uri, openTargetUri: import("vscode").Uri|null, tooltip: string}} Language summary node.
+ */
+function createLanguageSummaryTreeNode(
+  languageKey,
+  fileCount,
+  algorithmPath,
+  openTargetPath
+) {
+  const sampleExtension = LANGUAGE_ICON_SAMPLE_EXTENSIONS[languageKey] || "txt";
+  const sampleFileName = `${languageKey}.${sampleExtension}`;
+  const resourceUri = vscode.Uri.file(
+    path.join(algorithmPath, LANGUAGE_ICON_DIRECTORY_SEGMENT, sampleFileName)
+  ).with({
+    fragment: fileCount > 0 ? "present" : "absent",
+  });
+  const openTargetUri = openTargetPath ? vscode.Uri.file(openTargetPath) : null;
+
+  return {
+    label: languageKey,
+    fileCount,
+    hasFiles: fileCount > 0,
+    isLanguageSummary: true,
+    resourceUri,
+    openTargetUri,
+    tooltip:
+      fileCount > 0 && openTargetPath
+        ? `${languageKey}: present (${fileCount})\nOpens: ${openTargetPath}`
+        : `${languageKey}: not present (${fileCount})`,
+  };
+}
+
+/**
+ * Returns whether a directory path is an algorithm directory: src/<category>/<algorithm>.
+ *
+ * @param {string|null} directoryPath Candidate absolute directory path.
+ * @param {string|null} resolvedRoot Canonical repository root path.
+ * @returns {boolean} True when the directory is an algorithm root.
+ */
+function isAlgorithmDirectoryPath(directoryPath, resolvedRoot) {
+  if (!directoryPath) {
+    return false;
+  }
+
+  const relativeParts = getPathPartsRelativeToSrc(directoryPath, resolvedRoot);
+  return Array.isArray(relativeParts) && relativeParts.length === 2;
+}
+
+/**
  * Checks whether a file is directly in src/<category>/<algorithm>.
  *
  * @param {string} filePath Candidate absolute file path.
@@ -318,6 +439,189 @@ function createSidebarTreeNode(entryPath, entry, isRunnableFile) {
 function isDirectAlgorithmRootFile(filePath, resolvedRoot) {
   const relativeParts = getPathPartsRelativeToSrc(filePath, resolvedRoot);
   return Array.isArray(relativeParts) && relativeParts.length === 3;
+}
+
+/**
+ * Normalizes algorithm/file tokens for deterministic basename matching.
+ *
+ * @param {string} value Raw token value.
+ * @returns {string} Normalized token.
+ */
+function normalizeAlgorithmToken(value) {
+  return String(value || "")
+    .toLowerCase()
+    .replace(/[^a-z0-9_]/g, "");
+}
+
+/**
+ * Returns accepted algorithm basename candidates for filename fallback matching.
+ *
+ * For `hello_world`, both `hello_world` and `hello` are accepted roots.
+ *
+ * @param {string} algorithmName Algorithm directory name.
+ * @returns {Set<string>} Accepted normalized basename candidates.
+ */
+function getAlgorithmNameCandidates(algorithmName) {
+  const normalizedAlgorithmName = normalizeAlgorithmToken(algorithmName);
+  const candidateSet = new Set();
+
+  if (!normalizedAlgorithmName) {
+    return candidateSet;
+  }
+
+  candidateSet.add(normalizedAlgorithmName);
+  const shortAlgorithmName = normalizedAlgorithmName.split("_")[0];
+
+  if (shortAlgorithmName) {
+    candidateSet.add(shortAlgorithmName);
+  }
+
+  return candidateSet;
+}
+
+/**
+ * Checks whether a file basename matches algorithm naming conventions.
+ *
+ * @param {string} filePath Candidate file path.
+ * @param {string|null} resolvedRoot Canonical repository root path.
+ * @returns {boolean} True when basename matches algorithm folder conventions.
+ */
+function isAlgorithmBasenameMatch(filePath, resolvedRoot) {
+  const relativeParts = getPathPartsRelativeToSrc(filePath, resolvedRoot);
+
+  if (!Array.isArray(relativeParts) || relativeParts.length !== 3) {
+    return false;
+  }
+
+  const algorithmName = relativeParts[1];
+  const fileName = relativeParts[2];
+  const fileBaseName = normalizeAlgorithmToken(path.parse(fileName).name);
+
+  if (!fileBaseName) {
+    return false;
+  }
+
+  return getAlgorithmNameCandidates(algorithmName).has(fileBaseName);
+}
+
+/**
+ * Collects allowed sidebar files recursively beneath the display root.
+ *
+ * @param {string|null} directoryPath Directory to scan.
+ * @param {string|null} resolvedRoot Canonical repository root path.
+ * @param {Set<string>} supportedLanguageKeys Supported language keys.
+ * @returns {string[]} Allowed file paths.
+ */
+function collectAllowedSidebarFiles(directoryPath, resolvedRoot, supportedLanguageKeys) {
+  if (!directoryPath) {
+    return [];
+  }
+
+  const collectedFiles = [];
+
+  /**
+   * Recursively walks directories that can contain allowed sidebar files.
+   *
+   * @param {string} currentPath Current directory path.
+   * @returns {void}
+   */
+  function walk(currentPath) {
+    try {
+      const entries = fs.readdirSync(currentPath, { withFileTypes: true });
+
+      for (const entry of entries) {
+        const entryPath = path.join(currentPath, entry.name);
+
+        if (entry.isFile()) {
+          if (isAllowedSidebarFile(entryPath, resolvedRoot, supportedLanguageKeys)) {
+            collectedFiles.push(entryPath);
+          }
+          continue;
+        }
+
+        if (!entry.isDirectory()) {
+          continue;
+        }
+
+        if (!hasAllowedSidebarDescendant(entryPath, resolvedRoot, supportedLanguageKeys)) {
+          continue;
+        }
+
+        walk(entryPath);
+      }
+    } catch (_) {
+      // Ignore unreadable folders and continue scanning remaining branches.
+    }
+  }
+
+  walk(directoryPath);
+  return collectedFiles;
+}
+
+/**
+ * Builds language summary nodes for an algorithm directory in language view mode.
+ *
+ * @param {string} algorithmPath Algorithm directory path.
+ * @param {string|null} resolvedRoot Canonical repository root path.
+ * @param {Set<string>} supportedLanguageKeys Supported language keys.
+ * @returns {{label: string, fileCount: number, hasFiles: boolean, isLanguageSummary: boolean, resourceUri: import("vscode").Uri, openTargetUri: import("vscode").Uri|null, tooltip: string}[]} Language summary nodes.
+ */
+function readAlgorithmLanguageSummary(algorithmPath, resolvedRoot, supportedLanguageKeys) {
+  const sortedLanguageKeys = [...supportedLanguageKeys].sort((left, right) =>
+    left.localeCompare(right)
+  );
+  const languageCountMap = new Map(
+    sortedLanguageKeys.map((languageKey) => [languageKey, 0])
+  );
+  const languageFilePathMap = new Map(
+    sortedLanguageKeys.map((languageKey) => [languageKey, []])
+  );
+
+  const allowedFiles = collectAllowedSidebarFiles(algorithmPath, resolvedRoot, supportedLanguageKeys);
+
+  for (const filePath of allowedFiles) {
+    const relativeParts = getPathPartsRelativeToSrc(filePath, resolvedRoot);
+
+    if (!Array.isArray(relativeParts)) {
+      continue;
+    }
+
+    const isDirectAlgorithmFile = relativeParts.length === 3;
+    const isMatchingIncludeFile =
+      relativeParts.length === 4 && isLanguageIncludeDirectoryName(relativeParts[2]);
+
+    if (!isDirectAlgorithmFile && !isMatchingIncludeFile) {
+      continue;
+    }
+
+    if (isDirectAlgorithmFile && !isAlgorithmBasenameMatch(filePath, resolvedRoot)) {
+      continue;
+    }
+
+    const normalizedLanguage = normalizeExtensionToLanguageKey(filePath);
+
+    if (!normalizedLanguage || !languageCountMap.has(normalizedLanguage)) {
+      continue;
+    }
+
+    languageCountMap.set(
+      normalizedLanguage,
+      languageCountMap.get(normalizedLanguage) + 1
+    );
+    languageFilePathMap.get(normalizedLanguage).push(filePath);
+  }
+
+  return sortedLanguageKeys.map((languageKey) => {
+    const matchingFiles = languageFilePathMap.get(languageKey);
+    matchingFiles.sort((left, right) => left.localeCompare(right));
+
+    return createLanguageSummaryTreeNode(
+      languageKey,
+      languageCountMap.get(languageKey),
+      algorithmPath,
+      matchingFiles.length > 0 ? matchingFiles[0] : null
+    );
+  });
 }
 
 /**
@@ -383,6 +687,7 @@ class WorkspaceStatusTreeDataProvider {
     this._displayRootPath = null;
     this._resolvedRootPath = null;
     this._supportedLanguageKeys = new Set();
+    this._viewMode = "files";
   }
 
   /**
@@ -402,6 +707,16 @@ class WorkspaceStatusTreeDataProvider {
   }
 
   /**
+   * Sets the active sidebar tree mode.
+   *
+   * @param {"files"|"language"} viewMode Desired sidebar view mode.
+   * @returns {void}
+   */
+  setViewMode(viewMode) {
+    this._viewMode = viewMode === "language" ? "language" : "files";
+  }
+
+  /**
    * Refreshes the view's tree data.
    *
    * @returns {void}
@@ -413,10 +728,33 @@ class WorkspaceStatusTreeDataProvider {
   /**
    * Returns tree item metadata for a file-system tree node.
    *
-  * @param {{filePath: string, fsPath: string, label: string, isDirectory: boolean, isRunnableFile: boolean, resourceUri: import("vscode").Uri}} element Tree element.
+  * @param {{filePath?: string, fsPath?: string, label: string, isDirectory?: boolean, isRunnableFile?: boolean, isLanguageSummary?: boolean, fileCount?: number, hasFiles?: boolean, resourceUri?: import("vscode").Uri, openTargetUri?: import("vscode").Uri|null, tooltip?: string}} element Tree element.
    * @returns {import("vscode").TreeItem} Tree item.
    */
   getTreeItem(element) {
+    if (element.isLanguageSummary) {
+      const treeItem = new vscode.TreeItem(
+        element.resourceUri,
+        vscode.TreeItemCollapsibleState.None
+      );
+
+      treeItem.label = element.label;
+      treeItem.resourceUri = element.resourceUri;
+      treeItem.description = String(element.fileCount);
+      treeItem.contextValue = "algos.languageSummaryItem";
+      treeItem.tooltip = element.tooltip;
+
+      if (element.hasFiles && element.openTargetUri) {
+        treeItem.command = {
+          command: "vscode.open",
+          title: "Open File",
+          arguments: [element.openTargetUri],
+        };
+      }
+
+      return treeItem;
+    }
+
     const treeItem = new vscode.TreeItem(
       element.resourceUri,
       element.isDirectory
@@ -447,12 +785,56 @@ class WorkspaceStatusTreeDataProvider {
   /**
    * Returns child entries for the root or a directory node.
    *
-  * @param {{filePath: string, fsPath: string, label: string, isDirectory: boolean, isRunnableFile: boolean, resourceUri: import("vscode").Uri}|undefined} element Parent element.
+  * @param {{filePath?: string, fsPath?: string, label?: string, isDirectory?: boolean, isRunnableFile?: boolean, resourceUri?: import("vscode").Uri, isLanguageSummary?: boolean}|undefined} element Parent element.
    * @returns {Thenable<import("vscode").TreeItem[]>} Tree items.
    */
   getChildren(element) {
     if (!this._displayRootPath) {
       return Promise.resolve([]);
+    }
+
+    if (this._viewMode === "language") {
+      if (!element) {
+        if (isAlgorithmDirectoryPath(this._displayRootPath, this._resolvedRootPath)) {
+          return Promise.resolve(
+            readAlgorithmLanguageSummary(
+              this._displayRootPath,
+              this._resolvedRootPath,
+              this._supportedLanguageKeys
+            )
+          );
+        }
+
+        return Promise.resolve(
+          readSidebarDirectoryChildren(
+            this._displayRootPath,
+            this._resolvedRootPath,
+            this._supportedLanguageKeys
+          )
+        );
+      }
+
+      if (element.isLanguageSummary || !element.isDirectory) {
+        return Promise.resolve([]);
+      }
+
+      if (isAlgorithmDirectoryPath(element.filePath, this._resolvedRootPath)) {
+        return Promise.resolve(
+          readAlgorithmLanguageSummary(
+            element.filePath,
+            this._resolvedRootPath,
+            this._supportedLanguageKeys
+          )
+        );
+      }
+
+      return Promise.resolve(
+        readSidebarDirectoryChildren(
+          element.filePath,
+          this._resolvedRootPath,
+          this._supportedLanguageKeys
+        )
+      );
     }
 
     if (!element) {
@@ -495,6 +877,28 @@ class WorkspaceStatusTreeDataProvider {
  */
 function registerWorkspaceAlgorithmsRunView() {
   const provider = new WorkspaceStatusTreeDataProvider();
+  const languageStatusDecorationProvider = {
+    provideFileDecoration(uri) {
+      if (uri.scheme !== "file" || !uri.path.includes(`/${LANGUAGE_ICON_DIRECTORY_SEGMENT}/`)) {
+        return undefined;
+      }
+
+      const hasFiles = uri.fragment === "present";
+
+      return {
+        badge: "●",
+        color: new vscode.ThemeColor(
+          hasFiles ? "testing.iconPassed" : "testing.iconQueued"
+        ),
+        tooltip: hasFiles ? "Language present in algorithm" : "Language not present in algorithm",
+      };
+    },
+  };
+
+  const decorationRegistration = vscode.window.registerFileDecorationProvider(
+    languageStatusDecorationProvider
+  );
+
   const view = vscode.window.createTreeView("algosWorkspaceAlgorithmsRunView", {
     treeDataProvider: provider,
     showCollapseAll: false,
@@ -521,13 +925,35 @@ function registerWorkspaceAlgorithmsRunView() {
     void refreshWorkspaceViewState();
   });
 
+  /**
+   * Applies the requested sidebar mode and updates context visibility keys.
+   *
+   * @param {"files"|"language"} viewMode Requested sidebar mode.
+   * @returns {Thenable<void>} Completion result.
+   */
+  function applySidebarViewMode(viewMode) {
+    const nextViewMode = viewMode === "language" ? "language" : "files";
+    provider.setViewMode(nextViewMode);
+    provider.refresh();
+
+    return vscode.commands.executeCommand(
+      "setContext",
+      "algos.sidebarViewMode",
+      nextViewMode
+    );
+  }
+
   void refreshWorkspaceViewState();
+  void applySidebarViewMode("files");
 
   return {
     refresh: () => {
       void refreshWorkspaceViewState();
     },
-    disposables: [view, refreshOnFolderChange, provider],
+    setViewMode: async (viewMode) => {
+      await applySidebarViewMode(viewMode);
+    },
+    disposables: [view, refreshOnFolderChange, provider, decorationRegistration],
   };
 }
 

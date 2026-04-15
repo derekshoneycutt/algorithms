@@ -98,6 +98,18 @@
         "command": "algos.runMenuCheckOnly",
         "title": "Check Only",
         "category": "Derek's Algorithms"
+      },
+      {
+        "command": "algos.sidebarShowFileView",
+        "title": "Show File View",
+        "category": "Derek's Algorithms",
+        "icon": "$(files)"
+      },
+      {
+        "command": "algos.sidebarShowLanguageView",
+        "title": "Show Language View",
+        "category": "Derek's Algorithms",
+        "icon": "$(symbol-keyword)"
       }
     ],
     "submenus": [
@@ -188,6 +200,18 @@
           "submenu": "algos.runMenuSidebar",
           "when": "view == algosWorkspaceAlgorithmsRunView && (viewItem == algos.workspaceFile || viewItem == algos.workspaceRunnableFile)",
           "group": "1_modification@-1"
+        }
+      ],
+      "view/title": [
+        {
+          "command": "algos.sidebarShowFileView",
+          "when": "view == algosWorkspaceAlgorithmsRunView && algos.sidebarViewMode == language",
+          "group": "navigation@1"
+        },
+        {
+          "command": "algos.sidebarShowLanguageView",
+          "when": "view == algosWorkspaceAlgorithmsRunView && algos.sidebarViewMode == files",
+          "group": "navigation@2"
         }
       ],
       "algos.runMenuExplorer": [

@@ -226,6 +226,15 @@ async function activate(context) {
     getCachedPreflightState()
   );
 
+  const workspaceAlgorithmsRunViewRegistration =
+    registerWorkspaceAlgorithmsRunView();
+
+  await vscode.commands.executeCommand(
+    "setContext",
+    "algos.sidebarViewMode",
+    "files"
+  );
+
   const commandDisposables = registerCommands({
     vscodeApi: vscode,
     runWithPreflightGuard,
@@ -238,10 +247,13 @@ async function activate(context) {
     runActiveFileCheckOnlyDockerHandler,
     runActiveFileCheckOnlySshHandler,
     openRunMenuFlow,
+    showSidebarFileView: async () => {
+      await workspaceAlgorithmsRunViewRegistration.setViewMode("files");
+    },
+    showSidebarLanguageView: async () => {
+      await workspaceAlgorithmsRunViewRegistration.setViewMode("language");
+    },
   });
-
-  const workspaceAlgorithmsRunViewRegistration =
-    registerWorkspaceAlgorithmsRunView();
 
   const visibilityDisposables = [
     vscode.window.onDidChangeActiveTextEditor(handleActiveEditorChange),
