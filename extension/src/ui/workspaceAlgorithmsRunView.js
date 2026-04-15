@@ -1187,6 +1187,120 @@ function readSidebarDirectoryChildren(directoryPath, resolvedRoot, supportedLang
 }
 
 /**
+ * Returns whether one language summary row is considered a problem.
+ *
+ * Problem semantics for language mode:
+ * - flagged language rows
+ * - missing language rows
+ *
+ * @param {{isFlagged?: boolean, hasFiles?: boolean}|undefined} node Language summary node.
+ * @returns {boolean} True when the row should remain in problems filter mode.
+ */
+function isProblemLanguageSummaryNode(node) {
+  if (!node) {
+    return false;
+  }
+
+  return Boolean(node.isFlagged) || node.hasFiles === false;
+}
+
+/**
+ * Returns whether one file-mode row is considered a problem.
+ *
+ * Problem semantics for file mode:
+ * - flagged file rows
+ * - unavailable file rows (non-runnable)
+ *
+ * @param {{isDirectory?: boolean, isLanguageSummary?: boolean, isFlagged?: boolean, isRunnableFile?: boolean}|undefined} node File node.
+ * @returns {boolean} True when the row should remain in problems filter mode.
+ */
+function isProblemFileNode(node) {
+  if (!node || node.isDirectory || node.isLanguageSummary) {
+    return false;
+  }
+
+  return Boolean(node.isFlagged) || !Boolean(node.isRunnableFile);
+}
+
+/**
+ * Returns whether one sidebar row is a problem in the active view mode.
+ *
+ * @param {{isLanguageSummary?: boolean, isDirectory?: boolean, isFlagged?: boolean, hasFiles?: boolean, isRunnableFile?: boolean}|undefined} node Sidebar node.
+ * @param {"files"|"language"} viewMode Active view mode.
+ * @returns {boolean} True when the row should remain in problems filter mode.
+ */
+function isProblemNodeForViewMode(node, viewMode) {
+  if (viewMode === "language") {
+    if (node?.isLanguageSummary) {
+      return isProblemLanguageSummaryNode(node);
+    }
+
+    return isProblemFileNode(node);
+  }
+
+  return isProblemFileNode(node);
+}
+
+/**
+ * Returns whether one directory contains at least one problem descendant.
+ *
+ * @param {string|null|undefined} directoryPath Directory path.
+ * @param {"files"|"language"} viewMode Active view mode.
+ * @param {string|null} resolvedRoot Canonical repository root path.
+ * @param {Set<string>} supportedLanguageKeys Supported language keys.
+ * @returns {boolean} True when at least one problem row exists beneath the directory.
+ */
+function hasProblemDescendantForViewMode(
+  directoryPath,
+  viewMode,
+  resolvedRoot,
+  supportedLanguageKeys
+) {
+  if (!directoryPath) {
+    return false;
+  }
+
+  if (viewMode === "language" && isAlgorithmDirectoryPath(directoryPath, resolvedRoot)) {
+    const languageSummaryRows = readAlgorithmLanguageSummary(
+      directoryPath,
+      resolvedRoot,
+      supportedLanguageKeys
+    );
+
+    return languageSummaryRows.some((row) => isProblemLanguageSummaryNode(row));
+  }
+
+  const childRows = readSidebarDirectoryChildren(
+    directoryPath,
+    resolvedRoot,
+    supportedLanguageKeys
+  );
+
+  for (const child of childRows) {
+    if (child.isDirectory) {
+      if (
+        hasProblemDescendantForViewMode(
+          child.filePath,
+          viewMode,
+          resolvedRoot,
+          supportedLanguageKeys
+        )
+      ) {
+        return true;
+      }
+
+      continue;
+    }
+
+    if (isProblemNodeForViewMode(child, viewMode)) {
+      return true;
+    }
+  }
+
+  return false;
+}
+
+/**
  * Provides a scoped file tree for the Algorithms sidebar view.
  */
 class WorkspaceStatusTreeDataProvider {
@@ -1201,6 +1315,7 @@ class WorkspaceStatusTreeDataProvider {
     this._resolvedRootPath = null;
     this._supportedLanguageKeys = new Set();
     this._viewMode = "files";
+    this._filterMode = "all";
   }
 
   /**
@@ -1230,12 +1345,47 @@ class WorkspaceStatusTreeDataProvider {
   }
 
   /**
+   * Sets the active sidebar filter mode.
+   *
+   * @param {"all"|"problems"} filterMode Desired sidebar filter mode.
+   * @returns {void}
+   */
+  setFilterMode(filterMode) {
+    this._filterMode = filterMode === "problems" ? "problems" : "all";
+  }
+
+  /**
    * Refreshes the view's tree data.
    *
    * @returns {void}
    */
   refresh() {
     this._onDidChangeTreeData.fire(undefined);
+  }
+
+  /**
+   * Filters child rows according to the active sidebar filter mode.
+   *
+   * @param {Array<{filePath?: string, isDirectory?: boolean, isLanguageSummary?: boolean, isFlagged?: boolean, hasFiles?: boolean, isRunnableFile?: boolean}>} children Child rows.
+   * @returns {Array<{filePath?: string, isDirectory?: boolean, isLanguageSummary?: boolean, isFlagged?: boolean, hasFiles?: boolean, isRunnableFile?: boolean}>} Filtered child rows.
+   */
+  filterVisibleChildren(children) {
+    if (this._filterMode !== "problems") {
+      return children;
+    }
+
+    return children.filter((child) => {
+      if (child.isDirectory) {
+        return hasProblemDescendantForViewMode(
+          child.filePath,
+          this._viewMode,
+          this._resolvedRootPath,
+          this._supportedLanguageKeys
+        );
+      }
+
+      return isProblemNodeForViewMode(child, this._viewMode);
+    });
   }
 
   /**
@@ -1327,19 +1477,23 @@ class WorkspaceStatusTreeDataProvider {
       if (!element) {
         if (isAlgorithmDirectoryPath(this._displayRootPath, this._resolvedRootPath)) {
           return Promise.resolve(
-            readAlgorithmLanguageSummary(
-              this._displayRootPath,
-              this._resolvedRootPath,
-              this._supportedLanguageKeys
+            this.filterVisibleChildren(
+              readAlgorithmLanguageSummary(
+                this._displayRootPath,
+                this._resolvedRootPath,
+                this._supportedLanguageKeys
+              )
             )
           );
         }
 
         return Promise.resolve(
-          readSidebarDirectoryChildren(
-            this._displayRootPath,
-            this._resolvedRootPath,
-            this._supportedLanguageKeys
+          this.filterVisibleChildren(
+            readSidebarDirectoryChildren(
+              this._displayRootPath,
+              this._resolvedRootPath,
+              this._supportedLanguageKeys
+            )
           )
         );
       }
@@ -1350,12 +1504,14 @@ class WorkspaceStatusTreeDataProvider {
         }
 
         return Promise.resolve(
-          readIncludeFileChildren(
-            element.algorithmPath || null,
-            element.languageKey || null,
-            this._resolvedRootPath,
-            this._supportedLanguageKeys,
-            readFlaggedLanguageKeysForAlgorithm(element.algorithmPath || null)
+          this.filterVisibleChildren(
+            readIncludeFileChildren(
+              element.algorithmPath || null,
+              element.languageKey || null,
+              this._resolvedRootPath,
+              this._supportedLanguageKeys,
+              readFlaggedLanguageKeysForAlgorithm(element.algorithmPath || null)
+            )
           )
         );
       }
@@ -1366,13 +1522,15 @@ class WorkspaceStatusTreeDataProvider {
         }
 
         return Promise.resolve(
-          readIncludeFileChildren(
-            element.algorithmPath || path.dirname(element.filePath),
-            element.languageKey || null,
-            this._resolvedRootPath,
-            this._supportedLanguageKeys,
-            readFlaggedLanguageKeysForAlgorithm(
-              element.algorithmPath || path.dirname(element.filePath)
+          this.filterVisibleChildren(
+            readIncludeFileChildren(
+              element.algorithmPath || path.dirname(element.filePath),
+              element.languageKey || null,
+              this._resolvedRootPath,
+              this._supportedLanguageKeys,
+              readFlaggedLanguageKeysForAlgorithm(
+                element.algorithmPath || path.dirname(element.filePath)
+              )
             )
           )
         );
@@ -1380,29 +1538,35 @@ class WorkspaceStatusTreeDataProvider {
 
       if (isAlgorithmDirectoryPath(element.filePath, this._resolvedRootPath)) {
         return Promise.resolve(
-          readAlgorithmLanguageSummary(
-            element.filePath,
-            this._resolvedRootPath,
-            this._supportedLanguageKeys
+          this.filterVisibleChildren(
+            readAlgorithmLanguageSummary(
+              element.filePath,
+              this._resolvedRootPath,
+              this._supportedLanguageKeys
+            )
           )
         );
       }
 
       return Promise.resolve(
-        readSidebarDirectoryChildren(
-          element.filePath,
-          this._resolvedRootPath,
-          this._supportedLanguageKeys
+        this.filterVisibleChildren(
+          readSidebarDirectoryChildren(
+            element.filePath,
+            this._resolvedRootPath,
+            this._supportedLanguageKeys
+          )
         )
       );
     }
 
     if (!element) {
       return Promise.resolve(
-        readSidebarDirectoryChildren(
-          this._displayRootPath,
-          this._resolvedRootPath,
-          this._supportedLanguageKeys
+        this.filterVisibleChildren(
+          readSidebarDirectoryChildren(
+            this._displayRootPath,
+            this._resolvedRootPath,
+            this._supportedLanguageKeys
+          )
         )
       );
     }
@@ -1413,23 +1577,27 @@ class WorkspaceStatusTreeDataProvider {
       }
 
       return Promise.resolve(
-        readIncludeFileChildren(
-          element.algorithmPath || path.dirname(element.filePath),
-          element.languageKey || null,
-          this._resolvedRootPath,
-          this._supportedLanguageKeys,
-          readFlaggedLanguageKeysForAlgorithm(
-            element.algorithmPath || path.dirname(element.filePath)
+        this.filterVisibleChildren(
+          readIncludeFileChildren(
+            element.algorithmPath || path.dirname(element.filePath),
+            element.languageKey || null,
+            this._resolvedRootPath,
+            this._supportedLanguageKeys,
+            readFlaggedLanguageKeysForAlgorithm(
+              element.algorithmPath || path.dirname(element.filePath)
+            )
           )
         )
       );
     }
 
     return Promise.resolve(
-      readSidebarDirectoryChildren(
-        element.filePath,
-        this._resolvedRootPath,
-        this._supportedLanguageKeys
+      this.filterVisibleChildren(
+        readSidebarDirectoryChildren(
+          element.filePath,
+          this._resolvedRootPath,
+          this._supportedLanguageKeys
+        )
       )
     );
   }
@@ -1529,8 +1697,27 @@ function registerWorkspaceAlgorithmsRunView() {
     );
   }
 
+  /**
+   * Applies the requested sidebar filter mode and updates context visibility keys.
+   *
+   * @param {"all"|"problems"} filterMode Requested sidebar filter mode.
+   * @returns {Thenable<void>} Completion result.
+   */
+  function applySidebarFilterMode(filterMode) {
+    const nextFilterMode = filterMode === "problems" ? "problems" : "all";
+    provider.setFilterMode(nextFilterMode);
+    provider.refresh();
+
+    return vscode.commands.executeCommand(
+      "setContext",
+      "algos.sidebarFilterMode",
+      nextFilterMode
+    );
+  }
+
   void refreshWorkspaceViewState();
   void applySidebarViewMode("files");
+  void applySidebarFilterMode("all");
 
   /**
    * Opens an untitled suggested file for a missing-language row.
@@ -1557,6 +1744,9 @@ function registerWorkspaceAlgorithmsRunView() {
     },
     setViewMode: async (viewMode) => {
       await applySidebarViewMode(viewMode);
+    },
+    setFilterMode: async (filterMode) => {
+      await applySidebarFilterMode(filterMode);
     },
     openMissingLanguageFile,
     disposables: [view, refreshOnFolderChange, provider, decorationRegistration],

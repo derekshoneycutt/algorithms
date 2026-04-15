@@ -51,7 +51,7 @@ function registerRunMenuCommand(deps) {
 /**
  * Registers sidebar view-mode toggle commands used by the tree-view title toolbar.
  *
- * @param {{vscodeApi: import("vscode"), showSidebarFileView: () => Promise<void>, showSidebarLanguageView: () => Promise<void>, refreshSidebarView: () => Promise<void>, createLanguageFilePlaceholder: (item?: unknown) => Promise<void>}} deps Registration dependencies.
+ * @param {{vscodeApi: import("vscode"), showSidebarFileView: () => Promise<void>, showSidebarLanguageView: () => Promise<void>, showSidebarAllFilter: () => Promise<void>, showSidebarProblemsFilter: () => Promise<void>, refreshSidebarView: () => Promise<void>, createLanguageFilePlaceholder: (item?: unknown) => Promise<void>}} deps Registration dependencies.
  * @returns {import("vscode").Disposable[]} Sidebar mode command disposables.
  */
 function registerSidebarModeCommands(deps) {
@@ -66,6 +66,20 @@ function registerSidebarModeCommands(deps) {
     "algos.sidebarShowLanguageView",
     async () => {
       await deps.showSidebarLanguageView();
+    }
+  );
+
+  const showAllFilter = deps.vscodeApi.commands.registerCommand(
+    "algos.sidebarShowAllFilter",
+    async () => {
+      await deps.showSidebarAllFilter();
+    }
+  );
+
+  const showProblemsFilter = deps.vscodeApi.commands.registerCommand(
+    "algos.sidebarShowProblemsFilter",
+    async () => {
+      await deps.showSidebarProblemsFilter();
     }
   );
 
@@ -86,6 +100,8 @@ function registerSidebarModeCommands(deps) {
   return [
     showFileView,
     showLanguageView,
+    showAllFilter,
+    showProblemsFilter,
     refreshSidebarView,
     createLanguageFilePlaceholder,
   ];
@@ -171,6 +187,8 @@ function deriveImplementedRunMenuCommandIds(guardedCommandDefs) {
  *   openRunMenuFlow: (vscodeApi: import("vscode")) => Promise<string|null>,
  *   showSidebarFileView: () => Promise<void>,
  *   showSidebarLanguageView: () => Promise<void>,
+ *   showSidebarAllFilter: () => Promise<void>,
+ *   showSidebarProblemsFilter: () => Promise<void>,
  *   refreshSidebarView: () => Promise<void>,
  *   createLanguageFilePlaceholder: (item?: unknown) => Promise<void>
  * }} deps Command registration dependencies.

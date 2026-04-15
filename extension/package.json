@@ -150,6 +150,18 @@
         "icon": "$(symbol-keyword)"
       },
       {
+        "command": "algos.sidebarShowAllFilter",
+        "title": "Show All Rows",
+        "category": "Derek's Algorithms",
+        "icon": "$(eye)"
+      },
+      {
+        "command": "algos.sidebarShowProblemsFilter",
+        "title": "Show Problem Rows",
+        "category": "Derek's Algorithms",
+        "icon": "$(eye-closed)"
+      },
+      {
         "command": "algos.createLanguageFilePlaceholder",
         "title": "Create Language File",
         "category": "Derek's Algorithms",
@@ -306,6 +318,16 @@
           "command": "algos.sidebarShowLanguageView",
           "when": "view == algosWorkspaceAlgorithmsRunView && algos.sidebarViewMode == files",
           "group": "navigation@2"
+        },
+        {
+          "command": "algos.sidebarShowAllFilter",
+          "when": "view == algosWorkspaceAlgorithmsRunView && algos.sidebarFilterMode == problems",
+          "group": "navigation@3"
+        },
+        {
+          "command": "algos.sidebarShowProblemsFilter",
+          "when": "view == algosWorkspaceAlgorithmsRunView && algos.sidebarFilterMode == all",
+          "group": "navigation@4"
         }
       ],
       "algos.runMenuExplorer": [

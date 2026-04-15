@@ -242,6 +242,12 @@ async function activate(context) {
     "files"
   );
 
+  await vscode.commands.executeCommand(
+    "setContext",
+    "algos.sidebarFilterMode",
+    "all"
+  );
+
   const commandDisposables = registerCommands({
     vscodeApi: vscode,
     runWithPreflightGuard,
@@ -266,6 +272,12 @@ async function activate(context) {
     },
     showSidebarLanguageView: async () => {
       await workspaceAlgorithmsRunViewRegistration.setViewMode("language");
+    },
+    showSidebarAllFilter: async () => {
+      await workspaceAlgorithmsRunViewRegistration.setFilterMode("all");
+    },
+    showSidebarProblemsFilter: async () => {
+      await workspaceAlgorithmsRunViewRegistration.setFilterMode("problems");
     },
     refreshSidebarView: async () => {
       workspaceAlgorithmsRunViewRegistration.refresh();
