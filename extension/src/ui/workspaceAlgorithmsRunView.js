@@ -3,6 +3,7 @@ const path = require("path");
 const { spawn } = require("child_process");
 const vscode = require("vscode");
 const { resolveEligibilityState } = require("../runtime/pathResolver");
+const { getEffectiveSidebarSmokeArgs } = require("../runtime/sidebarRunArgsState");
 const {
   getSupportedLanguageKeys,
   normalizeExtensionToLanguageKey,
@@ -2302,13 +2303,24 @@ function registerWorkspaceAlgorithmsRunView() {
    *
    * @param {string} algorithmPath Algorithm directory path.
    * @param {string|null} resolvedRoot Canonical repository root path.
+   * @param {string[]|null} selectedLanguageKeys Optional selected smoke languages.
    * @returns {string[]} Smoke-test language keys for the run.
    */
-  function initializeSmokeStatusesForAlgorithm(algorithmPath, resolvedRoot) {
+  function initializeSmokeStatusesForAlgorithm(
+    algorithmPath,
+    resolvedRoot,
+    selectedLanguageKeys
+  ) {
     const supportedLanguageKeys = getSupportedLanguageKeys(resolvedRoot);
-    const smokeLanguageKeys = getSmokeTestLanguageKeys(
+    const defaultSmokeLanguageKeys = getSmokeTestLanguageKeys(
       resolvedRoot,
       supportedLanguageKeys
+    );
+    const requestedLanguageKeys = Array.isArray(selectedLanguageKeys)
+      ? selectedLanguageKeys
+      : defaultSmokeLanguageKeys;
+    const smokeLanguageKeys = requestedLanguageKeys.filter((languageKey) =>
+      defaultSmokeLanguageKeys.includes(languageKey)
     );
     const languageSummaryRows = readAlgorithmLanguageSummary(
       algorithmPath,
@@ -2425,15 +2437,41 @@ function registerWorkspaceAlgorithmsRunView() {
 
     const runToken = (smokeRunTokenByAlgorithmPath.get(algorithmPath) || 0) + 1;
     smokeRunTokenByAlgorithmPath.set(algorithmPath, runToken);
-    initializeSmokeStatusesForAlgorithm(algorithmPath, resolvedRoot);
+    const smokeOptions = getEffectiveSidebarSmokeArgs();
 
-    const smokeProcess = spawn(
-      "sh",
-      [smokeScriptPath, `--dir=${algorithmPath}`],
-      {
-        cwd: algorithmPath,
-      }
+    if (!smokeOptions.ok) {
+      vscodeApi.window.showWarningMessage(
+        smokeOptions.reason || "Smoke Controls are invalid."
+      );
+      return {
+        ok: false,
+        status: "blocked",
+        reason: "invalid-smoke-controls",
+      };
+    }
+
+    const smokeLanguageKeys = initializeSmokeStatusesForAlgorithm(
+      algorithmPath,
+      resolvedRoot,
+      smokeOptions.selectedLanguages
     );
+
+    if (smokeLanguageKeys.length === 0) {
+      vscodeApi.window.showWarningMessage(
+        "No compatible smoke-test languages are selected for this algorithm."
+      );
+      return {
+        ok: false,
+        status: "blocked",
+        reason: "no-smoke-languages-selected",
+      };
+    }
+
+    const smokeCommandArgs = [smokeScriptPath, `--dir=${algorithmPath}`, ...smokeOptions.args];
+
+    const smokeProcess = spawn("sh", smokeCommandArgs, {
+      cwd: algorithmPath,
+    });
     const bufferState = {
       stdoutBuffer: "",
       stderrBuffer: "",

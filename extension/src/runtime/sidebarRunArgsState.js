@@ -8,6 +8,88 @@ let sidebarRunChecksMode = "none";
 let sidebarRunChecksRoute = "native";
 let sidebarCleanStdlibEnabled = true;
 let sidebarCleanArchivesEnabled = true;
+let sidebarSmokeMarkdownEnabled = false;
+let sidebarSmokeMarkdownPath = "";
+let sidebarSmokeTimeout = "8m";
+let sidebarSmokeSlowTimeout = "20m";
+
+/**
+ * Supported smoke-test languages (arm64asm excluded to mirror smoke script behavior).
+ *
+ * @type {string[]}
+ */
+const SMOKE_LANGUAGE_KEYS = [
+  "ada",
+  "asm",
+  "ballerina",
+  "c",
+  "clojure",
+  "cobol",
+  "cpp",
+  "csharp",
+  "d",
+  "dart",
+  "eiffel",
+  "elixir",
+  "erlang",
+  "factor",
+  "forth",
+  "fortran",
+  "freebasic",
+  "fsharp",
+  "gleam",
+  "go",
+  "haskell",
+  "haxe",
+  "icon",
+  "idris",
+  "java",
+  "javascript",
+  "julia",
+  "kit",
+  "kotlin",
+  "llvmir",
+  "lua",
+  "mercury",
+  "mmixal",
+  "modula3",
+  "mojo",
+  "nasm",
+  "nim",
+  "oberon",
+  "objectivec",
+  "ocaml",
+  "octave",
+  "pascal",
+  "perl",
+  "php",
+  "prolog",
+  "python",
+  "r",
+  "racket",
+  "ruby",
+  "rust",
+  "scala",
+  "scheme",
+  "simula",
+  "smalltalk",
+  "swift",
+  "tcl",
+  "typescript",
+  "v",
+  "visualbasic",
+  "wat",
+  "zig",
+];
+
+/**
+ * Selected smoke-test languages keyed by language id.
+ *
+ * @type {Map<string, boolean>}
+ */
+const sidebarSmokeLanguageEnabledByKey = new Map(
+  SMOKE_LANGUAGE_KEYS.map((languageKey) => [languageKey, true])
+);
 
 /**
  * Valid run-checks mode values.
@@ -163,6 +245,95 @@ function setSidebarCleanStdlibEnabled(enabled) {
  */
 function setSidebarCleanArchivesEnabled(enabled) {
   sidebarCleanArchivesEnabled = Boolean(enabled);
+}
+
+/**
+ * Returns the current sidebar smoke-controls state.
+ *
+ * @returns {{markdownEnabled: boolean, markdownPath: string, timeout: string, slowTimeout: string, languages: {key: string, enabled: boolean}[]}} Current state snapshot.
+ */
+function getSidebarSmokeControlsState() {
+  const languages = SMOKE_LANGUAGE_KEYS.map((languageKey) => ({
+    key: languageKey,
+    enabled: sidebarSmokeLanguageEnabledByKey.get(languageKey) !== false,
+  }));
+
+  return {
+    markdownEnabled: sidebarSmokeMarkdownEnabled,
+    markdownPath: sidebarSmokeMarkdownPath,
+    timeout: sidebarSmokeTimeout,
+    slowTimeout: sidebarSmokeSlowTimeout,
+    languages,
+  };
+}
+
+/**
+ * Sets whether smoke markdown output is enabled.
+ *
+ * @param {boolean} enabled True when markdown should be emitted.
+ * @returns {void}
+ */
+function setSidebarSmokeMarkdownEnabled(enabled) {
+  sidebarSmokeMarkdownEnabled = Boolean(enabled);
+}
+
+/**
+ * Sets optional smoke markdown output path.
+ *
+ * @param {string} pathValue Markdown report path value.
+ * @returns {void}
+ */
+function setSidebarSmokeMarkdownPath(pathValue) {
+  sidebarSmokeMarkdownPath = String(pathValue || "");
+}
+
+/**
+ * Sets smoke default timeout text.
+ *
+ * @param {string} timeoutValue Timeout value text.
+ * @returns {void}
+ */
+function setSidebarSmokeTimeout(timeoutValue) {
+  sidebarSmokeTimeout = String(timeoutValue || "").trim();
+}
+
+/**
+ * Sets smoke slow-timeout text.
+ *
+ * @param {string} timeoutValue Slow-timeout value text.
+ * @returns {void}
+ */
+function setSidebarSmokeSlowTimeout(timeoutValue) {
+  sidebarSmokeSlowTimeout = String(timeoutValue || "").trim();
+}
+
+/**
+ * Sets one smoke language selection state.
+ *
+ * @param {string} languageKey Smoke language key.
+ * @param {boolean} enabled True when selected.
+ * @returns {void}
+ */
+function setSidebarSmokeLanguageEnabled(languageKey, enabled) {
+  const normalizedLanguageKey = String(languageKey || "").trim().toLowerCase();
+
+  if (!sidebarSmokeLanguageEnabledByKey.has(normalizedLanguageKey)) {
+    return;
+  }
+
+  sidebarSmokeLanguageEnabledByKey.set(normalizedLanguageKey, Boolean(enabled));
+}
+
+/**
+ * Sets all smoke language selections at once.
+ *
+ * @param {boolean} enabled True to select all, false to deselect all.
+ * @returns {void}
+ */
+function setSidebarSmokeAllLanguagesEnabled(enabled) {
+  for (const languageKey of SMOKE_LANGUAGE_KEYS) {
+    sidebarSmokeLanguageEnabledByKey.set(languageKey, Boolean(enabled));
+  }
 }
 
 /**
@@ -396,6 +567,64 @@ function getEffectiveSidebarCleanDefaults() {
   };
 }
 
+/**
+ * Returns effective smoke-test CLI arguments based on sidebar smoke controls.
+ *
+ * Order:
+ * 1. markdown options
+ * 2. timeout options
+ * 3. language options
+ *
+ * @returns {{ok: boolean, args: string[], selectedLanguages: string[], allLanguagesSelected: boolean, reason: string|null}} Effective smoke args result.
+ */
+function getEffectiveSidebarSmokeArgs() {
+  const args = [];
+  const selectedLanguages = SMOKE_LANGUAGE_KEYS.filter(
+    (languageKey) => sidebarSmokeLanguageEnabledByKey.get(languageKey) !== false
+  );
+  const allLanguagesSelected = selectedLanguages.length === SMOKE_LANGUAGE_KEYS.length;
+
+  if (sidebarSmokeMarkdownEnabled) {
+    const markdownPath = String(sidebarSmokeMarkdownPath || "").trim();
+
+    if (markdownPath.length > 0) {
+      args.push(`--markdown=${markdownPath}`);
+    } else {
+      args.push("--markdown");
+    }
+  }
+
+  if (String(sidebarSmokeTimeout || "").trim().length > 0) {
+    args.push(`--timeout=${String(sidebarSmokeTimeout).trim()}`);
+  }
+
+  if (String(sidebarSmokeSlowTimeout || "").trim().length > 0) {
+    args.push(`--slow-timeout=${String(sidebarSmokeSlowTimeout).trim()}`);
+  }
+
+  if (selectedLanguages.length === 0) {
+    return {
+      ok: false,
+      args: [],
+      selectedLanguages: [],
+      allLanguagesSelected: false,
+      reason: "Select at least one smoke-test language.",
+    };
+  }
+
+  if (!allLanguagesSelected) {
+    args.push(`--langs=${selectedLanguages.join(" ")}`);
+  }
+
+  return {
+    ok: true,
+    args,
+    selectedLanguages,
+    allLanguagesSelected,
+    reason: null,
+  };
+}
+
 module.exports = {
   getSidebarRunArgsState,
   setSidebarRunArgsEnabled,
@@ -409,9 +638,17 @@ module.exports = {
   getSidebarCleanOptionsState,
   setSidebarCleanStdlibEnabled,
   setSidebarCleanArchivesEnabled,
+  getSidebarSmokeControlsState,
+  setSidebarSmokeMarkdownEnabled,
+  setSidebarSmokeMarkdownPath,
+  setSidebarSmokeTimeout,
+  setSidebarSmokeSlowTimeout,
+  setSidebarSmokeLanguageEnabled,
+  setSidebarSmokeAllLanguagesEnabled,
   parseSidebarRunArgsText,
   getEffectiveSidebarRunArgs,
   getEffectiveSidebarSourceProfile,
   getEffectiveSidebarRunChecks,
   getEffectiveSidebarCleanDefaults,
+  getEffectiveSidebarSmokeArgs,
 };

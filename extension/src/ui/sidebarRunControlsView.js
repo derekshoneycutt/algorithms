@@ -12,6 +12,13 @@ const {
   getSidebarCleanOptionsState,
   setSidebarCleanStdlibEnabled,
   setSidebarCleanArchivesEnabled,
+  getSidebarSmokeControlsState,
+  setSidebarSmokeMarkdownEnabled,
+  setSidebarSmokeMarkdownPath,
+  setSidebarSmokeTimeout,
+  setSidebarSmokeSlowTimeout,
+  setSidebarSmokeLanguageEnabled,
+  setSidebarSmokeAllLanguagesEnabled,
   parseSidebarRunArgsText,
 } = require("../runtime/sidebarRunArgsState");
 
@@ -148,9 +155,41 @@ function buildCleanOptionsStatus(cleanOptionsState) {
 }
 
 /**
+ * Builds status metadata for smoke-controls settings.
+ *
+ * @param {{languages: {key: string, enabled: boolean}[]}} smokeControlsState Current smoke-controls state.
+ * @returns {{statusText: string, statusClassName: string}} Status display metadata.
+ */
+function buildSmokeControlsStatus(smokeControlsState) {
+  const selectedCount = smokeControlsState.languages.filter(
+    (language) => language.enabled
+  ).length;
+  const allSelected = selectedCount === smokeControlsState.languages.length;
+
+  if (selectedCount === 0) {
+    return {
+      statusText: "Select at least one language",
+      statusClassName: "status-error",
+    };
+  }
+
+  if (allSelected) {
+    return {
+      statusText: "All languages selected (omit --langs)",
+      statusClassName: "status-muted",
+    };
+  }
+
+  return {
+    statusText: `${selectedCount} smoke languages selected`,
+    statusClassName: "status-ok",
+  };
+}
+
+/**
  * Returns the render snapshot used by the run-controls UI.
  *
- * @returns {{enabled: boolean, text: string, statusText: string, statusClassName: string, sourceProfileEnabled: boolean, sourceProfileText: string, sourceProfileStatusText: string, sourceProfileStatusClassName: string, runChecksMode: "none"|"check-only"|"compile-only", runChecksRoute: "native"|"docker"|"ssh", runChecksStatusText: string, runChecksStatusClassName: string, cleanStdlib: boolean, cleanArchives: boolean, cleanOptionsStatusText: string, cleanOptionsStatusClassName: string}} Current UI state snapshot.
+ * @returns {{enabled: boolean, text: string, statusText: string, statusClassName: string, sourceProfileEnabled: boolean, sourceProfileText: string, sourceProfileStatusText: string, sourceProfileStatusClassName: string, runChecksMode: "none"|"check-only"|"compile-only", runChecksRoute: "native"|"docker"|"ssh", runChecksStatusText: string, runChecksStatusClassName: string, cleanStdlib: boolean, cleanArchives: boolean, cleanOptionsStatusText: string, cleanOptionsStatusClassName: string, smokeMarkdownEnabled: boolean, smokeMarkdownPath: string, smokeTimeout: string, smokeSlowTimeout: string, smokeLanguages: {key: string, enabled: boolean}[], smokeStatusText: string, smokeStatusClassName: string}} Current UI state snapshot.
  */
 function getRunControlsSnapshot() {
   const runArgsState = getSidebarRunArgsState();
@@ -161,6 +200,8 @@ function getRunControlsSnapshot() {
   const runChecksStatus = buildRunChecksStatus(runChecksState);
   const cleanOptionsState = getSidebarCleanOptionsState();
   const cleanOptionsStatus = buildCleanOptionsStatus(cleanOptionsState);
+  const smokeControlsState = getSidebarSmokeControlsState();
+  const smokeControlsStatus = buildSmokeControlsStatus(smokeControlsState);
 
   return {
     enabled: runArgsState.enabled,
@@ -179,6 +220,13 @@ function getRunControlsSnapshot() {
     cleanArchives: cleanOptionsState.cleanArchives,
     cleanOptionsStatusText: cleanOptionsStatus.statusText,
     cleanOptionsStatusClassName: cleanOptionsStatus.statusClassName,
+    smokeMarkdownEnabled: smokeControlsState.markdownEnabled,
+    smokeMarkdownPath: smokeControlsState.markdownPath,
+    smokeTimeout: smokeControlsState.timeout,
+    smokeSlowTimeout: smokeControlsState.slowTimeout,
+    smokeLanguages: smokeControlsState.languages,
+    smokeStatusText: smokeControlsStatus.statusText,
+    smokeStatusClassName: smokeControlsStatus.statusClassName,
   };
 }
 
@@ -200,6 +248,20 @@ function buildRunControlsHtml(webview) {
   const escapedCleanOptionsStatusText = escapeHtml(
     stateSnapshot.cleanOptionsStatusText
   );
+  const escapedSmokeMarkdownPath = escapeHtml(stateSnapshot.smokeMarkdownPath);
+  const escapedSmokeTimeout = escapeHtml(stateSnapshot.smokeTimeout);
+  const escapedSmokeSlowTimeout = escapeHtml(stateSnapshot.smokeSlowTimeout);
+  const escapedSmokeStatusText = escapeHtml(stateSnapshot.smokeStatusText);
+  const smokeLanguagesGridHtml = stateSnapshot.smokeLanguages
+    .map((language) => {
+      return `<label class="smokeLanguageOption" for="smokeLang_${language.key}">
+        <input id="smokeLang_${language.key}" type="checkbox" data-smoke-lang="${language.key}" ${
+          language.enabled ? "checked" : ""
+        } />
+        <span>${escapeHtml(language.key)}</span>
+      </label>`;
+    })
+    .join("");
   const nonce = createNonce();
   const cspSource = webview.cspSource;
 
@@ -342,6 +404,62 @@ function buildRunControlsHtml(webview) {
         display: inline-flex;
         align-items: center;
         gap: 4px;
+        font-size: 10px;
+      }
+
+      .smokeMarkdownRow {
+        margin-left: 2px;
+        display: grid;
+        grid-template-columns: auto 1fr;
+        gap: 6px;
+        align-items: center;
+      }
+
+      .smokeTimeoutRow {
+        margin-left: 2px;
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 6px;
+      }
+
+      .smokeTimeoutField {
+        display: flex;
+        flex-direction: column;
+        gap: 2px;
+        font-size: 10px;
+      }
+
+      .smokeLangActions {
+        margin-left: 2px;
+        display: inline-flex;
+        gap: 6px;
+      }
+
+      .smokeLangButton {
+        border: 1px solid var(--vscode-button-border, transparent);
+        background: var(--vscode-button-secondaryBackground);
+        color: var(--vscode-button-secondaryForeground);
+        border-radius: 4px;
+        font-size: 10px;
+        padding: 2px 6px;
+        cursor: pointer;
+      }
+
+      .smokeLangButton:hover {
+        background: var(--vscode-button-secondaryHoverBackground);
+      }
+
+      .smokeLanguageGrid {
+        margin-left: 2px;
+        display: grid;
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+        gap: 4px 6px;
+      }
+
+      .smokeLanguageOption {
+        display: inline-flex;
+        align-items: center;
+        gap: 3px;
         font-size: 10px;
       }
 
@@ -525,6 +643,47 @@ function buildRunControlsHtml(webview) {
       <span id="cleanOptionsStatus" class="status ${
         stateSnapshot.cleanOptionsStatusClassName
       }">${escapedCleanOptionsStatusText}</span>
+
+      <span class="sectionHeader">
+        <svg class="sectionIcon" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Smoke Controls">
+          <path d="M8 2.5C9.38 2.5 10.5 3.62 10.5 5C10.5 5.76 10.16 6.45 9.63 6.91L12 9.28V10H4V9.28L6.37 6.91C5.84 6.45 5.5 5.76 5.5 5C5.5 3.62 6.62 2.5 8 2.5Z" stroke="currentColor" stroke-width="1"/>
+          <path d="M5 10V12.5C5 13.05 5.45 13.5 6 13.5H10C10.55 13.5 11 13.05 11 12.5V10" stroke="currentColor" stroke-width="1"/>
+        </svg>
+        <span>Smoke Controls</span>
+      </span>
+
+      <div class="smokeMarkdownRow">
+        <label class="cleanOptionsRow" for="smokeMarkdownEnabled">
+          <input id="smokeMarkdownEnabled" type="checkbox" ${
+            stateSnapshot.smokeMarkdownEnabled ? "checked" : ""
+          } />
+          <span>Markdown</span>
+        </label>
+        <input id="smokeMarkdownPath" class="argsInput" type="text" placeholder="Optional report path" value="${escapedSmokeMarkdownPath}" ${
+          stateSnapshot.smokeMarkdownEnabled ? "" : "disabled"
+        } />
+      </div>
+
+      <div class="smokeTimeoutRow">
+        <label class="smokeTimeoutField" for="smokeTimeout">
+          <span>Timeout</span>
+          <input id="smokeTimeout" class="argsInput" type="text" placeholder="8m" value="${escapedSmokeTimeout}" />
+        </label>
+        <label class="smokeTimeoutField" for="smokeSlowTimeout">
+          <span>Slow Timeout</span>
+          <input id="smokeSlowTimeout" class="argsInput" type="text" placeholder="20m" value="${escapedSmokeSlowTimeout}" />
+        </label>
+      </div>
+
+      <div class="smokeLangActions">
+        <button id="smokeSelectAll" class="smokeLangButton" type="button">Select All</button>
+        <button id="smokeDeselectAll" class="smokeLangButton" type="button">Deselect All</button>
+      </div>
+
+      <div id="smokeLanguageGrid" class="smokeLanguageGrid">${smokeLanguagesGridHtml}</div>
+      <span id="smokeStatus" class="status ${
+        stateSnapshot.smokeStatusClassName
+      }">${escapedSmokeStatusText}</span>
     </div>
 
     <script nonce="${nonce}">
@@ -545,6 +704,14 @@ function buildRunControlsHtml(webview) {
       const cleanStdlibEnabled = document.getElementById("cleanStdlibEnabled");
       const cleanArchivesEnabled = document.getElementById("cleanArchivesEnabled");
       const cleanOptionsStatus = document.getElementById("cleanOptionsStatus");
+      const smokeMarkdownEnabled = document.getElementById("smokeMarkdownEnabled");
+      const smokeMarkdownPath = document.getElementById("smokeMarkdownPath");
+      const smokeTimeout = document.getElementById("smokeTimeout");
+      const smokeSlowTimeout = document.getElementById("smokeSlowTimeout");
+      const smokeSelectAll = document.getElementById("smokeSelectAll");
+      const smokeDeselectAll = document.getElementById("smokeDeselectAll");
+      const smokeStatus = document.getElementById("smokeStatus");
+      const smokeLanguageCheckboxes = Array.from(document.querySelectorAll("input[data-smoke-lang]"));
       const statusClasses = ["status-muted", "status-ok", "status-error"];
 
       function getSelectedRunChecksMode() {
@@ -573,6 +740,10 @@ function buildRunControlsHtml(webview) {
         clearSourceProfile.classList.toggle("hidden", !shouldShow);
       }
 
+      function updateSmokeMarkdownInteractivity() {
+        smokeMarkdownPath.disabled = !smokeMarkdownEnabled.checked;
+      }
+
       function applyState(state) {
         const nextState = state || {};
         const activeElement = document.activeElement;
@@ -584,6 +755,31 @@ function buildRunControlsHtml(webview) {
         sourceProfileText.disabled = !Boolean(nextState.sourceProfileEnabled);
         cleanStdlibEnabled.checked = Boolean(nextState.cleanStdlib);
         cleanArchivesEnabled.checked = Boolean(nextState.cleanArchives);
+        smokeMarkdownEnabled.checked = Boolean(nextState.smokeMarkdownEnabled);
+        updateSmokeMarkdownInteractivity();
+
+        if (typeof nextState.smokeMarkdownPath === "string" && document.activeElement !== smokeMarkdownPath) {
+          smokeMarkdownPath.value = nextState.smokeMarkdownPath;
+        }
+
+        if (typeof nextState.smokeTimeout === "string" && document.activeElement !== smokeTimeout) {
+          smokeTimeout.value = nextState.smokeTimeout;
+        }
+
+        if (typeof nextState.smokeSlowTimeout === "string" && document.activeElement !== smokeSlowTimeout) {
+          smokeSlowTimeout.value = nextState.smokeSlowTimeout;
+        }
+
+        if (Array.isArray(nextState.smokeLanguages)) {
+          const nextEnabledByKey = new Map(
+            nextState.smokeLanguages.map((language) => [String(language.key || ""), Boolean(language.enabled)])
+          );
+
+          for (const checkbox of smokeLanguageCheckboxes) {
+            const languageKey = checkbox.getAttribute("data-smoke-lang") || "";
+            checkbox.checked = nextEnabledByKey.get(languageKey) === true;
+          }
+        }
 
         const nextRunChecksMode = String(nextState.runChecksMode || "none");
         runChecksModeNone.checked = nextRunChecksMode === "none";
@@ -630,6 +826,13 @@ function buildRunControlsHtml(webview) {
 
         if (statusClasses.includes(nextState.cleanOptionsStatusClassName)) {
           cleanOptionsStatus.classList.add(nextState.cleanOptionsStatusClassName);
+        }
+
+        smokeStatus.textContent = String(nextState.smokeStatusText || "");
+        smokeStatus.classList.remove(...statusClasses);
+
+        if (statusClasses.includes(nextState.smokeStatusClassName)) {
+          smokeStatus.classList.add(nextState.smokeStatusClassName);
         }
 
         updateRunArgsClearButtonVisibility();
@@ -754,6 +957,59 @@ function buildRunControlsHtml(webview) {
         });
       });
 
+      smokeMarkdownEnabled.addEventListener("change", () => {
+        updateSmokeMarkdownInteractivity();
+        vscodeApi.postMessage({
+          type: "setSmokeMarkdownEnabled",
+          enabled: smokeMarkdownEnabled.checked,
+        });
+      });
+
+      smokeMarkdownPath.addEventListener("input", () => {
+        vscodeApi.postMessage({
+          type: "setSmokeMarkdownPath",
+          text: smokeMarkdownPath.value,
+        });
+      });
+
+      smokeTimeout.addEventListener("input", () => {
+        vscodeApi.postMessage({
+          type: "setSmokeTimeout",
+          text: smokeTimeout.value,
+        });
+      });
+
+      smokeSlowTimeout.addEventListener("input", () => {
+        vscodeApi.postMessage({
+          type: "setSmokeSlowTimeout",
+          text: smokeSlowTimeout.value,
+        });
+      });
+
+      for (const checkbox of smokeLanguageCheckboxes) {
+        checkbox.addEventListener("change", () => {
+          vscodeApi.postMessage({
+            type: "setSmokeLanguageEnabled",
+            languageKey: checkbox.getAttribute("data-smoke-lang"),
+            enabled: checkbox.checked,
+          });
+        });
+      }
+
+      smokeSelectAll.addEventListener("click", () => {
+        vscodeApi.postMessage({
+          type: "setSmokeAllLanguagesEnabled",
+          enabled: true,
+        });
+      });
+
+      smokeDeselectAll.addEventListener("click", () => {
+        vscodeApi.postMessage({
+          type: "setSmokeAllLanguagesEnabled",
+          enabled: false,
+        });
+      });
+
       window.addEventListener("message", (event) => {
         const message = event.data;
 
@@ -767,6 +1023,7 @@ function buildRunControlsHtml(webview) {
       updateRunArgsClearButtonVisibility();
       updateSourceProfileClearButtonVisibility();
       updateRunChecksRouteInteractivity();
+      updateSmokeMarkdownInteractivity();
     </script>
   </body>
 </html>`;
@@ -786,7 +1043,7 @@ class SidebarRunControlsViewProvider {
   /**
    * Handles one webview message from the run-controls UI.
    *
-    * @param {{type?: string, enabled?: boolean, text?: string, mode?: string, route?: string}} message Incoming webview message.
+    * @param {{type?: string, enabled?: boolean, text?: string, mode?: string, route?: string, languageKey?: string}} message Incoming webview message.
    * @returns {void}
    */
   handleMessage(message) {
@@ -834,6 +1091,42 @@ class SidebarRunControlsViewProvider {
 
     if (message?.type === "setCleanArchivesEnabled") {
       setSidebarCleanArchivesEnabled(Boolean(message.enabled));
+      this.postStateUpdate();
+      return;
+    }
+
+    if (message?.type === "setSmokeMarkdownEnabled") {
+      setSidebarSmokeMarkdownEnabled(Boolean(message.enabled));
+      this.postStateUpdate();
+      return;
+    }
+
+    if (message?.type === "setSmokeMarkdownPath") {
+      setSidebarSmokeMarkdownPath(String(message.text || ""));
+      this.postStateUpdate();
+      return;
+    }
+
+    if (message?.type === "setSmokeTimeout") {
+      setSidebarSmokeTimeout(String(message.text || ""));
+      this.postStateUpdate();
+      return;
+    }
+
+    if (message?.type === "setSmokeSlowTimeout") {
+      setSidebarSmokeSlowTimeout(String(message.text || ""));
+      this.postStateUpdate();
+      return;
+    }
+
+    if (message?.type === "setSmokeLanguageEnabled") {
+      setSidebarSmokeLanguageEnabled(String(message.languageKey || ""), Boolean(message.enabled));
+      this.postStateUpdate();
+      return;
+    }
+
+    if (message?.type === "setSmokeAllLanguagesEnabled") {
+      setSidebarSmokeAllLanguagesEnabled(Boolean(message.enabled));
       this.postStateUpdate();
     }
   }
