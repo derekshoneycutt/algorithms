@@ -9,30 +9,14 @@ const {
   validateActiveEditorContext,
   validateSupportedLanguage,
   validateCheckOnlyRoute,
-  buildFileContextBlockMessage,
 } = require("../validation/inputValidation");
-
-/**
- * Shows a message using the requested severity level.
- *
- * @param {import("vscode")} vscodeApi VS Code API object.
- * @param {"info"|"warning"|"error"} severity Message severity.
- * @param {string} message User-facing message.
- * @returns {void}
- */
-function showBySeverity(vscodeApi, severity, message) {
-  if (severity === "error") {
-    vscodeApi.window.showErrorMessage(message);
-    return;
-  }
-
-  if (severity === "warning") {
-    vscodeApi.window.showWarningMessage(message);
-    return;
-  }
-
-  vscodeApi.window.showInformationMessage(message);
-}
+const {
+  showNotificationBySeverity,
+  buildValidationBlockMessage,
+  buildBuildFailureMessage,
+  buildRuntimeFailureMessage,
+  buildSuccessMessage,
+} = require("../ui/notifications");
 
 /**
  * Shows a validation block message and returns a blocked handler result.
@@ -43,10 +27,10 @@ function showBySeverity(vscodeApi, severity, message) {
  * @returns {{ok: false, status: "blocked", reason: string}} Blocked execution result.
  */
 function blockWithValidation(vscodeApi, validation, commandLabel) {
-  showBySeverity(
+  showNotificationBySeverity(
     vscodeApi,
     validation.severity,
-    buildFileContextBlockMessage(validation, commandLabel)
+    buildValidationBlockMessage(validation, commandLabel)
   );
   return {
     ok: false,
@@ -73,10 +57,10 @@ function executeContextCommand(vscodeApi, contextResolution, execution) {
   });
 
   if (!build.ok) {
-    showBySeverity(
+    showNotificationBySeverity(
       vscodeApi,
       "error",
-      `${execution.commandLabel} aborted. Reason: ${build.reason}. Guidance: Unable to assemble command for execution.`
+      buildBuildFailureMessage(execution.commandLabel, build.reason)
     );
     return {
       ok: false,
@@ -92,10 +76,10 @@ function executeContextCommand(vscodeApi, contextResolution, execution) {
   });
 
   if (!runResult.ok) {
-    showBySeverity(
+    showNotificationBySeverity(
       vscodeApi,
       "error",
-      `${execution.commandLabel} failed to start. Reason: ${runResult.reason}.`
+      buildRuntimeFailureMessage(execution.commandLabel, runResult.reason)
     );
     return {
       ok: false,
@@ -104,7 +88,11 @@ function executeContextCommand(vscodeApi, contextResolution, execution) {
     };
   }
 
-  vscodeApi.window.showInformationMessage(execution.successMessage);
+  showNotificationBySeverity(
+    vscodeApi,
+    "info",
+    execution.successMessage || buildSuccessMessage(execution.commandLabel)
+  );
 
   return {
     ok: true,

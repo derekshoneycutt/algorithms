@@ -153,6 +153,7 @@ function validateEligibilityForExecution(eligibilityState) {
       allowed: false,
       reason: "missing-eligibility-state",
       guidance: "Eligibility state is unavailable. Reopen the workspace and try again.",
+      severity: "error",
     };
   }
 
@@ -161,6 +162,7 @@ function validateEligibilityForExecution(eligibilityState) {
       allowed: true,
       reason: "eligible",
       guidance: "Workspace is eligible.",
+      severity: "info",
     };
   }
 
@@ -170,42 +172,8 @@ function validateEligibilityForExecution(eligibilityState) {
     guidance:
       eligibilityState.guidance ||
       "Workspace is not eligible for command execution.",
+    severity: "warning",
   };
-}
-
-/**
- * Builds a user-facing blocked-execution message from validation and eligibility context.
- *
- * @param {{reason: string, guidance?: string}} validation Validation outcome.
- * @param {{selected?: {resolvedRoot?: string, missingMarkers?: string[], canary?: {exitCode?: number|null}}}|null|undefined} eligibilityState Aggregated eligibility state.
- * @returns {string} Actionable warning text.
- */
-function buildEligibilityBlockMessage(validation, eligibilityState) {
-  const selected = eligibilityState?.selected;
-  const rootPath = selected?.resolvedRoot;
-  const missingMarkers = selected?.missingMarkers || [];
-  const canaryExit = selected?.canary?.exitCode;
-
-  const details = [];
-  details.push(`Reason: ${validation.reason}.`);
-
-  if (rootPath) {
-    details.push(`Resolved root: ${rootPath}.`);
-  }
-
-  if (missingMarkers.length > 0) {
-    details.push(`Missing markers: ${missingMarkers.join(", ")}.`);
-  }
-
-  if (canaryExit !== null && canaryExit !== undefined) {
-    details.push(`Canary exit code: ${canaryExit}.`);
-  }
-
-  if (validation.guidance) {
-    details.push(`Guidance: ${validation.guidance}`);
-  }
-
-  return `Run Active File blocked by workspace eligibility preflight. ${details.join(" ")}`;
 }
 
 /**
@@ -325,7 +293,7 @@ function validateSupportedLanguage(editor, eligibilityState, filePath) {
     reason: "unsupported-language",
     guidance:
       `Active editor language '${languageId}' is not supported for Run Active File in FEAT-205.`,
-    severity: "info",
+    severity: "warning",
   };
 }
 
@@ -354,26 +322,13 @@ function validateCheckOnlyRoute(route) {
   };
 }
 
-/**
- * Builds a standardized user-facing message for file-context validation failures.
- *
- * @param {{reason: string|null, guidance: string}} validation Validation payload.
- * @param {string} [commandLabel="Run Active File"] Command label prefix for the message.
- * @returns {string} User-facing actionable message.
- */
-function buildFileContextBlockMessage(validation, commandLabel = "Run Active File") {
-  return `${commandLabel} aborted. Reason: ${validation.reason}. Guidance: ${validation.guidance}`;
-}
-
 // Public validation and normalization helpers used by command handlers.
 module.exports = {
   LANGUAGE_ID_ALIASES,
   validateEligibilityForExecution,
-  buildEligibilityBlockMessage,
   validateActiveEditorContext,
   validateSupportedLanguage,
   validateCheckOnlyRoute,
-  buildFileContextBlockMessage,
   getSupportedLanguageKeys,
   normalizeLanguageId,
   normalizeExtensionToLanguageKey,

@@ -8,8 +8,11 @@ const {
 // Validation helpers for converting eligibility state into user-facing outcomes.
 const {
   validateEligibilityForExecution,
-  buildEligibilityBlockMessage,
 } = require("./validation/inputValidation");
+const {
+  showNotificationBySeverity,
+  buildEligibilityPreflightMessage,
+} = require("./ui/notifications");
 // Primary FEAT-205 command handler implementation.
 const {
   runActiveFileHandler,
@@ -71,8 +74,10 @@ function runWithPreflightGuard(handler) {
     const validation = validateEligibilityForExecution(preflightState);
 
     if (!validation.allowed) {
-      vscode.window.showWarningMessage(
-        buildEligibilityBlockMessage(validation, preflightState)
+      showNotificationBySeverity(
+        vscode,
+        validation.severity,
+        buildEligibilityPreflightMessage(validation, preflightState)
       );
       return;
     }
