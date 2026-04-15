@@ -1,5 +1,11 @@
+// Global constants for this module.
 const vscode = require("vscode");
 
+/**
+ * Registers scaffold command handlers.
+ *
+ * @returns {import('vscode').Disposable[]} Command disposables.
+ */
 function registerCommands() {
   const runActiveFileCommand = vscode.commands.registerCommand(
     "algos.runActiveFile",
@@ -13,6 +19,7 @@ function registerCommands() {
   return [runActiveFileCommand];
 }
 
+// Module exports.
 module.exports = {
   registerCommands,
 };
