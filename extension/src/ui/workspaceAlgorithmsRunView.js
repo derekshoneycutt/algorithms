@@ -1102,6 +1102,12 @@ class WorkspaceStatusTreeDataProvider {
       treeItem.contextValue = element.contextValue;
       treeItem.tooltip = element.tooltip;
 
+      if (element.hasIncludeChildren) {
+        // Collapsible items default to folder-style icons; force file styling so
+        // the language-row icon continues to reflect the file type.
+        treeItem.iconPath = vscode.ThemeIcon.File;
+      }
+
       if (element.hasFiles && element.openTargetUri) {
         treeItem.command = {
           command: "vscode.open",
@@ -1128,6 +1134,11 @@ class WorkspaceStatusTreeDataProvider {
       ? "algos.workspaceRunnableFile"
       : "algos.workspaceFile";
     treeItem.tooltip = element.filePath;
+
+    if (!element.isDirectory && element.hasIncludeChildren) {
+      // Collapsible items default to folder-style icons; force file styling for composite main-file rows.
+      treeItem.iconPath = vscode.ThemeIcon.File;
+    }
 
     if (!element.isDirectory) {
       treeItem.command = {
@@ -1285,9 +1296,9 @@ function registerWorkspaceAlgorithmsRunView() {
 
       return {
         badge: "●",
-        color: new vscode.ThemeColor(
-          hasFiles ? "testing.iconPassed" : "testing.iconQueued"
-        ),
+        color: hasFiles
+          ? undefined
+          : new vscode.ThemeColor("testing.iconQueued"),
         tooltip: hasFiles ? "Language present in algorithm" : "Language not present in algorithm",
       };
     },
