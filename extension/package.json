@@ -28,6 +28,32 @@
         "command": "algos.openRunMenu",
         "title": "Run Menu",
         "category": "Derek's Algorithms"
+      },
+      {
+        "command": "algos.runMenuClean",
+        "title": "Clean",
+        "category": "Derek's Algorithms"
+      },
+      {
+        "command": "algos.runMenuLocalclean",
+        "title": "Localclean",
+        "category": "Derek's Algorithms"
+      },
+      {
+        "command": "algos.runMenuCompileOnly",
+        "title": "Compile Only",
+        "category": "Derek's Algorithms"
+      },
+      {
+        "command": "algos.runMenuCheckOnly",
+        "title": "Check Only",
+        "category": "Derek's Algorithms"
+      }
+    ],
+    "submenus": [
+      {
+        "id": "algos.runMenuExplorer",
+        "label": "Run Menu"
       }
     ],
     "menus": {
@@ -36,13 +62,41 @@
           "command": "algos.runActiveFile",
           "when": "algos.canRunActiveFile",
           "group": "navigation"
+        },
+        {
+          "command": "algos.openRunMenu",
+          "when": "algos.canRunActiveFile",
+          "group": "navigation@99"
         }
       ],
       "explorer/context": [
         {
           "command": "algos.runFile",
           "when": "explorerResourceIsFolder == false && resourcePath =~ /[\\\\/]src[\\\\/][^\\\\/]+[\\\\/][^\\\\/]+[\\\\/][^\\\\/]+$/",
-          "group": "Derek's Algorithms@1"
+          "group": "1_modification@-1"
+        },
+        {
+          "when": "resourcePath =~ /[\\\\/]src[\\\\/][^\\\\/]+[\\\\/][^\\\\/]+(?:[\\\\/][^\\\\/]+)?$/",
+          "group": "1_modification@-2",
+          "submenu": "algos.runMenuExplorer"
+        }
+      ],
+      "algos.runMenuExplorer": [
+        {
+          "command": "algos.runMenuClean",
+          "when": "resourcePath =~ /[\\\\/]src[\\\\/][^\\\\/]+[\\\\/][^\\\\/]+(?:[\\\\/][^\\\\/]+)?$/"
+        },
+        {
+          "command": "algos.runMenuLocalclean",
+          "when": "resourcePath =~ /[\\\\/]src[\\\\/][^\\\\/]+[\\\\/][^\\\\/]+(?:[\\\\/][^\\\\/]+)?$/"
+        },
+        {
+          "command": "algos.runMenuCompileOnly",
+          "when": "resourcePath =~ /[\\\\/]src[\\\\/][^\\\\/]+[\\\\/][^\\\\/]+(?:[\\\\/][^\\\\/]+)?$/"
+        },
+        {
+          "command": "algos.runMenuCheckOnly",
+          "when": "resourcePath =~ /[\\\\/]src[\\\\/][^\\\\/]+[\\\\/][^\\\\/]+(?:[\\\\/][^\\\\/]+)?$/"
         }
       ]
     }

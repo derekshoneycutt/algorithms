@@ -156,6 +156,22 @@ function registerCommands(deps) {
       commandId: "algos.runActiveFileCheckOnlySsh",
       handler: deps.runActiveFileCheckOnlySshHandler,
     },
+    {
+      commandId: "algos.runMenuClean",
+      handler: deps.runCleanHandler,
+    },
+    {
+      commandId: "algos.runMenuLocalclean",
+      handler: deps.runLocalCleanHandler,
+    },
+    {
+      commandId: "algos.runMenuCompileOnly",
+      handler: deps.runActiveFileCompileOnlyHandler,
+    },
+    {
+      commandId: "algos.runMenuCheckOnly",
+      handler: deps.runActiveFileCheckOnlyNativeHandler,
+    },
   ];
   const implementedMenuCommandIds = deriveImplementedRunMenuCommandIds(
     guardedCommandDefs
