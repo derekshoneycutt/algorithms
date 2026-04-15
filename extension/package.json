@@ -4,6 +4,9 @@
   "description": "VS Code extension scaffold for run.sh integration.",
   "version": "0.0.1",
   "publisher": "derekshoneycutt",
+  "activationEvents": [
+    "onStartupFinished"
+  ],
   "engines": {
     "vscode": "^1.90.0"
   },
@@ -12,7 +15,7 @@
     "commands": [
       {
         "command": "algos.runActiveFile",
-        "title": "Run Active File",
+        "title": "Run File",
         "category": "Derek's Algorithms",
         "icon": "$(play)"
       },
@@ -31,6 +34,7 @@
       "editor/title": [
         {
           "command": "algos.runActiveFile",
+          "when": "algos.canRunActiveFile",
           "group": "navigation"
         }
       ],

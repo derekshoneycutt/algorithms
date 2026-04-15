@@ -8,6 +8,7 @@ const {
 // Validation helpers for converting eligibility state into user-facing outcomes.
 const {
   validateEligibilityForExecution,
+  validateSupportedLanguage,
 } = require("./validation/inputValidation");
 const {
   showNotificationBySeverity,
@@ -23,11 +24,15 @@ const {
   runActiveFileCheckOnlyNativeHandler,
   runActiveFileCheckOnlyDockerHandler,
   runActiveFileCheckOnlySshHandler,
+  resolveActiveFileRunContext,
 } = require("./commands/fileCommands");
 // FEAT-207 centralized command registration.
 const { registerCommands } = require("./commands/registerCommands");
 // FEAT-207 launcher quick-pick flow.
 const { openRunMenuFlow } = require("./ui/quickPickFlows");
+
+// Cached preflight snapshot used by visibility event handlers.
+let cachedPreflightState = null;
 
 /**
  * Returns the currently open workspace folders.
@@ -87,6 +92,121 @@ function runWithPreflightGuard(handler) {
 }
 
 /**
+ * Returns whether the active editor is eligible for Run File visibility.
+ *
+ * @param {import('vscode').TextEditor|undefined} editor Active editor candidate.
+ * @param {object} preflightState Current workspace preflight state.
+ * @returns {boolean} True when command should be shown in editor title.
+ */
+function canRunInActiveEditor(editor, preflightState) {
+  const eligibilityValidation = validateEligibilityForExecution(preflightState);
+
+  if (!eligibilityValidation.allowed) {
+    return false;
+  }
+
+  const activeFilePath = editor?.document?.uri?.fsPath;
+
+  if (!activeFilePath) {
+    return false;
+  }
+
+  const contextResolution = resolveActiveFileRunContext(
+    activeFilePath,
+    preflightState
+  );
+
+  if (!contextResolution.ok) {
+    return false;
+  }
+
+  const languageValidation = validateSupportedLanguage(
+    editor,
+    preflightState,
+    activeFilePath
+  );
+
+  return languageValidation.ok;
+}
+
+/**
+ * Updates editor title visibility context for the Run File command.
+ *
+ * @param {import('vscode').TextEditor|undefined} editor Active editor candidate.
+ * @param {object} preflightState Current workspace preflight state.
+ * @returns {Promise<void>} Resolves after context key update.
+ */
+async function updateRunActiveFileContext(editor, preflightState) {
+  const canRun = canRunInActiveEditor(editor, preflightState);
+  await vscode.commands.executeCommand(
+    "setContext",
+    "algos.canRunActiveFile",
+    canRun
+  );
+}
+
+/**
+ * Stores preflight state for subsequent visibility checks.
+ *
+ * @param {object} preflightState Current workspace preflight state.
+ * @returns {object} Stored preflight state.
+ */
+function setCachedPreflightState(preflightState) {
+  cachedPreflightState = preflightState;
+  return cachedPreflightState;
+}
+
+/**
+ * Returns cached preflight state or resolves it on demand.
+ *
+ * @returns {object} Preflight state snapshot.
+ */
+function getCachedPreflightState() {
+  if (cachedPreflightState) {
+    return cachedPreflightState;
+  }
+
+  return setCachedPreflightState(resolvePreflightState());
+}
+
+/**
+ * Handles active editor changes for title-button visibility updates.
+ *
+ * @param {import('vscode').TextEditor|undefined} editor Active editor candidate.
+ * @returns {Promise<void>} Resolves after context key update.
+ */
+async function handleActiveEditorChange(editor) {
+  const nextPreflightState = setCachedPreflightState(resolvePreflightState());
+  await updateRunActiveFileContext(editor, nextPreflightState);
+}
+
+/**
+ * Handles workspace folder changes and refreshes visibility context.
+ *
+ * @returns {Promise<void>} Resolves after preflight refresh and context update.
+ */
+async function handleWorkspaceFolderChange() {
+  const nextPreflightState = setCachedPreflightState(resolvePreflightState());
+  await updateRunActiveFileContext(
+    vscode.window.activeTextEditor,
+    nextPreflightState
+  );
+}
+
+/**
+ * Handles document lifecycle changes that may affect title-button visibility.
+ *
+ * @returns {Promise<void>} Resolves after preflight refresh and context update.
+ */
+async function handleDocumentStateChange() {
+  const nextPreflightState = setCachedPreflightState(resolvePreflightState());
+  await updateRunActiveFileContext(
+    vscode.window.activeTextEditor,
+    nextPreflightState
+  );
+}
+
+/**
  * Activates the extension and registers FEAT-202 guarded command behavior.
  *
  * @param {import('vscode').ExtensionContext} context VS Code extension context.
@@ -95,6 +215,12 @@ function runWithPreflightGuard(handler) {
 async function activate(context) {
   const activationState = resolveEligibilityState(getWorkspaceFolders());
   logEligibility("activation", activationState);
+  setCachedPreflightState(activationState);
+
+  await updateRunActiveFileContext(
+    vscode.window.activeTextEditor,
+    getCachedPreflightState()
+  );
 
   const commandDisposables = registerCommands({
     vscodeApi: vscode,
@@ -110,7 +236,14 @@ async function activate(context) {
     openRunMenuFlow,
   });
 
-  context.subscriptions.push(...commandDisposables);
+  const visibilityDisposables = [
+    vscode.window.onDidChangeActiveTextEditor(handleActiveEditorChange),
+    vscode.workspace.onDidChangeWorkspaceFolders(handleWorkspaceFolderChange),
+    vscode.workspace.onDidOpenTextDocument(handleDocumentStateChange),
+    vscode.workspace.onDidSaveTextDocument(handleDocumentStateChange),
+  ];
+
+  context.subscriptions.push(...commandDisposables, ...visibilityDisposables);
 }
 
 /**
