@@ -89,7 +89,7 @@ module.exports = {
 
         // Generate favicon assets once and inject head links across all generated pages.
         new FaviconsWebpackPlugin({
-            logo: path.resolve(__dirname, 'extension/icons/play-sidebar.svg'),
+            logo: path.resolve(__dirname, 'web/favicon.svg'),
             prefix: '',
             publicPath: '',
             inject: true,

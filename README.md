@@ -1,4 +1,4 @@
-# Algorithms
+# <img src="web/favicon.svg" width="28" height="28" alt=""> Algorithms
 
 <p align="center">
 <img src="./icons/ada.svg" alt="Ada" title="Ada" width="30" height="30">
