@@ -9,6 +9,9 @@ const {
   getSidebarRunChecksState,
   setSidebarRunChecksMode,
   setSidebarRunChecksRoute,
+  getSidebarCleanOptionsState,
+  setSidebarCleanStdlibEnabled,
+  setSidebarCleanArchivesEnabled,
   parseSidebarRunArgsText,
 } = require("../runtime/sidebarRunArgsState");
 
@@ -129,9 +132,25 @@ function buildRunChecksStatus(runChecksState) {
 }
 
 /**
+ * Builds status metadata for clean-options controls.
+ *
+ * @param {{cleanStdlib: boolean, cleanArchives: boolean}} cleanOptionsState Current clean-options state.
+ * @returns {{statusText: string, statusClassName: string}} Status display metadata.
+ */
+function buildCleanOptionsStatus(cleanOptionsState) {
+  const stdlibDefault = cleanOptionsState.cleanStdlib ? "y" : "n";
+  const archiveDefault = cleanOptionsState.cleanArchives ? "y" : "n";
+
+  return {
+    statusText: `Defaults: ${stdlibDefault}|${archiveDefault} (stdlib|archive)`,
+    statusClassName: "status-muted",
+  };
+}
+
+/**
  * Returns the render snapshot used by the run-controls UI.
  *
- * @returns {{enabled: boolean, text: string, statusText: string, statusClassName: string, sourceProfileEnabled: boolean, sourceProfileText: string, sourceProfileStatusText: string, sourceProfileStatusClassName: string, runChecksMode: "none"|"check-only"|"compile-only", runChecksRoute: "native"|"docker"|"ssh", runChecksStatusText: string, runChecksStatusClassName: string}} Current UI state snapshot.
+ * @returns {{enabled: boolean, text: string, statusText: string, statusClassName: string, sourceProfileEnabled: boolean, sourceProfileText: string, sourceProfileStatusText: string, sourceProfileStatusClassName: string, runChecksMode: "none"|"check-only"|"compile-only", runChecksRoute: "native"|"docker"|"ssh", runChecksStatusText: string, runChecksStatusClassName: string, cleanStdlib: boolean, cleanArchives: boolean, cleanOptionsStatusText: string, cleanOptionsStatusClassName: string}} Current UI state snapshot.
  */
 function getRunControlsSnapshot() {
   const runArgsState = getSidebarRunArgsState();
@@ -140,6 +159,8 @@ function getRunControlsSnapshot() {
   const sourceProfileStatus = buildSourceProfileStatus(sourceProfileState);
   const runChecksState = getSidebarRunChecksState();
   const runChecksStatus = buildRunChecksStatus(runChecksState);
+  const cleanOptionsState = getSidebarCleanOptionsState();
+  const cleanOptionsStatus = buildCleanOptionsStatus(cleanOptionsState);
 
   return {
     enabled: runArgsState.enabled,
@@ -154,6 +175,10 @@ function getRunControlsSnapshot() {
     runChecksRoute: runChecksState.route,
     runChecksStatusText: runChecksStatus.statusText,
     runChecksStatusClassName: runChecksStatus.statusClassName,
+    cleanStdlib: cleanOptionsState.cleanStdlib,
+    cleanArchives: cleanOptionsState.cleanArchives,
+    cleanOptionsStatusText: cleanOptionsStatus.statusText,
+    cleanOptionsStatusClassName: cleanOptionsStatus.statusClassName,
   };
 }
 
@@ -172,6 +197,9 @@ function buildRunControlsHtml(webview) {
     stateSnapshot.sourceProfileStatusText
   );
   const escapedRunChecksStatusText = escapeHtml(stateSnapshot.runChecksStatusText);
+  const escapedCleanOptionsStatusText = escapeHtml(
+    stateSnapshot.cleanOptionsStatusText
+  );
   const nonce = createNonce();
   const cspSource = webview.cspSource;
 
@@ -307,6 +335,14 @@ function buildRunControlsHtml(webview) {
 
       .runChecksSelect:disabled {
         opacity: 0.65;
+      }
+
+      .cleanOptionsRow {
+        margin-left: 2px;
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+        font-size: 10px;
       }
 
       .status-muted {
@@ -460,6 +496,35 @@ function buildRunControlsHtml(webview) {
         stateSnapshot.sourceProfileStatusClassName
       }">${escapedSourceProfileStatusText}</span>
       <span class="helperText">If checked and empty, profile sourcing is disabled entirely. If unchecked, system default profile sourcing behavior is used.</span>
+
+      <span class="sectionHeader">
+        <svg class="sectionIcon" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Clean Options">
+          <path d="M4 4.5C4 3.67 4.67 3 5.5 3H10.5C11.33 3 12 3.67 12 4.5V5.5H4V4.5Z" stroke="currentColor" stroke-width="1"/>
+          <path d="M3.5 5.5H12.5" stroke="currentColor" stroke-width="1"/>
+          <path d="M5 5.5V12C5 12.55 5.45 13 6 13H10C10.55 13 11 12.55 11 12V5.5" stroke="currentColor" stroke-width="1"/>
+          <path d="M7 7.5V11" stroke="currentColor" stroke-width="1" stroke-linecap="round"/>
+          <path d="M9 7.5V11" stroke="currentColor" stroke-width="1" stroke-linecap="round"/>
+        </svg>
+        <span>Clean Options</span>
+      </span>
+
+      <label class="cleanOptionsRow" for="cleanStdlibEnabled">
+        <input id="cleanStdlibEnabled" type="checkbox" ${
+          stateSnapshot.cleanStdlib ? "checked" : ""
+        } />
+        <span>Clean Standard Library</span>
+      </label>
+
+      <label class="cleanOptionsRow" for="cleanArchivesEnabled">
+        <input id="cleanArchivesEnabled" type="checkbox" ${
+          stateSnapshot.cleanArchives ? "checked" : ""
+        } />
+        <span>Clean Archives</span>
+      </label>
+
+      <span id="cleanOptionsStatus" class="status ${
+        stateSnapshot.cleanOptionsStatusClassName
+      }">${escapedCleanOptionsStatusText}</span>
     </div>
 
     <script nonce="${nonce}">
@@ -477,6 +542,9 @@ function buildRunControlsHtml(webview) {
       const runChecksModeCompileOnly = document.getElementById("runChecksModeCompileOnly");
       const runChecksRoute = document.getElementById("runChecksRoute");
       const runChecksStatus = document.getElementById("runChecksStatus");
+      const cleanStdlibEnabled = document.getElementById("cleanStdlibEnabled");
+      const cleanArchivesEnabled = document.getElementById("cleanArchivesEnabled");
+      const cleanOptionsStatus = document.getElementById("cleanOptionsStatus");
       const statusClasses = ["status-muted", "status-ok", "status-error"];
 
       function getSelectedRunChecksMode() {
@@ -514,6 +582,8 @@ function buildRunControlsHtml(webview) {
         runArgsText.disabled = !Boolean(nextState.enabled);
         sourceProfileEnabled.checked = Boolean(nextState.sourceProfileEnabled);
         sourceProfileText.disabled = !Boolean(nextState.sourceProfileEnabled);
+        cleanStdlibEnabled.checked = Boolean(nextState.cleanStdlib);
+        cleanArchivesEnabled.checked = Boolean(nextState.cleanArchives);
 
         const nextRunChecksMode = String(nextState.runChecksMode || "none");
         runChecksModeNone.checked = nextRunChecksMode === "none";
@@ -553,6 +623,13 @@ function buildRunControlsHtml(webview) {
 
         if (statusClasses.includes(nextState.runChecksStatusClassName)) {
           runChecksStatus.classList.add(nextState.runChecksStatusClassName);
+        }
+
+        cleanOptionsStatus.textContent = String(nextState.cleanOptionsStatusText || "");
+        cleanOptionsStatus.classList.remove(...statusClasses);
+
+        if (statusClasses.includes(nextState.cleanOptionsStatusClassName)) {
+          cleanOptionsStatus.classList.add(nextState.cleanOptionsStatusClassName);
         }
 
         updateRunArgsClearButtonVisibility();
@@ -663,6 +740,20 @@ function buildRunControlsHtml(webview) {
         });
       });
 
+      cleanStdlibEnabled.addEventListener("change", () => {
+        vscodeApi.postMessage({
+          type: "setCleanStdlibEnabled",
+          enabled: cleanStdlibEnabled.checked,
+        });
+      });
+
+      cleanArchivesEnabled.addEventListener("change", () => {
+        vscodeApi.postMessage({
+          type: "setCleanArchivesEnabled",
+          enabled: cleanArchivesEnabled.checked,
+        });
+      });
+
       window.addEventListener("message", (event) => {
         const message = event.data;
 
@@ -695,7 +786,7 @@ class SidebarRunControlsViewProvider {
   /**
    * Handles one webview message from the run-controls UI.
    *
-  * @param {{type?: string, enabled?: boolean, text?: string, mode?: string, route?: string}} message Incoming webview message.
+    * @param {{type?: string, enabled?: boolean, text?: string, mode?: string, route?: string}} message Incoming webview message.
    * @returns {void}
    */
   handleMessage(message) {
@@ -731,6 +822,18 @@ class SidebarRunControlsViewProvider {
 
     if (message?.type === "setRunChecksRoute") {
       setSidebarRunChecksRoute(String(message.route || "native"));
+      this.postStateUpdate();
+      return;
+    }
+
+    if (message?.type === "setCleanStdlibEnabled") {
+      setSidebarCleanStdlibEnabled(Boolean(message.enabled));
+      this.postStateUpdate();
+      return;
+    }
+
+    if (message?.type === "setCleanArchivesEnabled") {
+      setSidebarCleanArchivesEnabled(Boolean(message.enabled));
       this.postStateUpdate();
     }
   }

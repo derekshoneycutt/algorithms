@@ -8,6 +8,7 @@ const {
   getEffectiveSidebarRunArgs,
   getEffectiveSidebarSourceProfile,
   getEffectiveSidebarRunChecks,
+  getEffectiveSidebarCleanDefaults,
 } = require("../runtime/sidebarRunArgsState");
 // Validation and message helpers for active editor and language checks.
 const {
@@ -775,9 +776,21 @@ async function runCleanHandler(vscodeApi, eligibilityState, targetUri) {
     return blockWithValidation(vscodeApi, contextResolution, "Clean");
   }
 
+  const cleanDefaults = getEffectiveSidebarCleanDefaults();
+
+  if (!cleanDefaults.ok) {
+    const validation = {
+      reason: "invalid-clean-defaults",
+      guidance: cleanDefaults.reason || "Clean options are invalid.",
+      severity: "warning",
+    };
+
+    return blockWithValidation(vscodeApi, validation, "Clean");
+  }
+
   return executeContextCommand(vscodeApi, contextResolution, {
     commandFamily: "run-clean",
-    args: ["clean", "--defaults=y"],
+    args: ["clean", cleanDefaults.token],
     commandLabel: "Clean",
     successMessage: `Clean started in ${"Algorithms Runner"}.`,
   });

@@ -6,6 +6,8 @@ let sidebarSourceProfileEnabled = false;
 let sidebarSourceProfileText = "";
 let sidebarRunChecksMode = "none";
 let sidebarRunChecksRoute = "native";
+let sidebarCleanStdlibEnabled = true;
+let sidebarCleanArchivesEnabled = true;
 
 /**
  * Valid run-checks mode values.
@@ -129,6 +131,38 @@ function setSidebarRunChecksRoute(route) {
   }
 
   sidebarRunChecksRoute = nextRoute;
+}
+
+/**
+ * Returns the current sidebar clean-options state.
+ *
+ * @returns {{cleanStdlib: boolean, cleanArchives: boolean}} Current state snapshot.
+ */
+function getSidebarCleanOptionsState() {
+  return {
+    cleanStdlib: sidebarCleanStdlibEnabled,
+    cleanArchives: sidebarCleanArchivesEnabled,
+  };
+}
+
+/**
+ * Sets whether clean should include stdlib cleanup.
+ *
+ * @param {boolean} enabled True to set stdlib default to yes.
+ * @returns {void}
+ */
+function setSidebarCleanStdlibEnabled(enabled) {
+  sidebarCleanStdlibEnabled = Boolean(enabled);
+}
+
+/**
+ * Sets whether clean should include archive cleanup.
+ *
+ * @param {boolean} enabled True to set archive default to yes.
+ * @returns {void}
+ */
+function setSidebarCleanArchivesEnabled(enabled) {
+  sidebarCleanArchivesEnabled = Boolean(enabled);
 }
 
 /**
@@ -340,6 +374,28 @@ function getEffectiveSidebarRunChecks() {
   };
 }
 
+/**
+ * Returns the effective clean defaults option token for run.sh clean mode.
+ *
+ * Order is strict: stdlib first, archive second.
+ *
+ * @returns {{ok: boolean, cleanStdlib: boolean, cleanArchives: boolean, defaultsPair: string, token: string, reason: string|null}} Effective clean-defaults result.
+ */
+function getEffectiveSidebarCleanDefaults() {
+  const stdlibDefault = sidebarCleanStdlibEnabled ? "y" : "n";
+  const archiveDefault = sidebarCleanArchivesEnabled ? "y" : "n";
+  const defaultsPair = `${stdlibDefault}|${archiveDefault}`;
+
+  return {
+    ok: true,
+    cleanStdlib: sidebarCleanStdlibEnabled,
+    cleanArchives: sidebarCleanArchivesEnabled,
+    defaultsPair,
+    token: `--defaults=${defaultsPair}`,
+    reason: null,
+  };
+}
+
 module.exports = {
   getSidebarRunArgsState,
   setSidebarRunArgsEnabled,
@@ -350,8 +406,12 @@ module.exports = {
   getSidebarRunChecksState,
   setSidebarRunChecksMode,
   setSidebarRunChecksRoute,
+  getSidebarCleanOptionsState,
+  setSidebarCleanStdlibEnabled,
+  setSidebarCleanArchivesEnabled,
   parseSidebarRunArgsText,
   getEffectiveSidebarRunArgs,
   getEffectiveSidebarSourceProfile,
   getEffectiveSidebarRunChecks,
+  getEffectiveSidebarCleanDefaults,
 };
