@@ -167,6 +167,25 @@ function buildRunControlsHtml(webview) {
         gap: 4px;
       }
 
+      .sectionHeader {
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+        margin-top: 2px;
+        margin-left: 2px;
+        font-size: 10px;
+        font-weight: 600;
+        letter-spacing: 0.02em;
+        color: var(--vscode-descriptionForeground);
+      }
+
+      .sectionIcon {
+        width: 12px;
+        height: 12px;
+        display: inline-block;
+        color: var(--vscode-foreground);
+      }
+
       .inputRow {
         display: grid;
         grid-template-columns: auto 1fr auto;
@@ -177,19 +196,8 @@ function buildRunControlsHtml(webview) {
       .toggleRow {
         display: flex;
         align-items: center;
-        gap: 4px;
+        justify-content: center;
         white-space: nowrap;
-      }
-
-      .toggleLabel {
-        font-weight: 500;
-      }
-
-      .toggleIcon {
-        width: 12px;
-        height: 12px;
-        display: inline-block;
-        color: var(--vscode-foreground);
       }
 
       .argsInput {
@@ -276,18 +284,20 @@ function buildRunControlsHtml(webview) {
   </head>
   <body>
     <div class="controls">
+      <span class="sectionHeader">
+        <svg class="sectionIcon" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Terminal">
+          <path d="M2 3.5C2 2.67 2.67 2 3.5 2H12.5C13.33 2 14 2.67 14 3.5V12.5C14 13.33 13.33 14 12.5 14H3.5C2.67 14 2 13.33 2 12.5V3.5Z" stroke="currentColor" stroke-width="1"/>
+          <path d="M4.5 6L6.75 8L4.5 10" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"/>
+          <path d="M8.5 10H11.5" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/>
+        </svg>
+        <span>Command Arguments</span>
+      </span>
+
       <div class="inputRow">
         <label class="toggleRow" for="runArgsEnabled">
-          <input id="runArgsEnabled" type="checkbox" ${
+          <input id="runArgsEnabled" type="checkbox" aria-label="Enable command arguments" ${
             stateSnapshot.enabled ? "checked" : ""
           } />
-          <span class="toggleLabel" aria-label="Run args enabled">
-            <svg class="toggleIcon" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Terminal">
-              <path d="M2 3.5C2 2.67 2.67 2 3.5 2H12.5C13.33 2 14 2.67 14 3.5V12.5C14 13.33 13.33 14 12.5 14H3.5C2.67 14 2 13.33 2 12.5V3.5Z" stroke="currentColor" stroke-width="1"/>
-              <path d="M4.5 6L6.75 8L4.5 10" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"/>
-              <path d="M8.5 10H11.5" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/>
-            </svg>
-          </span>
         </label>
 
         <div class="inputWithClear">
@@ -305,12 +315,20 @@ function buildRunControlsHtml(webview) {
 
       <span id="runArgsStatus" class="status ${stateSnapshot.statusClassName}">${escapedStatusText}</span>
 
+      <span class="sectionHeader">
+        <svg class="sectionIcon" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Profile Sourcing">
+          <path d="M8 8C9.66 8 11 6.66 11 5C11 3.34 9.66 2 8 2C6.34 2 5 3.34 5 5C5 6.66 6.34 8 8 8Z" stroke="currentColor" stroke-width="1.1"/>
+          <path d="M3 13C3.55 10.9 5.52 9.5 8 9.5C10.48 9.5 12.45 10.9 13 13" stroke="currentColor" stroke-width="1.1" stroke-linecap="round"/>
+          <path d="M11.75 4.25L12.5 5L14 3.5" stroke="currentColor" stroke-width="1.1" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+        <span>Profile Sourcing</span>
+      </span>
+
       <div class="inputRow">
         <label class="toggleRow" for="sourceProfileEnabled">
-          <input id="sourceProfileEnabled" type="checkbox" ${
+          <input id="sourceProfileEnabled" type="checkbox" aria-label="Enable profile sourcing override" ${
             stateSnapshot.sourceProfileEnabled ? "checked" : ""
           } />
-          <span class="toggleLabel">Source</span>
         </label>
 
         <div class="inputWithClear">
@@ -398,7 +416,6 @@ function buildRunControlsHtml(webview) {
           enabled,
         });
       });
-
       runArgsText.addEventListener("input", () => {
         updateRunArgsClearButtonVisibility();
         vscodeApi.postMessage({
