@@ -10,6 +10,7 @@ const {
 const LANGUAGE_ICON_DIRECTORY_SEGMENT = ".algos-language-icons";
 const LANGUAGE_PRESENT_URI_FRAGMENT = "algos-language-present";
 const LANGUAGE_ABSENT_URI_FRAGMENT = "algos-language-absent";
+const LANGUAGE_FLAGGED_URI_FRAGMENT = "algos-language-flagged";
 
 const LANGUAGE_ICON_SAMPLE_EXTENSIONS = {
   ada: "adb",
@@ -360,6 +361,86 @@ function compareDirectoryEntries(left, right) {
 }
 
 /**
+ * Reads flagged language keys from one algorithm directory's .flag-lang file.
+ *
+ * @param {string|null} algorithmPath Algorithm directory path.
+ * @returns {Set<string>} Flagged language keys.
+ */
+function readFlaggedLanguageKeysForAlgorithm(algorithmPath) {
+  if (!algorithmPath) {
+    return new Set();
+  }
+
+  const flagFilePath = path.join(algorithmPath, ".flag-lang");
+
+  try {
+    if (!fs.existsSync(flagFilePath)) {
+      return new Set();
+    }
+
+    const fileContent = fs.readFileSync(flagFilePath, "utf8");
+    const keys = fileContent
+      .split(/\r?\n/)
+      .map((line) => line.trim().toLowerCase())
+      .filter((line) => line.length > 0);
+
+    return new Set(keys);
+  } catch (_) {
+    return new Set();
+  }
+}
+
+/**
+ * Resolves the algorithm directory path for one sidebar file.
+ *
+ * @param {string} filePath Candidate file path.
+ * @param {string|null} resolvedRoot Canonical repository root path.
+ * @returns {string|null} Algorithm directory path when file belongs to one algorithm.
+ */
+function resolveAlgorithmPathForSidebarFile(filePath, resolvedRoot) {
+  const relativeParts = getPathPartsRelativeToSrc(filePath, resolvedRoot);
+
+  if (!Array.isArray(relativeParts) || (relativeParts.length !== 3 && relativeParts.length !== 4)) {
+    return null;
+  }
+
+  const srcRoot = path.join(realpathSafe(resolvedRoot), "src");
+  return path.join(srcRoot, relativeParts[0], relativeParts[1]);
+}
+
+/**
+ * Resolves one sidebar file path to its canonical language key.
+ *
+ * @param {string} filePath Candidate file path.
+ * @param {string|null} resolvedRoot Canonical repository root path.
+ * @returns {string|null} Canonical language key when file is mappable.
+ */
+function resolveSidebarFileLanguageKey(filePath, resolvedRoot) {
+  const relativeParts = getPathPartsRelativeToSrc(filePath, resolvedRoot);
+
+  if (!Array.isArray(relativeParts)) {
+    return null;
+  }
+
+  const normalizedLanguage = normalizeExtensionToLanguageKey(filePath);
+
+  if (!normalizedLanguage) {
+    return null;
+  }
+
+  if (relativeParts.length === 3) {
+    return normalizedLanguage;
+  }
+
+  if (relativeParts.length === 4 && isLanguageIncludeDirectoryName(relativeParts[2])) {
+    const includeLanguage = relativeParts[2].slice(0, -8).toLowerCase();
+    return normalizedLanguage === includeLanguage ? normalizedLanguage : null;
+  }
+
+  return null;
+}
+
+/**
  * Creates a tree node for a sidebar file-system entry.
  *
  * @param {string} entryPath Canonical entry path.
@@ -368,7 +449,8 @@ function compareDirectoryEntries(left, right) {
  * @param {string|null} algorithmPath Containing algorithm directory path.
  * @param {string|null} languageKey Canonical language key for the entry.
  * @param {boolean} hasIncludeChildren Whether the entry should expose include-file children.
- * @returns {{filePath: string, fsPath: string, label: string, isDirectory: boolean, isRunnableFile: boolean, algorithmPath: string|null, languageKey: string|null, hasIncludeChildren: boolean, resourceUri: import("vscode").Uri}} Sidebar tree node.
+ * @param {boolean} isFlagged Whether the entry language is flagged.
+ * @returns {{filePath: string, fsPath: string, label: string, isDirectory: boolean, isRunnableFile: boolean, algorithmPath: string|null, languageKey: string|null, hasIncludeChildren: boolean, isFlagged: boolean, resourceUri: import("vscode").Uri}} Sidebar tree node.
  */
 function createSidebarTreeNode(
   entryPath,
@@ -376,8 +458,11 @@ function createSidebarTreeNode(
   isRunnableFile,
   algorithmPath,
   languageKey,
-  hasIncludeChildren
+  hasIncludeChildren,
+  isFlagged
 ) {
+  const baseResourceUri = vscode.Uri.file(entryPath);
+
   return {
     filePath: entryPath,
     fsPath: entryPath,
@@ -387,7 +472,11 @@ function createSidebarTreeNode(
     algorithmPath: algorithmPath || null,
     languageKey: languageKey || null,
     hasIncludeChildren: Boolean(hasIncludeChildren),
-    resourceUri: vscode.Uri.file(entryPath),
+    isFlagged: Boolean(isFlagged),
+    resourceUri:
+      !entry.isDirectory() && isFlagged
+        ? baseResourceUri.with({ fragment: LANGUAGE_FLAGGED_URI_FRAGMENT })
+        : baseResourceUri,
   };
 }
 
@@ -395,9 +484,13 @@ function createSidebarTreeNode(
  * Creates one child node for an include-file entry.
  *
  * @param {string} filePath Include-file absolute path.
- * @returns {{filePath: string, fsPath: string, label: string, isDirectory: boolean, isRunnableFile: boolean, algorithmPath: string|null, languageKey: string|null, hasIncludeChildren: boolean, resourceUri: import("vscode").Uri}} Sidebar tree node.
+ * @param {string|null} languageKey Canonical language key.
+ * @param {boolean} isFlagged Whether the include language is flagged.
+ * @returns {{filePath: string, fsPath: string, label: string, isDirectory: boolean, isRunnableFile: boolean, algorithmPath: string|null, languageKey: string|null, hasIncludeChildren: boolean, isFlagged: boolean, resourceUri: import("vscode").Uri}} Sidebar tree node.
  */
-function createIncludeFileTreeNode(filePath) {
+function createIncludeFileTreeNode(filePath, languageKey, isFlagged) {
+  const baseResourceUri = vscode.Uri.file(filePath);
+
   return {
     filePath,
     fsPath: filePath,
@@ -405,9 +498,12 @@ function createIncludeFileTreeNode(filePath) {
     isDirectory: false,
     isRunnableFile: false,
     algorithmPath: null,
-    languageKey: null,
+    languageKey: languageKey || null,
     hasIncludeChildren: false,
-    resourceUri: vscode.Uri.file(filePath),
+    isFlagged: Boolean(isFlagged),
+    resourceUri: isFlagged
+      ? baseResourceUri.with({ fragment: LANGUAGE_FLAGGED_URI_FRAGMENT })
+      : baseResourceUri,
   };
 }
 
@@ -506,14 +602,20 @@ function readMatchingIncludeFilePaths(
  * @param {string|null} languageKey Canonical language key.
  * @param {string|null} resolvedRoot Canonical repository root path.
  * @param {Set<string>} supportedLanguageKeys Supported language keys.
- * @returns {{filePath: string, fsPath: string, label: string, isDirectory: boolean, isRunnableFile: boolean, algorithmPath: string|null, languageKey: string|null, hasIncludeChildren: boolean, resourceUri: import("vscode").Uri}[]} Include-file tree nodes.
+ * @param {Set<string>|null} flaggedLanguageKeys Flagged language keys for the algorithm.
+ * @returns {{filePath: string, fsPath: string, label: string, isDirectory: boolean, isRunnableFile: boolean, algorithmPath: string|null, languageKey: string|null, hasIncludeChildren: boolean, isFlagged: boolean, resourceUri: import("vscode").Uri}[]} Include-file tree nodes.
  */
 function readIncludeFileChildren(
   algorithmPath,
   languageKey,
   resolvedRoot,
-  supportedLanguageKeys
+  supportedLanguageKeys,
+  flaggedLanguageKeys
 ) {
+  const resolvedFlaggedLanguageKeys = flaggedLanguageKeys || readFlaggedLanguageKeysForAlgorithm(algorithmPath);
+  const isFlaggedLanguage = Boolean(
+    languageKey && resolvedFlaggedLanguageKeys.has(languageKey)
+  );
   const includeDirectoryPath = resolveMatchingIncludeDirectoryPath(
     algorithmPath,
     languageKey,
@@ -526,7 +628,9 @@ function readIncludeFileChildren(
     supportedLanguageKeys
   );
 
-  return includeFilePaths.map((filePath) => createIncludeFileTreeNode(filePath));
+  return includeFilePaths.map((filePath) =>
+    createIncludeFileTreeNode(filePath, languageKey, isFlaggedLanguage)
+  );
 }
 
 /**
@@ -538,8 +642,9 @@ function readIncludeFileChildren(
  * @param {string|null} openTargetPath Deterministic matching file path.
  * @param {boolean} targetIsRunnable Whether the matching file is a direct algorithm-root file.
  * @param {boolean} hasIncludeChildren Whether the language row should expose include-file children.
+ * @param {boolean} isFlagged Whether the language is flagged in .flag-lang.
  * @param {import("vscode").Uri} suggestedUntitledUri Suggested untitled file URI for missing-language creation.
- * @returns {{label: string, languageKey: string, algorithmPath: string, filePath: string, fsPath: string, fileCount: number, hasFiles: boolean, isLanguageSummary: boolean, isRunnableFile: boolean, hasIncludeChildren: boolean, resourceUri: import("vscode").Uri, openTargetUri: import("vscode").Uri|null, suggestedUntitledUri: import("vscode").Uri, contextValue: string, tooltip: string}} Language summary node.
+ * @returns {{label: string, languageKey: string, algorithmPath: string, filePath: string, fsPath: string, fileCount: number, hasFiles: boolean, isLanguageSummary: boolean, isRunnableFile: boolean, hasIncludeChildren: boolean, isFlagged: boolean, resourceUri: import("vscode").Uri, openTargetUri: import("vscode").Uri|null, suggestedUntitledUri: import("vscode").Uri, contextValue: string, tooltip: string}} Language summary node.
  */
 function createLanguageSummaryTreeNode(
   languageKey,
@@ -548,16 +653,20 @@ function createLanguageSummaryTreeNode(
   openTargetPath,
   targetIsRunnable,
   hasIncludeChildren,
+  isFlagged,
   suggestedUntitledUri
 ) {
   const sampleExtension = LANGUAGE_ICON_SAMPLE_EXTENSIONS[languageKey] || "txt";
   const sampleFileName = `${languageKey}.${sampleExtension}`;
   const openTargetUri = openTargetPath ? vscode.Uri.file(openTargetPath) : null;
-  const resourceUri = openTargetUri
+  const absentSampleUri = vscode.Uri.file(
+    path.join(algorithmPath, LANGUAGE_ICON_DIRECTORY_SEGMENT, sampleFileName)
+  );
+  const resourceUri = isFlagged
+    ? (openTargetUri || absentSampleUri).with({ fragment: LANGUAGE_FLAGGED_URI_FRAGMENT })
+    : openTargetUri
     ? openTargetUri.with({ fragment: LANGUAGE_PRESENT_URI_FRAGMENT })
-    : vscode.Uri.file(
-        path.join(algorithmPath, LANGUAGE_ICON_DIRECTORY_SEGMENT, sampleFileName)
-      ).with({ fragment: LANGUAGE_ABSENT_URI_FRAGMENT });
+    : absentSampleUri.with({ fragment: LANGUAGE_ABSENT_URI_FRAGMENT });
 
   return {
     label: languageKey,
@@ -570,6 +679,7 @@ function createLanguageSummaryTreeNode(
     isLanguageSummary: true,
     isRunnableFile: Boolean(targetIsRunnable),
     hasIncludeChildren: Boolean(hasIncludeChildren),
+    isFlagged: Boolean(isFlagged),
     resourceUri,
     openTargetUri,
     suggestedUntitledUri,
@@ -846,7 +956,7 @@ function collectAllowedSidebarFiles(directoryPath, resolvedRoot, supportedLangua
  * @param {string} algorithmPath Algorithm directory path.
  * @param {string|null} resolvedRoot Canonical repository root path.
  * @param {Set<string>} supportedLanguageKeys Supported language keys.
- * @returns {{label: string, languageKey: string, algorithmPath: string, filePath: string, fsPath: string, fileCount: number, hasFiles: boolean, isLanguageSummary: boolean, isRunnableFile: boolean, hasIncludeChildren: boolean, resourceUri: import("vscode").Uri, openTargetUri: import("vscode").Uri|null, suggestedUntitledUri: import("vscode").Uri, contextValue: string, tooltip: string}[]} Language summary nodes.
+ * @returns {{label: string, languageKey: string, algorithmPath: string, filePath: string, fsPath: string, fileCount: number, hasFiles: boolean, isLanguageSummary: boolean, isRunnableFile: boolean, hasIncludeChildren: boolean, isFlagged: boolean, resourceUri: import("vscode").Uri, openTargetUri: import("vscode").Uri|null, suggestedUntitledUri: import("vscode").Uri, contextValue: string, tooltip: string}[]} Language summary nodes.
  */
 function readAlgorithmLanguageSummary(algorithmPath, resolvedRoot, supportedLanguageKeys) {
   const sortedLanguageKeys = [...supportedLanguageKeys].sort((left, right) =>
@@ -858,6 +968,7 @@ function readAlgorithmLanguageSummary(algorithmPath, resolvedRoot, supportedLang
   const languageFilePathMap = new Map(
     sortedLanguageKeys.map((languageKey) => [languageKey, []])
   );
+  const flaggedLanguageKeys = readFlaggedLanguageKeysForAlgorithm(algorithmPath);
 
   const allowedFiles = collectAllowedSidebarFiles(algorithmPath, resolvedRoot, supportedLanguageKeys);
 
@@ -894,6 +1005,7 @@ function readAlgorithmLanguageSummary(algorithmPath, resolvedRoot, supportedLang
   }
 
   return sortedLanguageKeys.map((languageKey) => {
+    const isFlagged = flaggedLanguageKeys.has(languageKey);
     const matchingFiles = languageFilePathMap.get(languageKey);
     const representativeFile = selectRepresentativeLanguageFile(
       matchingFiles,
@@ -904,7 +1016,8 @@ function readAlgorithmLanguageSummary(algorithmPath, resolvedRoot, supportedLang
           algorithmPath,
           languageKey,
           resolvedRoot,
-          supportedLanguageKeys
+          supportedLanguageKeys,
+          flaggedLanguageKeys
         )
       : [];
     const suggestedUntitledUri = createSuggestedUntitledLanguageUri(
@@ -921,6 +1034,7 @@ function readAlgorithmLanguageSummary(algorithmPath, resolvedRoot, supportedLang
       representativeFile.filePath,
       representativeFile.isRunnable,
       includeChildren.length > 0,
+      isFlagged,
       suggestedUntitledUri
     );
   });
@@ -930,7 +1044,7 @@ function readAlgorithmLanguageSummary(algorithmPath, resolvedRoot, supportedLang
  * Reads direct children for a directory path as sidebar tree nodes.
  *
  * @param {string|null} directoryPath Canonical directory path.
- * @returns {{filePath: string, fsPath: string, label: string, isDirectory: boolean, isRunnableFile: boolean, algorithmPath: string|null, languageKey: string|null, hasIncludeChildren: boolean, resourceUri: import("vscode").Uri}[]} Child nodes.
+ * @returns {{filePath: string, fsPath: string, label: string, isDirectory: boolean, isRunnableFile: boolean, algorithmPath: string|null, languageKey: string|null, hasIncludeChildren: boolean, isFlagged: boolean, resourceUri: import("vscode").Uri}[]} Child nodes.
  */
 function readSidebarDirectoryChildren(directoryPath, resolvedRoot, supportedLanguageKeys) {
   if (!directoryPath) {
@@ -943,8 +1057,32 @@ function readSidebarDirectoryChildren(directoryPath, resolvedRoot, supportedLang
     const visibleEntries = [];
     const isAlgorithmDirectory = isAlgorithmDirectoryPath(directoryPath, resolvedRoot);
     const attachedIncludeLanguages = new Set();
+    const algorithmFlaggedLanguageCache = new Map();
+
+    /**
+     * Returns cached flagged language keys for one algorithm directory.
+     *
+     * @param {string|null} algorithmPath Algorithm directory path.
+     * @returns {Set<string>} Flagged language keys.
+     */
+    function getFlaggedLanguageKeys(algorithmPath) {
+      if (!algorithmPath) {
+        return new Set();
+      }
+
+      if (!algorithmFlaggedLanguageCache.has(algorithmPath)) {
+        algorithmFlaggedLanguageCache.set(
+          algorithmPath,
+          readFlaggedLanguageKeysForAlgorithm(algorithmPath)
+        );
+      }
+
+      return algorithmFlaggedLanguageCache.get(algorithmPath);
+    }
 
     if (isAlgorithmDirectory) {
+      const algorithmFlaggedLanguageKeys = getFlaggedLanguageKeys(directoryPath);
+
       for (const entry of entries) {
         if (!entry.isFile()) {
           continue;
@@ -966,7 +1104,8 @@ function readSidebarDirectoryChildren(directoryPath, resolvedRoot, supportedLang
           directoryPath,
           languageKey,
           resolvedRoot,
-          supportedLanguageKeys
+          supportedLanguageKeys,
+          algorithmFlaggedLanguageKeys
         );
 
         if (includeFileChildren.length > 0) {
@@ -980,12 +1119,17 @@ function readSidebarDirectoryChildren(directoryPath, resolvedRoot, supportedLang
 
       if (entry.isFile()) {
         if (isAllowedSidebarFile(entryPath, resolvedRoot, supportedLanguageKeys)) {
-          const algorithmPath = isAlgorithmDirectory ? directoryPath : null;
+          const algorithmPath = resolveAlgorithmPathForSidebarFile(entryPath, resolvedRoot);
+          const fileLanguageKey = resolveSidebarFileLanguageKey(entryPath, resolvedRoot);
           const languageKey = isAlgorithmDirectory
             ? getPrimaryAlgorithmFileLanguageKey(entryPath, resolvedRoot)
             : null;
           const hasIncludeChildren = Boolean(
             languageKey && attachedIncludeLanguages.has(languageKey)
+          );
+          const flaggedLanguageKeys = getFlaggedLanguageKeys(algorithmPath);
+          const isFlagged = Boolean(
+            fileLanguageKey && flaggedLanguageKeys.has(fileLanguageKey)
           );
 
           visibleEntries.push(
@@ -994,8 +1138,9 @@ function readSidebarDirectoryChildren(directoryPath, resolvedRoot, supportedLang
               entry,
               isDirectAlgorithmRootFile(entryPath, resolvedRoot),
               algorithmPath,
-              languageKey,
-              hasIncludeChildren
+              fileLanguageKey || languageKey,
+              hasIncludeChildren,
+              isFlagged
             )
           );
         }
@@ -1019,7 +1164,7 @@ function readSidebarDirectoryChildren(directoryPath, resolvedRoot, supportedLang
       }
 
       visibleEntries.push(
-        createSidebarTreeNode(entryPath, entry, false, null, null, false)
+        createSidebarTreeNode(entryPath, entry, false, null, null, false, false)
       );
     }
 
@@ -1084,7 +1229,7 @@ class WorkspaceStatusTreeDataProvider {
   /**
    * Returns tree item metadata for a file-system tree node.
    *
-  * @param {{filePath?: string, fsPath?: string, label: string, languageKey?: string, algorithmPath?: string, isDirectory?: boolean, isRunnableFile?: boolean, isLanguageSummary?: boolean, fileCount?: number, hasFiles?: boolean, hasIncludeChildren?: boolean, resourceUri?: import("vscode").Uri, openTargetUri?: import("vscode").Uri|null, suggestedUntitledUri?: import("vscode").Uri, contextValue?: string, tooltip?: string}} element Tree element.
+  * @param {{filePath?: string, fsPath?: string, label: string, languageKey?: string, algorithmPath?: string, isDirectory?: boolean, isRunnableFile?: boolean, isLanguageSummary?: boolean, fileCount?: number, hasFiles?: boolean, hasIncludeChildren?: boolean, isFlagged?: boolean, resourceUri?: import("vscode").Uri, openTargetUri?: import("vscode").Uri|null, suggestedUntitledUri?: import("vscode").Uri, contextValue?: string, tooltip?: string}} element Tree element.
    * @returns {import("vscode").TreeItem} Tree item.
    */
   getTreeItem(element) {
@@ -1154,7 +1299,7 @@ class WorkspaceStatusTreeDataProvider {
   /**
    * Returns child entries for the root or a directory node.
    *
-  * @param {{filePath?: string, fsPath?: string, label?: string, languageKey?: string, algorithmPath?: string, isDirectory?: boolean, isRunnableFile?: boolean, hasIncludeChildren?: boolean, resourceUri?: import("vscode").Uri, isLanguageSummary?: boolean}|undefined} element Parent element.
+  * @param {{filePath?: string, fsPath?: string, label?: string, languageKey?: string, algorithmPath?: string, isDirectory?: boolean, isRunnableFile?: boolean, hasIncludeChildren?: boolean, isFlagged?: boolean, resourceUri?: import("vscode").Uri, isLanguageSummary?: boolean}|undefined} element Parent element.
    * @returns {Thenable<import("vscode").TreeItem[]>} Tree items.
    */
   getChildren(element) {
@@ -1193,7 +1338,8 @@ class WorkspaceStatusTreeDataProvider {
             element.algorithmPath || null,
             element.languageKey || null,
             this._resolvedRootPath,
-            this._supportedLanguageKeys
+            this._supportedLanguageKeys,
+            readFlaggedLanguageKeysForAlgorithm(element.algorithmPath || null)
           )
         );
       }
@@ -1208,7 +1354,10 @@ class WorkspaceStatusTreeDataProvider {
             element.algorithmPath || path.dirname(element.filePath),
             element.languageKey || null,
             this._resolvedRootPath,
-            this._supportedLanguageKeys
+            this._supportedLanguageKeys,
+            readFlaggedLanguageKeysForAlgorithm(
+              element.algorithmPath || path.dirname(element.filePath)
+            )
           )
         );
       }
@@ -1252,7 +1401,10 @@ class WorkspaceStatusTreeDataProvider {
           element.algorithmPath || path.dirname(element.filePath),
           element.languageKey || null,
           this._resolvedRootPath,
-          this._supportedLanguageKeys
+          this._supportedLanguageKeys,
+          readFlaggedLanguageKeysForAlgorithm(
+            element.algorithmPath || path.dirname(element.filePath)
+          )
         )
       );
     }
@@ -1288,8 +1440,17 @@ function registerWorkspaceAlgorithmsRunView() {
       if (
         uri.fragment !== LANGUAGE_PRESENT_URI_FRAGMENT
         && uri.fragment !== LANGUAGE_ABSENT_URI_FRAGMENT
+        && uri.fragment !== LANGUAGE_FLAGGED_URI_FRAGMENT
       ) {
         return undefined;
+      }
+
+      if (uri.fragment === LANGUAGE_FLAGGED_URI_FRAGMENT) {
+        return {
+          badge: "●",
+          color: new vscode.ThemeColor("testing.iconFailed"),
+          tooltip: "Language flagged in .flag-lang",
+        };
       }
 
       const hasFiles = uri.fragment === LANGUAGE_PRESENT_URI_FRAGMENT;
