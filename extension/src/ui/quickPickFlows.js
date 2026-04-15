@@ -1,6 +1,16 @@
 // Non-Play run actions shown by FEAT-207 launcher quick-pick.
 const RUN_MENU_ITEMS = [
   {
+    commandId: "algos.runClean",
+    label: "Clean",
+    description: "Run clean --defaults=y in algorithm context",
+  },
+  {
+    commandId: "algos.runLocalClean",
+    label: "Localclean",
+    description: "Run localclean in algorithm context",
+  },
+  {
     commandId: "algos.runActiveFileCompileOnly",
     label: "Compile Only",
     description: "Run --compile-only for the active target",
@@ -19,16 +29,6 @@ const RUN_MENU_ITEMS = [
     commandId: "algos.runActiveFileCheckOnlySsh",
     label: "Check Only (SSH)",
     description: "Run --check-only=ssh for the active target",
-  },
-  {
-    commandId: "algos.runClean",
-    label: "Clean",
-    description: "Run clean --defaults=y in algorithm context",
-  },
-  {
-    commandId: "algos.runLocalClean",
-    label: "Localclean",
-    description: "Run localclean in algorithm context",
   },
 ];
 

@@ -426,6 +426,29 @@ function resolveLocalCleanContextFromExplorer(targetPath, eligibilityState) {
 }
 
 /**
+ * Resolves algorithm execution context for clean from an Explorer target.
+ *
+ * Valid Explorer targets:
+ * - `src/<category>/<algorithm>/` directory
+ * - immediate child file under `src/<category>/<algorithm>/`
+ * - immediate child directory under `src/<category>/<algorithm>/`
+ *
+ * @param {string} targetPath Absolute selected Explorer path.
+ * @param {{selected?: {resolvedRoot?: string, scriptPath?: string}}|null|undefined} eligibilityState Eligible workspace state.
+ * @returns {{ok: boolean, reason: string|null, guidance: string, severity: "info"|"warning"|"error", algorithmDir: string|null, scriptPath: string|null, displayScriptPath: string|null}} Resolution result.
+ */
+function resolveCleanContextFromExplorer(targetPath, eligibilityState) {
+  return resolveAlgorithmScopeFromExplorerTarget(targetPath, eligibilityState, {
+    outsideSrcGuidance: "Clean requires a target under src/<category>/<algorithm>/.",
+    scopeGuidance:
+      "Select src/<category>/<algorithm>/ or an immediate child file/directory.",
+    nestedGuidance:
+      "Nested descendants are not valid clean targets. Select the algorithm directory or an immediate child.",
+    resolvedGuidance: "Clean context resolved.",
+  });
+}
+
+/**
  * Executes run flow for one resolved file path after FEAT-202 preflight.
  *
  * @param {import("vscode")} vscodeApi VS Code API object.
@@ -568,11 +591,58 @@ async function runLocalCleanHandler(vscodeApi, eligibilityState, targetUri) {
   });
 }
 
+/**
+ * Handles clean invocation from palette/editor-title/explorer contexts.
+ *
+ * @param {import("vscode")} vscodeApi VS Code API object.
+ * @param {{selected?: {resolvedRoot?: string, scriptPath?: string}}|null|undefined} eligibilityState Eligible workspace state.
+ * @param {import("vscode").Uri|undefined} targetUri Explorer-selected URI when invoked from Explorer.
+ * @returns {Promise<{ok: boolean, status: string, reason: string|null}>} Handler execution summary.
+ */
+async function runCleanHandler(vscodeApi, eligibilityState, targetUri) {
+  const explorerPath = targetUri?.fsPath;
+  let contextResolution;
+
+  if (explorerPath) {
+    contextResolution = resolveCleanContextFromExplorer(
+      explorerPath,
+      eligibilityState
+    );
+  } else {
+    const activeSource = resolveActiveCompatibleSourceFile(
+      vscodeApi,
+      eligibilityState
+    );
+
+    if (!activeSource.ok) {
+      return blockWithValidation(vscodeApi, activeSource);
+    }
+
+    contextResolution = resolveActiveFileRunContext(
+      activeSource.filePath,
+      eligibilityState
+    );
+  }
+
+  if (!contextResolution.ok) {
+    return blockWithValidation(vscodeApi, contextResolution);
+  }
+
+  return executeContextCommand(vscodeApi, contextResolution, {
+    commandFamily: "run-clean",
+    args: ["clean", "--defaults=y"],
+    commandLabel: "Clean",
+    successMessage: `Clean started in ${"Algorithms Runner"}.`,
+  });
+}
+
 // Public command handlers consumed by extension activation and tests.
 module.exports = {
   runActiveFileHandler,
   runFileHandler,
   runLocalCleanHandler,
+  runCleanHandler,
   resolveActiveFileRunContext,
   resolveLocalCleanContextFromExplorer,
+  resolveCleanContextFromExplorer,
 };
