@@ -12,6 +12,24 @@
   },
   "main": "./src/extension.js",
   "contributes": {
+    "viewsContainers": {
+      "activitybar": [
+        {
+          "id": "algosSidebar",
+          "title": "Algorithms",
+          "icon": "./icons/play-sidebar.svg"
+        }
+      ]
+    },
+    "views": {
+      "algosSidebar": [
+        {
+          "id": "algosWorkspaceAlgorithmsRunView",
+          "name": "Workspace Status",
+          "icon": "./icons/play-sidebar.svg"
+        }
+      ]
+    },
     "commands": [
       {
         "command": "algos.runActiveFile",

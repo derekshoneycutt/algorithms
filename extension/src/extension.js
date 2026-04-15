@@ -30,6 +30,10 @@ const {
 const { registerCommands } = require("./commands/registerCommands");
 // FEAT-207 launcher quick-pick flow.
 const { openRunMenuFlow } = require("./ui/quickPickFlows");
+// FEAT-212 workspace status sidebar registration.
+const {
+  registerWorkspaceAlgorithmsRunView,
+} = require("./ui/workspaceAlgorithmsRunView");
 
 // Cached preflight snapshot used by visibility event handlers.
 let cachedPreflightState = null;
@@ -236,6 +240,9 @@ async function activate(context) {
     openRunMenuFlow,
   });
 
+  const workspaceAlgorithmsRunViewRegistration =
+    registerWorkspaceAlgorithmsRunView();
+
   const visibilityDisposables = [
     vscode.window.onDidChangeActiveTextEditor(handleActiveEditorChange),
     vscode.workspace.onDidChangeWorkspaceFolders(handleWorkspaceFolderChange),
@@ -243,7 +250,11 @@ async function activate(context) {
     vscode.workspace.onDidSaveTextDocument(handleDocumentStateChange),
   ];
 
-  context.subscriptions.push(...commandDisposables, ...visibilityDisposables);
+  context.subscriptions.push(
+    ...commandDisposables,
+    ...visibilityDisposables,
+    ...workspaceAlgorithmsRunViewRegistration.disposables
+  );
 }
 
 /**
