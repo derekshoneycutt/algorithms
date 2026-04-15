@@ -26,7 +26,8 @@
         {
           "id": "algosWorkspaceAlgorithmsRunView",
           "name": "Workspace Status",
-          "icon": "./icons/play-sidebar.svg"
+          "icon": "./icons/play-sidebar.svg",
+          "when": "algos.workspaceSupported"
         }
       ]
     },
