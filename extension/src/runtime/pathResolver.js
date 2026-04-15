@@ -331,9 +331,159 @@ function summarizeEligibilityState(state) {
   ].join(" ");
 }
 
+// ─── FEAT-203: Path and CWD Resolution Core ────────────────────────────────
+
+/**
+ * Result returned by resolveActiveFileCwd.
+ *
+ * @typedef {object} ActiveFileCwdResult
+ * @property {boolean} ok Whether resolution succeeded.
+ * @property {string|null} cwd Canonical absolute algorithm-directory CWD, or null on failure.
+ * @property {string|null} scriptPath Canonical absolute run-script path, or null on failure.
+ * @property {string|null} displayScriptPath User-facing script path for terminal display, or null on failure.
+ * @property {string|null} reason Rejection reason key, or null on success.
+ */
+
+/**
+ * Result returned by resolveExplorerTargetCwd.
+ *
+ * @typedef {object} ExplorerTargetCwdResult
+ * @property {boolean} ok Whether resolution succeeded.
+ * @property {string|null} cwd Canonical absolute algorithm-directory CWD, or null on failure.
+ * @property {string|null} scriptPath Canonical absolute run-script path, or null on failure.
+ * @property {string|null} displayScriptPath User-facing script path for terminal display, or null on failure.
+ * @property {'algorithm-dir'|'immediate-child-file'|'immediate-child-dir'|null} selectionType Classification of the Explorer selection, or null on failure.
+ * @property {string|null} reason Rejection reason key, or null on success.
+ */
+
+/**
+ * Derives the user-facing script path for terminal display.
+ *
+ * Returns the relative path from the algorithm-directory CWD to the run script
+ * (for example `../../../run.sh`) when safely derivable, otherwise returns the
+ * absolute run-script path as a safe fallback.
+ * `Path Policy: Internal Absolute, Display Relative With Safe Fallback`
+ *
+ * @param {string} algorithmDirCwd Canonical absolute algorithm-directory CWD.
+ * @param {string} absoluteRunScriptPath Canonical absolute path to run.sh.
+ * @returns {string} Relative display path when derivable, absolute path otherwise.
+ */
+function deriveDisplayScriptPath(algorithmDirCwd, absoluteRunScriptPath) {
+  try {
+    const relative = path.relative(algorithmDirCwd, absoluteRunScriptPath);
+    return relative || absoluteRunScriptPath;
+  } catch (_) {
+    return absoluteRunScriptPath;
+  }
+}
+
+/**
+ * Resolves the canonical algorithm-directory CWD for an active editor file.
+ *
+ * Validates that the file is an immediate child under `src/<category>/<algorithm>/`
+ * and returns the resolved CWD, internal absolute script path, and display script path.
+ * The caller must supply the resolved repository root from FEAT-202 eligibility state;
+ * this function does not re-run eligibility resolution.
+ * `Path Policy: Internal Absolute, Display Relative With Safe Fallback`
+ *
+ * @param {string} absoluteFilePath Absolute path to the active source file.
+ * @param {string} resolvedRepoRoot Canonical absolute repository root from FEAT-202 eligibility state.
+ * @returns {ActiveFileCwdResult} Resolution result.
+ */
+function resolveActiveFileCwd(absoluteFilePath, resolvedRepoRoot) {
+  const canonicalFilePath = realpathSafe(absoluteFilePath);
+  const srcBase = path.join(resolvedRepoRoot, "src");
+  const relative = path.relative(srcBase, canonicalFilePath);
+
+  if (relative.startsWith("..") || path.isAbsolute(relative)) {
+    return { ok: false, cwd: null, scriptPath: null, displayScriptPath: null, reason: "out-of-src-tree" };
+  }
+
+  const parts = relative.split(path.sep);
+
+  if (parts.length < 3) {
+    return { ok: false, cwd: null, scriptPath: null, displayScriptPath: null, reason: "not-in-algorithm-dir" };
+  }
+
+  if (parts.length > 3) {
+    return { ok: false, cwd: null, scriptPath: null, displayScriptPath: null, reason: "nested-descendant" };
+  }
+
+  const cwd = path.join(srcBase, parts[0], parts[1]);
+  const scriptPath = path.join(resolvedRepoRoot, "run.sh");
+  const displayScriptPath = deriveDisplayScriptPath(cwd, scriptPath);
+
+  return { ok: true, cwd, scriptPath, displayScriptPath, reason: null };
+}
+
+/**
+ * Resolves the canonical algorithm-directory CWD from an Explorer selection path.
+ *
+ * Accepts an algorithm-directory selection, an immediate-child file selection, or
+ * an immediate-child directory selection and normalizes all three to one canonical
+ * algorithm-directory CWD. Rejects deeper descendants and paths outside `src/`.
+ * The caller must supply the resolved repository root from FEAT-202 eligibility state;
+ * this function does not re-run eligibility resolution.
+ * `Path Policy: Internal Absolute, Display Relative With Safe Fallback`
+ *
+ * @param {string} selectedPath Absolute path of the Explorer-selected item.
+ * @param {string} resolvedRepoRoot Canonical absolute repository root from FEAT-202 eligibility state.
+ * @returns {ExplorerTargetCwdResult} Resolution result.
+ */
+function resolveExplorerTargetCwd(selectedPath, resolvedRepoRoot) {
+  const canonicalSelectedPath = realpathSafe(selectedPath);
+  const srcBase = path.join(resolvedRepoRoot, "src");
+  const relative = path.relative(srcBase, canonicalSelectedPath);
+
+  if (relative.startsWith("..") || path.isAbsolute(relative)) {
+    return { ok: false, cwd: null, scriptPath: null, displayScriptPath: null, selectionType: null, reason: "not-in-algorithm-dir" };
+  }
+
+  const parts = relative.split(path.sep);
+
+  if (parts.length < 2) {
+    return { ok: false, cwd: null, scriptPath: null, displayScriptPath: null, selectionType: null, reason: "not-in-algorithm-dir" };
+  }
+
+  if (parts.length === 2) {
+    let isDir = false;
+    try {
+      isDir = fs.statSync(canonicalSelectedPath).isDirectory();
+    } catch (_) {
+      // assume not a directory if stat fails
+    }
+    if (!isDir) {
+      return { ok: false, cwd: null, scriptPath: null, displayScriptPath: null, selectionType: null, reason: "not-in-algorithm-dir" };
+    }
+    const cwd = canonicalSelectedPath;
+    const scriptPath = path.join(resolvedRepoRoot, "run.sh");
+    const displayScriptPath = deriveDisplayScriptPath(cwd, scriptPath);
+    return { ok: true, cwd, scriptPath, displayScriptPath, selectionType: "algorithm-dir", reason: null };
+  }
+
+  if (parts.length === 3) {
+    let isDir = false;
+    try {
+      isDir = fs.statSync(canonicalSelectedPath).isDirectory();
+    } catch (_) {
+      // assume file if stat fails
+    }
+    const selectionType = isDir ? "immediate-child-dir" : "immediate-child-file";
+    const cwd = path.join(srcBase, parts[0], parts[1]);
+    const scriptPath = path.join(resolvedRepoRoot, "run.sh");
+    const displayScriptPath = deriveDisplayScriptPath(cwd, scriptPath);
+    return { ok: true, cwd, scriptPath, displayScriptPath, selectionType, reason: null };
+  }
+
+  return { ok: false, cwd: null, scriptPath: null, displayScriptPath: null, selectionType: null, reason: "deeper-descendant" };
+}
+
 // Module exports.
 module.exports = {
   HARD_MARKERS,
   resolveEligibilityState,
   summarizeEligibilityState,
+  resolveActiveFileCwd,
+  resolveExplorerTargetCwd,
+  deriveDisplayScriptPath,
 };
