@@ -41,7 +41,8 @@
       {
         "command": "algos.runFile",
         "title": "Run File",
-        "category": "Derek's Algorithms"
+        "category": "Derek's Algorithms",
+        "icon": "$(play)"
       },
       {
         "command": "algos.openRunMenu",
@@ -169,12 +170,17 @@
       "view/item/context": [
         {
           "command": "algos.runFile",
-          "when": "view == algosWorkspaceAlgorithmsRunView && viewItem == algos.workspaceFile",
+          "when": "view == algosWorkspaceAlgorithmsRunView && viewItem == algos.workspaceRunnableFile",
+          "group": "inline@1"
+        },
+        {
+          "command": "algos.runFile",
+          "when": "view == algosWorkspaceAlgorithmsRunView && (viewItem == algos.workspaceFile || viewItem == algos.workspaceRunnableFile)",
           "group": "1_modification@-2"
         },
         {
           "submenu": "algos.runMenuSidebar",
-          "when": "view == algosWorkspaceAlgorithmsRunView && viewItem == algos.workspaceFile",
+          "when": "view == algosWorkspaceAlgorithmsRunView && (viewItem == algos.workspaceFile || viewItem == algos.workspaceRunnableFile)",
           "group": "1_modification@-1"
         }
       ],

@@ -295,23 +295,36 @@ function compareDirectoryEntries(left, right) {
  *
  * @param {string} entryPath Canonical entry path.
  * @param {fs.Dirent} entry Directory entry metadata.
- * @returns {{filePath: string, fsPath: string, label: string, isDirectory: boolean, resourceUri: import("vscode").Uri}} Sidebar tree node.
+ * @returns {{filePath: string, fsPath: string, label: string, isDirectory: boolean, isRunnableFile: boolean, resourceUri: import("vscode").Uri}} Sidebar tree node.
  */
-function createSidebarTreeNode(entryPath, entry) {
+function createSidebarTreeNode(entryPath, entry, isRunnableFile) {
   return {
     filePath: entryPath,
     fsPath: entryPath,
     label: entry.name,
     isDirectory: entry.isDirectory(),
+    isRunnableFile: Boolean(isRunnableFile),
     resourceUri: vscode.Uri.file(entryPath),
   };
+}
+
+/**
+ * Checks whether a file is directly in src/<category>/<algorithm>.
+ *
+ * @param {string} filePath Candidate absolute file path.
+ * @param {string|null} resolvedRoot Canonical repository root path.
+ * @returns {boolean} True when file is directly under algorithm root.
+ */
+function isDirectAlgorithmRootFile(filePath, resolvedRoot) {
+  const relativeParts = getPathPartsRelativeToSrc(filePath, resolvedRoot);
+  return Array.isArray(relativeParts) && relativeParts.length === 3;
 }
 
 /**
  * Reads direct children for a directory path as sidebar tree nodes.
  *
  * @param {string|null} directoryPath Canonical directory path.
- * @returns {{filePath: string, fsPath: string, label: string, isDirectory: boolean, resourceUri: import("vscode").Uri}[]} Child nodes.
+ * @returns {{filePath: string, fsPath: string, label: string, isDirectory: boolean, isRunnableFile: boolean, resourceUri: import("vscode").Uri}[]} Child nodes.
  */
 function readSidebarDirectoryChildren(directoryPath, resolvedRoot, supportedLanguageKeys) {
   if (!directoryPath) {
@@ -328,7 +341,13 @@ function readSidebarDirectoryChildren(directoryPath, resolvedRoot, supportedLang
 
       if (entry.isFile()) {
         if (isAllowedSidebarFile(entryPath, resolvedRoot, supportedLanguageKeys)) {
-          visibleEntries.push(createSidebarTreeNode(entryPath, entry));
+          visibleEntries.push(
+            createSidebarTreeNode(
+              entryPath,
+              entry,
+              isDirectAlgorithmRootFile(entryPath, resolvedRoot)
+            )
+          );
         }
         continue;
       }
@@ -341,7 +360,7 @@ function readSidebarDirectoryChildren(directoryPath, resolvedRoot, supportedLang
         continue;
       }
 
-      visibleEntries.push(createSidebarTreeNode(entryPath, entry));
+      visibleEntries.push(createSidebarTreeNode(entryPath, entry, false));
     }
 
     return visibleEntries;
@@ -394,7 +413,7 @@ class WorkspaceStatusTreeDataProvider {
   /**
    * Returns tree item metadata for a file-system tree node.
    *
-  * @param {{filePath: string, fsPath: string, label: string, isDirectory: boolean, resourceUri: import("vscode").Uri}} element Tree element.
+  * @param {{filePath: string, fsPath: string, label: string, isDirectory: boolean, isRunnableFile: boolean, resourceUri: import("vscode").Uri}} element Tree element.
    * @returns {import("vscode").TreeItem} Tree item.
    */
   getTreeItem(element) {
@@ -409,6 +428,8 @@ class WorkspaceStatusTreeDataProvider {
     treeItem.resourceUri = element.resourceUri;
     treeItem.contextValue = element.isDirectory
       ? "algos.workspaceDirectory"
+      : element.isRunnableFile
+      ? "algos.workspaceRunnableFile"
       : "algos.workspaceFile";
     treeItem.tooltip = element.filePath;
 
@@ -426,7 +447,7 @@ class WorkspaceStatusTreeDataProvider {
   /**
    * Returns child entries for the root or a directory node.
    *
-  * @param {{filePath: string, fsPath: string, label: string, isDirectory: boolean, resourceUri: import("vscode").Uri}|undefined} element Parent element.
+  * @param {{filePath: string, fsPath: string, label: string, isDirectory: boolean, isRunnableFile: boolean, resourceUri: import("vscode").Uri}|undefined} element Parent element.
    * @returns {Thenable<import("vscode").TreeItem[]>} Tree items.
    */
   getChildren(element) {
