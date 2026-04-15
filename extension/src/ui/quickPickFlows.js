@@ -1,5 +1,10 @@
-// Non-Play run actions shown by FEAT-207 launcher quick-pick.
+// Run actions shown by FEAT-207 launcher quick-pick.
 const RUN_MENU_ITEMS = [
+  {
+    commandId: "algos.runActiveFile",
+    label: "Run File",
+    description: "Run the active file",
+  },
   {
     commandId: "algos.runClean",
     label: "Clean",
@@ -33,7 +38,7 @@ const RUN_MENU_ITEMS = [
 ];
 
 /**
- * Shows the non-Play run menu and returns selected command ID.
+ * Shows the run menu and returns selected command ID.
  *
  * @param {import("vscode")} vscodeApi VS Code API object.
  * @returns {Promise<string|null>} Selected command ID, or null when canceled.

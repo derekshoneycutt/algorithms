@@ -30,6 +30,36 @@
         "category": "Derek's Algorithms"
       },
       {
+        "command": "algos.runClean",
+        "title": "Clean",
+        "category": "Derek's Algorithms"
+      },
+      {
+        "command": "algos.runLocalClean",
+        "title": "Localclean",
+        "category": "Derek's Algorithms"
+      },
+      {
+        "command": "algos.runActiveFileCompileOnly",
+        "title": "Compile Only",
+        "category": "Derek's Algorithms"
+      },
+      {
+        "command": "algos.runActiveFileCheckOnlyNative",
+        "title": "Check Only (Native)",
+        "category": "Derek's Algorithms"
+      },
+      {
+        "command": "algos.runActiveFileCheckOnlyDocker",
+        "title": "Check Only (Docker)",
+        "category": "Derek's Algorithms"
+      },
+      {
+        "command": "algos.runActiveFileCheckOnlySsh",
+        "title": "Check Only (SSH)",
+        "category": "Derek's Algorithms"
+      },
+      {
         "command": "algos.runMenuClean",
         "title": "Clean",
         "category": "Derek's Algorithms"
@@ -61,12 +91,44 @@
         {
           "command": "algos.runActiveFile",
           "when": "algos.canRunActiveFile",
-          "group": "navigation"
+          "group": "1_run@1"
+        }
+      ],
+      "editor/title/run": [
+        {
+          "command": "algos.runActiveFile",
+          "when": "algos.canRunActiveFile",
+          "group": "1_actions@1"
         },
         {
-          "command": "algos.openRunMenu",
+          "command": "algos.runClean",
           "when": "algos.canRunActiveFile",
-          "group": "navigation@99"
+          "group": "1_actions@2"
+        },
+        {
+          "command": "algos.runLocalClean",
+          "when": "algos.canRunActiveFile",
+          "group": "1_actions@3"
+        },
+        {
+          "command": "algos.runActiveFileCompileOnly",
+          "when": "algos.canRunActiveFile",
+          "group": "1_actions@4"
+        },
+        {
+          "command": "algos.runActiveFileCheckOnlyNative",
+          "when": "algos.canRunActiveFile",
+          "group": "1_actions@5"
+        },
+        {
+          "command": "algos.runActiveFileCheckOnlyDocker",
+          "when": "algos.canRunActiveFile",
+          "group": "1_actions@6"
+        },
+        {
+          "command": "algos.runActiveFileCheckOnlySsh",
+          "when": "algos.canRunActiveFile",
+          "group": "1_actions@7"
         }
       ],
       "explorer/context": [
@@ -82,6 +144,9 @@
         }
       ],
       "algos.runMenuExplorer": [
+          {
+            "command": "algos.runFile"
+          },
         {
           "command": "algos.runMenuClean",
           "when": "resourcePath =~ /[\\\\/]src[\\\\/][^\\\\/]+[\\\\/][^\\\\/]+(?:[\\\\/][^\\\\/]+)?$/"
