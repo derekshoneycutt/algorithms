@@ -364,17 +364,169 @@ function compareDirectoryEntries(left, right) {
  *
  * @param {string} entryPath Canonical entry path.
  * @param {fs.Dirent} entry Directory entry metadata.
- * @returns {{filePath: string, fsPath: string, label: string, isDirectory: boolean, isRunnableFile: boolean, resourceUri: import("vscode").Uri}} Sidebar tree node.
+ * @param {boolean} isRunnableFile Whether the entry is directly runnable.
+ * @param {string|null} algorithmPath Containing algorithm directory path.
+ * @param {string|null} languageKey Canonical language key for the entry.
+ * @param {boolean} hasIncludeChildren Whether the entry should expose include-file children.
+ * @returns {{filePath: string, fsPath: string, label: string, isDirectory: boolean, isRunnableFile: boolean, algorithmPath: string|null, languageKey: string|null, hasIncludeChildren: boolean, resourceUri: import("vscode").Uri}} Sidebar tree node.
  */
-function createSidebarTreeNode(entryPath, entry, isRunnableFile) {
+function createSidebarTreeNode(
+  entryPath,
+  entry,
+  isRunnableFile,
+  algorithmPath,
+  languageKey,
+  hasIncludeChildren
+) {
   return {
     filePath: entryPath,
     fsPath: entryPath,
     label: entry.name,
     isDirectory: entry.isDirectory(),
     isRunnableFile: Boolean(isRunnableFile),
+    algorithmPath: algorithmPath || null,
+    languageKey: languageKey || null,
+    hasIncludeChildren: Boolean(hasIncludeChildren),
     resourceUri: vscode.Uri.file(entryPath),
   };
+}
+
+/**
+ * Creates one child node for an include-file entry.
+ *
+ * @param {string} filePath Include-file absolute path.
+ * @returns {{filePath: string, fsPath: string, label: string, isDirectory: boolean, isRunnableFile: boolean, algorithmPath: string|null, languageKey: string|null, hasIncludeChildren: boolean, resourceUri: import("vscode").Uri}} Sidebar tree node.
+ */
+function createIncludeFileTreeNode(filePath) {
+  return {
+    filePath,
+    fsPath: filePath,
+    label: path.basename(filePath),
+    isDirectory: false,
+    isRunnableFile: false,
+    algorithmPath: null,
+    languageKey: null,
+    hasIncludeChildren: false,
+    resourceUri: vscode.Uri.file(filePath),
+  };
+}
+
+/**
+ * Returns the canonical language key for one primary algorithm file row.
+ *
+ * @param {string} filePath Candidate primary file path.
+ * @param {string|null} resolvedRoot Canonical repository root path.
+ * @returns {string|null} Matching language key when the file can own include children.
+ */
+function getPrimaryAlgorithmFileLanguageKey(filePath, resolvedRoot) {
+  if (!isDirectAlgorithmRootFile(filePath, resolvedRoot)) {
+    return null;
+  }
+
+  if (!isAlgorithmBasenameMatch(filePath, resolvedRoot)) {
+    return null;
+  }
+
+  return normalizeExtensionToLanguageKey(filePath);
+}
+
+/**
+ * Returns the matching include directory path for one algorithm/language pair.
+ *
+ * @param {string|null} algorithmPath Algorithm directory path.
+ * @param {string|null} languageKey Canonical language key.
+ * @param {string|null} resolvedRoot Canonical repository root path.
+ * @param {Set<string>} supportedLanguageKeys Supported language keys.
+ * @returns {string|null} Matching include directory path when it exists and has visible children.
+ */
+function resolveMatchingIncludeDirectoryPath(
+  algorithmPath,
+  languageKey,
+  resolvedRoot,
+  supportedLanguageKeys
+) {
+  if (!algorithmPath || !languageKey) {
+    return null;
+  }
+
+  const includeDirectoryPath = path.join(algorithmPath, `${languageKey}_include`);
+
+  if (!hasAllowedSidebarDescendant(includeDirectoryPath, resolvedRoot, supportedLanguageKeys)) {
+    return null;
+  }
+
+  return includeDirectoryPath;
+}
+
+/**
+ * Reads same-language include-file children from one include directory.
+ *
+ * @param {string|null} includeDirectoryPath Include directory path.
+ * @param {string|null} resolvedRoot Canonical repository root path.
+ * @param {Set<string>} supportedLanguageKeys Supported language keys.
+ * @returns {string[]} Matching include-file paths sorted like the sidebar.
+ */
+function readMatchingIncludeFilePaths(
+  includeDirectoryPath,
+  resolvedRoot,
+  supportedLanguageKeys
+) {
+  if (!includeDirectoryPath) {
+    return [];
+  }
+
+  try {
+    const entries = fs.readdirSync(includeDirectoryPath, { withFileTypes: true });
+    entries.sort(compareDirectoryEntries);
+
+    const matchingFiles = [];
+
+    for (const entry of entries) {
+      if (!entry.isFile()) {
+        continue;
+      }
+
+      const entryPath = path.join(includeDirectoryPath, entry.name);
+
+      if (isAllowedSidebarFile(entryPath, resolvedRoot, supportedLanguageKeys)) {
+        matchingFiles.push(entryPath);
+      }
+    }
+
+    return matchingFiles;
+  } catch (_) {
+    return [];
+  }
+}
+
+/**
+ * Returns include-file child nodes for one composite main row.
+ *
+ * @param {string|null} algorithmPath Algorithm directory path.
+ * @param {string|null} languageKey Canonical language key.
+ * @param {string|null} resolvedRoot Canonical repository root path.
+ * @param {Set<string>} supportedLanguageKeys Supported language keys.
+ * @returns {{filePath: string, fsPath: string, label: string, isDirectory: boolean, isRunnableFile: boolean, algorithmPath: string|null, languageKey: string|null, hasIncludeChildren: boolean, resourceUri: import("vscode").Uri}[]} Include-file tree nodes.
+ */
+function readIncludeFileChildren(
+  algorithmPath,
+  languageKey,
+  resolvedRoot,
+  supportedLanguageKeys
+) {
+  const includeDirectoryPath = resolveMatchingIncludeDirectoryPath(
+    algorithmPath,
+    languageKey,
+    resolvedRoot,
+    supportedLanguageKeys
+  );
+  const includeFilePaths = readMatchingIncludeFilePaths(
+    includeDirectoryPath,
+    resolvedRoot,
+    supportedLanguageKeys
+  );
+
+  return includeFilePaths.map((filePath) => createIncludeFileTreeNode(filePath));
 }
 
 /**
@@ -385,8 +537,9 @@ function createSidebarTreeNode(entryPath, entry, isRunnableFile) {
  * @param {string} algorithmPath Algorithm directory absolute path.
  * @param {string|null} openTargetPath Deterministic matching file path.
  * @param {boolean} targetIsRunnable Whether the matching file is a direct algorithm-root file.
+ * @param {boolean} hasIncludeChildren Whether the language row should expose include-file children.
  * @param {import("vscode").Uri} suggestedUntitledUri Suggested untitled file URI for missing-language creation.
- * @returns {{label: string, languageKey: string, algorithmPath: string, filePath: string, fsPath: string, fileCount: number, hasFiles: boolean, isLanguageSummary: boolean, resourceUri: import("vscode").Uri, openTargetUri: import("vscode").Uri|null, suggestedUntitledUri: import("vscode").Uri, contextValue: string, tooltip: string}} Language summary node.
+ * @returns {{label: string, languageKey: string, algorithmPath: string, filePath: string, fsPath: string, fileCount: number, hasFiles: boolean, isLanguageSummary: boolean, isRunnableFile: boolean, hasIncludeChildren: boolean, resourceUri: import("vscode").Uri, openTargetUri: import("vscode").Uri|null, suggestedUntitledUri: import("vscode").Uri, contextValue: string, tooltip: string}} Language summary node.
  */
 function createLanguageSummaryTreeNode(
   languageKey,
@@ -394,6 +547,7 @@ function createLanguageSummaryTreeNode(
   algorithmPath,
   openTargetPath,
   targetIsRunnable,
+  hasIncludeChildren,
   suggestedUntitledUri
 ) {
   const sampleExtension = LANGUAGE_ICON_SAMPLE_EXTENSIONS[languageKey] || "txt";
@@ -414,6 +568,8 @@ function createLanguageSummaryTreeNode(
     fileCount,
     hasFiles: fileCount > 0,
     isLanguageSummary: true,
+    isRunnableFile: Boolean(targetIsRunnable),
+    hasIncludeChildren: Boolean(hasIncludeChildren),
     resourceUri,
     openTargetUri,
     suggestedUntitledUri,
@@ -690,7 +846,7 @@ function collectAllowedSidebarFiles(directoryPath, resolvedRoot, supportedLangua
  * @param {string} algorithmPath Algorithm directory path.
  * @param {string|null} resolvedRoot Canonical repository root path.
  * @param {Set<string>} supportedLanguageKeys Supported language keys.
- * @returns {{label: string, fileCount: number, hasFiles: boolean, isLanguageSummary: boolean, resourceUri: import("vscode").Uri, openTargetUri: import("vscode").Uri|null, suggestedUntitledUri: import("vscode").Uri, contextValue: string, tooltip: string}[]} Language summary nodes.
+ * @returns {{label: string, languageKey: string, algorithmPath: string, filePath: string, fsPath: string, fileCount: number, hasFiles: boolean, isLanguageSummary: boolean, isRunnableFile: boolean, hasIncludeChildren: boolean, resourceUri: import("vscode").Uri, openTargetUri: import("vscode").Uri|null, suggestedUntitledUri: import("vscode").Uri, contextValue: string, tooltip: string}[]} Language summary nodes.
  */
 function readAlgorithmLanguageSummary(algorithmPath, resolvedRoot, supportedLanguageKeys) {
   const sortedLanguageKeys = [...supportedLanguageKeys].sort((left, right) =>
@@ -743,6 +899,14 @@ function readAlgorithmLanguageSummary(algorithmPath, resolvedRoot, supportedLang
       matchingFiles,
       resolvedRoot
     );
+    const includeChildren = representativeFile.isRunnable
+      ? readIncludeFileChildren(
+          algorithmPath,
+          languageKey,
+          resolvedRoot,
+          supportedLanguageKeys
+        )
+      : [];
     const suggestedUntitledUri = createSuggestedUntitledLanguageUri(
       languageKey,
       algorithmPath,
@@ -756,6 +920,7 @@ function readAlgorithmLanguageSummary(algorithmPath, resolvedRoot, supportedLang
       algorithmPath,
       representativeFile.filePath,
       representativeFile.isRunnable,
+      includeChildren.length > 0,
       suggestedUntitledUri
     );
   });
@@ -765,7 +930,7 @@ function readAlgorithmLanguageSummary(algorithmPath, resolvedRoot, supportedLang
  * Reads direct children for a directory path as sidebar tree nodes.
  *
  * @param {string|null} directoryPath Canonical directory path.
- * @returns {{filePath: string, fsPath: string, label: string, isDirectory: boolean, isRunnableFile: boolean, resourceUri: import("vscode").Uri}[]} Child nodes.
+ * @returns {{filePath: string, fsPath: string, label: string, isDirectory: boolean, isRunnableFile: boolean, algorithmPath: string|null, languageKey: string|null, hasIncludeChildren: boolean, resourceUri: import("vscode").Uri}[]} Child nodes.
  */
 function readSidebarDirectoryChildren(directoryPath, resolvedRoot, supportedLanguageKeys) {
   if (!directoryPath) {
@@ -776,17 +941,61 @@ function readSidebarDirectoryChildren(directoryPath, resolvedRoot, supportedLang
     const entries = fs.readdirSync(directoryPath, { withFileTypes: true });
     entries.sort(compareDirectoryEntries);
     const visibleEntries = [];
+    const isAlgorithmDirectory = isAlgorithmDirectoryPath(directoryPath, resolvedRoot);
+    const attachedIncludeLanguages = new Set();
+
+    if (isAlgorithmDirectory) {
+      for (const entry of entries) {
+        if (!entry.isFile()) {
+          continue;
+        }
+
+        const entryPath = path.join(directoryPath, entry.name);
+
+        if (!isAllowedSidebarFile(entryPath, resolvedRoot, supportedLanguageKeys)) {
+          continue;
+        }
+
+        const languageKey = getPrimaryAlgorithmFileLanguageKey(entryPath, resolvedRoot);
+
+        if (!languageKey) {
+          continue;
+        }
+
+        const includeFileChildren = readIncludeFileChildren(
+          directoryPath,
+          languageKey,
+          resolvedRoot,
+          supportedLanguageKeys
+        );
+
+        if (includeFileChildren.length > 0) {
+          attachedIncludeLanguages.add(languageKey);
+        }
+      }
+    }
 
     for (const entry of entries) {
       const entryPath = path.join(directoryPath, entry.name);
 
       if (entry.isFile()) {
         if (isAllowedSidebarFile(entryPath, resolvedRoot, supportedLanguageKeys)) {
+          const algorithmPath = isAlgorithmDirectory ? directoryPath : null;
+          const languageKey = isAlgorithmDirectory
+            ? getPrimaryAlgorithmFileLanguageKey(entryPath, resolvedRoot)
+            : null;
+          const hasIncludeChildren = Boolean(
+            languageKey && attachedIncludeLanguages.has(languageKey)
+          );
+
           visibleEntries.push(
             createSidebarTreeNode(
               entryPath,
               entry,
-              isDirectAlgorithmRootFile(entryPath, resolvedRoot)
+              isDirectAlgorithmRootFile(entryPath, resolvedRoot),
+              algorithmPath,
+              languageKey,
+              hasIncludeChildren
             )
           );
         }
@@ -797,11 +1006,21 @@ function readSidebarDirectoryChildren(directoryPath, resolvedRoot, supportedLang
         continue;
       }
 
+      if (
+        isAlgorithmDirectory
+        && isLanguageIncludeDirectoryName(entry.name)
+        && attachedIncludeLanguages.has(entry.name.slice(0, -8).toLowerCase())
+      ) {
+        continue;
+      }
+
       if (!hasAllowedSidebarDescendant(entryPath, resolvedRoot, supportedLanguageKeys)) {
         continue;
       }
 
-      visibleEntries.push(createSidebarTreeNode(entryPath, entry, false));
+      visibleEntries.push(
+        createSidebarTreeNode(entryPath, entry, false, null, null, false)
+      );
     }
 
     return visibleEntries;
@@ -865,14 +1084,16 @@ class WorkspaceStatusTreeDataProvider {
   /**
    * Returns tree item metadata for a file-system tree node.
    *
-  * @param {{filePath?: string, fsPath?: string, label: string, languageKey?: string, algorithmPath?: string, isDirectory?: boolean, isRunnableFile?: boolean, isLanguageSummary?: boolean, fileCount?: number, hasFiles?: boolean, resourceUri?: import("vscode").Uri, openTargetUri?: import("vscode").Uri|null, suggestedUntitledUri?: import("vscode").Uri, contextValue?: string, tooltip?: string}} element Tree element.
+  * @param {{filePath?: string, fsPath?: string, label: string, languageKey?: string, algorithmPath?: string, isDirectory?: boolean, isRunnableFile?: boolean, isLanguageSummary?: boolean, fileCount?: number, hasFiles?: boolean, hasIncludeChildren?: boolean, resourceUri?: import("vscode").Uri, openTargetUri?: import("vscode").Uri|null, suggestedUntitledUri?: import("vscode").Uri, contextValue?: string, tooltip?: string}} element Tree element.
    * @returns {import("vscode").TreeItem} Tree item.
    */
   getTreeItem(element) {
     if (element.isLanguageSummary) {
       const treeItem = new vscode.TreeItem(
         element.resourceUri,
-        vscode.TreeItemCollapsibleState.None
+        element.hasIncludeChildren
+          ? vscode.TreeItemCollapsibleState.Collapsed
+          : vscode.TreeItemCollapsibleState.None
       );
 
       treeItem.label = element.label;
@@ -894,7 +1115,7 @@ class WorkspaceStatusTreeDataProvider {
 
     const treeItem = new vscode.TreeItem(
       element.resourceUri,
-      element.isDirectory
+      element.isDirectory || element.hasIncludeChildren
         ? vscode.TreeItemCollapsibleState.Collapsed
         : vscode.TreeItemCollapsibleState.None
     );
@@ -922,7 +1143,7 @@ class WorkspaceStatusTreeDataProvider {
   /**
    * Returns child entries for the root or a directory node.
    *
-  * @param {{filePath?: string, fsPath?: string, label?: string, isDirectory?: boolean, isRunnableFile?: boolean, resourceUri?: import("vscode").Uri, isLanguageSummary?: boolean}|undefined} element Parent element.
+  * @param {{filePath?: string, fsPath?: string, label?: string, languageKey?: string, algorithmPath?: string, isDirectory?: boolean, isRunnableFile?: boolean, hasIncludeChildren?: boolean, resourceUri?: import("vscode").Uri, isLanguageSummary?: boolean}|undefined} element Parent element.
    * @returns {Thenable<import("vscode").TreeItem[]>} Tree items.
    */
   getChildren(element) {
@@ -951,8 +1172,34 @@ class WorkspaceStatusTreeDataProvider {
         );
       }
 
-      if (element.isLanguageSummary || !element.isDirectory) {
-        return Promise.resolve([]);
+      if (element.isLanguageSummary) {
+        if (!element.hasIncludeChildren) {
+          return Promise.resolve([]);
+        }
+
+        return Promise.resolve(
+          readIncludeFileChildren(
+            element.algorithmPath || null,
+            element.languageKey || null,
+            this._resolvedRootPath,
+            this._supportedLanguageKeys
+          )
+        );
+      }
+
+      if (!element.isDirectory) {
+        if (!element.hasIncludeChildren) {
+          return Promise.resolve([]);
+        }
+
+        return Promise.resolve(
+          readIncludeFileChildren(
+            element.algorithmPath || path.dirname(element.filePath),
+            element.languageKey || null,
+            this._resolvedRootPath,
+            this._supportedLanguageKeys
+          )
+        );
       }
 
       if (isAlgorithmDirectoryPath(element.filePath, this._resolvedRootPath)) {
@@ -985,7 +1232,18 @@ class WorkspaceStatusTreeDataProvider {
     }
 
     if (!element.isDirectory) {
-      return Promise.resolve([]);
+      if (!element.hasIncludeChildren) {
+        return Promise.resolve([]);
+      }
+
+      return Promise.resolve(
+        readIncludeFileChildren(
+          element.algorithmPath || path.dirname(element.filePath),
+          element.languageKey || null,
+          this._resolvedRootPath,
+          this._supportedLanguageKeys
+        )
+      );
     }
 
     return Promise.resolve(
