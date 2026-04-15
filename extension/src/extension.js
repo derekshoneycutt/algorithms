@@ -244,7 +244,7 @@ async function activate(context) {
   const sidebarRunControlsViewRegistration =
     registerSidebarRunControlsView();
   const sidebarSmokeControlsViewRegistration =
-    registerSidebarSmokeControlsView();
+    registerSidebarSmokeControlsView(context.extensionUri);
 
   await vscode.commands.executeCommand(
     "setContext",

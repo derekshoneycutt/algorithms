@@ -10,6 +10,73 @@ const {
 } = require("../runtime/sidebarRunArgsState");
 
 const SMOKE_CONTROLS_VIEW_ID = "algosWorkspaceSmokeControlsView";
+const LANGUAGE_ICON_PATH_SEGMENT = "icons/languages";
+const FALLBACK_ICON_PATH_SEGMENT = "icons/play-sidebar.svg";
+
+const LANGUAGE_ICON_FILE_BY_KEY = {
+  ada: "ada.svg",
+  arm64asm: "assembly.svg",
+  asm: "assembly.svg",
+  ballerina: "ballerina.svg",
+  c: "c.svg",
+  clojure: "clojure.svg",
+  cobol: "cobol.svg",
+  cpp: "cpp.svg",
+  csharp: "csharp.svg",
+  d: "d.svg",
+  dart: "dart.svg",
+  eiffel: "eiffel.svg",
+  elixir: "elixir.svg",
+  erlang: "erlang.svg",
+  factor: "factor.svg",
+  forth: "forth.svg",
+  fortran: "fortran.svg",
+  freebasic: "freebasic.svg",
+  fsharp: "fsharp.svg",
+  gleam: "gleam.svg",
+  go: "go.svg",
+  haskell: "haskell.svg",
+  haxe: "haxe.svg",
+  icon: "icon.svg",
+  idris: "idris.svg",
+  java: "java.svg",
+  javascript: "javascript.svg",
+  julia: "julia.svg",
+  kit: "kit.svg",
+  kotlin: "kotlin.svg",
+  llvmir: "llvm.png",
+  lua: "lua.svg",
+  mercury: "mercury.svg",
+  mmixal: "assembly.svg",
+  modula3: "modula3.svg",
+  mojo: "mojo.svg",
+  nasm: "assembly.svg",
+  nim: "nim.svg",
+  oberon: "oberon.svg",
+  objectivec: "objective-c.svg",
+  ocaml: "ocaml.svg",
+  octave: "octave.svg",
+  pascal: "pascal.svg",
+  perl: "perl.svg",
+  php: "php.svg",
+  prolog: "prolog.svg",
+  python: "python.svg",
+  r: "r.svg",
+  racket: "racket.svg",
+  ruby: "ruby.svg",
+  rust: "rust.svg",
+  scala: "scala.svg",
+  scheme: "scheme.svg",
+  simula: "simula.svg",
+  smalltalk: "smalltalk.svg",
+  swift: "swift.svg",
+  tcl: "tcl.svg",
+  typescript: "typescript.svg",
+  v: "vlang.svg",
+  visualbasic: "visualstudio.svg",
+  wat: "webassembly.svg",
+  zig: "zig.svg",
+};
 
 /**
  * Escapes user-provided text for safe HTML interpolation.
@@ -75,12 +142,66 @@ function buildSmokeControlsStatus(smokeControlsState) {
 }
 
 /**
+ * Builds status metadata for report-generation settings.
+ *
+ * @param {{markdownEnabled: boolean, markdownPath: string}} smokeControlsState Current smoke-controls state.
+ * @returns {{statusText: string, statusClassName: string}} Status display metadata.
+ */
+function buildReportGenerationStatus(smokeControlsState) {
+  const reportPath = String(smokeControlsState.markdownPath || "").trim();
+
+  if (!smokeControlsState.markdownEnabled) {
+    return {
+      statusText: "No report generated.",
+      statusClassName: "status-muted",
+    };
+  }
+
+  if (!reportPath) {
+    return {
+      statusText: "Report generated at default smoke-test path.",
+      statusClassName: "status-ok",
+    };
+  }
+
+  return {
+    statusText: `Report generated at: ${reportPath}`,
+    statusClassName: "status-ok",
+  };
+}
+
+/**
+ * Builds webview-safe icon URI map keyed by language id.
+ *
+ * @param {import("vscode").Webview} webview Webview instance.
+ * @param {import("vscode").Uri} languageIconBaseUri Base icon directory URI.
+ * @param {import("vscode").Uri} fallbackIconUri Fallback icon URI.
+ * @returns {{fallbackIconUri: string, iconUriByLanguageKey: Map<string, string>}} Icon URI metadata.
+ */
+function buildLanguageIconUris(webview, languageIconBaseUri, fallbackIconUri) {
+  const iconUriByLanguageKey = new Map();
+
+  for (const [languageKey, iconFileName] of Object.entries(LANGUAGE_ICON_FILE_BY_KEY)) {
+    const iconUri = webview.asWebviewUri(
+      vscode.Uri.joinPath(languageIconBaseUri, iconFileName)
+    );
+    iconUriByLanguageKey.set(languageKey, iconUri.toString());
+  }
+
+  return {
+    fallbackIconUri: webview.asWebviewUri(fallbackIconUri).toString(),
+    iconUriByLanguageKey,
+  };
+}
+
+/**
  * Returns the render snapshot used by the smoke-controls UI.
  *
- * @returns {{markdownEnabled: boolean, markdownPath: string, timeout: string, slowTimeout: string, languages: {key: string, enabled: boolean}[], smokeStatusText: string, smokeStatusClassName: string}} Current UI state snapshot.
+ * @returns {{markdownEnabled: boolean, markdownPath: string, timeout: string, slowTimeout: string, languages: {key: string, enabled: boolean}[], reportStatusText: string, reportStatusClassName: string, smokeStatusText: string, smokeStatusClassName: string}} Current UI state snapshot.
  */
 function getSmokeControlsSnapshot() {
   const smokeControlsState = getSidebarSmokeControlsState();
+  const reportStatus = buildReportGenerationStatus(smokeControlsState);
   const smokeControlsStatus = buildSmokeControlsStatus(smokeControlsState);
 
   return {
@@ -89,6 +210,8 @@ function getSmokeControlsSnapshot() {
     timeout: smokeControlsState.timeout,
     slowTimeout: smokeControlsState.slowTimeout,
     languages: smokeControlsState.languages,
+    reportStatusText: reportStatus.statusText,
+    reportStatusClassName: reportStatus.statusClassName,
     smokeStatusText: smokeControlsStatus.statusText,
     smokeStatusClassName: smokeControlsStatus.statusClassName,
   };
@@ -98,17 +221,29 @@ function getSmokeControlsSnapshot() {
  * Builds webview HTML for the smoke-controls panel.
  *
  * @param {import("vscode").Webview} webview Webview instance.
+ * @param {import("vscode").Uri} languageIconBaseUri Base icon directory URI.
+ * @param {import("vscode").Uri} fallbackIconUri Fallback icon URI.
  * @returns {string} Rendered HTML.
  */
-function buildSmokeControlsHtml(webview) {
+function buildSmokeControlsHtml(webview, languageIconBaseUri, fallbackIconUri) {
   const stateSnapshot = getSmokeControlsSnapshot();
   const escapedMarkdownPath = escapeHtml(stateSnapshot.markdownPath);
   const escapedTimeout = escapeHtml(stateSnapshot.timeout);
   const escapedSlowTimeout = escapeHtml(stateSnapshot.slowTimeout);
+  const escapedReportStatusText = escapeHtml(stateSnapshot.reportStatusText);
   const escapedStatusText = escapeHtml(stateSnapshot.smokeStatusText);
+  const { fallbackIconUri: resolvedFallbackIconUri, iconUriByLanguageKey } = buildLanguageIconUris(
+    webview,
+    languageIconBaseUri,
+    fallbackIconUri
+  );
   const languagesGridHtml = stateSnapshot.languages
     .map((language) => {
+      const iconUri =
+        iconUriByLanguageKey.get(language.key) || resolvedFallbackIconUri;
+
       return `<label class="smokeLanguageOption" for="smokeLang_${language.key}">
+        <img class="languageIcon" src="${escapeHtml(iconUri)}" alt="" aria-hidden="true" />
         <input id="smokeLang_${language.key}" type="checkbox" data-smoke-lang="${language.key}" ${
           language.enabled ? "checked" : ""
         } />
@@ -125,7 +260,7 @@ function buildSmokeControlsHtml(webview) {
     <meta charset="UTF-8" />
     <meta
       http-equiv="Content-Security-Policy"
-      content="default-src 'none'; style-src ${cspSource} 'unsafe-inline'; script-src 'nonce-${nonce}';"
+      content="default-src 'none'; img-src ${cspSource} data:; style-src ${cspSource} 'unsafe-inline'; script-src 'nonce-${nonce}';"
     />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <style>
@@ -133,9 +268,16 @@ function buildSmokeControlsHtml(webview) {
         color-scheme: light dark;
       }
 
+      html,
       body {
+        height: 100%;
         margin: 0;
+      }
+
+      body {
         padding: 6px 8px;
+        box-sizing: border-box;
+        display: flex;
         font-family: var(--vscode-font-family);
         font-size: 11px;
         color: var(--vscode-foreground);
@@ -146,6 +288,10 @@ function buildSmokeControlsHtml(webview) {
         display: flex;
         flex-direction: column;
         gap: 4px;
+        height: 100%;
+        flex: 1 1 auto;
+        min-height: 0;
+        width: 100%;
       }
 
       .sectionHeader {
@@ -204,6 +350,13 @@ function buildSmokeControlsHtml(webview) {
         color: var(--vscode-testing-iconFailed);
       }
 
+      .helperText {
+        margin-left: 2px;
+        color: var(--vscode-descriptionForeground);
+        font-size: 10px;
+        line-height: 1.2;
+      }
+
       .smokeMarkdownRow {
         margin-left: 2px;
         display: grid;
@@ -215,7 +368,7 @@ function buildSmokeControlsHtml(webview) {
       .smokeMarkdownLabel {
         display: inline-flex;
         align-items: center;
-        gap: 4px;
+        gap: 0;
         font-size: 10px;
         white-space: nowrap;
       }
@@ -238,6 +391,7 @@ function buildSmokeControlsHtml(webview) {
         margin-left: 2px;
         display: inline-flex;
         gap: 6px;
+        flex-wrap: wrap;
       }
 
       .smokeLangButton {
@@ -254,10 +408,21 @@ function buildSmokeControlsHtml(webview) {
         background: var(--vscode-button-secondaryHoverBackground);
       }
 
-      .smokeLanguageGrid {
+      .languageListContainer {
         margin-left: 2px;
+        min-height: 96px;
+        flex: 1 1 auto;
+        overflow-y: auto;
+        overflow-x: hidden;
+        border: 1px solid var(--vscode-widget-border);
+        border-radius: 4px;
+        padding: 4px;
+        box-sizing: border-box;
+      }
+
+      .smokeLanguageGrid {
         display: grid;
-        grid-template-columns: repeat(4, minmax(0, 1fr));
+        grid-template-columns: repeat(auto-fill, minmax(112px, 1fr));
         gap: 4px 6px;
       }
 
@@ -267,31 +432,47 @@ function buildSmokeControlsHtml(webview) {
         gap: 3px;
         font-size: 10px;
       }
+
+      .languageIcon {
+        width: 12px;
+        height: 12px;
+        object-fit: contain;
+        flex: 0 0 auto;
+        opacity: 0.95;
+      }
+
+      @media (max-width: 260px) {
+        .smokeLanguageGrid {
+          grid-template-columns: repeat(auto-fill, minmax(90px, 1fr));
+        }
+      }
     </style>
   </head>
   <body>
     <div class="controls">
       <span class="sectionHeader">
-        <svg class="sectionIcon" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Markdown">
+        <svg class="sectionIcon" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Report Generation">
           <path d="M4 2H10L12 4V13C12 13.55 11.55 14 11 14H4C3.45 14 3 13.55 3 13V3C3 2.45 3.45 2 4 2Z" stroke="currentColor" stroke-width="1"/>
           <path d="M10 2V4H12" stroke="currentColor" stroke-width="1"/>
           <path d="M5 7H11" stroke="currentColor" stroke-width="1" stroke-linecap="round"/>
           <path d="M5 9.5H9" stroke="currentColor" stroke-width="1" stroke-linecap="round"/>
         </svg>
-        <span>Markdown</span>
+        <span>Report Generation</span>
       </span>
 
       <div class="smokeMarkdownRow">
         <label class="smokeMarkdownLabel" for="smokeMarkdownEnabled">
-          <input id="smokeMarkdownEnabled" type="checkbox" ${
+          <input id="smokeMarkdownEnabled" type="checkbox" aria-label="Enable report generation" ${
             stateSnapshot.markdownEnabled ? "checked" : ""
           } />
-          <span>Enable</span>
         </label>
         <input id="smokeMarkdownPath" class="argsInput" type="text" placeholder="Optional report path" value="${escapedMarkdownPath}" ${
           stateSnapshot.markdownEnabled ? "" : "disabled"
         } />
       </div>
+      <span id="reportGenerationStatus" class="status ${
+        stateSnapshot.reportStatusClassName
+      }">${escapedReportStatusText}</span>
 
       <span class="sectionHeader">
         <svg class="sectionIcon" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Timeouts">
@@ -311,6 +492,7 @@ function buildSmokeControlsHtml(webview) {
           <input id="smokeSlowTimeout" class="argsInput" type="text" placeholder="20m" value="${escapedSlowTimeout}" />
         </label>
       </div>
+      <span class="helperText">Defaults use timeout. Known long-running languages use slow-timeout so smoke processing completes correctly.</span>
 
       <span class="sectionHeader">
         <svg class="sectionIcon" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Languages">
@@ -326,7 +508,9 @@ function buildSmokeControlsHtml(webview) {
         <button id="smokeDeselectAll" class="smokeLangButton" type="button">Deselect All</button>
       </div>
 
-      <div id="smokeLanguageGrid" class="smokeLanguageGrid">${languagesGridHtml}</div>
+      <div class="languageListContainer">
+        <div id="smokeLanguageGrid" class="smokeLanguageGrid">${languagesGridHtml}</div>
+      </div>
       <span id="smokeStatus" class="status ${
         stateSnapshot.smokeStatusClassName
       }">${escapedStatusText}</span>
@@ -340,6 +524,7 @@ function buildSmokeControlsHtml(webview) {
       const smokeSlowTimeout = document.getElementById("smokeSlowTimeout");
       const smokeSelectAll = document.getElementById("smokeSelectAll");
       const smokeDeselectAll = document.getElementById("smokeDeselectAll");
+      const reportGenerationStatus = document.getElementById("reportGenerationStatus");
       const smokeStatus = document.getElementById("smokeStatus");
       const smokeLanguageCheckboxes = Array.from(document.querySelectorAll("input[data-smoke-lang]"));
       const statusClasses = ["status-muted", "status-ok", "status-error"];
@@ -363,6 +548,13 @@ function buildSmokeControlsHtml(webview) {
 
         if (typeof nextState.slowTimeout === "string" && document.activeElement !== smokeSlowTimeout) {
           smokeSlowTimeout.value = nextState.slowTimeout;
+        }
+
+        reportGenerationStatus.textContent = String(nextState.reportStatusText || "");
+        reportGenerationStatus.classList.remove(...statusClasses);
+
+        if (statusClasses.includes(nextState.reportStatusClassName)) {
+          reportGenerationStatus.classList.add(nextState.reportStatusClassName);
         }
 
         if (Array.isArray(nextState.languages)) {
@@ -460,8 +652,17 @@ class SidebarSmokeControlsViewProvider {
   /**
    * Creates a smoke-controls view provider.
    */
-  constructor() {
+  constructor(extensionUri) {
     this._view = null;
+    this._languageIconBaseUri = vscode.Uri.joinPath(
+      extensionUri,
+      ...LANGUAGE_ICON_PATH_SEGMENT.split("/")
+    );
+    this._iconRootUri = vscode.Uri.joinPath(extensionUri, "icons");
+    this._fallbackIconUri = vscode.Uri.joinPath(
+      extensionUri,
+      ...FALLBACK_ICON_PATH_SEGMENT.split("/")
+    );
   }
 
   /**
@@ -533,8 +734,13 @@ class SidebarSmokeControlsViewProvider {
     this._view = webviewView;
     webviewView.webview.options = {
       enableScripts: true,
+      localResourceRoots: [this._languageIconBaseUri, this._iconRootUri],
     };
-    webviewView.webview.html = buildSmokeControlsHtml(webviewView.webview);
+    webviewView.webview.html = buildSmokeControlsHtml(
+      webviewView.webview,
+      this._languageIconBaseUri,
+      this._fallbackIconUri
+    );
 
     webviewView.webview.onDidReceiveMessage((message) => {
       this.handleMessage(message);
@@ -557,17 +763,22 @@ class SidebarSmokeControlsViewProvider {
       return;
     }
 
-    this._view.webview.html = buildSmokeControlsHtml(this._view.webview);
+    this._view.webview.html = buildSmokeControlsHtml(
+      this._view.webview,
+      this._languageIconBaseUri,
+      this._fallbackIconUri
+    );
   }
 }
 
 /**
  * Registers the sidebar smoke-controls webview.
  *
+ * @param {import("vscode").Uri} extensionUri Extension installation URI.
  * @returns {{refresh: () => void, disposables: import("vscode").Disposable[]}} Registration result.
  */
-function registerSidebarSmokeControlsView() {
-  const provider = new SidebarSmokeControlsViewProvider();
+function registerSidebarSmokeControlsView(extensionUri) {
+  const provider = new SidebarSmokeControlsViewProvider(extensionUri);
   const registration = vscode.window.registerWebviewViewProvider(
     SMOKE_CONTROLS_VIEW_ID,
     provider,

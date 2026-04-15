@@ -36,7 +36,8 @@
           "name": "Run Controls",
           "type": "webview",
           "icon": "./icons/play-sidebar.svg",
-          "when": "algos.workspaceSupported"
+          "when": "algos.workspaceSupported",
+          "visibility": "collapsed"
         },
         {
           "id": "algosWorkspaceAlgorithmsRunView",
