@@ -134,7 +134,7 @@ function resolveActiveCompatibleSourceFile(vscodeApi, eligibilityState) {
 
   const filePath = editor.document.uri.fsPath;
   const languageValidation = validateSupportedLanguage(
-    editor.document.languageId,
+    editor,
     eligibilityState,
     filePath
   );
@@ -454,16 +454,14 @@ function resolveCleanContextFromExplorer(targetPath, eligibilityState) {
  * @param {import("vscode")} vscodeApi VS Code API object.
  * @param {{selected?: {resolvedRoot?: string, scriptPath?: string}}|null|undefined} eligibilityState Eligible workspace state.
  * @param {string} filePath Absolute file path to execute.
- * @param {string} commandFamily Lifecycle command family label.
- * @param {string} successMessage User-facing success message.
+ * @param {{commandFamily: string, commandLabel: string, successMessage: string, buildArgs: (filename: string) => string[]}} execution Execution metadata.
  * @returns {Promise<{ok: boolean, status: string, reason: string|null}>} Handler execution summary.
  */
 async function runFileAtPath(
   vscodeApi,
   eligibilityState,
   filePath,
-  commandFamily,
-  successMessage
+  execution
 ) {
   const languageValidation = validateSupportedLanguage(
     undefined,
@@ -482,10 +480,10 @@ async function runFileAtPath(
   }
 
   return executeContextCommand(vscodeApi, contextResolution, {
-    commandFamily,
-    args: [path.basename(contextResolution.filename)],
-    commandLabel: "Run File",
-    successMessage,
+    commandFamily: execution.commandFamily,
+    args: execution.buildArgs(path.basename(contextResolution.filename)),
+    commandLabel: execution.commandLabel,
+    successMessage: execution.successMessage,
   });
 }
 
@@ -512,8 +510,12 @@ async function runActiveFileHandler(vscodeApi, eligibilityState) {
     vscodeApi,
     eligibilityState,
     editor.document.uri.fsPath,
-    "run-active-file",
-    `Run Active File started in ${"Algorithms Runner"}.`
+    {
+      commandFamily: "run-active-file",
+      commandLabel: "Run Active File",
+      successMessage: `Run Active File started in ${"Algorithms Runner"}.`,
+      buildArgs: (filename) => [filename],
+    }
   );
 }
 
@@ -541,8 +543,12 @@ async function runFileHandler(vscodeApi, eligibilityState, targetUri) {
     vscodeApi,
     eligibilityState,
     filePath,
-    "run-file",
-    `Run File started in ${"Algorithms Runner"}.`
+    {
+      commandFamily: "run-file",
+      commandLabel: "Run File",
+      successMessage: `Run File started in ${"Algorithms Runner"}.`,
+      buildArgs: (filename) => [filename],
+    }
   );
 }
 
@@ -636,12 +642,51 @@ async function runCleanHandler(vscodeApi, eligibilityState, targetUri) {
   });
 }
 
+/**
+ * Handles compile-only invocation from active-file or selected-file contexts.
+ *
+ * @param {import("vscode")} vscodeApi VS Code API object.
+ * @param {{selected?: {resolvedRoot?: string, scriptPath?: string}}|null|undefined} eligibilityState Eligible workspace state.
+ * @param {import("vscode").Uri|undefined} targetUri Explorer-selected URI when invoked from Explorer.
+ * @returns {Promise<{ok: boolean, status: string, reason: string|null}>} Handler execution summary.
+ */
+async function runActiveFileCompileOnlyHandler(
+  vscodeApi,
+  eligibilityState,
+  targetUri
+) {
+  const selectedFilePath = targetUri?.fsPath;
+
+  if (selectedFilePath) {
+    return runFileAtPath(vscodeApi, eligibilityState, selectedFilePath, {
+      commandFamily: "run-compile-only",
+      commandLabel: "Compile Only",
+      successMessage: `Compile Only started in ${"Algorithms Runner"}.`,
+      buildArgs: (filename) => ["--compile-only", filename],
+    });
+  }
+
+  const activeSource = resolveActiveCompatibleSourceFile(vscodeApi, eligibilityState);
+
+  if (!activeSource.ok) {
+    return blockWithValidation(vscodeApi, activeSource);
+  }
+
+  return runFileAtPath(vscodeApi, eligibilityState, activeSource.filePath, {
+    commandFamily: "run-compile-only",
+    commandLabel: "Compile Only",
+    successMessage: `Compile Only started in ${"Algorithms Runner"}.`,
+    buildArgs: (filename) => ["--compile-only", filename],
+  });
+}
+
 // Public command handlers consumed by extension activation and tests.
 module.exports = {
   runActiveFileHandler,
   runFileHandler,
   runLocalCleanHandler,
   runCleanHandler,
+  runActiveFileCompileOnlyHandler,
   resolveActiveFileRunContext,
   resolveLocalCleanContextFromExplorer,
   resolveCleanContextFromExplorer,

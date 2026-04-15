@@ -114,6 +114,7 @@ function deriveImplementedRunMenuCommandIds(guardedCommandDefs) {
  *   runFileHandler: (vscodeApi: import("vscode"), eligibilityState: object, targetUri?: import("vscode").Uri) => Promise<unknown>,
  *   runLocalCleanHandler: (vscodeApi: import("vscode"), eligibilityState: object, targetUri?: import("vscode").Uri) => Promise<unknown>,
  *   runCleanHandler: (vscodeApi: import("vscode"), eligibilityState: object, targetUri?: import("vscode").Uri) => Promise<unknown>,
+ *   runActiveFileCompileOnlyHandler: (vscodeApi: import("vscode"), eligibilityState: object) => Promise<unknown>,
  *   openRunMenuFlow: (vscodeApi: import("vscode")) => Promise<string|null>
  * }} deps Command registration dependencies.
  * @returns {import("vscode").Disposable[]} Command disposables.
@@ -135,6 +136,10 @@ function registerCommands(deps) {
     {
       commandId: "algos.runClean",
       handler: deps.runCleanHandler,
+    },
+    {
+      commandId: "algos.runActiveFileCompileOnly",
+      handler: deps.runActiveFileCompileOnlyHandler,
     },
   ];
   const implementedMenuCommandIds = deriveImplementedRunMenuCommandIds(
