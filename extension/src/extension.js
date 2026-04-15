@@ -41,6 +41,9 @@ const { openRunMenuFlow } = require("./ui/quickPickFlows");
 const {
   registerWorkspaceAlgorithmsRunView,
 } = require("./ui/workspaceAlgorithmsRunView");
+const {
+  registerSidebarRunControlsView,
+} = require("./ui/sidebarRunControlsView");
 
 // Cached preflight snapshot used by visibility event handlers.
 let cachedPreflightState = null;
@@ -235,6 +238,8 @@ async function activate(context) {
 
   const workspaceAlgorithmsRunViewRegistration =
     registerWorkspaceAlgorithmsRunView();
+  const sidebarRunControlsViewRegistration =
+    registerSidebarRunControlsView();
 
   await vscode.commands.executeCommand(
     "setContext",
@@ -306,15 +311,6 @@ async function activate(context) {
     createLanguageFilePlaceholder: async (item) => {
       await workspaceAlgorithmsRunViewRegistration.openMissingLanguageFile(item);
     },
-    sidebarToggleRunArgs: async () => {
-      await workspaceAlgorithmsRunViewRegistration.sidebarToggleRunArgs();
-    },
-    sidebarEditRunArgs: async () => {
-      await workspaceAlgorithmsRunViewRegistration.sidebarEditRunArgs(vscode);
-    },
-    sidebarClearRunArgs: async () => {
-      await workspaceAlgorithmsRunViewRegistration.sidebarClearRunArgs();
-    },
   });
 
   const visibilityDisposables = [
@@ -327,6 +323,7 @@ async function activate(context) {
   context.subscriptions.push(
     ...commandDisposables,
     ...visibilityDisposables,
+    ...sidebarRunControlsViewRegistration.disposables,
     ...workspaceAlgorithmsRunViewRegistration.disposables
   );
 }

@@ -24,6 +24,13 @@
     "views": {
       "algosSidebar": [
         {
+          "id": "algosWorkspaceRunControlsView",
+          "name": "Run Controls",
+          "type": "webview",
+          "icon": "./icons/play-sidebar.svg",
+          "when": "algos.workspaceSupported"
+        },
+        {
           "id": "algosWorkspaceAlgorithmsRunView",
           "name": "Workspace Files",
           "icon": "./icons/play-sidebar.svg",
@@ -92,7 +99,7 @@
       },
       {
         "command": "algos.runLocalClean",
-        "title": "Localclean",
+        "title": "Local Clean",
         "category": "Derek's Algorithms"
       },
       {
@@ -142,7 +149,7 @@
       },
       {
         "command": "algos.runMenuLocalclean",
-        "title": "Localclean",
+        "title": "Local Clean",
         "category": "Derek's Algorithms"
       },
       {
@@ -184,24 +191,6 @@
         "title": "Create Language File",
         "category": "Derek's Algorithms",
         "icon": "$(add)"
-      },
-      {
-        "command": "algos.sidebarToggleRunArgs",
-        "title": "Toggle Run Args",
-        "category": "Derek's Algorithms",
-        "icon": "$(checklist)"
-      },
-      {
-        "command": "algos.sidebarEditRunArgs",
-        "title": "Edit Run Args",
-        "category": "Derek's Algorithms",
-        "icon": "$(terminal)"
-      },
-      {
-        "command": "algos.sidebarClearRunArgs",
-        "title": "Clear Run Args",
-        "category": "Derek's Algorithms",
-        "icon": "$(clear-all)"
       }
     ],
     "submenus": [
@@ -357,21 +346,6 @@
           "command": "algos.createLanguageFilePlaceholder",
           "when": "view == algosWorkspaceAlgorithmsRunView && (viewItem == algos.languageMissingUnflagged || viewItem == algos.languageMissingFlagged)",
           "group": "inline@1"
-        },
-        {
-          "command": "algos.sidebarToggleRunArgs",
-          "when": "view == algosWorkspaceAlgorithmsRunView && viewItem == algos.sidebarRunArgsToggleRow",
-          "group": "inline@1"
-        },
-        {
-          "command": "algos.sidebarEditRunArgs",
-          "when": "view == algosWorkspaceAlgorithmsRunView && viewItem == algos.sidebarRunArgsTextRow",
-          "group": "inline@1"
-        },
-        {
-          "command": "algos.sidebarClearRunArgs",
-          "when": "view == algosWorkspaceAlgorithmsRunView && viewItem == algos.sidebarRunArgsTextRow",
-          "group": "inline@2"
         }
       ],
       "view/title": [
@@ -401,19 +375,19 @@
           "command": "algos.runFile"
         },
         {
-          "command": "algos.runMenuClean",
-          "when": "resourcePath =~ /[\\\\/]src[\\\\/][^\\\\/]+[\\\\/][^\\\\/]+(?:[\\\\/][^\\\\/]+)?$/"
-        },
-        {
-          "command": "algos.runMenuLocalclean",
-          "when": "resourcePath =~ /[\\\\/]src[\\\\/][^\\\\/]+[\\\\/][^\\\\/]+(?:[\\\\/][^\\\\/]+)?$/"
-        },
-        {
           "command": "algos.runMenuCompileOnly",
           "when": "resourcePath =~ /[\\\\/]src[\\\\/][^\\\\/]+[\\\\/][^\\\\/]+(?:[\\\\/][^\\\\/]+)?$/"
         },
         {
           "command": "algos.runMenuCheckOnly",
+          "when": "resourcePath =~ /[\\\\/]src[\\\\/][^\\\\/]+[\\\\/][^\\\\/]+(?:[\\\\/][^\\\\/]+)?$/"
+        },
+        {
+          "command": "algos.runMenuClean",
+          "when": "resourcePath =~ /[\\\\/]src[\\\\/][^\\\\/]+[\\\\/][^\\\\/]+(?:[\\\\/][^\\\\/]+)?$/"
+        },
+        {
+          "command": "algos.runMenuLocalclean",
           "when": "resourcePath =~ /[\\\\/]src[\\\\/][^\\\\/]+[\\\\/][^\\\\/]+(?:[\\\\/][^\\\\/]+)?$/"
         }
       ],
@@ -422,16 +396,16 @@
           "command": "algos.runFile"
         },
         {
-          "command": "algos.runMenuClean"
-        },
-        {
-          "command": "algos.runMenuLocalclean"
-        },
-        {
           "command": "algos.runMenuCompileOnly"
         },
         {
           "command": "algos.runMenuCheckOnly"
+        },
+        {
+          "command": "algos.runMenuClean"
+        },
+        {
+          "command": "algos.runMenuLocalclean"
         }
       ],
       "algos.runMenuSidebarLanguage": [

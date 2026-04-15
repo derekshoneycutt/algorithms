@@ -12,8 +12,8 @@ const RUN_MENU_ITEMS = [
   },
   {
     commandId: "algos.runLocalClean",
-    label: "Localclean",
-    description: "Run localclean in algorithm context",
+    label: "Local Clean",
+    description: "Run local clean in algorithm context",
   },
   {
     commandId: "algos.runActiveFileCompileOnly",

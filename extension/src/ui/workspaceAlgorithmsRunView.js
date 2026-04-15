@@ -4,11 +4,6 @@ const { spawn } = require("child_process");
 const vscode = require("vscode");
 const { resolveEligibilityState } = require("../runtime/pathResolver");
 const {
-  getSidebarRunArgsState,
-  setSidebarRunArgsEnabled,
-  setSidebarRunArgsText,
-} = require("../runtime/sidebarRunArgsState");
-const {
   getSupportedLanguageKeys,
   normalizeExtensionToLanguageKey,
 } = require("../validation/inputValidation");
@@ -23,7 +18,6 @@ const SMOKE_RUNNING_URI_FRAGMENT = "algos-smoke-running";
 const SMOKE_PASSED_URI_FRAGMENT = "algos-smoke-passed";
 const SMOKE_FAILED_URI_FRAGMENT = "algos-smoke-failed";
 const SMOKE_TEST_OUTPUT_CHANNEL_NAME = "Algorithms Smoke Test";
-const RUN_ARGS_PRESET_NONE_LABEL = "No args";
 
 const SMOKE_STATUS_LABELS = {
   queued: "Queued",
@@ -1572,89 +1566,6 @@ class WorkspaceStatusTreeDataProvider {
     this._filterMode = "all";
     this._smokeStateByAlgorithmPath = new Map();
     this._runningSmokeAlgorithmPaths = new Set();
-    const runArgsState = getSidebarRunArgsState();
-    this._runArgsEnabled = runArgsState.enabled;
-    this._runArgsText = runArgsState.text;
-  }
-
-  /**
-   * Returns whether sidebar run args are enabled.
-   *
-   * @returns {boolean} True when sidebar run args are enabled.
-   */
-  isRunArgsEnabled() {
-    return this._runArgsEnabled;
-  }
-
-  /**
-   * Returns the raw sidebar run args text.
-   *
-   * @returns {string} Raw run args text.
-   */
-  getRunArgsText() {
-    return this._runArgsText;
-  }
-
-  /**
-   * Toggles sidebar run args enabled state.
-   *
-   * @returns {void}
-   */
-  toggleRunArgsEnabled() {
-    this._runArgsEnabled = !this._runArgsEnabled;
-    setSidebarRunArgsEnabled(this._runArgsEnabled);
-    this.refresh();
-  }
-
-  /**
-   * Sets sidebar run args text.
-   *
-   * @param {string} runArgsText Raw args text.
-   * @returns {void}
-   */
-  setRunArgsText(runArgsText) {
-    this._runArgsText = String(runArgsText || "").trim();
-    setSidebarRunArgsText(this._runArgsText);
-    this.refresh();
-  }
-
-  /**
-   * Clears sidebar run args text.
-   *
-   * @returns {void}
-   */
-  clearRunArgsText() {
-    this.setRunArgsText("");
-  }
-
-  /**
-   * Returns control rows displayed at the top of the sidebar.
-   *
-   * @returns {Array<{label: string, description?: string, contextValue: string, isControlRow: boolean, controlType: string, tooltip?: string}>} Sidebar control rows.
-   */
-  getControlRows() {
-    const runArgsDescription = this._runArgsText || RUN_ARGS_PRESET_NONE_LABEL;
-
-    return [
-      {
-        label: "Use Run Args",
-        description: this._runArgsEnabled ? "On" : "Off",
-        contextValue: "algos.sidebarRunArgsToggleRow",
-        isControlRow: true,
-        controlType: "toggle-run-args",
-        tooltip: "Toggle extra command-line args for run commands.",
-      },
-      {
-        label: "Run Args",
-        description: runArgsDescription,
-        contextValue: "algos.sidebarRunArgsTextRow",
-        isControlRow: true,
-        controlType: "edit-run-args",
-        tooltip: this._runArgsText
-          ? `Edit run args: ${this._runArgsText}`
-          : "Set extra command-line args for run commands.",
-      },
-    ];
   }
 
   /**
@@ -1988,10 +1899,6 @@ class WorkspaceStatusTreeDataProvider {
     }
 
     return children.filter((child) => {
-      if (child.isControlRow) {
-        return true;
-      }
-
       if (child.isDirectory) {
         return hasProblemDescendantForViewMode(
           child.filePath,
@@ -2012,33 +1919,6 @@ class WorkspaceStatusTreeDataProvider {
    * @returns {import("vscode").TreeItem} Tree item.
    */
   getTreeItem(element) {
-    if (element.isControlRow) {
-      const treeItem = new vscode.TreeItem(
-        element.label,
-        vscode.TreeItemCollapsibleState.None
-      );
-
-      treeItem.description = element.description || "";
-      treeItem.contextValue = element.contextValue;
-      treeItem.tooltip = element.tooltip || element.label;
-      treeItem.iconPath = new vscode.ThemeIcon(
-        element.controlType === "toggle-run-args" ? "checklist" : "terminal"
-      );
-      treeItem.command = {
-        command:
-          element.controlType === "toggle-run-args"
-            ? "algos.sidebarToggleRunArgs"
-            : "algos.sidebarEditRunArgs",
-        title:
-          element.controlType === "toggle-run-args"
-            ? "Toggle Run Args"
-            : "Edit Run Args",
-        arguments: [element],
-      };
-
-      return treeItem;
-    }
-
     if (element.isLanguageSummary) {
       const resourceUri = this.getDecoratedResourceUriForElement(element);
       const treeItem = new vscode.TreeItem(
@@ -2127,40 +2007,28 @@ class WorkspaceStatusTreeDataProvider {
       return Promise.resolve([]);
     }
 
-    if (element?.isControlRow) {
-      return Promise.resolve([]);
-    }
-
-    const controlRows = this.getControlRows();
-
     if (this._viewMode === "language") {
       if (!element) {
         if (isAlgorithmDirectoryPath(this._displayRootPath, this._resolvedRootPath)) {
           return Promise.resolve(
-            [
-              ...controlRows,
-              ...this.filterVisibleChildren(
-                readAlgorithmLanguageSummary(
-                  this._displayRootPath,
-                  this._resolvedRootPath,
-                  this._supportedLanguageKeys
-                )
-              ),
-            ]
-          );
-        }
-
-        return Promise.resolve(
-          [
-            ...controlRows,
-            ...this.filterVisibleChildren(
-              readSidebarDirectoryChildren(
+            this.filterVisibleChildren(
+              readAlgorithmLanguageSummary(
                 this._displayRootPath,
                 this._resolvedRootPath,
                 this._supportedLanguageKeys
               )
-            ),
-          ]
+            )
+          );
+        }
+
+        return Promise.resolve(
+          this.filterVisibleChildren(
+            readSidebarDirectoryChildren(
+              this._displayRootPath,
+              this._resolvedRootPath,
+              this._supportedLanguageKeys
+            )
+          )
         );
       }
 
@@ -2227,16 +2095,13 @@ class WorkspaceStatusTreeDataProvider {
 
     if (!element) {
       return Promise.resolve(
-        [
-          ...controlRows,
-          ...this.filterVisibleChildren(
-            readSidebarDirectoryChildren(
-              this._displayRootPath,
-              this._resolvedRootPath,
-              this._supportedLanguageKeys
-            )
-          ),
-        ]
+        this.filterVisibleChildren(
+          readSidebarDirectoryChildren(
+            this._displayRootPath,
+            this._resolvedRootPath,
+            this._supportedLanguageKeys
+          )
+        )
       );
     }
 
@@ -2397,45 +2262,6 @@ function registerWorkspaceAlgorithmsRunView() {
   const refreshOnFolderChange = vscode.workspace.onDidChangeWorkspaceFolders(() => {
     void refreshWorkspaceViewState();
   });
-
-  /**
-   * Toggles sidebar run-args enabled state.
-   *
-   * @returns {Promise<void>} Completion result.
-   */
-  async function sidebarToggleRunArgs() {
-    provider.toggleRunArgsEnabled();
-  }
-
-  /**
-   * Prompts for sidebar run args text and stores the result.
-   *
-   * @param {import("vscode")} vscodeApi VS Code API object.
-   * @returns {Promise<void>} Completion result.
-   */
-  async function sidebarEditRunArgs(vscodeApi) {
-    const nextValue = await vscodeApi.window.showInputBox({
-      prompt: "Extra command-line args for run.sh",
-      placeHolder: "Example: --foo=bar \"hello world\"",
-      value: provider.getRunArgsText(),
-      ignoreFocusOut: true,
-    });
-
-    if (typeof nextValue !== "string") {
-      return;
-    }
-
-    provider.setRunArgsText(nextValue);
-  }
-
-  /**
-   * Clears sidebar run args text.
-   *
-   * @returns {Promise<void>} Completion result.
-   */
-  async function sidebarClearRunArgs() {
-    provider.clearRunArgsText();
-  }
 
   /**
    * Terminates any active smoke-test process for one algorithm directory.
@@ -2908,9 +2734,6 @@ function registerWorkspaceAlgorithmsRunView() {
     runSmokeTest,
     stopSmokeTest,
     clearSmokeResults,
-    sidebarToggleRunArgs,
-    sidebarEditRunArgs,
-    sidebarClearRunArgs,
     openMissingLanguageFile,
     disposables: [
       view,

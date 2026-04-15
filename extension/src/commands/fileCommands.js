@@ -504,12 +504,12 @@ function resolveAlgorithmScopeFromExplorerTarget(
 function resolveLocalCleanContextFromExplorer(targetPath, eligibilityState) {
   return resolveAlgorithmScopeFromExplorerTarget(targetPath, eligibilityState, {
     outsideSrcGuidance:
-      "Localclean requires a target under src/<category>/<algorithm>/.",
+      "Local Clean requires a target under src/<category>/<algorithm>/.",
     scopeGuidance:
       "Select src/<category>/<algorithm>/ or an immediate child file/directory.",
     nestedGuidance:
-      "Nested descendants are not valid localclean targets. Select the algorithm directory or an immediate child.",
-    resolvedGuidance: "Localclean context resolved.",
+      "Nested descendants are not valid local clean targets. Select the algorithm directory or an immediate child.",
+    resolvedGuidance: "Local Clean context resolved.",
   });
 }
 
@@ -665,7 +665,7 @@ async function runLocalCleanHandler(vscodeApi, eligibilityState, targetUri) {
     );
 
     if (!activeSource.ok) {
-      return blockWithValidation(vscodeApi, activeSource, "Localclean");
+      return blockWithValidation(vscodeApi, activeSource, "Local Clean");
     }
 
     contextResolution = resolveActiveFileRunContext(
@@ -675,14 +675,14 @@ async function runLocalCleanHandler(vscodeApi, eligibilityState, targetUri) {
   }
 
   if (!contextResolution.ok) {
-    return blockWithValidation(vscodeApi, contextResolution, "Localclean");
+    return blockWithValidation(vscodeApi, contextResolution, "Local Clean");
   }
 
   return executeContextCommand(vscodeApi, contextResolution, {
     commandFamily: "run-localclean",
     args: ["localclean"],
-    commandLabel: "Localclean",
-    successMessage: `Localclean started in ${"Algorithms Runner"}.`,
+    commandLabel: "Local Clean",
+    successMessage: `Local Clean started in ${"Algorithms Runner"}.`,
   });
 }
 
