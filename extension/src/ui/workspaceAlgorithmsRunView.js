@@ -725,31 +725,140 @@ function createLanguageSummaryTreeNode(
  * Builds a deterministic representative language file candidate.
  *
  * Direct algorithm-root files are preferred so existing inline Play actions can
- * be reused. When none exist, the first sorted nested match is used.
+ * be reused. Within each candidate set, the closest basename match to the
+ * algorithm directory name is selected.
  *
  * @param {string[]} matchingFiles Matching file paths for one language.
  * @param {string|null} resolvedRoot Canonical repository root path.
+ * @param {string} algorithmPath Algorithm directory path.
  * @returns {{filePath: string|null, isRunnable: boolean}} Representative file metadata.
  */
-function selectRepresentativeLanguageFile(matchingFiles, resolvedRoot) {
+function selectRepresentativeLanguageFile(matchingFiles, resolvedRoot, algorithmPath) {
   const sortedFiles = [...matchingFiles].sort((left, right) =>
     left.localeCompare(right)
   );
   const directAlgorithmFiles = sortedFiles.filter((filePath) =>
     isDirectAlgorithmRootFile(filePath, resolvedRoot)
   );
+  const algorithmName = path.basename(String(algorithmPath || ""));
 
   if (directAlgorithmFiles.length > 0) {
     return {
-      filePath: directAlgorithmFiles[0],
+      filePath: selectBestMatchingFilePath(directAlgorithmFiles, algorithmName),
       isRunnable: true,
     };
   }
 
   return {
-    filePath: sortedFiles.length > 0 ? sortedFiles[0] : null,
+    filePath: selectBestMatchingFilePath(sortedFiles, algorithmName),
     isRunnable: false,
   };
+}
+
+/**
+ * Normalizes one token for fuzzy basename matching.
+ *
+ * @param {string} value Raw token value.
+ * @returns {string} Lowercase alphanumeric token.
+ */
+function normalizeCandidateIdentifier(value) {
+  return String(value || "")
+    .toLowerCase()
+    .replace(/[^a-z0-9]/g, "");
+}
+
+/**
+ * Scores one file basename against an algorithm directory basename.
+ *
+ * Lower scores indicate better matches.
+ *
+ * @param {string} fileBasename Candidate file basename.
+ * @param {string} algorithmName Algorithm directory basename.
+ * @returns {number} Match score.
+ */
+function scoreFileBasenameForAlgorithmName(fileBasename, algorithmName) {
+  const rawFileBasename = String(fileBasename || "");
+  const rawAlgorithmName = String(algorithmName || "");
+  const fileBasenameLower = rawFileBasename.toLowerCase();
+  const algorithmNameLower = rawAlgorithmName.toLowerCase();
+  const normalizedFileBasename = normalizeCandidateIdentifier(rawFileBasename);
+  const normalizedAlgorithmName = normalizeCandidateIdentifier(rawAlgorithmName);
+
+  if (rawFileBasename === rawAlgorithmName) {
+    return 0;
+  }
+
+  if (fileBasenameLower === algorithmNameLower) {
+    return 1;
+  }
+
+  if (
+    normalizedFileBasename
+    && normalizedAlgorithmName
+    && normalizedFileBasename === normalizedAlgorithmName
+  ) {
+    return 2;
+  }
+
+  if (
+    normalizedFileBasename
+    && normalizedAlgorithmName.endsWith(normalizedFileBasename)
+  ) {
+    return 3;
+  }
+
+  if (
+    normalizedFileBasename
+    && normalizedAlgorithmName.includes(normalizedFileBasename)
+  ) {
+    return 4;
+  }
+
+  if (
+    normalizedAlgorithmName
+    && normalizedFileBasename.includes(normalizedAlgorithmName)
+  ) {
+    return 5;
+  }
+
+  return 99;
+}
+
+/**
+ * Selects the best matching file path from one candidate list.
+ *
+ * Candidates are sorted first for deterministic tie resolution.
+ *
+ * @param {string[]} candidateFiles Candidate file paths.
+ * @param {string} algorithmName Algorithm directory basename.
+ * @returns {string|null} Best matching file path.
+ */
+function selectBestMatchingFilePath(candidateFiles, algorithmName) {
+  const sortedCandidates = [...candidateFiles].sort((left, right) =>
+    left.localeCompare(right)
+  );
+
+  if (sortedCandidates.length === 0) {
+    return null;
+  }
+
+  let selectedPath = sortedCandidates[0];
+  let selectedScore = Number.POSITIVE_INFINITY;
+
+  for (const candidatePath of sortedCandidates) {
+    const candidateBasename = path.parse(candidatePath).name;
+    const candidateScore = scoreFileBasenameForAlgorithmName(
+      candidateBasename,
+      algorithmName
+    );
+
+    if (candidateScore < selectedScore) {
+      selectedPath = candidatePath;
+      selectedScore = candidateScore;
+    }
+  }
+
+  return selectedPath;
 }
 
 /**
@@ -1017,10 +1126,6 @@ function readAlgorithmLanguageSummary(algorithmPath, resolvedRoot, supportedLang
       continue;
     }
 
-    if (isDirectAlgorithmFile && !isAlgorithmBasenameMatch(filePath, resolvedRoot)) {
-      continue;
-    }
-
     const normalizedLanguage = normalizeExtensionToLanguageKey(filePath);
 
     if (!normalizedLanguage || !languageCountMap.has(normalizedLanguage)) {
@@ -1039,7 +1144,8 @@ function readAlgorithmLanguageSummary(algorithmPath, resolvedRoot, supportedLang
     const matchingFiles = languageFilePathMap.get(languageKey);
     const representativeFile = selectRepresentativeLanguageFile(
       matchingFiles,
-      resolvedRoot
+      resolvedRoot,
+      algorithmPath
     );
     const includeChildren = representativeFile.isRunnable
       ? readIncludeFileChildren(
@@ -1459,6 +1565,7 @@ class WorkspaceStatusTreeDataProvider {
     this._viewMode = "files";
     this._filterMode = "all";
     this._smokeStateByAlgorithmPath = new Map();
+    this._runningSmokeAlgorithmPaths = new Set();
   }
 
   /**
@@ -1516,6 +1623,97 @@ class WorkspaceStatusTreeDataProvider {
   replaceSmokeStateForAlgorithm(algorithmPath, smokeState) {
     this._smokeStateByAlgorithmPath.set(algorithmPath, new Map(smokeState));
     this.refresh();
+  }
+
+  /**
+   * Sets whether one algorithm currently has an active smoke process.
+   *
+   * @param {string} algorithmPath Algorithm directory path.
+   * @param {boolean} isRunning True when an active process exists.
+   * @returns {void}
+   */
+  setSmokeProcessRunning(algorithmPath, isRunning) {
+    if (!algorithmPath) {
+      return;
+    }
+
+    const currentlyRunning = this._runningSmokeAlgorithmPaths.has(algorithmPath);
+
+    if (isRunning && !currentlyRunning) {
+      this._runningSmokeAlgorithmPaths.add(algorithmPath);
+      this.refresh();
+      return;
+    }
+
+    if (!isRunning && currentlyRunning) {
+      this._runningSmokeAlgorithmPaths.delete(algorithmPath);
+      this.refresh();
+    }
+  }
+
+  /**
+   * Returns whether one algorithm currently has an active smoke process.
+   *
+   * @param {string|null|undefined} algorithmPath Algorithm directory path.
+   * @returns {boolean} True when the algorithm has a running smoke process.
+   */
+  isSmokeProcessRunningForAlgorithm(algorithmPath) {
+    return Boolean(
+      algorithmPath && this._runningSmokeAlgorithmPaths.has(algorithmPath)
+    );
+  }
+
+  /**
+   * Returns whether one algorithm has retained smoke-test results.
+   *
+   * @param {string|null|undefined} algorithmPath Algorithm directory path.
+   * @returns {boolean} True when smoke-state entries exist.
+   */
+  hasSmokeResultsForAlgorithm(algorithmPath) {
+    if (!algorithmPath) {
+      return false;
+    }
+
+    const smokeState = this._smokeStateByAlgorithmPath.get(algorithmPath);
+    return Boolean(smokeState && smokeState.size > 0);
+  }
+
+  /**
+   * Clears retained smoke-test results for one algorithm.
+   *
+   * @param {string|null|undefined} algorithmPath Algorithm directory path.
+   * @returns {boolean} True when smoke results were removed.
+   */
+  clearSmokeResultsForAlgorithm(algorithmPath) {
+    if (!algorithmPath) {
+      return false;
+    }
+
+    const didDelete = this._smokeStateByAlgorithmPath.delete(algorithmPath);
+
+    if (didDelete) {
+      this.refresh();
+    }
+
+    return didDelete;
+  }
+
+  /**
+   * Returns the context value for one algorithm directory row.
+   *
+   * @param {string|null|undefined} algorithmPath Algorithm directory path.
+   * @returns {string} Context value for view-item menu visibility.
+   */
+  getAlgorithmDirectoryContextValue(algorithmPath) {
+    if (this.isSmokeProcessRunningForAlgorithm(algorithmPath)) {
+      return "algos.workspaceAlgorithmDirectoryRunning";
+    }
+
+    if (this.hasSmokeResultsForAlgorithm(algorithmPath)) {
+      return "algos.workspaceAlgorithmDirectoryResults";
+    }
+
+    return "algos.workspaceAlgorithmDirectory";
   }
 
   /**
@@ -1768,7 +1966,7 @@ class WorkspaceStatusTreeDataProvider {
     treeItem.resourceUri = resourceUri;
     treeItem.contextValue = element.isDirectory
       ? isAlgorithmDirectoryPath(element.filePath, this._resolvedRootPath)
-        ? "algos.workspaceAlgorithmDirectory"
+        ? this.getAlgorithmDirectoryContextValue(element.filePath)
         : "algos.workspaceDirectory"
       : element.isRunnableFile
       ? element.isFlagged
@@ -2079,6 +2277,7 @@ function registerWorkspaceAlgorithmsRunView() {
     }
 
     smokeProcessByAlgorithmPath.delete(algorithmPath);
+    provider.setSmokeProcessRunning(algorithmPath, false);
 
     try {
       activeProcess.kill();
@@ -2241,6 +2440,7 @@ function registerWorkspaceAlgorithmsRunView() {
     };
 
     smokeProcessByAlgorithmPath.set(algorithmPath, smokeProcess);
+    provider.setSmokeProcessRunning(algorithmPath, true);
     smokeOutputChannel.appendLine("");
     smokeOutputChannel.appendLine(`=== Smoke Test: ${algorithmPath} ===`);
     smokeOutputChannel.show(true);
@@ -2274,6 +2474,7 @@ function registerWorkspaceAlgorithmsRunView() {
       }
 
       smokeProcessByAlgorithmPath.delete(algorithmPath);
+      provider.setSmokeProcessRunning(algorithmPath, false);
       provider.markRemainingSmokeStatusesFailed(algorithmPath);
       smokeOutputChannel.appendLine(`Process error: ${error.message}`);
       vscodeApi.window.showErrorMessage(
@@ -2287,6 +2488,7 @@ function registerWorkspaceAlgorithmsRunView() {
       }
 
       smokeProcessByAlgorithmPath.delete(algorithmPath);
+      provider.setSmokeProcessRunning(algorithmPath, false);
       provider.markRemainingSmokeStatusesFailed(algorithmPath);
 
       const summary = provider.getSmokeStatusSummary(algorithmPath);
@@ -2315,6 +2517,134 @@ function registerWorkspaceAlgorithmsRunView() {
     return {
       ok: true,
       status: "started",
+      reason: null,
+    };
+  }
+
+  /**
+   * Stops one algorithm-level smoke test that is currently in progress.
+   *
+   * @param {import("vscode")} vscodeApi VS Code API object.
+   * @param {{selected?: {resolvedRoot?: string}|null|undefined}|undefined} eligibilityState Eligible workspace state.
+   * @param {{filePath?: string, fsPath?: string}|undefined} item Sidebar item payload.
+   * @returns {Promise<{ok: boolean, status: string, reason: string|null}>} Handler execution summary.
+   */
+  async function stopSmokeTest(vscodeApi, eligibilityState, item) {
+    const resolvedRoot = eligibilityState?.selected?.resolvedRoot || null;
+    const algorithmPath = item?.filePath || item?.fsPath || null;
+
+    if (!resolvedRoot || !algorithmPath) {
+      vscodeApi.window.showInformationMessage(
+        "Select an algorithm directory row in the sidebar and try again."
+      );
+      return {
+        ok: false,
+        status: "blocked",
+        reason: "missing-algorithm-sidebar-item",
+      };
+    }
+
+    if (!isAlgorithmDirectoryPath(algorithmPath, resolvedRoot)) {
+      vscodeApi.window.showInformationMessage(
+        "Stop Smoke Test is only available on src/<category>/<algorithm> directory rows."
+      );
+      return {
+        ok: false,
+        status: "blocked",
+        reason: "not-algorithm-directory",
+      };
+    }
+
+    const activeProcess = smokeProcessByAlgorithmPath.get(algorithmPath);
+
+    if (!activeProcess) {
+      vscodeApi.window.showInformationMessage(
+        `No smoke test is running for ${path.basename(algorithmPath)}.`
+      );
+      return {
+        ok: false,
+        status: "noop",
+        reason: "no-active-smoke-process",
+      };
+    }
+
+    stopActiveSmokeProcess(algorithmPath);
+    vscodeApi.window.showInformationMessage(
+      `Stop requested for smoke test: ${path.basename(algorithmPath)}.`
+    );
+
+    return {
+      ok: true,
+      status: "stopping",
+      reason: null,
+    };
+  }
+
+  /**
+   * Clears retained smoke-test visual results for one algorithm directory.
+   *
+   * @param {import("vscode")} vscodeApi VS Code API object.
+   * @param {{selected?: {resolvedRoot?: string}|null|undefined}|undefined} eligibilityState Eligible workspace state.
+   * @param {{filePath?: string, fsPath?: string}|undefined} item Sidebar item payload.
+   * @returns {Promise<{ok: boolean, status: string, reason: string|null}>} Handler execution summary.
+   */
+  async function clearSmokeResults(vscodeApi, eligibilityState, item) {
+    const resolvedRoot = eligibilityState?.selected?.resolvedRoot || null;
+    const algorithmPath = item?.filePath || item?.fsPath || null;
+
+    if (!resolvedRoot || !algorithmPath) {
+      vscodeApi.window.showInformationMessage(
+        "Select an algorithm directory row in the sidebar and try again."
+      );
+      return {
+        ok: false,
+        status: "blocked",
+        reason: "missing-algorithm-sidebar-item",
+      };
+    }
+
+    if (!isAlgorithmDirectoryPath(algorithmPath, resolvedRoot)) {
+      vscodeApi.window.showInformationMessage(
+        "Clear Smoke Results is only available on src/<category>/<algorithm> directory rows."
+      );
+      return {
+        ok: false,
+        status: "blocked",
+        reason: "not-algorithm-directory",
+      };
+    }
+
+    if (provider.isSmokeProcessRunningForAlgorithm(algorithmPath)) {
+      vscodeApi.window.showInformationMessage(
+        "Stop the smoke test before clearing results."
+      );
+      return {
+        ok: false,
+        status: "blocked",
+        reason: "smoke-test-running",
+      };
+    }
+
+    const didClear = provider.clearSmokeResultsForAlgorithm(algorithmPath);
+
+    if (!didClear) {
+      vscodeApi.window.showInformationMessage(
+        `No smoke results to clear for ${path.basename(algorithmPath)}.`
+      );
+      return {
+        ok: false,
+        status: "noop",
+        reason: "no-smoke-results",
+      };
+    }
+
+    vscodeApi.window.showInformationMessage(
+      `Cleared smoke results for ${path.basename(algorithmPath)}.`
+    );
+
+    return {
+      ok: true,
+      status: "cleared",
       reason: null,
     };
   }
@@ -2402,6 +2732,8 @@ function registerWorkspaceAlgorithmsRunView() {
       await applySidebarFilterMode(filterMode);
     },
     runSmokeTest,
+    stopSmokeTest,
+    clearSmokeResults,
     openMissingLanguageFile,
     disposables: [
       view,

@@ -57,6 +57,18 @@
         "icon": "$(play)"
       },
       {
+        "command": "algos.runSmokeTestStop",
+        "title": "Stop Smoke Test",
+        "category": "Derek's Algorithms",
+        "icon": "$(debug-stop)"
+      },
+      {
+        "command": "algos.runSmokeTestClearResults",
+        "title": "Clear Smoke Results",
+        "category": "Derek's Algorithms",
+        "icon": "$(clear-all)"
+      },
+      {
         "command": "algos.flagLanguage",
         "title": "Flag Language",
         "category": "Derek's Algorithms",
@@ -250,8 +262,18 @@
       "view/item/context": [
         {
           "command": "algos.runSmokeTest",
-          "when": "view == algosWorkspaceAlgorithmsRunView && viewItem == algos.workspaceAlgorithmDirectory",
+          "when": "view == algosWorkspaceAlgorithmsRunView && (viewItem == algos.workspaceAlgorithmDirectory || viewItem == algos.workspaceAlgorithmDirectoryResults)",
           "group": "inline@1"
+        },
+        {
+          "command": "algos.runSmokeTestStop",
+          "when": "view == algosWorkspaceAlgorithmsRunView && viewItem == algos.workspaceAlgorithmDirectoryRunning",
+          "group": "inline@1"
+        },
+        {
+          "command": "algos.runSmokeTestClearResults",
+          "when": "view == algosWorkspaceAlgorithmsRunView && viewItem == algos.workspaceAlgorithmDirectoryResults",
+          "group": "inline@2"
         },
         {
           "command": "algos.runFile",

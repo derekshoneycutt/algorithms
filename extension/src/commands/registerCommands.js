@@ -173,6 +173,8 @@ function deriveImplementedRunMenuCommandIds(guardedCommandDefs) {
  *   runFileHandler: (vscodeApi: import("vscode"), eligibilityState: object, targetUri?: import("vscode").Uri) => Promise<unknown>,
  *   runLanguageHandler: (vscodeApi: import("vscode"), eligibilityState: object, item?: unknown) => Promise<unknown>,
  *   runSmokeTestHandler: (vscodeApi: import("vscode"), eligibilityState: object, item?: unknown) => Promise<unknown>,
+ *   runSmokeTestStopHandler: (vscodeApi: import("vscode"), eligibilityState: object, item?: unknown) => Promise<unknown>,
+ *   runSmokeTestClearResultsHandler: (vscodeApi: import("vscode"), eligibilityState: object, item?: unknown) => Promise<unknown>,
  *   flagLanguageHandler: (vscodeApi: import("vscode"), eligibilityState: object, item?: unknown) => Promise<unknown>,
  *   unflagLanguageHandler: (vscodeApi: import("vscode"), eligibilityState: object, item?: unknown) => Promise<unknown>,
  *   runLocalCleanHandler: (vscodeApi: import("vscode"), eligibilityState: object, targetUri?: import("vscode").Uri) => Promise<unknown>,
@@ -212,6 +214,14 @@ function registerCommands(deps) {
     {
       commandId: "algos.runSmokeTest",
       handler: deps.runSmokeTestHandler,
+    },
+    {
+      commandId: "algos.runSmokeTestStop",
+      handler: deps.runSmokeTestStopHandler,
+    },
+    {
+      commandId: "algos.runSmokeTestClearResults",
+      handler: deps.runSmokeTestClearResultsHandler,
     },
     {
       commandId: "algos.flagLanguage",

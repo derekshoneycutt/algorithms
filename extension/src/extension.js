@@ -261,6 +261,20 @@ async function activate(context) {
         item
       );
     },
+    runSmokeTestStopHandler: async (vscodeApi, eligibilityState, item) => {
+      return workspaceAlgorithmsRunViewRegistration.stopSmokeTest(
+        vscodeApi,
+        eligibilityState,
+        item
+      );
+    },
+    runSmokeTestClearResultsHandler: async (vscodeApi, eligibilityState, item) => {
+      return workspaceAlgorithmsRunViewRegistration.clearSmokeResults(
+        vscodeApi,
+        eligibilityState,
+        item
+      );
+    },
     flagLanguageHandler,
     unflagLanguageHandler,
     runLocalCleanHandler,
