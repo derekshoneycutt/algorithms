@@ -20,6 +20,11 @@
         "command": "algos.runFile",
         "title": "Run File",
         "category": "Derek's Algorithms"
+      },
+      {
+        "command": "algos.openRunMenu",
+        "title": "Run Menu",
+        "category": "Derek's Algorithms"
       }
     ],
     "menus": {

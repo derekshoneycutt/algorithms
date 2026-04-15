@@ -15,6 +15,10 @@ const {
   runActiveFileHandler,
   runFileHandler,
 } = require("./commands/fileCommands");
+// FEAT-207 centralized command registration.
+const { registerCommands } = require("./commands/registerCommands");
+// FEAT-207 launcher quick-pick flow.
+const { openRunMenuFlow } = require("./ui/quickPickFlows");
 
 /**
  * Returns the currently open workspace folders.
@@ -39,6 +43,39 @@ function logEligibility(stage, eligibilityState) {
 }
 
 /**
+ * Resolves and logs preflight eligibility state.
+ *
+ * @returns {object} Eligibility state for current workspace context.
+ */
+function resolvePreflightState() {
+  const preflightState = resolveEligibilityState(getWorkspaceFolders());
+  logEligibility("preflight", preflightState);
+  return preflightState;
+}
+
+/**
+ * Wraps command handlers with FEAT-202 eligibility preflight behavior.
+ *
+ * @param {(eligibilityState: object, ...args: unknown[]) => Promise<unknown>} handler Guarded command handler.
+ * @returns {(...args: unknown[]) => Promise<void>} Wrapped command callback.
+ */
+function runWithPreflightGuard(handler) {
+  return async (...args) => {
+    const preflightState = resolvePreflightState();
+    const validation = validateEligibilityForExecution(preflightState);
+
+    if (!validation.allowed) {
+      vscode.window.showWarningMessage(
+        buildEligibilityBlockMessage(validation, preflightState)
+      );
+      return;
+    }
+
+    await handler(preflightState, ...args);
+  };
+}
+
+/**
  * Activates the extension and registers FEAT-202 guarded command behavior.
  *
  * @param {import('vscode').ExtensionContext} context VS Code extension context.
@@ -48,45 +85,15 @@ async function activate(context) {
   const activationState = resolveEligibilityState(getWorkspaceFolders());
   logEligibility("activation", activationState);
 
-  const runActiveFileCommand = vscode.commands.registerCommand(
-    "algos.runActiveFile",
-    async () => {
-      const preflightState = resolveEligibilityState(getWorkspaceFolders());
-      logEligibility("preflight", preflightState);
+  const commandDisposables = registerCommands({
+    vscodeApi: vscode,
+    runWithPreflightGuard,
+    runActiveFileHandler,
+    runFileHandler,
+    openRunMenuFlow,
+  });
 
-      const validation = validateEligibilityForExecution(preflightState);
-
-      if (!validation.allowed) {
-        vscode.window.showWarningMessage(
-          buildEligibilityBlockMessage(validation, preflightState)
-        );
-        return;
-      }
-
-      await runActiveFileHandler(vscode, preflightState);
-    }
-  );
-
-  const runFileCommand = vscode.commands.registerCommand(
-    "algos.runFile",
-    async (targetUri) => {
-      const preflightState = resolveEligibilityState(getWorkspaceFolders());
-      logEligibility("preflight", preflightState);
-
-      const validation = validateEligibilityForExecution(preflightState);
-
-      if (!validation.allowed) {
-        vscode.window.showWarningMessage(
-          buildEligibilityBlockMessage(validation, preflightState)
-        );
-        return;
-      }
-
-      await runFileHandler(vscode, preflightState, targetUri);
-    }
-  );
-
-  context.subscriptions.push(runActiveFileCommand, runFileCommand);
+  context.subscriptions.push(...commandDisposables);
 }
 
 /**

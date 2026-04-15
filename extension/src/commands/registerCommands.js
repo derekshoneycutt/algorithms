@@ -1,25 +1,76 @@
-// VS Code API for command registration in the extension host process.
-const vscode = require("vscode");
+// Non-Play launcher menu actions for FEAT-207 quick-pick flow.
+const { RUN_MENU_ITEMS } = require("../ui/quickPickFlows");
 
 /**
- * Registers scaffold command handlers used during extension bootstrapping.
+ * Builds a placeholder message for non-Play commands pending FEAT-208+.
  *
- * @returns {import('vscode').Disposable[]} Command disposables.
+ * @param {string} commandId Command identifier.
+ * @returns {string} User-facing placeholder guidance.
  */
-function registerCommands() {
-  const runActiveFileCommand = vscode.commands.registerCommand(
+function buildNotImplementedMessage(commandId) {
+  return `${commandId} is not implemented yet. Planned in FEAT-208 through FEAT-211.`;
+}
+
+/**
+ * Registers extension commands and routes handlers through shared wrappers.
+ *
+ * @param {{
+ *   vscodeApi: import("vscode"),
+ *   runWithPreflightGuard: (handler: (...args: unknown[]) => Promise<unknown>) => (...args: unknown[]) => Promise<unknown>,
+ *   runActiveFileHandler: (vscodeApi: import("vscode"), eligibilityState: object) => Promise<unknown>,
+ *   runFileHandler: (vscodeApi: import("vscode"), eligibilityState: object, targetUri?: import("vscode").Uri) => Promise<unknown>,
+ *   openRunMenuFlow: (vscodeApi: import("vscode")) => Promise<string|null>
+ * }} deps Command registration dependencies.
+ * @returns {import("vscode").Disposable[]} Command disposables.
+ */
+function registerCommands(deps) {
+  const vscodeApi = deps.vscodeApi;
+
+  const runActiveFileCommand = vscodeApi.commands.registerCommand(
     "algos.runActiveFile",
-    () => {
-      vscode.window.showInformationMessage(
-        "algos.runActiveFile is registered. FEAT-201 scaffold baseline only."
-      );
+    deps.runWithPreflightGuard(async (eligibilityState) =>
+      deps.runActiveFileHandler(vscodeApi, eligibilityState)
+    )
+  );
+
+  const runFileCommand = vscodeApi.commands.registerCommand(
+    "algos.runFile",
+    deps.runWithPreflightGuard(async (eligibilityState, targetUri) =>
+      deps.runFileHandler(vscodeApi, eligibilityState, targetUri)
+    )
+  );
+
+  const openRunMenuCommand = vscodeApi.commands.registerCommand(
+    "algos.openRunMenu",
+    async () => {
+      const commandId = await deps.openRunMenuFlow(vscodeApi);
+
+      if (!commandId) {
+        return;
+      }
+
+      await vscodeApi.commands.executeCommand(commandId);
     }
   );
 
-  return [runActiveFileCommand];
+  const placeholderCommands = RUN_MENU_ITEMS.map((item) =>
+    vscodeApi.commands.registerCommand(item.commandId, () => {
+      vscodeApi.window.showInformationMessage(
+        buildNotImplementedMessage(item.commandId)
+      );
+    })
+  );
+
+  return [
+    runActiveFileCommand,
+    runFileCommand,
+    openRunMenuCommand,
+    ...placeholderCommands,
+  ];
 }
 
 // Public registration API used by extension entry points.
 module.exports = {
+  buildNotImplementedMessage,
   registerCommands,
 };
