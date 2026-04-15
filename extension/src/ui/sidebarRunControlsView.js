@@ -383,40 +383,6 @@ function buildRunControlsHtml(webview) {
       <span id="runArgsStatus" class="status ${stateSnapshot.statusClassName}">${escapedStatusText}</span>
 
       <span class="sectionHeader">
-        <svg class="sectionIcon" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Profile Sourcing">
-          <path d="M8 8C9.66 8 11 6.66 11 5C11 3.34 9.66 2 8 2C6.34 2 5 3.34 5 5C5 6.66 6.34 8 8 8Z" stroke="currentColor" stroke-width="1.1"/>
-          <path d="M3 13C3.55 10.9 5.52 9.5 8 9.5C10.48 9.5 12.45 10.9 13 13" stroke="currentColor" stroke-width="1.1" stroke-linecap="round"/>
-          <path d="M11.75 4.25L12.5 5L14 3.5" stroke="currentColor" stroke-width="1.1" stroke-linecap="round" stroke-linejoin="round"/>
-        </svg>
-        <span>Profile Sourcing</span>
-      </span>
-
-      <div class="inputRow">
-        <label class="toggleRow" for="sourceProfileEnabled">
-          <input id="sourceProfileEnabled" type="checkbox" aria-label="Enable profile sourcing override" ${
-            stateSnapshot.sourceProfileEnabled ? "checked" : ""
-          } />
-        </label>
-
-        <div class="inputWithClear">
-          <input
-            id="sourceProfileText"
-            class="argsInput"
-            type="text"
-            placeholder="profile/path/or/name"
-            value="${escapedSourceProfileText}"
-            ${stateSnapshot.sourceProfileEnabled ? "" : "disabled"}
-          />
-          <button id="clearSourceProfile" class="clearInlineButton" type="button" aria-label="Clear source profile" title="Clear">×</button>
-        </div>
-      </div>
-
-      <span id="sourceProfileStatus" class="status ${
-        stateSnapshot.sourceProfileStatusClassName
-      }">${escapedSourceProfileStatusText}</span>
-      <span class="helperText">If checked and empty, profile sourcing is disabled entirely. If unchecked, system default profile sourcing behavior is used.</span>
-
-      <span class="sectionHeader">
         <svg class="sectionIcon" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Run Checks">
           <path d="M3 3.5C3 2.67 3.67 2 4.5 2H11.5C12.33 2 13 2.67 13 3.5V12.5C13 13.33 12.33 14 11.5 14H4.5C3.67 14 3 13.33 3 12.5V3.5Z" stroke="currentColor" stroke-width="1"/>
           <path d="M5 8L7 10L11 6" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"/>
@@ -460,6 +426,40 @@ function buildRunControlsHtml(webview) {
       <span id="runChecksStatus" class="status ${
         stateSnapshot.runChecksStatusClassName
       }">${escapedRunChecksStatusText}</span>
+
+      <span class="sectionHeader">
+        <svg class="sectionIcon" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Profile Sourcing">
+          <path d="M8 8C9.66 8 11 6.66 11 5C11 3.34 9.66 2 8 2C6.34 2 5 3.34 5 5C5 6.66 6.34 8 8 8Z" stroke="currentColor" stroke-width="1.1"/>
+          <path d="M3 13C3.55 10.9 5.52 9.5 8 9.5C10.48 9.5 12.45 10.9 13 13" stroke="currentColor" stroke-width="1.1" stroke-linecap="round"/>
+          <path d="M11.75 4.25L12.5 5L14 3.5" stroke="currentColor" stroke-width="1.1" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+        <span>Profile Sourcing</span>
+      </span>
+
+      <div class="inputRow">
+        <label class="toggleRow" for="sourceProfileEnabled">
+          <input id="sourceProfileEnabled" type="checkbox" aria-label="Enable profile sourcing override" ${
+            stateSnapshot.sourceProfileEnabled ? "checked" : ""
+          } />
+        </label>
+
+        <div class="inputWithClear">
+          <input
+            id="sourceProfileText"
+            class="argsInput"
+            type="text"
+            placeholder="profile/path/or/name"
+            value="${escapedSourceProfileText}"
+            ${stateSnapshot.sourceProfileEnabled ? "" : "disabled"}
+          />
+          <button id="clearSourceProfile" class="clearInlineButton" type="button" aria-label="Clear source profile" title="Clear">×</button>
+        </div>
+      </div>
+
+      <span id="sourceProfileStatus" class="status ${
+        stateSnapshot.sourceProfileStatusClassName
+      }">${escapedSourceProfileStatusText}</span>
+      <span class="helperText">If checked and empty, profile sourcing is disabled entirely. If unchecked, system default profile sourcing behavior is used.</span>
     </div>
 
     <script nonce="${nonce}">
