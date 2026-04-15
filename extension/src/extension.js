@@ -19,6 +19,8 @@ const {
   runActiveFileHandler,
   runFileHandler,
   runLanguageHandler,
+  flagLanguageHandler,
+  unflagLanguageHandler,
   runLocalCleanHandler,
   runCleanHandler,
   runActiveFileCompileOnlyHandler,
@@ -246,6 +248,8 @@ async function activate(context) {
     runActiveFileHandler,
     runFileHandler,
     runLanguageHandler,
+    flagLanguageHandler,
+    unflagLanguageHandler,
     runLocalCleanHandler,
     runCleanHandler,
     runActiveFileCompileOnlyHandler,
@@ -262,6 +266,9 @@ async function activate(context) {
     },
     showSidebarLanguageView: async () => {
       await workspaceAlgorithmsRunViewRegistration.setViewMode("language");
+    },
+    refreshSidebarView: async () => {
+      workspaceAlgorithmsRunViewRegistration.refresh();
     },
     createLanguageFilePlaceholder: async (item) => {
       await workspaceAlgorithmsRunViewRegistration.openMissingLanguageFile(item);

@@ -51,6 +51,18 @@
         "icon": "$(play)"
       },
       {
+        "command": "algos.flagLanguage",
+        "title": "Flag Language",
+        "category": "Derek's Algorithms",
+        "icon": "$(eye)"
+      },
+      {
+        "command": "algos.unflagLanguage",
+        "title": "Unflag Language",
+        "category": "Derek's Algorithms",
+        "icon": "$(eye-closed)"
+      },
+      {
         "command": "algos.openRunMenu",
         "title": "Run Menu",
         "category": "Derek's Algorithms"
@@ -220,47 +232,67 @@
       "view/item/context": [
         {
           "command": "algos.runFile",
-          "when": "view == algosWorkspaceAlgorithmsRunView && viewItem == algos.workspaceRunnableFile",
+          "when": "view == algosWorkspaceAlgorithmsRunView && (viewItem == algos.workspaceRunnableFileUnflagged || viewItem == algos.workspaceRunnableFileFlagged)",
           "group": "inline@1"
         },
         {
           "command": "algos.runLanguage",
-          "when": "view == algosWorkspaceAlgorithmsRunView && viewItem == algos.languagePresent",
+          "when": "view == algosWorkspaceAlgorithmsRunView && (viewItem == algos.languagePresentUnflagged || viewItem == algos.languagePresentFlagged)",
           "group": "inline@1"
+        },
+        {
+          "command": "algos.flagLanguage",
+          "when": "view == algosWorkspaceAlgorithmsRunView && (viewItem == algos.workspaceRunnableFileUnflagged || viewItem == algos.workspaceFileUnflagged || viewItem == algos.languagePresentUnflagged || viewItem == algos.languageMissingUnflagged)",
+          "group": "inline@2"
+        },
+        {
+          "command": "algos.unflagLanguage",
+          "when": "view == algosWorkspaceAlgorithmsRunView && (viewItem == algos.workspaceRunnableFileFlagged || viewItem == algos.workspaceFileFlagged || viewItem == algos.languagePresentFlagged || viewItem == algos.languageMissingFlagged)",
+          "group": "inline@2"
         },
         {
           "command": "algos.runFile",
-          "when": "view == algosWorkspaceAlgorithmsRunView && (viewItem == algos.workspaceFile || viewItem == algos.workspaceRunnableFile)",
+          "when": "view == algosWorkspaceAlgorithmsRunView && (viewItem == algos.workspaceFileUnflagged || viewItem == algos.workspaceFileFlagged || viewItem == algos.workspaceRunnableFileUnflagged || viewItem == algos.workspaceRunnableFileFlagged)",
           "group": "1_modification@-2"
         },
         {
           "command": "algos.runLanguage",
-          "when": "view == algosWorkspaceAlgorithmsRunView && viewItem == algos.languagePresent",
+          "when": "view == algosWorkspaceAlgorithmsRunView && (viewItem == algos.languagePresentUnflagged || viewItem == algos.languagePresentFlagged)",
           "group": "1_modification@-2"
         },
         {
-          "submenu": "algos.runMenuSidebar",
-          "when": "view == algosWorkspaceAlgorithmsRunView && (viewItem == algos.workspaceFile || viewItem == algos.workspaceRunnableFile)",
-          "group": "inline@2"
-        },
-        {
-          "submenu": "algos.runMenuSidebarLanguage",
-          "when": "view == algosWorkspaceAlgorithmsRunView && viewItem == algos.languagePresent",
-          "group": "inline@2"
-        },
-        {
-          "submenu": "algos.runMenuSidebar",
-          "when": "view == algosWorkspaceAlgorithmsRunView && (viewItem == algos.workspaceFile || viewItem == algos.workspaceRunnableFile)",
+          "command": "algos.flagLanguage",
+          "when": "view == algosWorkspaceAlgorithmsRunView && (viewItem == algos.workspaceRunnableFileUnflagged || viewItem == algos.workspaceFileUnflagged || viewItem == algos.languagePresentUnflagged || viewItem == algos.languageMissingUnflagged)",
           "group": "1_modification@-1"
         },
         {
-          "submenu": "algos.runMenuSidebarLanguage",
-          "when": "view == algosWorkspaceAlgorithmsRunView && viewItem == algos.languagePresent",
+          "command": "algos.unflagLanguage",
+          "when": "view == algosWorkspaceAlgorithmsRunView && (viewItem == algos.workspaceRunnableFileFlagged || viewItem == algos.workspaceFileFlagged || viewItem == algos.languagePresentFlagged || viewItem == algos.languageMissingFlagged)",
           "group": "1_modification@-1"
+        },
+        {
+          "submenu": "algos.runMenuSidebar",
+          "when": "view == algosWorkspaceAlgorithmsRunView && (viewItem == algos.workspaceFileUnflagged || viewItem == algos.workspaceFileFlagged || viewItem == algos.workspaceRunnableFileUnflagged || viewItem == algos.workspaceRunnableFileFlagged)",
+          "group": "inline@3"
+        },
+        {
+          "submenu": "algos.runMenuSidebarLanguage",
+          "when": "view == algosWorkspaceAlgorithmsRunView && (viewItem == algos.languagePresentUnflagged || viewItem == algos.languagePresentFlagged)",
+          "group": "inline@3"
+        },
+        {
+          "submenu": "algos.runMenuSidebar",
+          "when": "view == algosWorkspaceAlgorithmsRunView && (viewItem == algos.workspaceFileUnflagged || viewItem == algos.workspaceFileFlagged || viewItem == algos.workspaceRunnableFileUnflagged || viewItem == algos.workspaceRunnableFileFlagged)",
+          "group": "1_modification@0"
+        },
+        {
+          "submenu": "algos.runMenuSidebarLanguage",
+          "when": "view == algosWorkspaceAlgorithmsRunView && (viewItem == algos.languagePresentUnflagged || viewItem == algos.languagePresentFlagged)",
+          "group": "1_modification@0"
         },
         {
           "command": "algos.createLanguageFilePlaceholder",
-          "when": "view == algosWorkspaceAlgorithmsRunView && viewItem == algos.languageMissing",
+          "when": "view == algosWorkspaceAlgorithmsRunView && (viewItem == algos.languageMissingUnflagged || viewItem == algos.languageMissingFlagged)",
           "group": "inline@1"
         }
       ],

@@ -955,11 +955,131 @@ async function runLanguageCheckOnlySshHandler(vscodeApi, eligibilityState, item)
   });
 }
 
+/**
+ * Resolves sidebar item metadata to a flaggable language context.
+ *
+ * @param {{algorithmPath?: string, languageKey?: string}|undefined} item Sidebar item payload.
+ * @param {{selected?: {resolvedRoot?: string, scriptPath?: string}}|null|undefined} eligibilityState Eligible workspace state.
+ * @returns {{ok: boolean, reason: string|null, guidance: string, severity: "info"|"warning"|"error", algorithmDir: string|null, scriptPath: string|null, displayScriptPath: string|null, languageKey: string|null}} Resolution result.
+ */
+function resolveFlaggableSidebarContext(item, eligibilityState) {
+  const selected = eligibilityState?.selected;
+  const scriptPath = selected?.scriptPath;
+  const algorithmDir = item?.algorithmPath;
+  const languageKey = item?.languageKey;
+
+  if (!scriptPath) {
+    return {
+      ok: false,
+      reason: "missing-run-script-path",
+      guidance: "Run script path is unavailable. Reopen the workspace and retry.",
+      severity: "error",
+      algorithmDir: null,
+      scriptPath: null,
+      displayScriptPath: null,
+      languageKey: null,
+    };
+  }
+
+  if (!algorithmDir || !languageKey) {
+    return {
+      ok: false,
+      reason: "missing-language-sidebar-item",
+      guidance: "Select a language or file row in the sidebar and try again.",
+      severity: "info",
+      algorithmDir: null,
+      scriptPath: null,
+      displayScriptPath: null,
+      languageKey: null,
+    };
+  }
+
+  const relativeScriptPath = path.relative(algorithmDir, scriptPath);
+  const displayScriptPath = relativeScriptPath || scriptPath;
+
+  return {
+    ok: true,
+    reason: null,
+    guidance: "Flaggable sidebar context resolved.",
+    severity: "info",
+    algorithmDir,
+    scriptPath,
+    displayScriptPath,
+    languageKey,
+  };
+}
+
+/**
+ * Executes one flag/unflag command for a sidebar row.
+ *
+ * @param {import("vscode")} vscodeApi VS Code API object.
+ * @param {{selected?: {resolvedRoot?: string, scriptPath?: string}}|null|undefined} eligibilityState Eligible workspace state.
+ * @param {{algorithmPath?: string, languageKey?: string}|undefined} item Sidebar item payload.
+ * @param {{commandFamily: string, commandLabel: string, successMessage: string, buildArgs: (languageKey: string) => string[]}} execution Execution metadata.
+ * @returns {Promise<{ok: boolean, status: string, reason: string|null}>} Handler execution summary.
+ */
+async function runFlagLanguageCommand(vscodeApi, eligibilityState, item, execution) {
+  const contextResolution = resolveFlaggableSidebarContext(item, eligibilityState);
+
+  if (!contextResolution.ok) {
+    return blockWithValidation(vscodeApi, contextResolution, execution.commandLabel);
+  }
+
+  const commandResult = executeContextCommand(vscodeApi, contextResolution, {
+    commandFamily: execution.commandFamily,
+    args: execution.buildArgs(contextResolution.languageKey),
+    commandLabel: execution.commandLabel,
+    successMessage: execution.successMessage,
+  });
+
+  if (commandResult.ok) {
+    await vscodeApi.commands.executeCommand("algos.sidebar.refresh");
+  }
+
+  return commandResult;
+}
+
+/**
+ * Handles one sidebar language/file flag command invocation.
+ *
+ * @param {import("vscode")} vscodeApi VS Code API object.
+ * @param {{selected?: {resolvedRoot?: string, scriptPath?: string}}|null|undefined} eligibilityState Eligible workspace state.
+ * @param {{algorithmPath?: string, languageKey?: string}|undefined} item Sidebar item payload.
+ * @returns {Promise<{ok: boolean, status: string, reason: string|null}>} Handler execution summary.
+ */
+async function flagLanguageHandler(vscodeApi, eligibilityState, item) {
+  return runFlagLanguageCommand(vscodeApi, eligibilityState, item, {
+    commandFamily: "flag-language",
+    commandLabel: "Flag Language",
+    successMessage: `Flag Language completed in ${"Algorithms Runner"}.`,
+    buildArgs: (languageKey) => [`--flag=${languageKey}`],
+  });
+}
+
+/**
+ * Handles one sidebar language/file unflag command invocation.
+ *
+ * @param {import("vscode")} vscodeApi VS Code API object.
+ * @param {{selected?: {resolvedRoot?: string, scriptPath?: string}}|null|undefined} eligibilityState Eligible workspace state.
+ * @param {{algorithmPath?: string, languageKey?: string}|undefined} item Sidebar item payload.
+ * @returns {Promise<{ok: boolean, status: string, reason: string|null}>} Handler execution summary.
+ */
+async function unflagLanguageHandler(vscodeApi, eligibilityState, item) {
+  return runFlagLanguageCommand(vscodeApi, eligibilityState, item, {
+    commandFamily: "unflag-language",
+    commandLabel: "Unflag Language",
+    successMessage: `Unflag Language completed in ${"Algorithms Runner"}.`,
+    buildArgs: (languageKey) => [`--unflag=${languageKey}`],
+  });
+}
+
 // Public command handlers consumed by extension activation and tests.
 module.exports = {
   runActiveFileHandler,
   runFileHandler,
   runLanguageHandler,
+  flagLanguageHandler,
+  unflagLanguageHandler,
   runLocalCleanHandler,
   runCleanHandler,
   runActiveFileCompileOnlyHandler,

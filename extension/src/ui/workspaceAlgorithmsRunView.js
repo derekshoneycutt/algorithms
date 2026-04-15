@@ -484,11 +484,12 @@ function createSidebarTreeNode(
  * Creates one child node for an include-file entry.
  *
  * @param {string} filePath Include-file absolute path.
+ * @param {string|null} algorithmPath Containing algorithm directory path.
  * @param {string|null} languageKey Canonical language key.
  * @param {boolean} isFlagged Whether the include language is flagged.
  * @returns {{filePath: string, fsPath: string, label: string, isDirectory: boolean, isRunnableFile: boolean, algorithmPath: string|null, languageKey: string|null, hasIncludeChildren: boolean, isFlagged: boolean, resourceUri: import("vscode").Uri}} Sidebar tree node.
  */
-function createIncludeFileTreeNode(filePath, languageKey, isFlagged) {
+function createIncludeFileTreeNode(filePath, algorithmPath, languageKey, isFlagged) {
   const baseResourceUri = vscode.Uri.file(filePath);
 
   return {
@@ -497,7 +498,7 @@ function createIncludeFileTreeNode(filePath, languageKey, isFlagged) {
     label: path.basename(filePath),
     isDirectory: false,
     isRunnableFile: false,
-    algorithmPath: null,
+    algorithmPath: algorithmPath || null,
     languageKey: languageKey || null,
     hasIncludeChildren: false,
     isFlagged: Boolean(isFlagged),
@@ -629,7 +630,12 @@ function readIncludeFileChildren(
   );
 
   return includeFilePaths.map((filePath) =>
-    createIncludeFileTreeNode(filePath, languageKey, isFlaggedLanguage)
+    createIncludeFileTreeNode(
+      filePath,
+      algorithmPath,
+      languageKey,
+      isFlaggedLanguage
+    )
   );
 }
 
@@ -683,7 +689,13 @@ function createLanguageSummaryTreeNode(
     resourceUri,
     openTargetUri,
     suggestedUntitledUri,
-    contextValue: openTargetUri ? "algos.languagePresent" : "algos.languageMissing",
+    contextValue: isFlagged
+      ? openTargetUri
+        ? "algos.languagePresentFlagged"
+        : "algos.languageMissingFlagged"
+      : openTargetUri
+      ? "algos.languagePresentUnflagged"
+      : "algos.languageMissingUnflagged",
     tooltip:
       fileCount > 0 && openTargetPath
         ? `${languageKey}: present (${fileCount})\nOpens: ${openTargetPath}`
@@ -1276,8 +1288,12 @@ class WorkspaceStatusTreeDataProvider {
     treeItem.contextValue = element.isDirectory
       ? "algos.workspaceDirectory"
       : element.isRunnableFile
-      ? "algos.workspaceRunnableFile"
-      : "algos.workspaceFile";
+      ? element.isFlagged
+        ? "algos.workspaceRunnableFileFlagged"
+        : "algos.workspaceRunnableFileUnflagged"
+      : element.isFlagged
+      ? "algos.workspaceFileFlagged"
+      : "algos.workspaceFileUnflagged";
     treeItem.tooltip = element.filePath;
 
     if (!element.isDirectory && element.hasIncludeChildren) {

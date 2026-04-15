@@ -51,7 +51,7 @@ function registerRunMenuCommand(deps) {
 /**
  * Registers sidebar view-mode toggle commands used by the tree-view title toolbar.
  *
- * @param {{vscodeApi: import("vscode"), showSidebarFileView: () => Promise<void>, showSidebarLanguageView: () => Promise<void>, createLanguageFilePlaceholder: (item?: unknown) => Promise<void>}} deps Registration dependencies.
+ * @param {{vscodeApi: import("vscode"), showSidebarFileView: () => Promise<void>, showSidebarLanguageView: () => Promise<void>, refreshSidebarView: () => Promise<void>, createLanguageFilePlaceholder: (item?: unknown) => Promise<void>}} deps Registration dependencies.
  * @returns {import("vscode").Disposable[]} Sidebar mode command disposables.
  */
 function registerSidebarModeCommands(deps) {
@@ -69,6 +69,13 @@ function registerSidebarModeCommands(deps) {
     }
   );
 
+  const refreshSidebarView = deps.vscodeApi.commands.registerCommand(
+    "algos.sidebar.refresh",
+    async () => {
+      await deps.refreshSidebarView();
+    }
+  );
+
   const createLanguageFilePlaceholder = deps.vscodeApi.commands.registerCommand(
     "algos.createLanguageFilePlaceholder",
     async (item) => {
@@ -76,7 +83,12 @@ function registerSidebarModeCommands(deps) {
     }
   );
 
-  return [showFileView, showLanguageView, createLanguageFilePlaceholder];
+  return [
+    showFileView,
+    showLanguageView,
+    refreshSidebarView,
+    createLanguageFilePlaceholder,
+  ];
 }
 
 /**
@@ -144,6 +156,8 @@ function deriveImplementedRunMenuCommandIds(guardedCommandDefs) {
  *   runActiveFileHandler: (vscodeApi: import("vscode"), eligibilityState: object) => Promise<unknown>,
  *   runFileHandler: (vscodeApi: import("vscode"), eligibilityState: object, targetUri?: import("vscode").Uri) => Promise<unknown>,
  *   runLanguageHandler: (vscodeApi: import("vscode"), eligibilityState: object, item?: unknown) => Promise<unknown>,
+ *   flagLanguageHandler: (vscodeApi: import("vscode"), eligibilityState: object, item?: unknown) => Promise<unknown>,
+ *   unflagLanguageHandler: (vscodeApi: import("vscode"), eligibilityState: object, item?: unknown) => Promise<unknown>,
  *   runLocalCleanHandler: (vscodeApi: import("vscode"), eligibilityState: object, targetUri?: import("vscode").Uri) => Promise<unknown>,
  *   runCleanHandler: (vscodeApi: import("vscode"), eligibilityState: object, targetUri?: import("vscode").Uri) => Promise<unknown>,
  *   runActiveFileCompileOnlyHandler: (vscodeApi: import("vscode"), eligibilityState: object, targetUri?: import("vscode").Uri) => Promise<unknown>,
@@ -157,6 +171,7 @@ function deriveImplementedRunMenuCommandIds(guardedCommandDefs) {
  *   openRunMenuFlow: (vscodeApi: import("vscode")) => Promise<string|null>,
  *   showSidebarFileView: () => Promise<void>,
  *   showSidebarLanguageView: () => Promise<void>,
+ *   refreshSidebarView: () => Promise<void>,
  *   createLanguageFilePlaceholder: (item?: unknown) => Promise<void>
  * }} deps Command registration dependencies.
  * @returns {import("vscode").Disposable[]} Command disposables.
@@ -174,6 +189,14 @@ function registerCommands(deps) {
     {
       commandId: "algos.runLanguage",
       handler: deps.runLanguageHandler,
+    },
+    {
+      commandId: "algos.flagLanguage",
+      handler: deps.flagLanguageHandler,
+    },
+    {
+      commandId: "algos.unflagLanguage",
+      handler: deps.unflagLanguageHandler,
     },
     {
       commandId: "algos.runLocalClean",
