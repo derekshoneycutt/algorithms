@@ -4,7 +4,10 @@ const fs = require("fs");
 // Runtime command assembly and terminal runner used by the Run Active File handler.
 const { buildRunCommand } = require("../runtime/argumentBuilder");
 const { runCommand } = require("../runtime/runScriptRunner");
-const { getEffectiveSidebarRunArgs } = require("../runtime/sidebarRunArgsState");
+const {
+  getEffectiveSidebarRunArgs,
+  getEffectiveSidebarSourceProfile,
+} = require("../runtime/sidebarRunArgsState");
 // Validation and message helpers for active editor and language checks.
 const {
   validateActiveEditorContext,
@@ -45,7 +48,7 @@ function blockWithValidation(vscodeApi, validation, commandLabel) {
  *
  * @param {import("vscode")} vscodeApi VS Code API object.
  * @param {{algorithmDir: string, scriptPath: string, displayScriptPath: string}} contextResolution Resolved execution context.
- * @param {{commandFamily: string, args: string[], commandLabel: string, successMessage: string, includeSidebarRunArgs?: boolean}} execution Execution metadata.
+ * @param {{commandFamily: string, args: string[], commandLabel: string, successMessage: string, includeSidebarRunArgs?: boolean, includeSidebarSourceProfile?: boolean}} execution Execution metadata.
  * @returns {{ok: boolean, status: string, reason: string|null}} Handler execution summary.
  */
 function executeContextCommand(vscodeApi, contextResolution, execution) {
@@ -65,6 +68,22 @@ function executeContextCommand(vscodeApi, contextResolution, execution) {
     }
 
     resolvedArgs = [...execution.args, ...runArgs.tokens];
+  }
+
+  if (execution.includeSidebarSourceProfile) {
+    const sourceProfile = getEffectiveSidebarSourceProfile();
+
+    if (!sourceProfile.ok) {
+      const validation = {
+        reason: "invalid-sidebar-source-profile",
+        guidance: sourceProfile.reason || "Source profile input is invalid.",
+        severity: "warning",
+      };
+
+      return blockWithValidation(vscodeApi, validation, execution.commandLabel);
+    }
+
+    resolvedArgs = [...resolvedArgs, ...sourceProfile.tokens];
   }
 
   const build = buildRunCommand({
@@ -196,6 +215,7 @@ async function runLanguageAtSidebarItem(vscodeApi, eligibilityState, item, execu
     commandLabel: execution.commandLabel,
     successMessage: execution.successMessage,
     includeSidebarRunArgs: true,
+    includeSidebarSourceProfile: true,
   });
 }
 
@@ -573,6 +593,7 @@ async function runFileAtPath(
     commandLabel: execution.commandLabel,
     successMessage: execution.successMessage,
     includeSidebarRunArgs: true,
+    includeSidebarSourceProfile: true,
   });
 }
 

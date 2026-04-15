@@ -2,6 +2,8 @@
 
 let sidebarRunArgsEnabled = false;
 let sidebarRunArgsText = "";
+let sidebarSourceProfileEnabled = false;
+let sidebarSourceProfileText = "";
 
 /**
  * Returns the current sidebar run-args state.
@@ -33,6 +35,38 @@ function setSidebarRunArgsEnabled(enabled) {
  */
 function setSidebarRunArgsText(text) {
   sidebarRunArgsText = String(text || "").trim();
+}
+
+/**
+ * Returns the current sidebar source-profile state.
+ *
+ * @returns {{enabled: boolean, text: string}} Current state snapshot.
+ */
+function getSidebarSourceProfileState() {
+  return {
+    enabled: sidebarSourceProfileEnabled,
+    text: sidebarSourceProfileText,
+  };
+}
+
+/**
+ * Sets whether sidebar source profile override is enabled.
+ *
+ * @param {boolean} enabled True when source-profile flag should be emitted.
+ * @returns {void}
+ */
+function setSidebarSourceProfileEnabled(enabled) {
+  sidebarSourceProfileEnabled = Boolean(enabled);
+}
+
+/**
+ * Sets the raw sidebar source-profile text.
+ *
+ * @param {string} text Raw source-profile value entered by the user.
+ * @returns {void}
+ */
+function setSidebarSourceProfileText(text) {
+  sidebarSourceProfileText = String(text || "");
 }
 
 /**
@@ -163,10 +197,53 @@ function getEffectiveSidebarRunArgs() {
   };
 }
 
+/**
+ * Returns the effective sidebar source-profile argument token when enabled.
+ *
+ * Behavior:
+ * - Disabled: emits no tokens.
+ * - Enabled + empty text: emits exactly `--source-profile=`.
+ * - Enabled + non-empty text: emits `--source-profile=<value>`.
+ *
+ * @returns {{ok: boolean, enabled: boolean, tokens: string[], reason: string|null}} Effective source-profile result.
+ */
+function getEffectiveSidebarSourceProfile() {
+  if (!sidebarSourceProfileEnabled) {
+    return {
+      ok: true,
+      enabled: false,
+      tokens: [],
+      reason: null,
+    };
+  }
+
+  const text = String(sidebarSourceProfileText || "");
+
+  if (!text.trim()) {
+    return {
+      ok: true,
+      enabled: true,
+      tokens: ["--source-profile="],
+      reason: null,
+    };
+  }
+
+  return {
+    ok: true,
+    enabled: true,
+    tokens: [`--source-profile=${text}`],
+    reason: null,
+  };
+}
+
 module.exports = {
   getSidebarRunArgsState,
   setSidebarRunArgsEnabled,
   setSidebarRunArgsText,
+  getSidebarSourceProfileState,
+  setSidebarSourceProfileEnabled,
+  setSidebarSourceProfileText,
   parseSidebarRunArgsText,
   getEffectiveSidebarRunArgs,
+  getEffectiveSidebarSourceProfile,
 };

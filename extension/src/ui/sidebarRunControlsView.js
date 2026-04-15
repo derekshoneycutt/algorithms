@@ -3,6 +3,9 @@ const {
   getSidebarRunArgsState,
   setSidebarRunArgsEnabled,
   setSidebarRunArgsText,
+  getSidebarSourceProfileState,
+  setSidebarSourceProfileEnabled,
+  setSidebarSourceProfileText,
   parseSidebarRunArgsText,
 } = require("../runtime/sidebarRunArgsState");
 
@@ -69,19 +72,52 @@ function buildRunArgsStatus(runArgsState) {
 }
 
 /**
+ * Builds status metadata for the source-profile input.
+ *
+ * @param {{enabled: boolean, text: string}} sourceProfileState Current source-profile state.
+ * @returns {{statusText: string, statusClassName: string}} Status display metadata.
+ */
+function buildSourceProfileStatus(sourceProfileState) {
+  if (!sourceProfileState.enabled) {
+    return {
+      statusText: "Source Profile Unchecked",
+      statusClassName: "status-muted",
+    };
+  }
+
+  if (!String(sourceProfileState.text || "").trim()) {
+    return {
+      statusText: "Checked and empty: emits --source-profile=",
+      statusClassName: "status-ok",
+    };
+  }
+
+  return {
+    statusText: "Source Profile Enabled",
+    statusClassName: "status-ok",
+  };
+}
+
+/**
  * Returns the render snapshot used by the run-controls UI.
  *
- * @returns {{enabled: boolean, text: string, statusText: string, statusClassName: string}} Current UI state snapshot.
+ * @returns {{enabled: boolean, text: string, statusText: string, statusClassName: string, sourceProfileEnabled: boolean, sourceProfileText: string, sourceProfileStatusText: string, sourceProfileStatusClassName: string}} Current UI state snapshot.
  */
 function getRunControlsSnapshot() {
   const runArgsState = getSidebarRunArgsState();
-  const status = buildRunArgsStatus(runArgsState);
+  const runArgsStatus = buildRunArgsStatus(runArgsState);
+  const sourceProfileState = getSidebarSourceProfileState();
+  const sourceProfileStatus = buildSourceProfileStatus(sourceProfileState);
 
   return {
     enabled: runArgsState.enabled,
     text: runArgsState.text,
-    statusText: status.statusText,
-    statusClassName: status.statusClassName,
+    statusText: runArgsStatus.statusText,
+    statusClassName: runArgsStatus.statusClassName,
+    sourceProfileEnabled: sourceProfileState.enabled,
+    sourceProfileText: sourceProfileState.text,
+    sourceProfileStatusText: sourceProfileStatus.statusText,
+    sourceProfileStatusClassName: sourceProfileStatus.statusClassName,
   };
 }
 
@@ -94,7 +130,11 @@ function getRunControlsSnapshot() {
 function buildRunControlsHtml(webview) {
   const stateSnapshot = getRunControlsSnapshot();
   const escapedRunArgsText = escapeHtml(stateSnapshot.text);
+  const escapedSourceProfileText = escapeHtml(stateSnapshot.sourceProfileText);
   const escapedStatusText = escapeHtml(stateSnapshot.statusText);
+  const escapedSourceProfileStatusText = escapeHtml(
+    stateSnapshot.sourceProfileStatusText
+  );
   const nonce = createNonce();
   const cspSource = webview.cspSource;
 
@@ -187,6 +227,13 @@ function buildRunControlsHtml(webview) {
         font-size: 10px;
       }
 
+      .helperText {
+        margin-left: 2px;
+        color: var(--vscode-descriptionForeground);
+        font-size: 10px;
+        line-height: 1.2;
+      }
+
       .status-muted {
         color: var(--vscode-descriptionForeground);
       }
@@ -257,6 +304,32 @@ function buildRunControlsHtml(webview) {
       </div>
 
       <span id="runArgsStatus" class="status ${stateSnapshot.statusClassName}">${escapedStatusText}</span>
+
+      <div class="inputRow">
+        <label class="toggleRow" for="sourceProfileEnabled">
+          <input id="sourceProfileEnabled" type="checkbox" ${
+            stateSnapshot.sourceProfileEnabled ? "checked" : ""
+          } />
+          <span class="toggleLabel">Source</span>
+        </label>
+
+        <div class="inputWithClear">
+          <input
+            id="sourceProfileText"
+            class="argsInput"
+            type="text"
+            placeholder="profile/path/or/name"
+            value="${escapedSourceProfileText}"
+            ${stateSnapshot.sourceProfileEnabled ? "" : "disabled"}
+          />
+          <button id="clearSourceProfile" class="clearInlineButton" type="button" aria-label="Clear source profile" title="Clear">×</button>
+        </div>
+      </div>
+
+      <span id="sourceProfileStatus" class="status ${
+        stateSnapshot.sourceProfileStatusClassName
+      }">${escapedSourceProfileStatusText}</span>
+      <span class="helperText">If checked and empty, profile sourcing is disabled entirely. If unchecked, system default profile sourcing behavior is used.</span>
     </div>
 
     <script nonce="${nonce}">
@@ -265,21 +338,38 @@ function buildRunControlsHtml(webview) {
       const runArgsText = document.getElementById("runArgsText");
       const runArgsStatus = document.getElementById("runArgsStatus");
       const clearRunArgs = document.getElementById("clearRunArgs");
+      const sourceProfileEnabled = document.getElementById("sourceProfileEnabled");
+      const sourceProfileText = document.getElementById("sourceProfileText");
+      const sourceProfileStatus = document.getElementById("sourceProfileStatus");
+      const clearSourceProfile = document.getElementById("clearSourceProfile");
       const statusClasses = ["status-muted", "status-ok", "status-error"];
 
-      function updateClearButtonVisibility() {
+      function updateRunArgsClearButtonVisibility() {
         const shouldShow = !runArgsText.disabled && runArgsText.value.length > 0;
         clearRunArgs.classList.toggle("hidden", !shouldShow);
       }
 
+      function updateSourceProfileClearButtonVisibility() {
+        const shouldShow = !sourceProfileText.disabled && sourceProfileText.value.length > 0;
+        clearSourceProfile.classList.toggle("hidden", !shouldShow);
+      }
+
       function applyState(state) {
         const nextState = state || {};
-        const isInputFocused = document.activeElement === runArgsText;
+        const activeElement = document.activeElement;
+        const isRunArgsFocused = activeElement === runArgsText;
+        const isSourceProfileFocused = activeElement === sourceProfileText;
         runArgsEnabled.checked = Boolean(nextState.enabled);
         runArgsText.disabled = !Boolean(nextState.enabled);
+        sourceProfileEnabled.checked = Boolean(nextState.sourceProfileEnabled);
+        sourceProfileText.disabled = !Boolean(nextState.sourceProfileEnabled);
 
-        if (!isInputFocused && typeof nextState.text === "string") {
+        if (!isRunArgsFocused && typeof nextState.text === "string") {
           runArgsText.value = nextState.text;
+        }
+
+        if (!isSourceProfileFocused && typeof nextState.sourceProfileText === "string") {
+          sourceProfileText.value = nextState.sourceProfileText;
         }
 
         runArgsStatus.textContent = String(nextState.statusText || "");
@@ -289,7 +379,15 @@ function buildRunControlsHtml(webview) {
           runArgsStatus.classList.add(nextState.statusClassName);
         }
 
-        updateClearButtonVisibility();
+        sourceProfileStatus.textContent = String(nextState.sourceProfileStatusText || "");
+        sourceProfileStatus.classList.remove(...statusClasses);
+
+        if (statusClasses.includes(nextState.sourceProfileStatusClassName)) {
+          sourceProfileStatus.classList.add(nextState.sourceProfileStatusClassName);
+        }
+
+        updateRunArgsClearButtonVisibility();
+        updateSourceProfileClearButtonVisibility();
       }
 
       runArgsEnabled.addEventListener("change", () => {
@@ -302,7 +400,7 @@ function buildRunControlsHtml(webview) {
       });
 
       runArgsText.addEventListener("input", () => {
-        updateClearButtonVisibility();
+        updateRunArgsClearButtonVisibility();
         vscodeApi.postMessage({
           type: "setText",
           text: runArgsText.value,
@@ -320,7 +418,38 @@ function buildRunControlsHtml(webview) {
           runArgsText.focus();
         }
 
-        updateClearButtonVisibility();
+        updateRunArgsClearButtonVisibility();
+      });
+
+      sourceProfileEnabled.addEventListener("change", () => {
+        const enabled = sourceProfileEnabled.checked;
+        sourceProfileText.disabled = !enabled;
+        vscodeApi.postMessage({
+          type: "setSourceProfileEnabled",
+          enabled,
+        });
+      });
+
+      sourceProfileText.addEventListener("input", () => {
+        updateSourceProfileClearButtonVisibility();
+        vscodeApi.postMessage({
+          type: "setSourceProfileText",
+          text: sourceProfileText.value,
+        });
+      });
+
+      clearSourceProfile.addEventListener("click", () => {
+        sourceProfileText.value = "";
+        vscodeApi.postMessage({
+          type: "setSourceProfileText",
+          text: "",
+        });
+
+        if (!sourceProfileText.disabled) {
+          sourceProfileText.focus();
+        }
+
+        updateSourceProfileClearButtonVisibility();
       });
 
       window.addEventListener("message", (event) => {
@@ -333,7 +462,8 @@ function buildRunControlsHtml(webview) {
         applyState(message.state);
       });
 
-      updateClearButtonVisibility();
+      updateRunArgsClearButtonVisibility();
+      updateSourceProfileClearButtonVisibility();
     </script>
   </body>
 </html>`;
@@ -365,6 +495,18 @@ class SidebarRunControlsViewProvider {
 
     if (message?.type === "setText") {
       setSidebarRunArgsText(String(message.text || ""));
+      this.postStateUpdate();
+      return;
+    }
+
+    if (message?.type === "setSourceProfileEnabled") {
+      setSidebarSourceProfileEnabled(Boolean(message.enabled));
+      this.postStateUpdate();
+      return;
+    }
+
+    if (message?.type === "setSourceProfileText") {
+      setSidebarSourceProfileText(String(message.text || ""));
       this.postStateUpdate();
     }
   }
