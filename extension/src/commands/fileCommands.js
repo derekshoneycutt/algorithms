@@ -126,36 +126,24 @@ function resolveActiveFileRunContext(filePath, eligibilityState) {
 }
 
 /**
- * Handles the Run Active File command end-to-end.
- *
- * The flow validates editor state, validates language support (with extension
- * fallback), resolves algorithm execution context, builds the run command, and
- * starts execution in the extension-owned terminal.
+ * Executes run flow for one resolved file path after FEAT-202 preflight.
  *
  * @param {import("vscode")} vscodeApi VS Code API object.
  * @param {{selected?: {resolvedRoot?: string, scriptPath?: string}}|null|undefined} eligibilityState Eligible workspace state.
+ * @param {string} filePath Absolute file path to execute.
+ * @param {string} commandFamily Lifecycle command family label.
+ * @param {string} successMessage User-facing success message.
  * @returns {Promise<{ok: boolean, status: string, reason: string|null}>} Handler execution summary.
  */
-async function runActiveFileHandler(vscodeApi, eligibilityState) {
-  const editor = vscodeApi.window.activeTextEditor;
-  const editorValidation = validateActiveEditorContext(editor);
-
-  if (!editorValidation.ok) {
-    showBySeverity(
-      vscodeApi,
-      editorValidation.severity,
-      buildActiveFileValidationMessage(editorValidation)
-    );
-    return {
-      ok: false,
-      status: "blocked",
-      reason: editorValidation.reason,
-    };
-  }
-
-  const filePath = editor.document.uri.fsPath;
+async function runFileAtPath(
+  vscodeApi,
+  eligibilityState,
+  filePath,
+  commandFamily,
+  successMessage
+) {
   const languageValidation = validateSupportedLanguage(
-    editor,
+    undefined,
     eligibilityState,
     filePath
   );
@@ -192,7 +180,7 @@ async function runActiveFileHandler(vscodeApi, eligibilityState) {
     scriptPath: contextResolution.scriptPath,
     displayScriptPath: contextResolution.displayScriptPath,
     cwd: contextResolution.algorithmDir,
-    commandFamily: "run-active-file",
+    commandFamily,
     args: [path.basename(contextResolution.filename)],
   });
 
@@ -200,7 +188,7 @@ async function runActiveFileHandler(vscodeApi, eligibilityState) {
     showBySeverity(
       vscodeApi,
       "error",
-      `Run Active File aborted. Reason: ${build.reason}. Guidance: Unable to assemble command for execution.`
+      `Run File aborted. Reason: ${build.reason}. Guidance: Unable to assemble command for execution.`
     );
     return {
       ok: false,
@@ -219,7 +207,7 @@ async function runActiveFileHandler(vscodeApi, eligibilityState) {
     showBySeverity(
       vscodeApi,
       "error",
-      `Run Active File failed to start. Reason: ${runResult.reason}.`
+      `Run File failed to start. Reason: ${runResult.reason}.`
     );
     return {
       ok: false,
@@ -228,9 +216,7 @@ async function runActiveFileHandler(vscodeApi, eligibilityState) {
     };
   }
 
-  vscodeApi.window.showInformationMessage(
-    `Run Active File started in ${"Algorithms Runner"}.`
-  );
+  vscodeApi.window.showInformationMessage(successMessage);
 
   return {
     ok: true,
@@ -239,8 +225,84 @@ async function runActiveFileHandler(vscodeApi, eligibilityState) {
   };
 }
 
+/**
+ * Handles the Run Active File command end-to-end.
+ *
+ * The flow validates editor state, validates language support (with extension
+ * fallback), resolves algorithm execution context, builds the run command, and
+ * starts execution in the extension-owned terminal.
+ *
+ * @param {import("vscode")} vscodeApi VS Code API object.
+ * @param {{selected?: {resolvedRoot?: string, scriptPath?: string}}|null|undefined} eligibilityState Eligible workspace state.
+ * @returns {Promise<{ok: boolean, status: string, reason: string|null}>} Handler execution summary.
+ */
+async function runActiveFileHandler(vscodeApi, eligibilityState) {
+  const editor = vscodeApi.window.activeTextEditor;
+  const editorValidation = validateActiveEditorContext(editor);
+
+  if (!editorValidation.ok) {
+    showBySeverity(
+      vscodeApi,
+      editorValidation.severity,
+      buildActiveFileValidationMessage(editorValidation)
+    );
+    return {
+      ok: false,
+      status: "blocked",
+      reason: editorValidation.reason,
+    };
+  }
+
+  return runFileAtPath(
+    vscodeApi,
+    eligibilityState,
+    editor.document.uri.fsPath,
+    "run-active-file",
+    `Run Active File started in ${"Algorithms Runner"}.`
+  );
+}
+
+/**
+ * Handles Run File invocation from Explorer context menu.
+ *
+ * @param {import("vscode")} vscodeApi VS Code API object.
+ * @param {{selected?: {resolvedRoot?: string, scriptPath?: string}}|null|undefined} eligibilityState Eligible workspace state.
+ * @param {import("vscode").Uri|undefined} targetUri Explorer-selected file URI.
+ * @returns {Promise<{ok: boolean, status: string, reason: string|null}>} Handler execution summary.
+ */
+async function runFileHandler(vscodeApi, eligibilityState, targetUri) {
+  const filePath = targetUri?.fsPath;
+
+  if (!filePath) {
+    const validation = {
+      reason: "missing-selected-file-path",
+      guidance: "Select a file in Explorer and try again.",
+      severity: "info",
+    };
+    showBySeverity(
+      vscodeApi,
+      validation.severity,
+      buildActiveFileValidationMessage(validation)
+    );
+    return {
+      ok: false,
+      status: "blocked",
+      reason: validation.reason,
+    };
+  }
+
+  return runFileAtPath(
+    vscodeApi,
+    eligibilityState,
+    filePath,
+    "run-file",
+    `Run File started in ${"Algorithms Runner"}.`
+  );
+}
+
 // Public command handlers consumed by extension activation and tests.
 module.exports = {
   runActiveFileHandler,
+  runFileHandler,
   resolveActiveFileRunContext,
 };

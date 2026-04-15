@@ -11,7 +11,10 @@ const {
   buildEligibilityBlockMessage,
 } = require("./validation/inputValidation");
 // Primary FEAT-205 command handler implementation.
-const { runActiveFileHandler } = require("./commands/fileCommands");
+const {
+  runActiveFileHandler,
+  runFileHandler,
+} = require("./commands/fileCommands");
 
 /**
  * Returns the currently open workspace folders.
@@ -64,7 +67,26 @@ async function activate(context) {
     }
   );
 
-  context.subscriptions.push(runActiveFileCommand);
+  const runFileCommand = vscode.commands.registerCommand(
+    "algos.runFile",
+    async (targetUri) => {
+      const preflightState = resolveEligibilityState(getWorkspaceFolders());
+      logEligibility("preflight", preflightState);
+
+      const validation = validateEligibilityForExecution(preflightState);
+
+      if (!validation.allowed) {
+        vscode.window.showWarningMessage(
+          buildEligibilityBlockMessage(validation, preflightState)
+        );
+        return;
+      }
+
+      await runFileHandler(vscode, preflightState, targetUri);
+    }
+  );
+
+  context.subscriptions.push(runActiveFileCommand, runFileCommand);
 }
 
 /**

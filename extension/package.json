@@ -13,9 +13,30 @@
       {
         "command": "algos.runActiveFile",
         "title": "Run Active File",
+        "category": "Derek's Algorithms",
+        "icon": "$(play)"
+      },
+      {
+        "command": "algos.runFile",
+        "title": "Run File",
         "category": "Derek's Algorithms"
       }
-    ]
+    ],
+    "menus": {
+      "editor/title": [
+        {
+          "command": "algos.runActiveFile",
+          "group": "navigation"
+        }
+      ],
+      "explorer/context": [
+        {
+          "command": "algos.runFile",
+          "when": "explorerResourceIsFolder == false && resourcePath =~ /[\\\\/]src[\\\\/][^\\\\/]+[\\\\/][^\\\\/]+[\\\\/][^\\\\/]+$/",
+          "group": "Derek's Algorithms@1"
+        }
+      ]
+    }
   },
   "scripts": {
     "lint": "echo \"No lint configured\"",
