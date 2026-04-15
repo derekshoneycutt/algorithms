@@ -54,13 +54,13 @@
         "command": "algos.flagLanguage",
         "title": "Flag Language",
         "category": "Derek's Algorithms",
-        "icon": "$(eye)"
+        "icon": "$(bookmark)"
       },
       {
         "command": "algos.unflagLanguage",
         "title": "Unflag Language",
         "category": "Derek's Algorithms",
-        "icon": "$(eye-closed)"
+        "icon": "$(close)"
       },
       {
         "command": "algos.openRunMenu",
@@ -153,13 +153,13 @@
         "command": "algos.sidebarShowAllFilter",
         "title": "Show All Rows",
         "category": "Derek's Algorithms",
-        "icon": "$(eye)"
+        "icon": "$(clear-all)"
       },
       {
         "command": "algos.sidebarShowProblemsFilter",
         "title": "Show Problem Rows",
         "category": "Derek's Algorithms",
-        "icon": "$(eye-closed)"
+        "icon": "$(filter)"
       },
       {
         "command": "algos.createLanguageFilePlaceholder",

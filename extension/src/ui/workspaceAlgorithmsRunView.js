@@ -11,6 +11,7 @@ const LANGUAGE_ICON_DIRECTORY_SEGMENT = ".algos-language-icons";
 const LANGUAGE_PRESENT_URI_FRAGMENT = "algos-language-present";
 const LANGUAGE_ABSENT_URI_FRAGMENT = "algos-language-absent";
 const LANGUAGE_FLAGGED_URI_FRAGMENT = "algos-language-flagged";
+const LANGUAGE_FLAGGED_ABSENT_URI_FRAGMENT = "algos-language-flagged-absent";
 
 const LANGUAGE_ICON_SAMPLE_EXTENSIONS = {
   ada: "adb",
@@ -669,7 +670,11 @@ function createLanguageSummaryTreeNode(
     path.join(algorithmPath, LANGUAGE_ICON_DIRECTORY_SEGMENT, sampleFileName)
   );
   const resourceUri = isFlagged
-    ? (openTargetUri || absentSampleUri).with({ fragment: LANGUAGE_FLAGGED_URI_FRAGMENT })
+    ? (openTargetUri || absentSampleUri).with({
+        fragment: openTargetUri
+          ? LANGUAGE_FLAGGED_URI_FRAGMENT
+          : LANGUAGE_FLAGGED_ABSENT_URI_FRAGMENT,
+      })
     : openTargetUri
     ? openTargetUri.with({ fragment: LANGUAGE_PRESENT_URI_FRAGMENT })
     : absentSampleUri.with({ fragment: LANGUAGE_ABSENT_URI_FRAGMENT });
@@ -1209,7 +1214,6 @@ function isProblemLanguageSummaryNode(node) {
  *
  * Problem semantics for file mode:
  * - flagged file rows
- * - unavailable file rows (non-runnable)
  *
  * @param {{isDirectory?: boolean, isLanguageSummary?: boolean, isFlagged?: boolean, isRunnableFile?: boolean}|undefined} node File node.
  * @returns {boolean} True when the row should remain in problems filter mode.
@@ -1219,7 +1223,7 @@ function isProblemFileNode(node) {
     return false;
   }
 
-  return Boolean(node.isFlagged) || !Boolean(node.isRunnableFile);
+  return Boolean(node.isFlagged);
 }
 
 /**
@@ -1625,6 +1629,7 @@ function registerWorkspaceAlgorithmsRunView() {
         uri.fragment !== LANGUAGE_PRESENT_URI_FRAGMENT
         && uri.fragment !== LANGUAGE_ABSENT_URI_FRAGMENT
         && uri.fragment !== LANGUAGE_FLAGGED_URI_FRAGMENT
+        && uri.fragment !== LANGUAGE_FLAGGED_ABSENT_URI_FRAGMENT
       ) {
         return undefined;
       }
@@ -1634,6 +1639,14 @@ function registerWorkspaceAlgorithmsRunView() {
           badge: "●",
           color: new vscode.ThemeColor("testing.iconFailed"),
           tooltip: "Language flagged in .flag-lang",
+        };
+      }
+
+      if (uri.fragment === LANGUAGE_FLAGGED_ABSENT_URI_FRAGMENT) {
+        return {
+          badge: "●",
+          color: new vscode.ThemeColor("testing.iconFailed"),
+          tooltip: "Language flagged in .flag-lang and not present in algorithm",
         };
       }
 
