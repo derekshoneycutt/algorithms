@@ -52,7 +52,9 @@ function blockWithValidation(vscodeApi, validation, commandLabel) {
  * @returns {{ok: boolean, status: string, reason: string|null}} Handler execution summary.
  */
 function executeContextCommand(vscodeApi, contextResolution, execution) {
-  let resolvedArgs = execution.args;
+  const baseArgs = Array.isArray(execution.args) ? execution.args : [];
+  let runArgsTokens = [];
+  let sourceProfileTokens = [];
 
   if (execution.includeSidebarRunArgs) {
     const runArgs = getEffectiveSidebarRunArgs();
@@ -67,7 +69,7 @@ function executeContextCommand(vscodeApi, contextResolution, execution) {
       return blockWithValidation(vscodeApi, validation, execution.commandLabel);
     }
 
-    resolvedArgs = [...execution.args, ...runArgs.tokens];
+    runArgsTokens = runArgs.tokens;
   }
 
   if (execution.includeSidebarSourceProfile) {
@@ -83,8 +85,14 @@ function executeContextCommand(vscodeApi, contextResolution, execution) {
       return blockWithValidation(vscodeApi, validation, execution.commandLabel);
     }
 
-    resolvedArgs = [...resolvedArgs, ...sourceProfile.tokens];
+    sourceProfileTokens = sourceProfile.tokens;
   }
+
+  const resolvedArgs = [
+    ...sourceProfileTokens,
+    ...baseArgs,
+    ...runArgsTokens,
+  ];
 
   const build = buildRunCommand({
     scriptPath: contextResolution.scriptPath,
