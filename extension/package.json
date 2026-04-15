@@ -107,7 +107,8 @@
       },
       {
         "id": "algos.runMenuSidebar",
-        "label": "Run Menu"
+        "label": "Run Menu",
+        "icon": "$(kebab-vertical)"
       }
     ],
     "menus": {
@@ -177,6 +178,11 @@
           "command": "algos.runFile",
           "when": "view == algosWorkspaceAlgorithmsRunView && (viewItem == algos.workspaceFile || viewItem == algos.workspaceRunnableFile)",
           "group": "1_modification@-2"
+        },
+        {
+          "submenu": "algos.runMenuSidebar",
+          "when": "view == algosWorkspaceAlgorithmsRunView && (viewItem == algos.workspaceFile || viewItem == algos.workspaceRunnableFile)",
+          "group": "inline@2"
         },
         {
           "submenu": "algos.runMenuSidebar",
