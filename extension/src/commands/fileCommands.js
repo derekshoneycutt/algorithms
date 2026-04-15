@@ -7,6 +7,7 @@ const { runCommand } = require("../runtime/runScriptRunner");
 const {
   getEffectiveSidebarRunArgs,
   getEffectiveSidebarSourceProfile,
+  getEffectiveSidebarRunChecks,
 } = require("../runtime/sidebarRunArgsState");
 // Validation and message helpers for active editor and language checks.
 const {
@@ -48,13 +49,14 @@ function blockWithValidation(vscodeApi, validation, commandLabel) {
  *
  * @param {import("vscode")} vscodeApi VS Code API object.
  * @param {{algorithmDir: string, scriptPath: string, displayScriptPath: string}} contextResolution Resolved execution context.
- * @param {{commandFamily: string, args: string[], commandLabel: string, successMessage: string, includeSidebarRunArgs?: boolean, includeSidebarSourceProfile?: boolean}} execution Execution metadata.
+ * @param {{commandFamily: string, args: string[], commandLabel: string, successMessage: string, includeSidebarRunArgs?: boolean, includeSidebarSourceProfile?: boolean, includeSidebarRunChecks?: boolean}} execution Execution metadata.
  * @returns {{ok: boolean, status: string, reason: string|null}} Handler execution summary.
  */
 function executeContextCommand(vscodeApi, contextResolution, execution) {
   const baseArgs = Array.isArray(execution.args) ? execution.args : [];
   let runArgsTokens = [];
   let sourceProfileTokens = [];
+  let runChecksTokens = [];
 
   if (execution.includeSidebarRunArgs) {
     const runArgs = getEffectiveSidebarRunArgs();
@@ -88,8 +90,25 @@ function executeContextCommand(vscodeApi, contextResolution, execution) {
     sourceProfileTokens = sourceProfile.tokens;
   }
 
+  if (execution.includeSidebarRunChecks) {
+    const runChecks = getEffectiveSidebarRunChecks();
+
+    if (!runChecks.ok) {
+      const validation = {
+        reason: "invalid-sidebar-run-checks",
+        guidance: runChecks.reason || "Run Checks selection is invalid.",
+        severity: "warning",
+      };
+
+      return blockWithValidation(vscodeApi, validation, execution.commandLabel);
+    }
+
+    runChecksTokens = runChecks.tokens;
+  }
+
   const resolvedArgs = [
     ...sourceProfileTokens,
+    ...runChecksTokens,
     ...baseArgs,
     ...runArgsTokens,
   ];
@@ -207,7 +226,7 @@ function resolveLanguageSidebarContext(item, eligibilityState) {
  * @param {import("vscode")} vscodeApi VS Code API object.
  * @param {{selected?: {resolvedRoot?: string, scriptPath?: string}}|null|undefined} eligibilityState Eligible workspace state.
  * @param {{algorithmPath?: string, languageKey?: string}|undefined} item Sidebar language item.
- * @param {{commandFamily: string, commandLabel: string, successMessage: string, buildArgs: (languageKey: string) => string[]}} execution Execution metadata.
+ * @param {{commandFamily: string, commandLabel: string, successMessage: string, buildArgs: (languageKey: string) => string[], includeSidebarRunChecks?: boolean}} execution Execution metadata.
  * @returns {Promise<{ok: boolean, status: string, reason: string|null}>} Handler execution summary.
  */
 async function runLanguageAtSidebarItem(vscodeApi, eligibilityState, item, execution) {
@@ -224,6 +243,7 @@ async function runLanguageAtSidebarItem(vscodeApi, eligibilityState, item, execu
     successMessage: execution.successMessage,
     includeSidebarRunArgs: true,
     includeSidebarSourceProfile: true,
+    includeSidebarRunChecks: Boolean(execution.includeSidebarRunChecks),
   });
 }
 
@@ -570,7 +590,7 @@ function resolveCleanContextFromExplorer(targetPath, eligibilityState) {
  * @param {import("vscode")} vscodeApi VS Code API object.
  * @param {{selected?: {resolvedRoot?: string, scriptPath?: string}}|null|undefined} eligibilityState Eligible workspace state.
  * @param {string} filePath Absolute file path to execute.
- * @param {{commandFamily: string, commandLabel: string, successMessage: string, buildArgs: (filename: string) => string[]}} execution Execution metadata.
+ * @param {{commandFamily: string, commandLabel: string, successMessage: string, buildArgs: (filename: string) => string[], includeSidebarRunChecks?: boolean}} execution Execution metadata.
  * @returns {Promise<{ok: boolean, status: string, reason: string|null}>} Handler execution summary.
  */
 async function runFileAtPath(
@@ -602,6 +622,7 @@ async function runFileAtPath(
     successMessage: execution.successMessage,
     includeSidebarRunArgs: true,
     includeSidebarSourceProfile: true,
+    includeSidebarRunChecks: Boolean(execution.includeSidebarRunChecks),
   });
 }
 
@@ -633,6 +654,7 @@ async function runActiveFileHandler(vscodeApi, eligibilityState) {
       commandLabel: "Run Active File",
       successMessage: `Run Active File started in ${"Algorithms Runner"}.`,
       buildArgs: (filename) => [filename],
+      includeSidebarRunChecks: true,
     }
   );
 }
@@ -666,6 +688,7 @@ async function runFileHandler(vscodeApi, eligibilityState, targetUri) {
       commandLabel: "Run File",
       successMessage: `Run File started in ${"Algorithms Runner"}.`,
       buildArgs: (filename) => [filename],
+      includeSidebarRunChecks: true,
     }
   );
 }
@@ -916,6 +939,7 @@ async function runLanguageHandler(vscodeApi, eligibilityState, item) {
     commandLabel: "Run Language",
     successMessage: `Run Language started in ${"Algorithms Runner"}.`,
     buildArgs: (languageKey) => [languageKey],
+    includeSidebarRunChecks: true,
   });
 }
 

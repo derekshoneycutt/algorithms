@@ -6,6 +6,9 @@ const {
   getSidebarSourceProfileState,
   setSidebarSourceProfileEnabled,
   setSidebarSourceProfileText,
+  getSidebarRunChecksState,
+  setSidebarRunChecksMode,
+  setSidebarRunChecksRoute,
   parseSidebarRunArgsText,
 } = require("../runtime/sidebarRunArgsState");
 
@@ -99,15 +102,44 @@ function buildSourceProfileStatus(sourceProfileState) {
 }
 
 /**
+ * Builds status metadata for the run-checks controls.
+ *
+ * @param {{mode: "none"|"check-only"|"compile-only", route: "native"|"docker"|"ssh"}} runChecksState Current run-checks state.
+ * @returns {{statusText: string, statusClassName: string}} Status display metadata.
+ */
+function buildRunChecksStatus(runChecksState) {
+  if (runChecksState.mode === "compile-only") {
+    return {
+      statusText: "Compile Only Enabled",
+      statusClassName: "status-ok",
+    };
+  }
+
+  if (runChecksState.mode === "check-only") {
+    return {
+      statusText: `Check Only (${runChecksState.route}) Enabled`,
+      statusClassName: "status-ok",
+    };
+  }
+
+  return {
+    statusText: "No Run Check Override",
+    statusClassName: "status-muted",
+  };
+}
+
+/**
  * Returns the render snapshot used by the run-controls UI.
  *
- * @returns {{enabled: boolean, text: string, statusText: string, statusClassName: string, sourceProfileEnabled: boolean, sourceProfileText: string, sourceProfileStatusText: string, sourceProfileStatusClassName: string}} Current UI state snapshot.
+ * @returns {{enabled: boolean, text: string, statusText: string, statusClassName: string, sourceProfileEnabled: boolean, sourceProfileText: string, sourceProfileStatusText: string, sourceProfileStatusClassName: string, runChecksMode: "none"|"check-only"|"compile-only", runChecksRoute: "native"|"docker"|"ssh", runChecksStatusText: string, runChecksStatusClassName: string}} Current UI state snapshot.
  */
 function getRunControlsSnapshot() {
   const runArgsState = getSidebarRunArgsState();
   const runArgsStatus = buildRunArgsStatus(runArgsState);
   const sourceProfileState = getSidebarSourceProfileState();
   const sourceProfileStatus = buildSourceProfileStatus(sourceProfileState);
+  const runChecksState = getSidebarRunChecksState();
+  const runChecksStatus = buildRunChecksStatus(runChecksState);
 
   return {
     enabled: runArgsState.enabled,
@@ -118,6 +150,10 @@ function getRunControlsSnapshot() {
     sourceProfileText: sourceProfileState.text,
     sourceProfileStatusText: sourceProfileStatus.statusText,
     sourceProfileStatusClassName: sourceProfileStatus.statusClassName,
+    runChecksMode: runChecksState.mode,
+    runChecksRoute: runChecksState.route,
+    runChecksStatusText: runChecksStatus.statusText,
+    runChecksStatusClassName: runChecksStatus.statusClassName,
   };
 }
 
@@ -135,6 +171,7 @@ function buildRunControlsHtml(webview) {
   const escapedSourceProfileStatusText = escapeHtml(
     stateSnapshot.sourceProfileStatusText
   );
+  const escapedRunChecksStatusText = escapeHtml(stateSnapshot.runChecksStatusText);
   const nonce = createNonce();
   const cspSource = webview.cspSource;
 
@@ -240,6 +277,36 @@ function buildRunControlsHtml(webview) {
         color: var(--vscode-descriptionForeground);
         font-size: 10px;
         line-height: 1.2;
+      }
+
+      .runChecksRow {
+        margin-left: 2px;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        flex-wrap: wrap;
+      }
+
+      .runChecksOption {
+        display: inline-flex;
+        align-items: center;
+        gap: 3px;
+        font-size: 10px;
+        color: var(--vscode-foreground);
+      }
+
+      .runChecksSelect {
+        min-height: 22px;
+        border: 1px solid var(--vscode-input-border);
+        border-radius: 4px;
+        background: var(--vscode-dropdown-background);
+        color: var(--vscode-dropdown-foreground);
+        padding: 1px 4px;
+        font-size: 10px;
+      }
+
+      .runChecksSelect:disabled {
+        opacity: 0.65;
       }
 
       .status-muted {
@@ -348,6 +415,51 @@ function buildRunControlsHtml(webview) {
         stateSnapshot.sourceProfileStatusClassName
       }">${escapedSourceProfileStatusText}</span>
       <span class="helperText">If checked and empty, profile sourcing is disabled entirely. If unchecked, system default profile sourcing behavior is used.</span>
+
+      <span class="sectionHeader">
+        <svg class="sectionIcon" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Run Checks">
+          <path d="M3 3.5C3 2.67 3.67 2 4.5 2H11.5C12.33 2 13 2.67 13 3.5V12.5C13 13.33 12.33 14 11.5 14H4.5C3.67 14 3 13.33 3 12.5V3.5Z" stroke="currentColor" stroke-width="1"/>
+          <path d="M5 8L7 10L11 6" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+        <span>Run Checks</span>
+      </span>
+
+      <div class="runChecksRow">
+        <label class="runChecksOption" for="runChecksModeNone">
+          <input id="runChecksModeNone" name="runChecksMode" type="radio" value="none" ${
+            stateSnapshot.runChecksMode === "none" ? "checked" : ""
+          } />
+          <span>None</span>
+        </label>
+        <label class="runChecksOption" for="runChecksModeCompileOnly">
+          <input id="runChecksModeCompileOnly" name="runChecksMode" type="radio" value="compile-only" ${
+            stateSnapshot.runChecksMode === "compile-only" ? "checked" : ""
+          } />
+          <span>Compile Only</span>
+        </label>
+        <label class="runChecksOption" for="runChecksModeCheckOnly">
+          <input id="runChecksModeCheckOnly" name="runChecksMode" type="radio" value="check-only" ${
+            stateSnapshot.runChecksMode === "check-only" ? "checked" : ""
+          } />
+          <span>Check Only</span>
+        </label>
+        <select id="runChecksRoute" class="runChecksSelect" aria-label="Check-only route" ${
+          stateSnapshot.runChecksMode === "check-only" ? "" : "disabled"
+        }>
+          <option value="native" ${
+            stateSnapshot.runChecksRoute === "native" ? "selected" : ""
+          }>Native</option>
+          <option value="docker" ${
+            stateSnapshot.runChecksRoute === "docker" ? "selected" : ""
+          }>Docker</option>
+          <option value="ssh" ${
+            stateSnapshot.runChecksRoute === "ssh" ? "selected" : ""
+          }>SSH</option>
+        </select>
+      </div>
+      <span id="runChecksStatus" class="status ${
+        stateSnapshot.runChecksStatusClassName
+      }">${escapedRunChecksStatusText}</span>
     </div>
 
     <script nonce="${nonce}">
@@ -360,7 +472,28 @@ function buildRunControlsHtml(webview) {
       const sourceProfileText = document.getElementById("sourceProfileText");
       const sourceProfileStatus = document.getElementById("sourceProfileStatus");
       const clearSourceProfile = document.getElementById("clearSourceProfile");
+      const runChecksModeNone = document.getElementById("runChecksModeNone");
+      const runChecksModeCheckOnly = document.getElementById("runChecksModeCheckOnly");
+      const runChecksModeCompileOnly = document.getElementById("runChecksModeCompileOnly");
+      const runChecksRoute = document.getElementById("runChecksRoute");
+      const runChecksStatus = document.getElementById("runChecksStatus");
       const statusClasses = ["status-muted", "status-ok", "status-error"];
+
+      function getSelectedRunChecksMode() {
+        if (runChecksModeCheckOnly.checked) {
+          return "check-only";
+        }
+
+        if (runChecksModeCompileOnly.checked) {
+          return "compile-only";
+        }
+
+        return "none";
+      }
+
+      function updateRunChecksRouteInteractivity() {
+        runChecksRoute.disabled = getSelectedRunChecksMode() !== "check-only";
+      }
 
       function updateRunArgsClearButtonVisibility() {
         const shouldShow = !runArgsText.disabled && runArgsText.value.length > 0;
@@ -382,6 +515,17 @@ function buildRunControlsHtml(webview) {
         sourceProfileEnabled.checked = Boolean(nextState.sourceProfileEnabled);
         sourceProfileText.disabled = !Boolean(nextState.sourceProfileEnabled);
 
+        const nextRunChecksMode = String(nextState.runChecksMode || "none");
+        runChecksModeNone.checked = nextRunChecksMode === "none";
+        runChecksModeCheckOnly.checked = nextRunChecksMode === "check-only";
+        runChecksModeCompileOnly.checked = nextRunChecksMode === "compile-only";
+
+        if (typeof nextState.runChecksRoute === "string") {
+          runChecksRoute.value = nextState.runChecksRoute;
+        }
+
+        updateRunChecksRouteInteractivity();
+
         if (!isRunArgsFocused && typeof nextState.text === "string") {
           runArgsText.value = nextState.text;
         }
@@ -402,6 +546,13 @@ function buildRunControlsHtml(webview) {
 
         if (statusClasses.includes(nextState.sourceProfileStatusClassName)) {
           sourceProfileStatus.classList.add(nextState.sourceProfileStatusClassName);
+        }
+
+        runChecksStatus.textContent = String(nextState.runChecksStatusText || "");
+        runChecksStatus.classList.remove(...statusClasses);
+
+        if (statusClasses.includes(nextState.runChecksStatusClassName)) {
+          runChecksStatus.classList.add(nextState.runChecksStatusClassName);
         }
 
         updateRunArgsClearButtonVisibility();
@@ -469,6 +620,49 @@ function buildRunControlsHtml(webview) {
         updateSourceProfileClearButtonVisibility();
       });
 
+      runChecksModeNone.addEventListener("change", () => {
+        if (!runChecksModeNone.checked) {
+          return;
+        }
+
+        updateRunChecksRouteInteractivity();
+        vscodeApi.postMessage({
+          type: "setRunChecksMode",
+          mode: "none",
+        });
+      });
+
+      runChecksModeCheckOnly.addEventListener("change", () => {
+        if (!runChecksModeCheckOnly.checked) {
+          return;
+        }
+
+        updateRunChecksRouteInteractivity();
+        vscodeApi.postMessage({
+          type: "setRunChecksMode",
+          mode: "check-only",
+        });
+      });
+
+      runChecksModeCompileOnly.addEventListener("change", () => {
+        if (!runChecksModeCompileOnly.checked) {
+          return;
+        }
+
+        updateRunChecksRouteInteractivity();
+        vscodeApi.postMessage({
+          type: "setRunChecksMode",
+          mode: "compile-only",
+        });
+      });
+
+      runChecksRoute.addEventListener("change", () => {
+        vscodeApi.postMessage({
+          type: "setRunChecksRoute",
+          route: runChecksRoute.value,
+        });
+      });
+
       window.addEventListener("message", (event) => {
         const message = event.data;
 
@@ -481,6 +675,7 @@ function buildRunControlsHtml(webview) {
 
       updateRunArgsClearButtonVisibility();
       updateSourceProfileClearButtonVisibility();
+      updateRunChecksRouteInteractivity();
     </script>
   </body>
 </html>`;
@@ -500,7 +695,7 @@ class SidebarRunControlsViewProvider {
   /**
    * Handles one webview message from the run-controls UI.
    *
-   * @param {{type?: string, enabled?: boolean, text?: string}} message Incoming webview message.
+  * @param {{type?: string, enabled?: boolean, text?: string, mode?: string, route?: string}} message Incoming webview message.
    * @returns {void}
    */
   handleMessage(message) {
@@ -524,6 +719,18 @@ class SidebarRunControlsViewProvider {
 
     if (message?.type === "setSourceProfileText") {
       setSidebarSourceProfileText(String(message.text || ""));
+      this.postStateUpdate();
+      return;
+    }
+
+    if (message?.type === "setRunChecksMode") {
+      setSidebarRunChecksMode(String(message.mode || "none"));
+      this.postStateUpdate();
+      return;
+    }
+
+    if (message?.type === "setRunChecksRoute") {
+      setSidebarRunChecksRoute(String(message.route || "native"));
       this.postStateUpdate();
     }
   }

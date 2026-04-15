@@ -4,6 +4,22 @@ let sidebarRunArgsEnabled = false;
 let sidebarRunArgsText = "";
 let sidebarSourceProfileEnabled = false;
 let sidebarSourceProfileText = "";
+let sidebarRunChecksMode = "none";
+let sidebarRunChecksRoute = "native";
+
+/**
+ * Valid run-checks mode values.
+ *
+ * @type {string[]}
+ */
+const RUN_CHECKS_MODES = ["none", "check-only", "compile-only"];
+
+/**
+ * Valid check-only route values.
+ *
+ * @type {string[]}
+ */
+const RUN_CHECKS_ROUTES = ["native", "docker", "ssh"];
 
 /**
  * Returns the current sidebar run-args state.
@@ -67,6 +83,52 @@ function setSidebarSourceProfileEnabled(enabled) {
  */
 function setSidebarSourceProfileText(text) {
   sidebarSourceProfileText = String(text || "");
+}
+
+/**
+ * Returns the current sidebar run-checks state.
+ *
+ * @returns {{mode: "none"|"check-only"|"compile-only", route: "native"|"docker"|"ssh"}} Current state snapshot.
+ */
+function getSidebarRunChecksState() {
+  return {
+    mode: sidebarRunChecksMode,
+    route: sidebarRunChecksRoute,
+  };
+}
+
+/**
+ * Sets the sidebar run-checks mode.
+ *
+ * @param {string} mode One of none, check-only, compile-only.
+ * @returns {void}
+ */
+function setSidebarRunChecksMode(mode) {
+  const nextMode = String(mode || "none").trim().toLowerCase();
+
+  if (!RUN_CHECKS_MODES.includes(nextMode)) {
+    sidebarRunChecksMode = "none";
+    return;
+  }
+
+  sidebarRunChecksMode = nextMode;
+}
+
+/**
+ * Sets the sidebar check-only route.
+ *
+ * @param {string} route One of native, docker, ssh.
+ * @returns {void}
+ */
+function setSidebarRunChecksRoute(route) {
+  const nextRoute = String(route || "native").trim().toLowerCase();
+
+  if (!RUN_CHECKS_ROUTES.includes(nextRoute)) {
+    sidebarRunChecksRoute = "native";
+    return;
+  }
+
+  sidebarRunChecksRoute = nextRoute;
 }
 
 /**
@@ -236,6 +298,48 @@ function getEffectiveSidebarSourceProfile() {
   };
 }
 
+/**
+ * Returns the effective run-checks option token when selected.
+ *
+ * @returns {{ok: boolean, mode: "none"|"check-only"|"compile-only", route: "native"|"docker"|"ssh", tokens: string[], reason: string|null}} Effective run-checks result.
+ */
+function getEffectiveSidebarRunChecks() {
+  const mode = RUN_CHECKS_MODES.includes(sidebarRunChecksMode)
+    ? sidebarRunChecksMode
+    : "none";
+  const route = RUN_CHECKS_ROUTES.includes(sidebarRunChecksRoute)
+    ? sidebarRunChecksRoute
+    : "native";
+
+  if (mode === "none") {
+    return {
+      ok: true,
+      mode,
+      route,
+      tokens: [],
+      reason: null,
+    };
+  }
+
+  if (mode === "compile-only") {
+    return {
+      ok: true,
+      mode,
+      route,
+      tokens: ["--compile-only"],
+      reason: null,
+    };
+  }
+
+  return {
+    ok: true,
+    mode,
+    route,
+    tokens: [`--check-only=${route}`],
+    reason: null,
+  };
+}
+
 module.exports = {
   getSidebarRunArgsState,
   setSidebarRunArgsEnabled,
@@ -243,7 +347,11 @@ module.exports = {
   getSidebarSourceProfileState,
   setSidebarSourceProfileEnabled,
   setSidebarSourceProfileText,
+  getSidebarRunChecksState,
+  setSidebarRunChecksMode,
+  setSidebarRunChecksRoute,
   parseSidebarRunArgsText,
   getEffectiveSidebarRunArgs,
   getEffectiveSidebarSourceProfile,
+  getEffectiveSidebarRunChecks,
 };
