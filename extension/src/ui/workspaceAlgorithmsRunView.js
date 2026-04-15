@@ -1,3 +1,5 @@
+const fs = require("fs");
+const path = require("path");
 const vscode = require("vscode");
 const { resolveEligibilityState } = require("../runtime/pathResolver");
 
@@ -26,29 +28,103 @@ function getWorkspaceFolders() {
 }
 
 /**
+ * Resolves a canonical path and falls back to absolute normalization if needed.
+ *
+ * @param {string} targetPath Path to normalize.
+ * @returns {string} Canonical or normalized path.
+ */
+function realpathSafe(targetPath) {
+  try {
+    return fs.realpathSync(targetPath);
+  } catch (_) {
+    return path.resolve(targetPath);
+  }
+}
+
+/**
+ * Determines whether the opened workspace folder is supported by the sidebar.
+ *
+ * Supported entry points are repo root, `src`, `src/<category>`, and
+ * `src/<category>/<algorithm>` only.
+ *
+ * @param {string} workspaceFolderPath Canonical workspace folder path.
+ * @param {string} resolvedRoot Canonical repository root path.
+ * @returns {boolean} True when the folder is a supported sidebar entry point.
+ */
+function isSupportedSidebarFolder(workspaceFolderPath, resolvedRoot) {
+  const canonicalWorkspaceFolderPath = realpathSafe(workspaceFolderPath);
+  const canonicalResolvedRoot = realpathSafe(resolvedRoot);
+  const relativePath = path.relative(canonicalResolvedRoot, canonicalWorkspaceFolderPath);
+
+  if (!relativePath) {
+    return true;
+  }
+
+  if (relativePath.startsWith("..") || path.isAbsolute(relativePath)) {
+    return false;
+  }
+
+  const parts = relativePath.split(path.sep).filter(Boolean);
+
+  if (parts[0] !== "src") {
+    return false;
+  }
+
+  return parts.length >= 1 && parts.length <= 3;
+}
+
+/**
+ * Derives the display root path for the sidebar tree.
+ *
+ * Repo root is intentionally narrowed to `src/`. More specific supported
+ * folders keep their own narrower scope.
+ *
+ * @param {string} workspaceFolderPath Canonical workspace folder path.
+ * @param {string} resolvedRoot Canonical repository root path.
+ * @returns {string} Canonical display root path for the sidebar tree.
+ */
+function deriveSidebarDisplayRootPath(workspaceFolderPath, resolvedRoot) {
+  const canonicalWorkspaceFolderPath = realpathSafe(workspaceFolderPath);
+  const canonicalResolvedRoot = realpathSafe(resolvedRoot);
+  const relativePath = path.relative(canonicalResolvedRoot, canonicalWorkspaceFolderPath);
+
+  if (!relativePath) {
+    return path.join(canonicalResolvedRoot, "src");
+  }
+
+  return canonicalWorkspaceFolderPath;
+}
+
+/**
  * Resolves the sidebar state by selecting the first supported workspace folder.
  *
- * Scans folders in workspace order and immediately selects the first folder
- * that resolves to an eligible algorithms root. Later folders are ignored.
- *
  * @param {import("vscode").WorkspaceFolder[]} workspaceFolders Open workspace folders.
- * @returns {{supported: boolean, statusState: {status?: string, reason?: string, guidance?: string, selected?: {resolvedRoot?: string}|null, evaluations?: object[]}}} Sidebar workspace state.
+ * @returns {{supported: boolean, statusState: {status?: string, reason?: string, guidance?: string, selected?: {resolvedRoot?: string, workspaceFolderPath?: string}|null, evaluations?: object[]}, displayRootPath: string|null}} Sidebar workspace state.
  */
 function resolveSidebarWorkspaceState(workspaceFolders) {
   if (!Array.isArray(workspaceFolders) || workspaceFolders.length === 0) {
     return {
       supported: false,
       statusState: createEmptyWorkspaceState(),
+      displayRootPath: null,
     };
   }
 
   for (const workspaceFolder of workspaceFolders) {
     const folderState = resolveEligibilityState([workspaceFolder]);
+    const workspaceFolderPath = folderState.selected?.workspaceFolderPath;
+    const resolvedRoot = folderState.selected?.resolvedRoot;
 
-    if (folderState.status === "eligible" && folderState.selected?.resolvedRoot) {
+    if (
+      folderState.status === "eligible" &&
+      workspaceFolderPath &&
+      resolvedRoot &&
+      isSupportedSidebarFolder(workspaceFolderPath, resolvedRoot)
+    ) {
       return {
         supported: true,
         statusState: folderState,
+        displayRootPath: deriveSidebarDisplayRootPath(workspaceFolderPath, resolvedRoot),
       };
     }
   }
@@ -56,37 +132,72 @@ function resolveSidebarWorkspaceState(workspaceFolders) {
   return {
     supported: false,
     statusState: resolveEligibilityState(workspaceFolders),
+    displayRootPath: null,
   };
 }
 
 /**
- * Builds a user-facing status message from aggregated eligibility state.
+ * Compares directory entries for stable tree ordering.
  *
- * @param {{status?: string, reason?: string, selected?: {resolvedRoot?: string}}} state Eligibility state.
- * @returns {string} Human-readable status text.
+ * Directories sort before files, then names sort alphabetically.
+ *
+ * @param {fs.Dirent} left Left directory entry.
+ * @param {fs.Dirent} right Right directory entry.
+ * @returns {number} Sort result.
  */
-function buildWorkspaceStatusMessage(state) {
-  if (!state || state.reason === "no-workspace-folders") {
-    return "No Workspace Open";
+function compareDirectoryEntries(left, right) {
+  if (left.isDirectory() && !right.isDirectory()) {
+    return -1;
   }
 
-  if (state.status === "eligible" && state.selected?.resolvedRoot) {
-    return `Supported Directory: ${state.selected.resolvedRoot}`;
+  if (!left.isDirectory() && right.isDirectory()) {
+    return 1;
   }
 
-  if (state.status === "ambiguous") {
-    return "Multiple Supported Roots Open";
-  }
-
-  if (state.status === "partial" || state.status === "ineligible") {
-    return `Unsupported Workspace (${state.reason || "unknown"})`;
-  }
-
-  return "Workspace Status Unknown";
+  return left.name.localeCompare(right.name);
 }
 
 /**
- * Provides a single status row for the Algorithms sidebar view.
+ * Creates a tree node for a sidebar file-system entry.
+ *
+ * @param {string} entryPath Canonical entry path.
+ * @param {fs.Dirent} entry Directory entry metadata.
+ * @returns {{filePath: string, label: string, isDirectory: boolean, resourceUri: import("vscode").Uri}} Sidebar tree node.
+ */
+function createSidebarTreeNode(entryPath, entry) {
+  return {
+    filePath: entryPath,
+    label: entry.name,
+    isDirectory: entry.isDirectory(),
+    resourceUri: vscode.Uri.file(entryPath),
+  };
+}
+
+/**
+ * Reads direct children for a directory path as sidebar tree nodes.
+ *
+ * @param {string|null} directoryPath Canonical directory path.
+ * @returns {{filePath: string, label: string, isDirectory: boolean, resourceUri: import("vscode").Uri}[]} Child nodes.
+ */
+function readSidebarDirectoryChildren(directoryPath) {
+  if (!directoryPath) {
+    return [];
+  }
+
+  try {
+    const entries = fs.readdirSync(directoryPath, { withFileTypes: true });
+    entries.sort(compareDirectoryEntries);
+
+    return entries.map((entry) =>
+      createSidebarTreeNode(path.join(directoryPath, entry.name), entry)
+    );
+  } catch (_) {
+    return [];
+  }
+}
+
+/**
+ * Provides a scoped file tree for the Algorithms sidebar view.
  */
 class WorkspaceStatusTreeDataProvider {
   /**
@@ -96,16 +207,19 @@ class WorkspaceStatusTreeDataProvider {
     this._onDidChangeTreeData = new vscode.EventEmitter();
     this.onDidChangeTreeData = this._onDidChangeTreeData.event;
     this._statusState = createEmptyWorkspaceState();
+    this._displayRootPath = null;
   }
 
   /**
-   * Updates the cached status state used by the tree view.
+   * Updates the cached sidebar state used by the tree view.
    *
    * @param {{status?: string, reason?: string, guidance?: string, selected?: {resolvedRoot?: string}|null, evaluations?: object[]}} statusState Sidebar status state.
+   * @param {string|null} displayRootPath Sidebar display root path.
    * @returns {void}
    */
-  setStatusState(statusState) {
+  setSidebarState(statusState, displayRootPath) {
     this._statusState = statusState || createEmptyWorkspaceState();
+    this._displayRootPath = displayRootPath || null;
   }
 
   /**
@@ -118,34 +232,49 @@ class WorkspaceStatusTreeDataProvider {
   }
 
   /**
-   * Returns tree item metadata for a status item.
+   * Returns tree item metadata for a file-system tree node.
    *
-   * @param {import("vscode").TreeItem} element Tree element.
+   * @param {{filePath: string, label: string, isDirectory: boolean, resourceUri: import("vscode").Uri}} element Tree element.
    * @returns {import("vscode").TreeItem} Tree item.
    */
   getTreeItem(element) {
-    return element;
+    const treeItem = new vscode.TreeItem(
+      element.resourceUri,
+      element.isDirectory
+        ? vscode.TreeItemCollapsibleState.Collapsed
+        : vscode.TreeItemCollapsibleState.None
+    );
+
+    treeItem.label = element.label;
+    treeItem.resourceUri = element.resourceUri;
+    treeItem.contextValue = element.isDirectory
+      ? "algos.workspaceDirectory"
+      : "algos.workspaceFile";
+    treeItem.tooltip = element.filePath;
+
+    return treeItem;
   }
 
   /**
-   * Returns the status rows for the root of the view.
+   * Returns child entries for the root or a directory node.
    *
-   * @param {import("vscode").TreeItem|undefined} element Parent element.
+   * @param {{filePath: string, label: string, isDirectory: boolean, resourceUri: import("vscode").Uri}|undefined} element Parent element.
    * @returns {Thenable<import("vscode").TreeItem[]>} Tree items.
    */
   getChildren(element) {
-    if (element) {
+    if (!this._displayRootPath) {
       return Promise.resolve([]);
     }
 
-    const item = new vscode.TreeItem(
-      buildWorkspaceStatusMessage(this._statusState),
-      vscode.TreeItemCollapsibleState.None
-    );
-    item.contextValue = "algos.workspaceStatus";
-    item.tooltip = item.label;
+    if (!element) {
+      return Promise.resolve(readSidebarDirectoryChildren(this._displayRootPath));
+    }
 
-    return Promise.resolve([item]);
+    if (!element.isDirectory) {
+      return Promise.resolve([]);
+    }
+
+    return Promise.resolve(readSidebarDirectoryChildren(element.filePath));
   }
 
   /**
@@ -177,7 +306,7 @@ function registerWorkspaceAlgorithmsRunView() {
    */
   function refreshWorkspaceViewState() {
     const sidebarState = resolveSidebarWorkspaceState(getWorkspaceFolders());
-    provider.setStatusState(sidebarState.statusState);
+    provider.setSidebarState(sidebarState.statusState, sidebarState.displayRootPath);
     provider.refresh();
 
     return vscode.commands.executeCommand(
@@ -203,6 +332,5 @@ function registerWorkspaceAlgorithmsRunView() {
 
 // Public API for the workspace algorithms run view.
 module.exports = {
-  buildWorkspaceStatusMessage,
   registerWorkspaceAlgorithmsRunView,
 };

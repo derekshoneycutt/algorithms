@@ -25,7 +25,7 @@
       "algosSidebar": [
         {
           "id": "algosWorkspaceAlgorithmsRunView",
-          "name": "Workspace Status",
+          "name": "Workspace Files",
           "icon": "./icons/play-sidebar.svg",
           "when": "algos.workspaceSupported"
         }
