@@ -19,6 +19,7 @@ function buildNotImplementedMessage(commandId) {
  *   runWithPreflightGuard: (handler: (...args: unknown[]) => Promise<unknown>) => (...args: unknown[]) => Promise<unknown>,
  *   runActiveFileHandler: (vscodeApi: import("vscode"), eligibilityState: object) => Promise<unknown>,
  *   runFileHandler: (vscodeApi: import("vscode"), eligibilityState: object, targetUri?: import("vscode").Uri) => Promise<unknown>,
+ *   runLocalCleanHandler: (vscodeApi: import("vscode"), eligibilityState: object, targetUri?: import("vscode").Uri) => Promise<unknown>,
  *   openRunMenuFlow: (vscodeApi: import("vscode")) => Promise<string|null>
  * }} deps Command registration dependencies.
  * @returns {import("vscode").Disposable[]} Command disposables.
@@ -53,7 +54,16 @@ function registerCommands(deps) {
     }
   );
 
-  const placeholderCommands = RUN_MENU_ITEMS.map((item) =>
+  const runLocalCleanCommand = vscodeApi.commands.registerCommand(
+    "algos.runLocalClean",
+    deps.runWithPreflightGuard(async (eligibilityState, targetUri) =>
+      deps.runLocalCleanHandler(vscodeApi, eligibilityState, targetUri)
+    )
+  );
+
+  const placeholderCommands = RUN_MENU_ITEMS.filter(
+    (item) => item.commandId !== "algos.runLocalClean"
+  ).map((item) =>
     vscodeApi.commands.registerCommand(item.commandId, () => {
       vscodeApi.window.showInformationMessage(
         buildNotImplementedMessage(item.commandId)
@@ -65,6 +75,7 @@ function registerCommands(deps) {
     runActiveFileCommand,
     runFileCommand,
     openRunMenuCommand,
+    runLocalCleanCommand,
     ...placeholderCommands,
   ];
 }
