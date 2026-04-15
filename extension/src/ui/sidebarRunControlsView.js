@@ -232,6 +232,13 @@ function buildRunControlsHtml(webview) {
         gap: 4px;
       }
 
+      .panelDescription {
+        margin: 0 0 4px 2px;
+        color: var(--vscode-descriptionForeground);
+        font-size: 11px;
+        line-height: 1.3;
+      }
+
       .sectionHeader {
         display: inline-flex;
         align-items: center;
@@ -394,6 +401,7 @@ function buildRunControlsHtml(webview) {
   </head>
   <body>
     <div class="controls">
+      <p class="panelDescription">Controls parameters for all code runs.</p>
       <span class="sectionHeader">
         <svg class="sectionIcon" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Terminal">
           <path d="M2 3.5C2 2.67 2.67 2 3.5 2H12.5C13.33 2 14 2.67 14 3.5V12.5C14 13.33 13.33 14 12.5 14H3.5C2.67 14 2 13.33 2 12.5V3.5Z" stroke="currentColor" stroke-width="1"/>

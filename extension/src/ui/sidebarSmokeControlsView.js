@@ -350,6 +350,13 @@ function buildSmokeControlsHtml(webview, languageIconBaseUri, fallbackIconUri) {
         color: var(--vscode-testing-iconFailed);
       }
 
+      .panelDescription {
+        margin: 0 0 4px 2px;
+        color: var(--vscode-descriptionForeground);
+        font-size: 11px;
+        line-height: 1.3;
+      }
+
       .helperText {
         margin-left: 2px;
         color: var(--vscode-descriptionForeground);
@@ -450,6 +457,7 @@ function buildSmokeControlsHtml(webview, languageIconBaseUri, fallbackIconUri) {
   </head>
   <body>
     <div class="controls">
+      <p class="panelDescription">Controls smoke tests run in supported directories.</p>
       <span class="sectionHeader">
         <svg class="sectionIcon" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Report Generation">
           <path d="M4 2H10L12 4V13C12 13.55 11.55 14 11 14H4C3.45 14 3 13.55 3 13V3C3 2.45 3.45 2 4 2Z" stroke="currentColor" stroke-width="1"/>
