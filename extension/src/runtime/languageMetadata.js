@@ -1,0 +1,301 @@
+const fs = require("fs");
+const path = require("path");
+
+/**
+ * Language icon file names keyed by language identifier.
+ * Used by the Smoke Controls and Environment Init panes to resolve
+ * the icon image for each language entry.
+ *
+ * @type {Record<string, string>}
+ */
+const LANGUAGE_ICON_FILE_BY_KEY = {
+  ada: "ada.svg",
+  arm64asm: "assembly.svg",
+  asm: "assembly.svg",
+  ballerina: "ballerina.svg",
+  c: "c.svg",
+  clojure: "clojure.svg",
+  cobol: "cobol.svg",
+  cpp: "cpp.svg",
+  csharp: "csharp.svg",
+  d: "d.svg",
+  dart: "dart.svg",
+  eiffel: "eiffel.svg",
+  elixir: "elixir.svg",
+  erlang: "erlang.svg",
+  factor: "factor.svg",
+  forth: "forth.svg",
+  fortran: "fortran.svg",
+  freebasic: "freebasic.svg",
+  fsharp: "fsharp.svg",
+  gleam: "gleam.svg",
+  go: "go.svg",
+  haskell: "haskell.svg",
+  haxe: "haxe.svg",
+  icon: "icon.svg",
+  idris: "idris.svg",
+  java: "java.svg",
+  javascript: "javascript.svg",
+  julia: "julia.svg",
+  kit: "kit.svg",
+  kotlin: "kotlin.svg",
+  llvmir: "llvm.png",
+  lua: "lua.svg",
+  mercury: "mercury.svg",
+  mmixal: "assembly.svg",
+  modula3: "modula3.svg",
+  mojo: "mojo.svg",
+  nasm: "assembly.svg",
+  nim: "nim.svg",
+  oberon: "oberon.svg",
+  objectivec: "objective-c.svg",
+  ocaml: "ocaml.svg",
+  octave: "octave.svg",
+  pascal: "pascal.svg",
+  perl: "perl.svg",
+  php: "php.svg",
+  prolog: "prolog.svg",
+  python: "python.svg",
+  r: "r.svg",
+  racket: "racket.svg",
+  ruby: "ruby.svg",
+  rust: "rust.svg",
+  scala: "scala.svg",
+  scheme: "scheme.svg",
+  simula: "simula.svg",
+  smalltalk: "smalltalk.svg",
+  swift: "swift.svg",
+  tcl: "tcl.svg",
+  typescript: "typescript.svg",
+  v: "vlang.svg",
+  visualbasic: "visualstudio.svg",
+  wat: "webassembly.svg",
+  zig: "zig.svg",
+};
+
+/**
+ * Sample source file extensions keyed by language identifier.
+ * Used by the Algorithms Run tree view to locate and display the
+ * most representative source icon for each language.
+ *
+ * @type {Record<string, string>}
+ */
+const LANGUAGE_ICON_SAMPLE_EXTENSIONS = {
+  ada: "adb",
+  arm64asm: "s",
+  asm: "asm",
+  ballerina: "bal",
+  c: "c",
+  clojure: "clj",
+  cobol: "cob",
+  cpp: "cpp",
+  csharp: "cs",
+  d: "d",
+  dart: "dart",
+  eiffel: "e",
+  elixir: "exs",
+  erlang: "erl",
+  factor: "factor",
+  forth: "fth",
+  fortran: "f90",
+  freebasic: "bas",
+  fsharp: "fs",
+  gleam: "gleam",
+  go: "go",
+  haskell: "hs",
+  haxe: "hx",
+  icon: "icn",
+  idris: "idr",
+  java: "java",
+  javascript: "js",
+  julia: "jl",
+  kit: "kit",
+  kotlin: "kt",
+  llvmir: "ll",
+  lua: "lua",
+  mercury: "moo",
+  mmixal: "mms",
+  modula3: "m3",
+  mojo: "mojo",
+  nasm: "nasm",
+  nim: "nim",
+  oberon: "mod",
+  objectivec: "m",
+  ocaml: "ml",
+  octave: "mat",
+  pascal: "pas",
+  perl: "plx",
+  php: "php",
+  prolog: "pl",
+  python: "py",
+  r: "r",
+  racket: "rkt",
+  ruby: "rb",
+  rust: "rs",
+  scala: "scala",
+  scheme: "scm",
+  simula: "sim",
+  smalltalk: "st",
+  swift: "swift",
+  tcl: "tcl",
+  typescript: "ts",
+  v: "v",
+  visualbasic: "vb",
+  wat: "wat",
+  zig: "zig",
+};
+
+/**
+ * Known VS Code languageId aliases mapped to canonical run-language keys.
+ *
+ * @type {Record<string, string>}
+ */
+const LANGUAGE_ID_ALIASES = {
+  "asm-intel-x86-generic": "asm",
+  fortranfreeform: "fortran",
+  llvm: "llvmir",
+  m3: "modula3",
+  mmix: "mmixal",
+  "objective-c": "objectivec",
+  "objective-cpp": "objectivec",
+  objectpascal: "pascal",
+  unicon: "icon",
+  vb: "visualbasic",
+  x86asm: "asm",
+};
+
+/**
+ * File-extension fallback map aligned to the run.sh language catalog.
+ *
+ * @type {Record<string, string>}
+ */
+const FILE_EXTENSION_LANGUAGE_ALIASES = {
+  ".adb": "ada",
+  ".asm": "asm",
+  ".bal": "ballerina",
+  ".bas": "freebasic",
+  ".c": "c",
+  ".clj": "clojure",
+  ".cob": "cobol",
+  ".cpp": "cpp",
+  ".cs": "csharp",
+  ".d": "d",
+  ".dart": "dart",
+  ".e": "eiffel",
+  ".erl": "erlang",
+  ".exs": "elixir",
+  ".f90": "fortran",
+  ".factor": "factor",
+  ".fs": "fsharp",
+  ".fth": "forth",
+  ".gleam": "gleam",
+  ".go": "go",
+  ".hs": "haskell",
+  ".hx": "haxe",
+  ".icn": "icon",
+  ".idr": "idris",
+  ".java": "java",
+  ".jl": "julia",
+  ".js": "javascript",
+  ".kit": "kit",
+  ".kt": "kotlin",
+  ".ll": "llvmir",
+  ".lua": "lua",
+  ".m": "objectivec",
+  ".m3": "modula3",
+  ".mat": "octave",
+  ".ml": "ocaml",
+  ".mms": "mmixal",
+  ".mod": "oberon",
+  ".mojo": "mojo",
+  ".moo": "mercury",
+  ".nasm": "nasm",
+  ".nim": "nim",
+  ".pas": "pascal",
+  ".php": "php",
+  ".pl": "prolog",
+  ".plx": "perl",
+  ".py": "python",
+  ".r": "r",
+  ".rb": "ruby",
+  ".rkt": "racket",
+  ".rs": "rust",
+  ".s": "arm64asm",
+  ".scala": "scala",
+  ".scm": "scheme",
+  ".sim": "simula",
+  ".st": "smalltalk",
+  ".swift": "swift",
+  ".tcl": "tcl",
+  ".ts": "typescript",
+  ".v": "v",
+  ".vb": "visualbasic",
+  ".wat": "wat",
+  ".zig": "zig",
+};
+
+/**
+ * Reads canonical supported language keys from run-language modules.
+ *
+ * @param {string} resolvedRoot Resolved repository root path.
+ * @returns {Set<string>} Supported language keys.
+ */
+function getSupportedLanguageKeys(resolvedRoot) {
+  const moduleDir = path.join(resolvedRoot, "shlib", "run-languages");
+
+  try {
+    const names = fs.readdirSync(moduleDir);
+    const keys = names
+      .filter((name) => name.endsWith(".sh"))
+      .map((name) => name.slice(0, -3).toLowerCase());
+    return new Set(keys);
+  } catch (_) {
+    return new Set();
+  }
+}
+
+/**
+ * Normalizes VS Code languageId into canonical run-language key space.
+ *
+ * @param {string} languageId VS Code document language id.
+ * @returns {string} Canonical language key candidate.
+ */
+function normalizeLanguageId(languageId) {
+  const normalized = String(languageId || "").toLowerCase();
+
+  if (LANGUAGE_ID_ALIASES[normalized]) {
+    return LANGUAGE_ID_ALIASES[normalized];
+  }
+
+  return normalized;
+}
+
+/**
+ * Normalizes file extension into canonical run-language key space.
+ *
+ * @param {string} filePath Active file path.
+ * @returns {string|null} Canonical language key candidate or null.
+ */
+function normalizeExtensionToLanguageKey(filePath) {
+  const extension = path.extname(String(filePath || "")).toLowerCase();
+
+  if (!extension) {
+    return null;
+  }
+
+  if (FILE_EXTENSION_LANGUAGE_ALIASES[extension]) {
+    return FILE_EXTENSION_LANGUAGE_ALIASES[extension];
+  }
+
+  return null;
+}
+
+module.exports = {
+  FILE_EXTENSION_LANGUAGE_ALIASES,
+  LANGUAGE_ICON_FILE_BY_KEY,
+  LANGUAGE_ICON_SAMPLE_EXTENSIONS,
+  LANGUAGE_ID_ALIASES,
+  getSupportedLanguageKeys,
+  normalizeExtensionToLanguageKey,
+  normalizeLanguageId,
+};

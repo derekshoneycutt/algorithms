@@ -1,5 +1,5 @@
 const vscode = require("vscode");
-const { VIEW_IDS } = require("../constants");
+const { VIEW_IDS } = require("../runtime/viewConstants");
 const {
   escapeHtml,
   makeTemplateLoader,

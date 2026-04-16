@@ -1,145 +1,12 @@
-// Filesystem helpers are used to load canonical language support metadata.
-const fs = require("fs");
-const path = require("path");
-
-// Known VS Code languageId aliases mapped to canonical run-language keys.
-const LANGUAGE_ID_ALIASES = {
-  "asm-intel-x86-generic": "asm",
-  fortranfreeform: "fortran",
-  llvm: "llvmir",
-  m3: "modula3",
-  mmix: "mmixal",
-  "objective-c": "objectivec",
-  "objective-cpp": "objectivec",
-  objectpascal: "pascal",
-  unicon: "icon",
-  vb: "visualbasic",
-  x86asm: "asm",
-};
-
-// File-extension fallback map aligned to the run.sh language catalog.
-const FILE_EXTENSION_LANGUAGE_ALIASES = {
-  ".adb": "ada",
-  ".asm": "asm",
-  ".bal": "ballerina",
-  ".bas": "freebasic",
-  ".c": "c",
-  ".clj": "clojure",
-  ".cob": "cobol",
-  ".cpp": "cpp",
-  ".cs": "csharp",
-  ".d": "d",
-  ".dart": "dart",
-  ".e": "eiffel",
-  ".erl": "erlang",
-  ".exs": "elixir",
-  ".f90": "fortran",
-  ".factor": "factor",
-  ".fs": "fsharp",
-  ".fth": "forth",
-  ".gleam": "gleam",
-  ".go": "go",
-  ".hs": "haskell",
-  ".hx": "haxe",
-  ".icn": "icon",
-  ".idr": "idris",
-  ".java": "java",
-  ".jl": "julia",
-  ".js": "javascript",
-  ".kit": "kit",
-  ".kt": "kotlin",
-  ".ll": "llvmir",
-  ".lua": "lua",
-  ".m": "objectivec",
-  ".m3": "modula3",
-  ".mat": "octave",
-  ".ml": "ocaml",
-  ".mms": "mmixal",
-  ".mod": "oberon",
-  ".mojo": "mojo",
-  ".moo": "mercury",
-  ".nasm": "nasm",
-  ".nim": "nim",
-  ".pas": "pascal",
-  ".php": "php",
-  ".pl": "prolog",
-  ".plx": "perl",
-  ".py": "python",
-  ".r": "r",
-  ".rb": "ruby",
-  ".rkt": "racket",
-  ".rs": "rust",
-  ".s": "arm64asm",
-  ".scala": "scala",
-  ".scm": "scheme",
-  ".sim": "simula",
-  ".st": "smalltalk",
-  ".swift": "swift",
-  ".tcl": "tcl",
-  ".ts": "typescript",
-  ".v": "v",
-  ".vb": "visualbasic",
-  ".wat": "wat",
-  ".zig": "zig",
-};
+const {
+  FILE_EXTENSION_LANGUAGE_ALIASES,
+  getSupportedLanguageKeys,
+  LANGUAGE_ID_ALIASES,
+  normalizeExtensionToLanguageKey,
+  normalizeLanguageId,
+} = require("../runtime/languageMetadata");
 
 const SUPPORTED_CHECK_ONLY_ROUTES = new Set(["native", "docker", "ssh"]);
-
-/**
- * Reads canonical supported language keys from run-language modules.
- *
- * @param {string} resolvedRoot Resolved repository root path.
- * @returns {Set<string>} Supported language keys.
- */
-function getSupportedLanguageKeys(resolvedRoot) {
-  const moduleDir = path.join(resolvedRoot, "shlib", "run-languages");
-
-  try {
-    const names = fs.readdirSync(moduleDir);
-    const keys = names
-      .filter((name) => name.endsWith(".sh"))
-      .map((name) => name.slice(0, -3).toLowerCase());
-    return new Set(keys);
-  } catch (_) {
-    return new Set();
-  }
-}
-
-/**
- * Normalizes VS Code languageId into canonical run-language key space.
- *
- * @param {string} languageId VS Code document language id.
- * @returns {string} Canonical language key candidate.
- */
-function normalizeLanguageId(languageId) {
-  const normalized = String(languageId || "").toLowerCase();
-
-  if (LANGUAGE_ID_ALIASES[normalized]) {
-    return LANGUAGE_ID_ALIASES[normalized];
-  }
-
-  return normalized;
-}
-
-/**
- * Normalizes file extension into canonical run-language key space.
- *
- * @param {string} filePath Active file path.
- * @returns {string|null} Canonical language key candidate or null.
- */
-function normalizeExtensionToLanguageKey(filePath) {
-  const extension = path.extname(String(filePath || "")).toLowerCase();
-
-  if (!extension) {
-    return null;
-  }
-
-  if (FILE_EXTENSION_LANGUAGE_ALIASES[extension]) {
-    return FILE_EXTENSION_LANGUAGE_ALIASES[extension];
-  }
-
-  return null;
-}
 
 /**
  * Validates whether command execution is allowed for the current eligibility state.
@@ -324,6 +191,7 @@ function validateCheckOnlyRoute(route) {
 
 // Public validation and normalization helpers used by command handlers.
 module.exports = {
+  FILE_EXTENSION_LANGUAGE_ALIASES,
   LANGUAGE_ID_ALIASES,
   validateEligibilityForExecution,
   validateActiveEditorContext,
@@ -332,6 +200,5 @@ module.exports = {
   getSupportedLanguageKeys,
   normalizeLanguageId,
   normalizeExtensionToLanguageKey,
-  FILE_EXTENSION_LANGUAGE_ALIASES,
   SUPPORTED_CHECK_ONLY_ROUTES,
 };

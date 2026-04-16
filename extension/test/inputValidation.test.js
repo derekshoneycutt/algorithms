@@ -3,12 +3,14 @@ const fs = require("fs");
 const os = require("os");
 const path = require("path");
 const {
-  getSupportedLanguageKeys,
-  normalizeExtensionToLanguageKey,
-  normalizeLanguageId,
   validateCheckOnlyRoute,
   validateSupportedLanguage,
 } = require("../src/validation/inputValidation");
+const {
+  getSupportedLanguageKeys,
+  normalizeExtensionToLanguageKey,
+  normalizeLanguageId,
+} = require("../src/runtime/languageMetadata");
 
 /**
  * Creates a temporary repository root with a minimal run-language catalog.

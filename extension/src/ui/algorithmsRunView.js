@@ -2,15 +2,17 @@ const fs = require("fs");
 const path = require("path");
 const { spawn } = require("child_process");
 const vscode = require("vscode");
-const { VIEW_IDS } = require("../constants");
-const { realpathSafe } = require("../utils/fileUtils");
-const { resolveEligibilityState } = require("../runtime/pathResolver");
+const { VIEW_IDS } = require("../runtime/viewConstants");
+const {
+  realpathSafe,
+  resolveEligibilityState,
+} = require("../runtime/pathResolver");
 const { getEffectiveSidebarSmokeArgs } = require("../runtime/sidebarRunArgsState");
 const {
+  LANGUAGE_ICON_SAMPLE_EXTENSIONS,
   getSupportedLanguageKeys,
   normalizeExtensionToLanguageKey,
-} = require("../validation/inputValidation");
-const { LANGUAGE_ICON_SAMPLE_EXTENSIONS } = require("../validation/languageMetadata");
+} = require("../runtime/languageMetadata");
 
 const LANGUAGE_ICON_DIRECTORY_SEGMENT = ".algos-language-icons";
 const LANGUAGE_PRESENT_URI_FRAGMENT = "algos-language-present";

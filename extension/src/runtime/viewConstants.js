@@ -1,4 +1,4 @@
-// Shared extension-wide constants.
+// Shared extension-wide view constants.
 
 /**
  * Stable sidebar view identifiers contributed in package.json.

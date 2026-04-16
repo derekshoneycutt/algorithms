@@ -1,9 +1,11 @@
 const fs = require("fs");
 const path = require("path");
 const vscode = require("vscode");
-const { VIEW_IDS } = require("../constants");
-const { realpathSafe } = require("../utils/fileUtils");
-const { resolveEligibilityState } = require("../runtime/pathResolver");
+const { VIEW_IDS } = require("../runtime/viewConstants");
+const {
+  realpathSafe,
+  resolveEligibilityState,
+} = require("../runtime/pathResolver");
 const {
   getSupportedLanguageKeys,
   normalizeExtensionToLanguageKey,

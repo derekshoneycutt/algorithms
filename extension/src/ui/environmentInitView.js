@@ -3,8 +3,11 @@ const os = require("os");
 const path = require("path");
 const { spawn } = require("child_process");
 const vscode = require("vscode");
-const { VIEW_IDS } = require("../constants");
-const { realpathSafe } = require("../utils/fileUtils");
+const { VIEW_IDS } = require("../runtime/viewConstants");
+const {
+  realpathSafe,
+  resolveEligibilityState,
+} = require("../runtime/pathResolver");
 const {
   makeTemplateLoader,
   readTextFileSafe,
@@ -12,11 +15,10 @@ const {
   renderTemplate,
   serializeForScript,
 } = require("./webviewHostUtils");
-const { resolveEligibilityState } = require("../runtime/pathResolver");
 const {
   getSupportedLanguageKeys,
-} = require("../validation/inputValidation");
-const { LANGUAGE_ICON_FILE_BY_KEY } = require("../validation/languageMetadata");
+  LANGUAGE_ICON_FILE_BY_KEY,
+} = require("../runtime/languageMetadata");
 
 const ENVIRONMENT_MEDIA_PATH_SEGMENTS = ["src", "ui", "media"];
 const ENVIRONMENT_INIT_CSS_FILE_NAME = "environmentInit.css";

@@ -1,5 +1,5 @@
 const vscode = require("vscode");
-const { VIEW_IDS } = require("../constants");
+const { VIEW_IDS } = require("../runtime/viewConstants");
 const {
   escapeHtml,
   makeTemplateLoader,
@@ -19,7 +19,7 @@ const {
 const LANGUAGE_ICON_PATH_SEGMENT = "icons/languages";
 const FALLBACK_ICON_PATH_SEGMENT = "icons/play-sidebar.svg";
 const SMOKE_CONTROLS_MEDIA_PATH_SEGMENTS = ["src", "ui", "media"];
-const { LANGUAGE_ICON_FILE_BY_KEY } = require("../validation/languageMetadata");
+const { LANGUAGE_ICON_FILE_BY_KEY } = require("../runtime/languageMetadata");
 
 const SMOKE_CONTROLS_CSS_FILE_NAME = "smokeControls.css";
 const SMOKE_CONTROLS_JS_FILE_NAME = "smokeControls.js";
