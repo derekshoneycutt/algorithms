@@ -1395,6 +1395,16 @@ function readSidebarDirectoryChildren(directoryPath, resolvedRoot, supportedLang
         continue;
       }
 
+      if (
+        isFirstLayerDirectoryPath(entryPath, resolvedRoot)
+        || isAlgorithmDirectoryPath(entryPath, resolvedRoot)
+      ) {
+        visibleEntries.push(
+          createSidebarTreeNode(entryPath, entry, false, null, null, false, false)
+        );
+        continue;
+      }
+
       if (!hasAllowedSidebarDescendant(entryPath, resolvedRoot, supportedLanguageKeys)) {
         continue;
       }
