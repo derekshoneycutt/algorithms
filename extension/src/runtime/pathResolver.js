@@ -2,7 +2,21 @@
 const fs = require("fs");
 const path = require("path");
 const { spawnSync } = require("child_process");
-const { realpathSafe } = require("../utils/fileUtils");
+
+/**
+ * Resolves the real absolute path of a file or directory, following symlinks.
+ * Returns the resolved absolute path of the input on failure.
+ *
+ * @param {string} targetPath Input path to normalize.
+ * @returns {string} Canonical or normalized absolute path.
+ */
+function realpathSafe(targetPath) {
+  try {
+    return fs.realpathSync(targetPath);
+  } catch (_) {
+    return path.resolve(targetPath);
+  }
+}
 
 // Cache lifetime for run.sh --help-all canary checks.
 const CANARY_CACHE_TTL_MS = 30000;
@@ -545,6 +559,7 @@ function resolveExplorerTargetCwd(selectedPath, resolvedRepoRoot) {
 // Public eligibility and path-resolution API consumed by extension entry points.
 module.exports = {
   HARD_MARKERS,
+  realpathSafe,
   invalidateCanaryCache,
   resolveEligibilityState,
   summarizeEligibilityState,
