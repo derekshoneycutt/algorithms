@@ -1,0 +1,5 @@
+.vscode/
+docs/
+FEAT-*-Report.md
+FEAT-*-Milestone*-Report.md
+dist/
