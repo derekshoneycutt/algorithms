@@ -153,6 +153,11 @@ the extensions that are used throughout this project. This should be enough to
 have a basic environment to code in. To see this list, go to the Extensions tab
 and search for `@recommended`. You can select which to install from this list.
 
+There is also a custom VS Code extension built just for this project that makes it easy
+to manage and navigate. You can run `./init.sh --no-prompt --build-vscode-extension`
+from the git repository root directory, and this extension will be built into
+`extension/dist/algorithms-runner-extension-0.0.1.vsix` for example.
+
 What is missing to work with the project from there is just all the code compilers.
 
 I highly recommend setting up docker so that you can just build the Dockerfile.
@@ -161,7 +166,7 @@ The entire build environment setup can be viewed in the
 a system going from scratch instead of just using a reproducible docker.
 
 ```sh
-docker buildx build --platform linux/amd64 -t code-runner:v0.1 --load .
+./init.sh --no-prompt --build-docker
 ```
 
 The docker built from this is quite sizable, as should probably be expected from
@@ -169,12 +174,15 @@ containing the compiler and runtimes for 60 different programming languages. It
 tends to build fastest on a multicore linux machine in my experience, but then it
 is about 8.4GB saved into a .tar.gz to transfer to other computers.
 
-The `run.sh` is setup to be called from the Jun Han Code Runner
-extension and can also be run from any old
+The `run.sh` is setup to be called from any old
 shell by navigating to a folder with code files and calling the run script
 pointed to the desired file. The language to compile and run is based on the
 extension of the filename passed in. Any additional arguments will be passed to
 the application when it is run, as command line arguments.
+
+The included VS Code extension does this manually, and the settings are also configured
+to use this run script via the Jun Han Code Runner extension. Either is a valid
+option here.
 
 ```bash
 cd $dir && ../../../run.sh $fileName [additional argments]
