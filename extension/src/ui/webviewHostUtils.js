@@ -97,7 +97,11 @@ function renderTemplate(template, replacements) {
  * @returns {string} Safe JSON string.
  */
 function serializeForScript(value) {
-  return JSON.stringify(value)
+  const serializedValue = JSON.stringify(value);
+  const safeSerializedValue =
+    typeof serializedValue === "string" ? serializedValue : "null";
+
+  return safeSerializedValue
     .replace(/</g, "\\u003c")
     .replace(/>/g, "\\u003e")
     .replace(/&/g, "\\u0026");
@@ -237,6 +241,76 @@ function resolveSidebarWebviewView(options) {
 }
 
 /**
+ * Creates a reusable sidebar webview lifecycle controller.
+ *
+ * @param {{localResourceRoots: import("vscode").Uri[], buildHtml: (webview: import("vscode").Webview) => string, buildErrorHtml?: (webview: import("vscode").Webview, error: unknown) => string, handleMessage?: (message: unknown) => void, handleDispose?: (webviewView: import("vscode").WebviewView) => void}} options Lifecycle options.
+ * @returns {{resolveWebviewView: (webviewView: import("vscode").WebviewView) => void, refresh: () => boolean, getActiveWebviewView: () => import("vscode").WebviewView|null}} Lifecycle controller.
+ */
+function createSidebarWebviewLifecycle(options) {
+  let activeWebviewView = null;
+
+  /**
+   * Resolves one sidebar webview view and stores it as active.
+   *
+   * @param {import("vscode").WebviewView} webviewView Webview view instance.
+   * @returns {void}
+   */
+  function resolveWebviewView(webviewView) {
+    activeWebviewView = webviewView;
+    resolveSidebarWebviewView({
+      webviewView,
+      localResourceRoots: options.localResourceRoots,
+      buildHtml: options.buildHtml,
+      buildErrorHtml: options.buildErrorHtml,
+      handleMessage: options.handleMessage,
+      handleDispose: (disposedWebviewView) => {
+        if (activeWebviewView === disposedWebviewView) {
+          activeWebviewView = null;
+        }
+
+        if (typeof options.handleDispose === "function") {
+          options.handleDispose(disposedWebviewView);
+        }
+      },
+    });
+  }
+
+  /**
+   * Re-renders the active webview document when available.
+   *
+   * @returns {boolean} True when an active view was refreshed.
+   */
+  function refresh() {
+    if (!activeWebviewView) {
+      return false;
+    }
+
+    renderWebviewHtmlWithFallback({
+      webview: activeWebviewView.webview,
+      buildHtml: options.buildHtml,
+      buildErrorHtml: options.buildErrorHtml,
+    });
+
+    return true;
+  }
+
+  /**
+   * Returns the currently active sidebar webview view.
+   *
+   * @returns {import("vscode").WebviewView|null} Active webview view or null.
+   */
+  function getActiveWebviewView() {
+    return activeWebviewView;
+  }
+
+  return {
+    resolveWebviewView,
+    refresh,
+    getActiveWebviewView,
+  };
+}
+
+/**
  * Builds a CSP-safe fallback error document without inline styles.
  *
  * @param {import("vscode").Webview} webview Webview instance.
@@ -266,6 +340,7 @@ function buildWebviewErrorHtmlDocument(webview, errorMessage) {
 // Shared host-side helpers used by sidebar webview providers.
 module.exports = {
   buildWebviewErrorHtmlDocument,
+  createSidebarWebviewLifecycle,
   escapeHtml,
   getSectionIconSvg,
   makeTemplateLoader,

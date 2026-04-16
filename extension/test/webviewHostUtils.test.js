@@ -4,12 +4,14 @@ const os = require("os");
 const path = require("path");
 const {
   buildWebviewErrorHtmlDocument,
+  createSidebarWebviewLifecycle,
   escapeHtml,
   makeTemplateLoader,
   renderWebviewHtmlWithFallback,
   renderSectionHeader,
   renderTemplate,
   resolveSidebarWebviewView,
+  serializeForScript,
 } = require("../src/ui/webviewHostUtils");
 
 /**
@@ -260,6 +262,124 @@ function testResolveSidebarWebviewViewUsesFallbackHtml() {
 }
 
 /**
+ * Verifies shared lifecycle controller manages resolve, refresh, and dispose.
+ *
+ * @returns {void}
+ */
+function testCreateSidebarWebviewLifecycle() {
+  let receivedMessage = null;
+  let disposedView = null;
+  let onDidReceiveMessageHandler = null;
+  let onDidDisposeHandler = null;
+  let renderCount = 0;
+  const mockWebview = {
+    html: "",
+    options: {},
+    onDidReceiveMessage(handler) {
+      onDidReceiveMessageHandler = handler;
+    },
+  };
+  const mockWebviewView = {
+    webview: mockWebview,
+    onDidDispose(handler) {
+      onDidDisposeHandler = handler;
+    },
+  };
+  const lifecycle = createSidebarWebviewLifecycle({
+    localResourceRoots: ["root-a"],
+    buildHtml: () => {
+      renderCount += 1;
+      return `<main>${renderCount}</main>`;
+    },
+    handleMessage: (message) => {
+      receivedMessage = message;
+    },
+    handleDispose: (view) => {
+      disposedView = view;
+    },
+  });
+
+  assert.strictEqual(lifecycle.refresh(), false);
+  assert.strictEqual(lifecycle.getActiveWebviewView(), null);
+
+  lifecycle.resolveWebviewView(mockWebviewView);
+  assert.strictEqual(mockWebview.html, "<main>1</main>");
+  assert.strictEqual(lifecycle.getActiveWebviewView(), mockWebviewView);
+
+  assert.strictEqual(lifecycle.refresh(), true);
+  assert.strictEqual(mockWebview.html, "<main>2</main>");
+
+  onDidReceiveMessageHandler({ type: "message" });
+  assert.deepStrictEqual(receivedMessage, { type: "message" });
+
+  onDidDisposeHandler();
+  assert.strictEqual(disposedView, mockWebviewView);
+  assert.strictEqual(lifecycle.getActiveWebviewView(), null);
+  assert.strictEqual(lifecycle.refresh(), false);
+}
+
+/**
+ * Verifies separate lifecycle controllers keep independent active views.
+ *
+ * @returns {void}
+ */
+function testCreateSidebarWebviewLifecycleSupportsMultipleInstances() {
+  let firstDisposeHandler = null;
+  let secondDisposeHandler = null;
+  const firstWebview = {
+    html: "",
+    options: {},
+    onDidReceiveMessage() {
+      // No-op in test.
+    },
+  };
+  const secondWebview = {
+    html: "",
+    options: {},
+    onDidReceiveMessage() {
+      // No-op in test.
+    },
+  };
+  const firstView = {
+    webview: firstWebview,
+    onDidDispose(handler) {
+      firstDisposeHandler = handler;
+    },
+  };
+  const secondView = {
+    webview: secondWebview,
+    onDidDispose(handler) {
+      secondDisposeHandler = handler;
+    },
+  };
+  const firstLifecycle = createSidebarWebviewLifecycle({
+    localResourceRoots: [],
+    buildHtml: () => "<main>first</main>",
+  });
+  const secondLifecycle = createSidebarWebviewLifecycle({
+    localResourceRoots: [],
+    buildHtml: () => "<main>second</main>",
+  });
+
+  firstLifecycle.resolveWebviewView(firstView);
+  secondLifecycle.resolveWebviewView(secondView);
+
+  assert.strictEqual(firstLifecycle.getActiveWebviewView(), firstView);
+  assert.strictEqual(secondLifecycle.getActiveWebviewView(), secondView);
+  assert.strictEqual(firstLifecycle.refresh(), true);
+  assert.strictEqual(secondLifecycle.refresh(), true);
+  assert.strictEqual(firstWebview.html, "<main>first</main>");
+  assert.strictEqual(secondWebview.html, "<main>second</main>");
+
+  firstDisposeHandler();
+  assert.strictEqual(firstLifecycle.getActiveWebviewView(), null);
+  assert.strictEqual(secondLifecycle.getActiveWebviewView(), secondView);
+
+  secondDisposeHandler();
+  assert.strictEqual(secondLifecycle.getActiveWebviewView(), null);
+}
+
+/**
  * Verifies render helper rethrows when no fallback renderer is supplied.
  *
  * @returns {void}
@@ -299,6 +419,22 @@ function testBuildWebviewErrorHtmlDocument() {
 }
 
 /**
+ * Verifies script serialization handles edge JSON inputs and escaping safely.
+ *
+ * @returns {void}
+ */
+function testSerializeForScript() {
+  assert.strictEqual(serializeForScript(undefined), "null");
+  assert.strictEqual(serializeForScript(null), "null");
+  assert.strictEqual(serializeForScript(123), "123");
+  assert.strictEqual(serializeForScript(true), "true");
+  assert.strictEqual(
+    serializeForScript("a < b && c > d"),
+    '"a \\u003c b \\u0026\\u0026 c \\u003e d"'
+  );
+}
+
+/**
  * Runs all webviewHostUtils tests.
  *
  * @returns {void}
@@ -314,7 +450,10 @@ function runTests() {
   testRenderWebviewHtmlWithFallbackThrowsWithoutFallback();
   testResolveSidebarWebviewView();
   testResolveSidebarWebviewViewUsesFallbackHtml();
+  testCreateSidebarWebviewLifecycle();
+  testCreateSidebarWebviewLifecycleSupportsMultipleInstances();
   testBuildWebviewErrorHtmlDocument();
+  testSerializeForScript();
 }
 
 // Public test entrypoint for the shared test runner.

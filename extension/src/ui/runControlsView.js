@@ -2,11 +2,11 @@ const vscode = require("vscode");
 const { VIEW_IDS } = require("../runtime/viewConstants");
 const {
   buildWebviewErrorHtmlDocument,
+  createSidebarWebviewLifecycle,
   escapeHtml,
   makeTemplateLoader,
-  renderWebviewHtmlWithFallback,
+  renderSectionHeader,
   renderTemplate,
-  resolveSidebarWebviewView,
   serializeForScript,
 } = require("./webviewHostUtils");
 const {
@@ -44,6 +44,33 @@ const RUN_CONTROLS_REQUIRED_TEMPLATE_NAMES = [
   RUN_CONTROLS_SOURCE_PROFILE_TEMPLATE_FILE_NAME,
   RUN_CONTROLS_CLEAN_OPTIONS_TEMPLATE_FILE_NAME,
 ];
+const RUN_CONTROLS_SECTION_ICON_SVG_BY_NAME = Object.freeze({
+  terminal:
+    '<svg class="sectionIcon" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-hidden="true">'
+    + '<path d="M2 3.5C2 2.67 2.67 2 3.5 2H12.5C13.33 2 14 2.67 14 3.5V12.5C14 13.33 13.33 14 12.5 14H3.5C2.67 14 2 13.33 2 12.5V3.5Z" stroke="currentColor" stroke-width="1"/>'
+    + '<path d="M4.5 6L6.75 8L4.5 10" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"/>'
+    + '<path d="M8.5 10H11.5" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/>'
+    + '</svg>',
+  check:
+    '<svg class="sectionIcon" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-hidden="true">'
+    + '<path d="M3 3.5C3 2.67 3.67 2 4.5 2H11.5C12.33 2 13 2.67 13 3.5V12.5C13 13.33 12.33 14 11.5 14H4.5C3.67 14 3 13.33 3 12.5V3.5Z" stroke="currentColor" stroke-width="1"/>'
+    + '<path d="M5 8L7 10L11 6" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"/>'
+    + '</svg>',
+  profile:
+    '<svg class="sectionIcon" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-hidden="true">'
+    + '<path d="M8 8C9.66 8 11 6.66 11 5C11 3.34 9.66 2 8 2C6.34 2 5 3.34 5 5C5 6.66 6.34 8 8 8Z" stroke="currentColor" stroke-width="1.1"/>'
+    + '<path d="M3 13C3.55 10.9 5.52 9.5 8 9.5C10.48 9.5 12.45 10.9 13 13" stroke="currentColor" stroke-width="1.1" stroke-linecap="round"/>'
+    + '<path d="M11.75 4.25L12.5 5L14 3.5" stroke="currentColor" stroke-width="1.1" stroke-linecap="round" stroke-linejoin="round"/>'
+    + '</svg>',
+  clean:
+    '<svg class="sectionIcon" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-hidden="true">'
+    + '<path d="M4 4.5C4 3.67 4.67 3 5.5 3H10.5C11.33 3 12 3.67 12 4.5V5.5H4V4.5Z" stroke="currentColor" stroke-width="1"/>'
+    + '<path d="M3.5 5.5H12.5" stroke="currentColor" stroke-width="1"/>'
+    + '<path d="M5 5.5V12C5 12.55 5.45 13 6 13H10C10.55 13 11 12.55 11 12V5.5" stroke="currentColor" stroke-width="1"/>'
+    + '<path d="M7 7.5V11" stroke="currentColor" stroke-width="1" stroke-linecap="round"/>'
+    + '<path d="M9 7.5V11" stroke="currentColor" stroke-width="1" stroke-linecap="round"/>'
+    + '</svg>',
+});
 
 /**
  * Builds an explicit error document for run-controls webview failures.
@@ -54,67 +81,6 @@ const RUN_CONTROLS_REQUIRED_TEMPLATE_NAMES = [
  */
 function buildRunControlsErrorHtml(webview, errorMessage) {
   return buildWebviewErrorHtmlDocument(webview, errorMessage);
-}
-
-/**
- * Returns the inline SVG used for one Run Controls section header.
- *
- * @param {string} iconName Semantic section icon key.
- * @returns {string} Inline SVG markup.
- */
-function getSectionIconSvg(iconName) {
-  if (iconName === "terminal") {
-    return '<svg class="sectionIcon" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-hidden="true">'
-      + '<path d="M2 3.5C2 2.67 2.67 2 3.5 2H12.5C13.33 2 14 2.67 14 3.5V12.5C14 13.33 13.33 14 12.5 14H3.5C2.67 14 2 13.33 2 12.5V3.5Z" stroke="currentColor" stroke-width="1"/>'
-      + '<path d="M4.5 6L6.75 8L4.5 10" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"/>'
-      + '<path d="M8.5 10H11.5" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/>'
-      + '</svg>';
-  }
-
-  if (iconName === "check") {
-    return '<svg class="sectionIcon" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-hidden="true">'
-      + '<path d="M3 3.5C3 2.67 3.67 2 4.5 2H11.5C12.33 2 13 2.67 13 3.5V12.5C13 13.33 12.33 14 11.5 14H4.5C3.67 14 3 13.33 3 12.5V3.5Z" stroke="currentColor" stroke-width="1"/>'
-      + '<path d="M5 8L7 10L11 6" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"/>'
-      + '</svg>';
-  }
-
-  if (iconName === "profile") {
-    return '<svg class="sectionIcon" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-hidden="true">'
-      + '<path d="M8 8C9.66 8 11 6.66 11 5C11 3.34 9.66 2 8 2C6.34 2 5 3.34 5 5C5 6.66 6.34 8 8 8Z" stroke="currentColor" stroke-width="1.1"/>'
-      + '<path d="M3 13C3.55 10.9 5.52 9.5 8 9.5C10.48 9.5 12.45 10.9 13 13" stroke="currentColor" stroke-width="1.1" stroke-linecap="round"/>'
-      + '<path d="M11.75 4.25L12.5 5L14 3.5" stroke="currentColor" stroke-width="1.1" stroke-linecap="round" stroke-linejoin="round"/>'
-      + '</svg>';
-  }
-
-  if (iconName === "clean") {
-    return '<svg class="sectionIcon" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-hidden="true">'
-      + '<path d="M4 4.5C4 3.67 4.67 3 5.5 3H10.5C11.33 3 12 3.67 12 4.5V5.5H4V4.5Z" stroke="currentColor" stroke-width="1"/>'
-      + '<path d="M3.5 5.5H12.5" stroke="currentColor" stroke-width="1"/>'
-      + '<path d="M5 5.5V12C5 12.55 5.45 13 6 13H10C10.55 13 11 12.55 11 12V5.5" stroke="currentColor" stroke-width="1"/>'
-      + '<path d="M7 7.5V11" stroke="currentColor" stroke-width="1" stroke-linecap="round"/>'
-      + '<path d="M9 7.5V11" stroke="currentColor" stroke-width="1" stroke-linecap="round"/>'
-      + '</svg>';
-  }
-
-  return "";
-}
-
-/**
- * Renders one Run Controls section header with an icon and optional actions.
- *
- * @param {string} title Section title.
- * @param {string} iconName Semantic section icon key.
- * @param {string} [actionsHtml] Trusted pre-built HTML markup — must never contain user-supplied content.
- * @returns {string} Header markup.
- */
-function renderSectionHeader(title, iconName, actionsHtml) {
-  return '<div class="sectionHeader">'
-    + '<div class="sectionTitleGroup">'
-    + getSectionIconSvg(iconName)
-    + '<div class="sectionTitle">' + escapeHtml(title) + '</div>'
-    + '</div>'
-    + (actionsHtml || "")
-    + '</div>';
 }
 
 /**
@@ -260,7 +226,12 @@ function getRunControlsSnapshot() {
  */
 function buildCommandArgumentsSectionHtml(stateSnapshot, templates) {
   return renderTemplate(templates.commandArguments, {
-    commandArgumentsHeader: renderSectionHeader("Command Arguments", "terminal"),
+    commandArgumentsHeader: renderSectionHeader(
+      "Command Arguments",
+      "terminal",
+      "",
+      RUN_CONTROLS_SECTION_ICON_SVG_BY_NAME
+    ),
     runArgsEnabledChecked: stateSnapshot.enabled ? "checked" : "",
     runArgsValue: escapeHtml(stateSnapshot.text),
     runArgsDisabledAttr: stateSnapshot.enabled ? "" : "disabled",
@@ -278,7 +249,12 @@ function buildCommandArgumentsSectionHtml(stateSnapshot, templates) {
  */
 function buildRunChecksSectionHtml(stateSnapshot, templates) {
   return renderTemplate(templates.runChecks, {
-    runChecksHeader: renderSectionHeader("Run Checks", "check"),
+    runChecksHeader: renderSectionHeader(
+      "Run Checks",
+      "check",
+      "",
+      RUN_CONTROLS_SECTION_ICON_SVG_BY_NAME
+    ),
     runChecksModeNoneChecked:
       stateSnapshot.runChecksMode === "none" ? "checked" : "",
     runChecksModeCompileOnlyChecked:
@@ -307,7 +283,12 @@ function buildRunChecksSectionHtml(stateSnapshot, templates) {
  */
 function buildSourceProfileSectionHtml(stateSnapshot, templates) {
   return renderTemplate(templates.sourceProfile, {
-    sourceProfileHeader: renderSectionHeader("Profile Sourcing", "profile"),
+    sourceProfileHeader: renderSectionHeader(
+      "Profile Sourcing",
+      "profile",
+      "",
+      RUN_CONTROLS_SECTION_ICON_SVG_BY_NAME
+    ),
     sourceProfileEnabledChecked: stateSnapshot.sourceProfileEnabled
       ? "checked"
       : "",
@@ -331,7 +312,12 @@ function buildSourceProfileSectionHtml(stateSnapshot, templates) {
  */
 function buildCleanOptionsSectionHtml(stateSnapshot, templates) {
   return renderTemplate(templates.cleanOptions, {
-    cleanOptionsHeader: renderSectionHeader("Clean Options", "clean"),
+    cleanOptionsHeader: renderSectionHeader(
+      "Clean Options",
+      "clean",
+      "",
+      RUN_CONTROLS_SECTION_ICON_SVG_BY_NAME
+    ),
     cleanStdlibChecked: stateSnapshot.cleanStdlib ? "checked" : "",
     cleanArchivesChecked: stateSnapshot.cleanArchives ? "checked" : "",
     cleanOptionsStatusClassName: escapeHtml(
@@ -380,7 +366,6 @@ class SidebarRunControlsViewProvider {
    * @param {import("vscode").Uri} extensionUri Extension installation URI.
    */
   constructor(extensionUri) {
-    this._view = null;
     this._mediaRootUri = vscode.Uri.joinPath(
       extensionUri,
       ...RUN_CONTROLS_MEDIA_PATH_SEGMENTS
@@ -390,6 +375,29 @@ class SidebarRunControlsViewProvider {
       ...RUN_CONTROLS_TEMPLATE_PATH_SEGMENTS
     );
     this._loadTemplate = makeTemplateLoader(this._templateRootUri.fsPath);
+    this._lifecycle = createSidebarWebviewLifecycle({
+      localResourceRoots: [this._mediaRootUri],
+      buildHtml: (webview) => {
+        const assets = this.getAssetUris(webview);
+        const templates = this.getTemplates();
+
+        return buildRunControlsHtml(
+          webview,
+          assets.stylesheetUri,
+          assets.scriptUri,
+          templates
+        );
+      },
+      buildErrorHtml: (webview, error) => {
+        const failureText = String(
+          error?.message || "Run Controls failed to render templates."
+        );
+        return buildRunControlsErrorHtml(webview, failureText);
+      },
+      handleMessage: (message) => {
+        this.handleMessage(message);
+      },
+    });
   }
 
   /**
@@ -515,11 +523,13 @@ class SidebarRunControlsViewProvider {
    * @returns {void}
    */
   postStateUpdate() {
-    if (!this._view) {
+    const activeWebviewView = this._lifecycle.getActiveWebviewView();
+
+    if (!activeWebviewView) {
       return;
     }
 
-    void this._view.webview.postMessage({
+    void activeWebviewView.webview.postMessage({
       type: "runArgsState",
       state: getRunControlsSnapshot(),
     });
@@ -532,36 +542,7 @@ class SidebarRunControlsViewProvider {
    * @returns {void}
    */
   resolveWebviewView(webviewView) {
-    this._view = webviewView;
-    resolveSidebarWebviewView({
-      webviewView,
-      localResourceRoots: [this._mediaRootUri],
-      buildHtml: (webview) => {
-        const assets = this.getAssetUris(webview);
-        const templates = this.getTemplates();
-
-        return buildRunControlsHtml(
-          webview,
-          assets.stylesheetUri,
-          assets.scriptUri,
-          templates
-        );
-      },
-      buildErrorHtml: (webview, error) => {
-        const failureText = String(
-          error?.message || "Run Controls failed to load templates."
-        );
-        return buildRunControlsErrorHtml(webview, failureText);
-      },
-      handleMessage: (message) => {
-        this.handleMessage(message);
-      },
-      handleDispose: (disposedWebviewView) => {
-        if (this._view === disposedWebviewView) {
-          this._view = null;
-        }
-      },
-    });
+    this._lifecycle.resolveWebviewView(webviewView);
   }
 
   /**
@@ -570,30 +551,7 @@ class SidebarRunControlsViewProvider {
    * @returns {void}
    */
   refresh() {
-    if (!this._view) {
-      return;
-    }
-
-    renderWebviewHtmlWithFallback({
-      webview: this._view.webview,
-      buildHtml: (webview) => {
-        const assets = this.getAssetUris(webview);
-        const templates = this.getTemplates();
-
-        return buildRunControlsHtml(
-          webview,
-          assets.stylesheetUri,
-          assets.scriptUri,
-          templates
-        );
-      },
-      buildErrorHtml: (webview, error) => {
-        const failureText = String(
-          error?.message || "Run Controls failed to refresh templates."
-        );
-        return buildRunControlsErrorHtml(webview, failureText);
-      },
-    });
+    this._lifecycle.refresh();
   }
 }
 
@@ -624,5 +582,8 @@ function registerSidebarRunControlsView(extensionUri) {
 }
 
 module.exports = {
+  _internal: {
+    SidebarRunControlsViewProvider,
+  },
   registerSidebarRunControlsView,
 };

@@ -4,9 +4,11 @@ const {
   renderShellCommand,
   _internal,
 } = require("../src/runtime/runScriptRunner");
+const { runTests: runAlgorithmsRunViewTests } = require("./algorithmsRunView.test");
 const { runTests: runArgumentBuilderTests } = require("./argumentBuilder.test");
 const { runTests: runInputValidationTests } = require("./inputValidation.test");
 const { runTests: runPathResolverTests } = require("./pathResolver.test");
+const { runTests: runProviderViewsTests } = require("./providerViews.test");
 const { runTests: runSidebarRunArgsStateTests } = require("./sidebarRunArgsState.test");
 const { runTests: runSmokeStatusStateTests } = require("./smokeStatusState.test");
 const { runTests: runWebviewHostUtilsTests } = require("./webviewHostUtils.test");
@@ -232,9 +234,11 @@ function runTests() {
  */
 function main() {
   runTests();
+  runAlgorithmsRunViewTests();
   runArgumentBuilderTests();
   runInputValidationTests();
   runPathResolverTests();
+  runProviderViewsTests();
   runSidebarRunArgsStateTests();
   runSmokeStatusStateTests();
   runWebviewHostUtilsTests();

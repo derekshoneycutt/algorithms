@@ -2,11 +2,11 @@ const vscode = require("vscode");
 const { VIEW_IDS } = require("../runtime/viewConstants");
 const {
   buildWebviewErrorHtmlDocument,
+  createSidebarWebviewLifecycle,
   escapeHtml,
   makeTemplateLoader,
-  renderWebviewHtmlWithFallback,
+  renderSectionHeader,
   renderTemplate,
-  resolveSidebarWebviewView,
   serializeForScript,
 } = require("./webviewHostUtils");
 const {
@@ -40,6 +40,26 @@ const SMOKE_CONTROLS_REQUIRED_TEMPLATE_NAMES = [
   SMOKE_CONTROLS_TIMEOUTS_TEMPLATE_FILE_NAME,
   SMOKE_CONTROLS_LANGUAGES_TEMPLATE_FILE_NAME,
 ];
+const SMOKE_CONTROLS_SECTION_ICON_SVG_BY_NAME = Object.freeze({
+  report:
+    '<svg class="sectionIcon" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-hidden="true">'
+    + '<path d="M4 2H10L12 4V13C12 13.55 11.55 14 11 14H4C3.45 14 3 13.55 3 13V3C3 2.45 3.45 2 4 2Z" stroke="currentColor" stroke-width="1"/>'
+    + '<path d="M10 2V4H12" stroke="currentColor" stroke-width="1"/>'
+    + '<path d="M5 7H11" stroke="currentColor" stroke-width="1" stroke-linecap="round"/>'
+    + '<path d="M5 9.5H9" stroke="currentColor" stroke-width="1" stroke-linecap="round"/>'
+    + '</svg>',
+  timeout:
+    '<svg class="sectionIcon" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-hidden="true">'
+    + '<circle cx="8" cy="8" r="5.5" stroke="currentColor" stroke-width="1"/>'
+    + '<path d="M8 5V8L10 9.5" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"/>'
+    + '</svg>',
+  languages:
+    '<svg class="sectionIcon" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-hidden="true">'
+    + '<path d="M5 5L2 8L5 11" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"/>'
+    + '<path d="M11 5L14 8L11 11" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"/>'
+    + '<path d="M9 3L7 13" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/>'
+    + '</svg>',
+});
 
 /**
  * Builds an explicit error document for smoke-controls webview failures.
@@ -50,58 +70,6 @@ const SMOKE_CONTROLS_REQUIRED_TEMPLATE_NAMES = [
  */
 function buildSmokeControlsErrorHtml(webview, errorMessage) {
   return buildWebviewErrorHtmlDocument(webview, errorMessage);
-}
-
-/**
- * Returns the inline SVG used for one Smoke Controls section header.
- *
- * @param {string} iconName Semantic section icon key.
- * @returns {string} Inline SVG markup.
- */
-function getSectionIconSvg(iconName) {
-  if (iconName === "report") {
-    return '<svg class="sectionIcon" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-hidden="true">'
-      + '<path d="M4 2H10L12 4V13C12 13.55 11.55 14 11 14H4C3.45 14 3 13.55 3 13V3C3 2.45 3.45 2 4 2Z" stroke="currentColor" stroke-width="1"/>'
-      + '<path d="M10 2V4H12" stroke="currentColor" stroke-width="1"/>'
-      + '<path d="M5 7H11" stroke="currentColor" stroke-width="1" stroke-linecap="round"/>'
-      + '<path d="M5 9.5H9" stroke="currentColor" stroke-width="1" stroke-linecap="round"/>'
-      + '</svg>';
-  }
-
-  if (iconName === "timeout") {
-    return '<svg class="sectionIcon" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-hidden="true">'
-      + '<circle cx="8" cy="8" r="5.5" stroke="currentColor" stroke-width="1"/>'
-      + '<path d="M8 5V8L10 9.5" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"/>'
-      + '</svg>';
-  }
-
-  if (iconName === "languages") {
-    return '<svg class="sectionIcon" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-hidden="true">'
-      + '<path d="M5 5L2 8L5 11" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"/>'
-      + '<path d="M11 5L14 8L11 11" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"/>'
-      + '<path d="M9 3L7 13" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/>'
-      + '</svg>';
-  }
-
-  return "";
-}
-
-/**
- * Renders one Smoke Controls section header with an icon and optional actions.
- *
- * @param {string} title Section title.
- * @param {string} iconName Semantic section icon key.
- * @param {string} [actionsHtml] Trusted pre-built HTML markup — must never contain user-supplied content.
- * @returns {string} Header markup.
- */
-function renderSectionHeader(title, iconName, actionsHtml) {
-  return '<div class="sectionHeader">'
-    + '<div class="sectionTitleGroup">'
-    + getSectionIconSvg(iconName)
-    + '<div class="sectionTitle">' + escapeHtml(title) + '</div>'
-    + '</div>'
-    + (actionsHtml || "")
-    + '</div>';
 }
 
 /**
@@ -249,7 +217,12 @@ function buildLanguagesGridHtml(stateSnapshot, languageIconUris) {
  */
 function buildReportGenerationSectionHtml(stateSnapshot, templates) {
   return renderTemplate(templates.reportGeneration, {
-    reportGenerationHeader: renderSectionHeader("Report Generation", "report"),
+    reportGenerationHeader: renderSectionHeader(
+      "Report Generation",
+      "report",
+      "",
+      SMOKE_CONTROLS_SECTION_ICON_SVG_BY_NAME
+    ),
     smokeMarkdownEnabledChecked: stateSnapshot.markdownEnabled ? "checked" : "",
     smokeMarkdownPathValue: escapeHtml(stateSnapshot.markdownPath),
     smokeMarkdownPathDisabledAttr: stateSnapshot.markdownEnabled ? "" : "disabled",
@@ -267,7 +240,12 @@ function buildReportGenerationSectionHtml(stateSnapshot, templates) {
  */
 function buildTimeoutsSectionHtml(stateSnapshot, templates) {
   return renderTemplate(templates.timeouts, {
-    timeoutsHeader: renderSectionHeader("Timeouts", "timeout"),
+    timeoutsHeader: renderSectionHeader(
+      "Timeouts",
+      "timeout",
+      "",
+      SMOKE_CONTROLS_SECTION_ICON_SVG_BY_NAME
+    ),
     smokeTimeoutValue: escapeHtml(stateSnapshot.timeout),
     smokeSlowTimeoutValue: escapeHtml(stateSnapshot.slowTimeout),
   });
@@ -286,7 +264,8 @@ function buildLanguagesSectionHtml(stateSnapshot, templates, languageIconUris) {
     languagesHeader: renderSectionHeader(
       "Languages",
       "languages",
-      '<div class="buttonRow"><button id="smokeSelectAll" class="button secondary" type="button">Select All</button><button id="smokeDeselectAll" class="button secondary" type="button">Deselect All</button></div>'
+      '<div class="buttonRow"><button id="smokeSelectAll" class="button secondary" type="button">Select All</button><button id="smokeDeselectAll" class="button secondary" type="button">Deselect All</button></div>',
+      SMOKE_CONTROLS_SECTION_ICON_SVG_BY_NAME
     ),
     languageGridOptions: buildLanguagesGridHtml(stateSnapshot, languageIconUris),
     smokeStatusClassName: escapeHtml(stateSnapshot.smokeStatusClassName),
@@ -334,7 +313,6 @@ class SidebarSmokeControlsViewProvider {
    * Creates a smoke-controls view provider.
    */
   constructor(extensionUri) {
-    this._view = null;
     this._mediaBaseUri = vscode.Uri.joinPath(
       extensionUri,
       ...SMOKE_CONTROLS_MEDIA_PATH_SEGMENTS
@@ -353,6 +331,40 @@ class SidebarSmokeControlsViewProvider {
       ...FALLBACK_ICON_PATH_SEGMENT.split("/")
     );
     this._loadTemplate = makeTemplateLoader(this._templateBaseUri.fsPath);
+    this._lifecycle = createSidebarWebviewLifecycle({
+      localResourceRoots: [
+        this._languageIconBaseUri,
+        this._iconRootUri,
+        this._mediaBaseUri,
+        this._templateBaseUri,
+      ],
+      buildHtml: (webview) => {
+        const templates = this.getTemplates();
+        const assetUris = this.getAssetUris(webview);
+        const languageIconUris = buildLanguageIconUris(
+          webview,
+          this._languageIconBaseUri,
+          this._fallbackIconUri
+        );
+
+        return buildSmokeControlsHtml(
+          webview,
+          assetUris.stylesheetUri,
+          assetUris.scriptUri,
+          templates,
+          languageIconUris
+        );
+      },
+      buildErrorHtml: (webview, error) => {
+        const failureText = String(
+          error?.message || "Smoke Controls failed to render templates."
+        );
+        return buildSmokeControlsErrorHtml(webview, failureText);
+      },
+      handleMessage: (message) => {
+        this.handleMessage(message);
+      },
+    });
   }
 
   /**
@@ -470,11 +482,13 @@ class SidebarSmokeControlsViewProvider {
    * @returns {void}
    */
   postStateUpdate() {
-    if (!this._view) {
+    const activeWebviewView = this._lifecycle.getActiveWebviewView();
+
+    if (!activeWebviewView) {
       return;
     }
 
-    void this._view.webview.postMessage({
+    void activeWebviewView.webview.postMessage({
       type: "smokeControlsState",
       state: getSmokeControlsSnapshot(),
     });
@@ -487,47 +501,7 @@ class SidebarSmokeControlsViewProvider {
    * @returns {void}
    */
   resolveWebviewView(webviewView) {
-    this._view = webviewView;
-    resolveSidebarWebviewView({
-      webviewView,
-      localResourceRoots: [
-        this._languageIconBaseUri,
-        this._iconRootUri,
-        this._mediaBaseUri,
-        this._templateBaseUri,
-      ],
-      buildHtml: (webview) => {
-        const templates = this.getTemplates();
-        const assetUris = this.getAssetUris(webview);
-        const languageIconUris = buildLanguageIconUris(
-          webview,
-          this._languageIconBaseUri,
-          this._fallbackIconUri
-        );
-
-        return buildSmokeControlsHtml(
-          webview,
-          assetUris.stylesheetUri,
-          assetUris.scriptUri,
-          templates,
-          languageIconUris
-        );
-      },
-      buildErrorHtml: (webview, error) => {
-        const failureText = String(
-          error?.message || "Smoke Controls failed to load templates."
-        );
-        return buildSmokeControlsErrorHtml(webview, failureText);
-      },
-      handleMessage: (message) => {
-        this.handleMessage(message);
-      },
-      handleDispose: (disposedWebviewView) => {
-        if (this._view === disposedWebviewView) {
-          this._view = null;
-        }
-      },
-    });
+    this._lifecycle.resolveWebviewView(webviewView);
   }
 
   /**
@@ -536,36 +510,7 @@ class SidebarSmokeControlsViewProvider {
    * @returns {void}
    */
   refresh() {
-    if (!this._view) {
-      return;
-    }
-
-    renderWebviewHtmlWithFallback({
-      webview: this._view.webview,
-      buildHtml: (webview) => {
-        const templates = this.getTemplates();
-        const assetUris = this.getAssetUris(webview);
-        const languageIconUris = buildLanguageIconUris(
-          webview,
-          this._languageIconBaseUri,
-          this._fallbackIconUri
-        );
-
-        return buildSmokeControlsHtml(
-          webview,
-          assetUris.stylesheetUri,
-          assetUris.scriptUri,
-          templates,
-          languageIconUris
-        );
-      },
-      buildErrorHtml: (webview, error) => {
-        const failureText = String(
-          error?.message || "Smoke Controls failed to refresh templates."
-        );
-        return buildSmokeControlsErrorHtml(webview, failureText);
-      },
-    });
+    this._lifecycle.refresh();
   }
 }
 
@@ -596,5 +541,8 @@ function registerSidebarSmokeControlsView(extensionUri) {
 }
 
 module.exports = {
+  _internal: {
+    SidebarSmokeControlsViewProvider,
+  },
   registerSidebarSmokeControlsView,
 };

@@ -10,12 +10,11 @@ const {
 } = require("../runtime/pathResolver");
 const {
   buildWebviewErrorHtmlDocument,
+  createSidebarWebviewLifecycle,
   makeTemplateLoader,
   readTextFileSafe,
   renderSectionHeader,
   renderTemplate,
-  renderWebviewHtmlWithFallback,
-  resolveSidebarWebviewView,
   serializeForScript,
 } = require("./webviewHostUtils");
 const {
@@ -727,7 +726,6 @@ class EnvironmentInitViewProvider {
    * @returns {void}
    */
   constructor(extensionUri) {
-    this._view = null;
     this._profilePath = "";
     this._copyIconsPath = "";
     this._batchDockerEnabled = false;
@@ -768,6 +766,26 @@ class EnvironmentInitViewProvider {
       ...FALLBACK_ICON_PATH_SEGMENT.split("/")
     );
     this._loadTemplate = makeTemplateLoader(this._templateBaseUri.fsPath);
+    this._lifecycle = createSidebarWebviewLifecycle({
+      localResourceRoots: [
+        this._languageIconBaseUri,
+        this._iconRootUri,
+        this._mediaBaseUri,
+        this._templateBaseUri,
+      ],
+      buildHtml: (webview) => {
+        return buildEnvironmentHtml(webview, this);
+      },
+      buildErrorHtml: (webview, error) => {
+        const failureText = String(
+          error?.message || "Environment pane failed to render templates."
+        );
+        return buildEnvironmentErrorHtml(webview, failureText);
+      },
+      handleMessage: (message) => {
+        this.handleMessage(message);
+      },
+    });
   }
 
   /**
@@ -852,13 +870,15 @@ class EnvironmentInitViewProvider {
    * @returns {void}
    */
   postStateUpdate() {
-    if (!this._view) {
+    const activeWebviewView = this._lifecycle.getActiveWebviewView();
+
+    if (!activeWebviewView) {
       return;
     }
 
-    void this._view.webview.postMessage({
+    void activeWebviewView.webview.postMessage({
       type: "environmentState",
-      state: buildEnvironmentStateSnapshot(this, this._view.webview),
+      state: buildEnvironmentStateSnapshot(this, activeWebviewView.webview),
     });
   }
 
@@ -1253,33 +1273,7 @@ class EnvironmentInitViewProvider {
    * @returns {void}
    */
   resolveWebviewView(webviewView) {
-    this._view = webviewView;
-    resolveSidebarWebviewView({
-      webviewView,
-      localResourceRoots: [
-        this._languageIconBaseUri,
-        this._iconRootUri,
-        this._mediaBaseUri,
-        this._templateBaseUri,
-      ],
-      buildHtml: (webview) => {
-        return buildEnvironmentHtml(webview, this);
-      },
-      buildErrorHtml: (webview, error) => {
-        const failureText = String(
-          error?.message || "Environment pane failed to load templates."
-        );
-        return buildEnvironmentErrorHtml(webview, failureText);
-      },
-      handleMessage: (message) => {
-        this.handleMessage(message);
-      },
-      handleDispose: (disposedWebviewView) => {
-        if (this._view === disposedWebviewView) {
-          this._view = null;
-        }
-      },
-    });
+    this._lifecycle.resolveWebviewView(webviewView);
   }
 
   /**
@@ -1288,22 +1282,7 @@ class EnvironmentInitViewProvider {
    * @returns {void}
    */
   refresh() {
-    if (!this._view) {
-      return;
-    }
-
-    renderWebviewHtmlWithFallback({
-      webview: this._view.webview,
-      buildHtml: (webview) => {
-        return buildEnvironmentHtml(webview, this);
-      },
-      buildErrorHtml: (webview, error) => {
-        const failureText = String(
-          error?.message || "Environment pane failed to refresh templates."
-        );
-        return buildEnvironmentErrorHtml(webview, failureText);
-      },
-    });
+    this._lifecycle.refresh();
   }
 }
 
@@ -1335,5 +1314,8 @@ function registerEnvironmentInitView(extensionUri) {
 
 // Public API for the Environment init pane.
 module.exports = {
+  _internal: {
+    EnvironmentInitViewProvider,
+  },
   registerEnvironmentInitView,
 };

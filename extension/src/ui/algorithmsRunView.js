@@ -3433,5 +3433,8 @@ function registerWorkspaceAlgorithmsRunView() {
 
 // Public API for the workspace algorithms run view.
 module.exports = {
+  _internal: {
+    WorkspaceStatusTreeDataProvider,
+  },
   registerWorkspaceAlgorithmsRunView,
 };
