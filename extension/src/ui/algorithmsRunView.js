@@ -7,6 +7,11 @@ const {
   realpathSafe,
   resolveEligibilityState,
 } = require("../runtime/pathResolver");
+const {
+  deleteWithTrashFallback,
+  getWorkspaceFolders,
+  isPathWithinRoot,
+} = require("./uiWorkspaceFsUtils");
 const { getEffectiveSidebarSmokeArgs } = require("../runtime/sidebarRunArgsState");
 const {
   LANGUAGE_ICON_SAMPLE_EXTENSIONS,
@@ -51,15 +56,6 @@ function createEmptyWorkspaceState() {
     selected: null,
     evaluations: [],
   };
-}
-
-/**
- * Returns workspace folders from VS Code API.
- *
- * @returns {import("vscode").WorkspaceFolder[]} Open workspace folders.
- */
-function getWorkspaceFolders() {
-  return vscode.workspace.workspaceFolders || [];
 }
 
 /**
@@ -202,25 +198,6 @@ function resolveSrcRootPath(resolvedRoot) {
   }
 
   return null;
-}
-
-/**
- * Checks whether one candidate path is inside a root directory.
- *
- * @param {string} rootPath Root directory path.
- * @param {string} candidatePath Candidate path.
- * @returns {boolean} True when candidate path is inside root.
- */
-function isPathWithinRoot(rootPath, candidatePath) {
-  const canonicalRootPath = realpathSafe(rootPath);
-  const normalizedCandidatePath = path.resolve(candidatePath);
-  const relativePath = path.relative(canonicalRootPath, normalizedCandidatePath);
-
-  if (!relativePath || relativePath === ".") {
-    return true;
-  }
-
-  return !relativePath.startsWith("..") && !path.isAbsolute(relativePath);
 }
 
 /**
@@ -2319,7 +2296,7 @@ function registerWorkspaceAlgorithmsRunView() {
    * @returns {Thenable<void>} Completion result.
    */
   function refreshWorkspaceViewState() {
-    const sidebarState = resolveSidebarWorkspaceState(getWorkspaceFolders());
+    const sidebarState = resolveSidebarWorkspaceState(getWorkspaceFolders(vscode));
     provider.setSidebarState(sidebarState.statusState, sidebarState.displayRootPath);
     provider.refresh();
 
@@ -2968,29 +2945,6 @@ function registerWorkspaceAlgorithmsRunView() {
   }
 
   /**
-   * Deletes one URI by trying OS trash first, then falling back to direct delete.
-   *
-   * @param {import("vscode").Uri} targetUri Target URI.
-   * @param {boolean} recursive Whether deletion should recurse.
-   * @returns {Promise<boolean>} True when target was moved to trash.
-   */
-  async function deleteWithTrashFallback(targetUri, recursive) {
-    try {
-      await vscode.workspace.fs.delete(targetUri, {
-        recursive,
-        useTrash: true,
-      });
-      return true;
-    } catch (_) {
-      await vscode.workspace.fs.delete(targetUri, {
-        recursive,
-        useTrash: false,
-      });
-      return false;
-    }
-  }
-
-  /**
    * Creates a new folder directly under src root.
    *
    * @param {import("vscode")} vscodeApi VS Code API object.
@@ -3352,11 +3306,12 @@ function registerWorkspaceAlgorithmsRunView() {
     const usedTrashResults = [];
 
     for (const target of normalizedTargets) {
-      const usedTrash = await deleteWithTrashFallback(
+      const deleteResult = await deleteWithTrashFallback(
+        vscode,
         vscode.Uri.file(target.filePath),
         target.recursive
       );
-      usedTrashResults.push(usedTrash);
+      usedTrashResults.push(deleteResult.usedTrash);
     }
 
     provider.refresh();

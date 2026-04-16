@@ -1,6 +1,7 @@
 const vscode = require("vscode");
 const { VIEW_IDS } = require("../runtime/viewConstants");
 const {
+  buildLanguageIconUris,
   buildWebviewErrorHtmlDocument,
   createSidebarWebviewLifecycle,
   escapeHtml,
@@ -24,7 +25,10 @@ const FALLBACK_ICON_PATH_SEGMENT = "icons/play-sidebar.svg";
 const SMOKE_CONTROLS_MEDIA_PATH_SEGMENTS = ["src", "ui", "media"];
 const { LANGUAGE_ICON_FILE_BY_KEY } = require("../runtime/languageMetadata");
 
+const SMOKE_CONTROLS_SHARED_CSS_FILE_NAME = "panelShared.css";
 const SMOKE_CONTROLS_CSS_FILE_NAME = "smokeControls.css";
+const SMOKE_CONTROLS_WEBVIEW_CLIENT_UTILS_JS_FILE_NAME =
+  "webviewClientUtils.js";
 const SMOKE_CONTROLS_JS_FILE_NAME = "smokeControls.js";
 const SMOKE_CONTROLS_TEMPLATE_PATH_SEGMENTS = ["src", "ui", "templates"];
 const SMOKE_CONTROLS_SHELL_TEMPLATE_FILE_NAME = "smoke-controls-shell.html";
@@ -130,30 +134,6 @@ function buildReportGenerationStatus(smokeControlsState) {
   return {
     statusText: `Report generated at: ${reportPath}`,
     statusClassName: "status-ok",
-  };
-}
-
-/**
- * Builds webview-safe icon URI map keyed by language id.
- *
- * @param {import("vscode").Webview} webview Webview instance.
- * @param {import("vscode").Uri} languageIconBaseUri Base icon directory URI.
- * @param {import("vscode").Uri} fallbackIconUri Fallback icon URI.
- * @returns {{fallbackIconUri: string, iconUriByLanguageKey: Map<string, string>}} Icon URI metadata.
- */
-function buildLanguageIconUris(webview, languageIconBaseUri, fallbackIconUri) {
-  const iconUriByLanguageKey = new Map();
-
-  for (const [languageKey, iconFileName] of Object.entries(LANGUAGE_ICON_FILE_BY_KEY)) {
-    const iconUri = webview.asWebviewUri(
-      vscode.Uri.joinPath(languageIconBaseUri, iconFileName)
-    );
-    iconUriByLanguageKey.set(languageKey, iconUri.toString());
-  }
-
-  return {
-    fallbackIconUri: webview.asWebviewUri(fallbackIconUri).toString(),
-    iconUriByLanguageKey,
   };
 }
 
@@ -277,19 +257,31 @@ function buildLanguagesSectionHtml(stateSnapshot, templates, languageIconUris) {
  * Builds webview HTML for the smoke-controls panel.
  *
  * @param {import("vscode").Webview} webview Webview instance.
+ * @param {string} sharedStylesheetUri Webview shared stylesheet URI.
  * @param {string} stylesheetUri Webview stylesheet URI.
+ * @param {string} clientUtilsScriptUri Webview shared client-utils script URI.
  * @param {string} scriptUri Webview script URI.
  * @param {{shell: string, reportGeneration: string, timeouts: string, languages: string}} templates Smoke-controls templates.
  * @param {{fallbackIconUri: string, iconUriByLanguageKey: Map<string, string>}} languageIconUris Webview-safe icon URI metadata.
  * @returns {string} Rendered HTML.
  */
-function buildSmokeControlsHtml(webview, stylesheetUri, scriptUri, templates, languageIconUris) {
+function buildSmokeControlsHtml(
+  webview,
+  sharedStylesheetUri,
+  stylesheetUri,
+  clientUtilsScriptUri,
+  scriptUri,
+  templates,
+  languageIconUris
+) {
   const stateSnapshot = getSmokeControlsSnapshot();
   const serializedState = serializeForScript(stateSnapshot);
 
   return renderTemplate(templates.shell, {
     cspSource: webview.cspSource,
+    sharedStylesheetUri,
     stylesheetUri,
+    clientUtilsScriptUri,
     scriptUri,
     serializedState,
     reportGenerationSection: buildReportGenerationSectionHtml(
@@ -343,13 +335,17 @@ class SidebarSmokeControlsViewProvider {
         const assetUris = this.getAssetUris(webview);
         const languageIconUris = buildLanguageIconUris(
           webview,
+          vscode,
           this._languageIconBaseUri,
-          this._fallbackIconUri
+          this._fallbackIconUri,
+          LANGUAGE_ICON_FILE_BY_KEY
         );
 
         return buildSmokeControlsHtml(
           webview,
+          assetUris.sharedStylesheetUri,
           assetUris.stylesheetUri,
+          assetUris.clientUtilsScriptUri,
           assetUris.scriptUri,
           templates,
           languageIconUris
@@ -402,18 +398,32 @@ class SidebarSmokeControlsViewProvider {
    * Returns webview resource URIs for smoke-controls assets.
    *
    * @param {import("vscode").Webview} webview Webview instance.
-   * @returns {{stylesheetUri: string, scriptUri: string}} Resource URI map.
+   * @returns {{sharedStylesheetUri: string, stylesheetUri: string, clientUtilsScriptUri: string, scriptUri: string}} Resource URI map.
    */
   getAssetUris(webview) {
+    const sharedStylesheetUri = webview.asWebviewUri(
+      vscode.Uri.joinPath(
+        this._mediaBaseUri,
+        SMOKE_CONTROLS_SHARED_CSS_FILE_NAME
+      )
+    ).toString();
     const stylesheetUri = webview.asWebviewUri(
       vscode.Uri.joinPath(this._mediaBaseUri, SMOKE_CONTROLS_CSS_FILE_NAME)
+    ).toString();
+    const clientUtilsScriptUri = webview.asWebviewUri(
+      vscode.Uri.joinPath(
+        this._mediaBaseUri,
+        SMOKE_CONTROLS_WEBVIEW_CLIENT_UTILS_JS_FILE_NAME
+      )
     ).toString();
     const scriptUri = webview.asWebviewUri(
       vscode.Uri.joinPath(this._mediaBaseUri, SMOKE_CONTROLS_JS_FILE_NAME)
     ).toString();
 
     return {
+      sharedStylesheetUri,
       stylesheetUri,
+      clientUtilsScriptUri,
       scriptUri,
     };
   }

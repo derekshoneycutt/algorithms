@@ -108,6 +108,38 @@ function serializeForScript(value) {
 }
 
 /**
+ * Builds webview-safe icon URI map keyed by language id.
+ *
+ * @param {import("vscode").Webview} webview Webview instance.
+ * @param {typeof import("vscode")} vscodeApi VS Code API object.
+ * @param {import("vscode").Uri} languageIconBaseUri Base icon directory URI.
+ * @param {import("vscode").Uri} fallbackIconUri Fallback icon URI.
+ * @param {Record<string, string>} languageIconFileByKey Language-to-icon filename map.
+ * @returns {{fallbackIconUri: string, iconUriByLanguageKey: Map<string, string>}} Icon URI metadata.
+ */
+function buildLanguageIconUris(
+  webview,
+  vscodeApi,
+  languageIconBaseUri,
+  fallbackIconUri,
+  languageIconFileByKey
+) {
+  const iconUriByLanguageKey = new Map();
+
+  for (const [languageKey, iconFileName] of Object.entries(languageIconFileByKey)) {
+    const iconUri = webview.asWebviewUri(
+      vscodeApi.Uri.joinPath(languageIconBaseUri, iconFileName)
+    );
+    iconUriByLanguageKey.set(languageKey, iconUri.toString());
+  }
+
+  return {
+    fallbackIconUri: webview.asWebviewUri(fallbackIconUri).toString(),
+    iconUriByLanguageKey,
+  };
+}
+
+/**
  * Returns inline SVG markup for a named section icon.
  *
  * @param {string} iconName Semantic icon key.
@@ -339,6 +371,7 @@ function buildWebviewErrorHtmlDocument(webview, errorMessage) {
 
 // Shared host-side helpers used by sidebar webview providers.
 module.exports = {
+  buildLanguageIconUris,
   buildWebviewErrorHtmlDocument,
   createSidebarWebviewLifecycle,
   escapeHtml,

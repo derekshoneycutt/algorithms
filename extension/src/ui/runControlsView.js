@@ -26,7 +26,10 @@ const {
 } = require("../runtime/sidebarRunArgsState");
 
 const RUN_CONTROLS_MEDIA_PATH_SEGMENTS = ["src", "ui", "media"];
+const RUN_CONTROLS_SHARED_CSS_FILE_NAME = "panelShared.css";
 const RUN_CONTROLS_CSS_FILE_NAME = "runControls.css";
+const RUN_CONTROLS_WEBVIEW_CLIENT_UTILS_JS_FILE_NAME =
+  "webviewClientUtils.js";
 const RUN_CONTROLS_JS_FILE_NAME = "runControls.js";
 const RUN_CONTROLS_TEMPLATE_PATH_SEGMENTS = ["src", "ui", "templates"];
 const RUN_CONTROLS_SHELL_TEMPLATE_FILE_NAME = "run-controls-shell.html";
@@ -331,19 +334,30 @@ function buildCleanOptionsSectionHtml(stateSnapshot, templates) {
  * Builds webview HTML for the run-controls panel.
  *
  * @param {import("vscode").Webview} webview Webview instance.
+ * @param {string} sharedStylesheetUri Webview shared stylesheet URI.
  * @param {string} stylesheetUri Webview stylesheet URI.
+ * @param {string} clientUtilsScriptUri Webview shared client-utils script URI.
  * @param {string} scriptUri Webview script URI.
  * @param {{shell: string, commandArguments: string, runChecks: string, sourceProfile: string, cleanOptions: string}} templates Run-controls templates.
  * @returns {string} Rendered HTML.
  */
-function buildRunControlsHtml(webview, stylesheetUri, scriptUri, templates) {
+function buildRunControlsHtml(
+  webview,
+  sharedStylesheetUri,
+  stylesheetUri,
+  clientUtilsScriptUri,
+  scriptUri,
+  templates
+) {
   const stateSnapshot = getRunControlsSnapshot();
   const cspSource = webview.cspSource;
   const serializedState = serializeForScript(stateSnapshot);
 
   return renderTemplate(templates.shell, {
     cspSource,
+    sharedStylesheetUri,
     stylesheetUri,
+    clientUtilsScriptUri,
     scriptUri,
     serializedState,
     commandArgumentsSection: buildCommandArgumentsSectionHtml(
@@ -383,7 +397,9 @@ class SidebarRunControlsViewProvider {
 
         return buildRunControlsHtml(
           webview,
+          assets.sharedStylesheetUri,
           assets.stylesheetUri,
+          assets.clientUtilsScriptUri,
           assets.scriptUri,
           templates
         );
@@ -438,18 +454,29 @@ class SidebarRunControlsViewProvider {
    * Returns webview resource URIs for run-controls assets.
    *
    * @param {import("vscode").Webview} webview Webview instance.
-   * @returns {{stylesheetUri: string, scriptUri: string}} Resource URI map.
+   * @returns {{sharedStylesheetUri: string, stylesheetUri: string, clientUtilsScriptUri: string, scriptUri: string}} Resource URI map.
    */
   getAssetUris(webview) {
+    const sharedStylesheetUri = webview.asWebviewUri(
+      vscode.Uri.joinPath(this._mediaRootUri, RUN_CONTROLS_SHARED_CSS_FILE_NAME)
+    ).toString();
     const stylesheetUri = webview.asWebviewUri(
       vscode.Uri.joinPath(this._mediaRootUri, RUN_CONTROLS_CSS_FILE_NAME)
+    ).toString();
+    const clientUtilsScriptUri = webview.asWebviewUri(
+      vscode.Uri.joinPath(
+        this._mediaRootUri,
+        RUN_CONTROLS_WEBVIEW_CLIENT_UTILS_JS_FILE_NAME
+      )
     ).toString();
     const scriptUri = webview.asWebviewUri(
       vscode.Uri.joinPath(this._mediaRootUri, RUN_CONTROLS_JS_FILE_NAME)
     ).toString();
 
     return {
+      sharedStylesheetUri,
       stylesheetUri,
+      clientUtilsScriptUri,
       scriptUri,
     };
   }

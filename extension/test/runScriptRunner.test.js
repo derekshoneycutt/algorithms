@@ -12,6 +12,8 @@ const { runTests: runProviderViewsTests } = require("./providerViews.test");
 const { runTests: runSidebarRunArgsStateTests } = require("./sidebarRunArgsState.test");
 const { runTests: runSmokeStatusStateTests } = require("./smokeStatusState.test");
 const { runTests: runWebviewHostUtilsTests } = require("./webviewHostUtils.test");
+const { runTests: runWebviewClientUtilsTests } = require("./webviewClientUtils.test");
+const { runTests: runUiWorkspaceFsUtilsTests } = require("./uiWorkspaceFsUtils.test");
 
 /**
  * Creates a mock VS Code API terminal surface for runner tests.
@@ -230,9 +232,9 @@ function runTests() {
 /**
  * Runs the extension unit test suite and exits non-zero on failure.
  *
- * @returns {void}
+ * @returns {Promise<void>}
  */
-function main() {
+async function main() {
   runTests();
   runAlgorithmsRunViewTests();
   runArgumentBuilderTests();
@@ -242,6 +244,11 @@ function main() {
   runSidebarRunArgsStateTests();
   runSmokeStatusStateTests();
   runWebviewHostUtilsTests();
+  runWebviewClientUtilsTests();
+  const uiWorkspaceFsUtilsResult = runUiWorkspaceFsUtilsTests();
+  if (uiWorkspaceFsUtilsResult instanceof Promise) {
+    await uiWorkspaceFsUtilsResult;
+  }
   console.log("extension tests passed");
 }
 

@@ -9,6 +9,7 @@ const {
   resolveEligibilityState,
 } = require("../runtime/pathResolver");
 const {
+  buildLanguageIconUris,
   buildWebviewErrorHtmlDocument,
   createSidebarWebviewLifecycle,
   makeTemplateLoader,
@@ -23,6 +24,7 @@ const {
 } = require("../runtime/languageMetadata");
 
 const ENVIRONMENT_MEDIA_PATH_SEGMENTS = ["src", "ui", "media"];
+const ENVIRONMENT_SHARED_CSS_FILE_NAME = "panelShared.css";
 const ENVIRONMENT_INIT_CSS_FILE_NAME = "environmentInit.css";
 const ENVIRONMENT_INIT_JS_FILE_NAME = "environmentInit.js";
 const ENVIRONMENT_TEMPLATE_PATH_SEGMENTS = ["src", "ui", "templates"];
@@ -347,30 +349,6 @@ function parseRouteMap(mapText) {
 }
 
 /**
- * Builds webview-safe icon URIs keyed by language.
- *
- * @param {import("vscode").Webview} webview Webview instance.
- * @param {import("vscode").Uri} languageIconBaseUri Base icon directory URI.
- * @param {import("vscode").Uri} fallbackIconUri Fallback icon URI.
- * @returns {{fallbackIconUri: string, iconUriByLanguageKey: Map<string, string>}} Icon URI metadata.
- */
-function buildLanguageIconUris(webview, languageIconBaseUri, fallbackIconUri) {
-  const iconUriByLanguageKey = new Map();
-
-  for (const [languageKey, iconFileName] of Object.entries(LANGUAGE_ICON_FILE_BY_KEY)) {
-    const iconUri = webview.asWebviewUri(
-      vscode.Uri.joinPath(languageIconBaseUri, iconFileName)
-    );
-    iconUriByLanguageKey.set(languageKey, iconUri.toString());
-  }
-
-  return {
-    fallbackIconUri: webview.asWebviewUri(fallbackIconUri).toString(),
-    iconUriByLanguageKey,
-  };
-}
-
-/**
  * Returns a human-friendly label for one language key.
  *
  * @param {string} languageKey Canonical language key.
@@ -609,8 +587,10 @@ function buildEnvironmentStateSnapshot(provider, webview) {
   );
   const iconMetadata = buildLanguageIconUris(
     webview,
+    vscode,
     provider._languageIconBaseUri,
-    provider._fallbackIconUri
+    provider._fallbackIconUri,
+    LANGUAGE_ICON_FILE_BY_KEY
   );
   const variables = CORE_VARIABLE_DEFINITIONS.map((definition) => {
     const status = provider._variableStatusByKey.get(definition.key) || {
@@ -688,6 +668,9 @@ function buildEnvironmentHtml(webview, provider) {
   const serializedState = serializeForScript(stateSnapshot);
   const templates = provider.getTemplates();
   const serializedTemplates = serializeForScript(templates);
+  const sharedStylesheetUri = webview.asWebviewUri(
+    vscode.Uri.joinPath(provider._mediaBaseUri, ENVIRONMENT_SHARED_CSS_FILE_NAME)
+  ).toString();
   const stylesheetUri = webview.asWebviewUri(
     vscode.Uri.joinPath(provider._mediaBaseUri, ENVIRONMENT_INIT_CSS_FILE_NAME)
   ).toString();
@@ -697,6 +680,7 @@ function buildEnvironmentHtml(webview, provider) {
 
   return renderTemplate(templates.shell, {
     cspSource,
+    sharedStylesheetUri,
     stylesheetUri,
     scriptUri,
     serializedState,

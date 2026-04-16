@@ -1,4 +1,5 @@
 const vscodeApi = acquireVsCodeApi();
+const webviewClientUtils = window.AlgosWebviewClientUtils;
 const initialStateNode = document.getElementById("runControlsInitialState");
 const REQUIRED_NODE_IDS = [
   "runArgsEnabled",
@@ -19,59 +20,27 @@ const REQUIRED_NODE_IDS = [
   "cleanOptionsStatus",
 ];
 
-/**
- * Returns required nodes keyed by id or throws with actionable diagnostics.
- *
- * @returns {Record<string, HTMLElement>} Required nodes.
- */
-function getRequiredNodes() {
-  const nodes = {};
-  const missingNodeIds = [];
-
-  for (const nodeId of REQUIRED_NODE_IDS) {
-    const element = document.getElementById(nodeId);
-
-    if (!element) {
-      missingNodeIds.push(nodeId);
-      continue;
-    }
-
-    nodes[nodeId] = element;
-  }
-
-  if (missingNodeIds.length > 0) {
-    throw new Error(
-      "Run Controls webview missing required nodes: "
-        + missingNodeIds.join(", ")
-    );
-  }
-
-  return nodes;
-}
-
-/**
- * Replaces the document body with a clear startup failure message.
- *
- * @param {string} message Startup failure details.
- * @returns {void}
- */
-function showStartupFailure(message) {
-  document.body.innerHTML =
-    '<div style="margin:0;padding:10px;font-family:var(--vscode-font-family);font-size:12px;color:var(--vscode-errorForeground);background:var(--vscode-sideBar-background);white-space:pre-wrap;border:1px solid var(--vscode-errorForeground);border-radius:6px;line-height:1.4;">'
-    + String(message || "Run Controls failed to initialize.")
-    + "</div>";
-}
-
 let requiredNodes = null;
 
 try {
-  requiredNodes = getRequiredNodes();
+  if (!webviewClientUtils) {
+    throw new Error("Run Controls missing AlgosWebviewClientUtils bootstrap.");
+  }
+
+  requiredNodes = webviewClientUtils.getRequiredNodes(
+    REQUIRED_NODE_IDS,
+    "Run Controls"
+  );
 } catch (error) {
   const failureText = String(
     error?.message || "Run Controls failed required-node bootstrap."
   );
   console.error(`[algorithms-runner] ${failureText}`);
-  showStartupFailure(failureText);
+
+  if (webviewClientUtils) {
+    webviewClientUtils.showStartupFailure("Run Controls", failureText);
+  }
+
   throw error;
 }
 
@@ -338,14 +307,9 @@ cleanArchivesEnabled.addEventListener("change", () => {
   });
 });
 
-window.addEventListener("message", (event) => {
-  const message = event.data;
-
-  if (message?.type !== "runArgsState") {
-    return;
-  }
-
-  applyState(message.state);
+webviewClientUtils.wireStateMessages({
+  messageType: "runArgsState",
+  applyState,
 });
 
 applyState(initialState);
