@@ -727,45 +727,54 @@ class SidebarSmokeControlsViewProvider {
   }
 
   /**
+   * Returns message handlers keyed by message type.
+   *
+   * @returns {Object.<string, (message: {enabled?: boolean, text?: string, languageKey?: string}) => void>} Message handlers.
+   */
+  getMessageHandlers() {
+    return {
+      setSmokeMarkdownEnabled: (message) => {
+        setSidebarSmokeMarkdownEnabled(Boolean(message.enabled));
+        this.postStateUpdate();
+      },
+      setSmokeMarkdownPath: (message) => {
+        setSidebarSmokeMarkdownPath(String(message.text || ""));
+        this.postStateUpdate();
+      },
+      setSmokeTimeout: (message) => {
+        setSidebarSmokeTimeout(String(message.text || ""));
+        this.postStateUpdate();
+      },
+      setSmokeSlowTimeout: (message) => {
+        setSidebarSmokeSlowTimeout(String(message.text || ""));
+        this.postStateUpdate();
+      },
+      setSmokeLanguageEnabled: (message) => {
+        setSidebarSmokeLanguageEnabled(
+          String(message.languageKey || ""),
+          Boolean(message.enabled)
+        );
+        this.postStateUpdate();
+      },
+      setSmokeAllLanguagesEnabled: (message) => {
+        setSidebarSmokeAllLanguagesEnabled(Boolean(message.enabled));
+        this.postStateUpdate();
+      },
+    };
+  }
+
+  /**
    * Handles one webview message from the smoke-controls UI.
    *
    * @param {{type?: string, enabled?: boolean, text?: string, languageKey?: string}} message Incoming webview message.
    * @returns {void}
    */
   handleMessage(message) {
-    if (message?.type === "setSmokeMarkdownEnabled") {
-      setSidebarSmokeMarkdownEnabled(Boolean(message.enabled));
-      this.postStateUpdate();
-      return;
-    }
+    const messageType = String(message?.type || "");
+    const messageHandler = this.getMessageHandlers()[messageType];
 
-    if (message?.type === "setSmokeMarkdownPath") {
-      setSidebarSmokeMarkdownPath(String(message.text || ""));
-      this.postStateUpdate();
-      return;
-    }
-
-    if (message?.type === "setSmokeTimeout") {
-      setSidebarSmokeTimeout(String(message.text || ""));
-      this.postStateUpdate();
-      return;
-    }
-
-    if (message?.type === "setSmokeSlowTimeout") {
-      setSidebarSmokeSlowTimeout(String(message.text || ""));
-      this.postStateUpdate();
-      return;
-    }
-
-    if (message?.type === "setSmokeLanguageEnabled") {
-      setSidebarSmokeLanguageEnabled(String(message.languageKey || ""), Boolean(message.enabled));
-      this.postStateUpdate();
-      return;
-    }
-
-    if (message?.type === "setSmokeAllLanguagesEnabled") {
-      setSidebarSmokeAllLanguagesEnabled(Boolean(message.enabled));
-      this.postStateUpdate();
+    if (messageHandler) {
+      messageHandler(message || {});
     }
   }
 

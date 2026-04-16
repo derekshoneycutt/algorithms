@@ -168,13 +168,14 @@ function executeContextCommand(vscodeApi, contextResolution, execution) {
 }
 
 /**
- * Resolves one sidebar language item into algorithm/script execution context.
+ * Resolves sidebar language metadata into algorithm/script execution context.
  *
- * @param {{algorithmPath?: string, languageKey?: string}|undefined} item Sidebar language item.
+ * @param {{algorithmPath?: string, languageKey?: string}|undefined} item Sidebar item payload.
  * @param {{selected?: {resolvedRoot?: string, scriptPath?: string}}|null|undefined} eligibilityState Eligible workspace state.
+ * @param {{missingItemGuidance: string, resolvedGuidance: string}} messages Guidance text for failure/success states.
  * @returns {{ok: boolean, reason: string|null, guidance: string, severity: "info"|"warning"|"error", algorithmDir: string|null, scriptPath: string|null, displayScriptPath: string|null, languageKey: string|null}} Resolution result.
  */
-function resolveLanguageSidebarContext(item, eligibilityState) {
+function resolveSidebarLanguageContext(item, eligibilityState, messages) {
   const selected = eligibilityState?.selected;
   const scriptPath = selected?.scriptPath;
   const algorithmDir = item?.algorithmPath;
@@ -197,7 +198,7 @@ function resolveLanguageSidebarContext(item, eligibilityState) {
     return {
       ok: false,
       reason: "missing-language-sidebar-item",
-      guidance: "Select a language row in the sidebar and try again.",
+      guidance: messages.missingItemGuidance,
       severity: "info",
       algorithmDir: null,
       scriptPath: null,
@@ -212,13 +213,27 @@ function resolveLanguageSidebarContext(item, eligibilityState) {
   return {
     ok: true,
     reason: null,
-    guidance: "Language sidebar context resolved.",
+    guidance: messages.resolvedGuidance,
     severity: "info",
     algorithmDir,
     scriptPath,
     displayScriptPath,
     languageKey,
   };
+}
+
+/**
+ * Resolves one sidebar language item into algorithm/script execution context.
+ *
+ * @param {{algorithmPath?: string, languageKey?: string}|undefined} item Sidebar language item.
+ * @param {{selected?: {resolvedRoot?: string, scriptPath?: string}}|null|undefined} eligibilityState Eligible workspace state.
+ * @returns {{ok: boolean, reason: string|null, guidance: string, severity: "info"|"warning"|"error", algorithmDir: string|null, scriptPath: string|null, displayScriptPath: string|null, languageKey: string|null}} Resolution result.
+ */
+function resolveLanguageSidebarContext(item, eligibilityState) {
+  return resolveSidebarLanguageContext(item, eligibilityState, {
+    missingItemGuidance: "Select a language row in the sidebar and try again.",
+    resolvedGuidance: "Language sidebar context resolved.",
+  });
 }
 
 /**
@@ -1050,50 +1065,10 @@ async function runLanguageCheckOnlySshHandler(vscodeApi, eligibilityState, item)
  * @returns {{ok: boolean, reason: string|null, guidance: string, severity: "info"|"warning"|"error", algorithmDir: string|null, scriptPath: string|null, displayScriptPath: string|null, languageKey: string|null}} Resolution result.
  */
 function resolveFlaggableSidebarContext(item, eligibilityState) {
-  const selected = eligibilityState?.selected;
-  const scriptPath = selected?.scriptPath;
-  const algorithmDir = item?.algorithmPath;
-  const languageKey = item?.languageKey;
-
-  if (!scriptPath) {
-    return {
-      ok: false,
-      reason: "missing-run-script-path",
-      guidance: "Run script path is unavailable. Reopen the workspace and retry.",
-      severity: "error",
-      algorithmDir: null,
-      scriptPath: null,
-      displayScriptPath: null,
-      languageKey: null,
-    };
-  }
-
-  if (!algorithmDir || !languageKey) {
-    return {
-      ok: false,
-      reason: "missing-language-sidebar-item",
-      guidance: "Select a language or file row in the sidebar and try again.",
-      severity: "info",
-      algorithmDir: null,
-      scriptPath: null,
-      displayScriptPath: null,
-      languageKey: null,
-    };
-  }
-
-  const relativeScriptPath = path.relative(algorithmDir, scriptPath);
-  const displayScriptPath = relativeScriptPath || scriptPath;
-
-  return {
-    ok: true,
-    reason: null,
-    guidance: "Flaggable sidebar context resolved.",
-    severity: "info",
-    algorithmDir,
-    scriptPath,
-    displayScriptPath,
-    languageKey,
-  };
+  return resolveSidebarLanguageContext(item, eligibilityState, {
+    missingItemGuidance: "Select a language or file row in the sidebar and try again.",
+    resolvedGuidance: "Flaggable sidebar context resolved.",
+  });
 }
 
 /**

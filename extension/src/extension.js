@@ -56,6 +56,10 @@ const {
 
 // Cached preflight snapshot used by visibility event handlers.
 let cachedPreflightState = null;
+// Debounce delay for document lifecycle-driven preflight updates.
+const DOCUMENT_PRECHECK_DEBOUNCE_MS = 250;
+// Timer handle for coalescing document lifecycle preflight updates.
+let documentPreflightTimer = null;
 
 /**
  * Returns the currently open workspace folders.
@@ -193,14 +197,45 @@ function getCachedPreflightState() {
 }
 
 /**
+ * Recomputes preflight state and updates editor-title visibility context.
+ *
+ * @param {import('vscode').TextEditor|undefined} editor Active editor candidate.
+ * @returns {Promise<void>} Resolves after context key update.
+ */
+async function refreshPreflightAndContext(editor) {
+  const nextPreflightState = setCachedPreflightState(resolvePreflightState());
+  await updateRunActiveFileContext(editor, nextPreflightState);
+}
+
+/**
+ * Schedules one debounced preflight/context refresh for document lifecycle events.
+ *
+ * @returns {void}
+ */
+function scheduleDocumentPreflightRefresh() {
+  if (documentPreflightTimer) {
+    clearTimeout(documentPreflightTimer);
+  }
+
+  documentPreflightTimer = setTimeout(() => {
+    documentPreflightTimer = null;
+    void refreshPreflightAndContext(vscode.window.activeTextEditor);
+  }, DOCUMENT_PRECHECK_DEBOUNCE_MS);
+}
+
+/**
  * Handles active editor changes for title-button visibility updates.
  *
  * @param {import('vscode').TextEditor|undefined} editor Active editor candidate.
  * @returns {Promise<void>} Resolves after context key update.
  */
 async function handleActiveEditorChange(editor) {
-  const nextPreflightState = setCachedPreflightState(resolvePreflightState());
-  await updateRunActiveFileContext(editor, nextPreflightState);
+  if (documentPreflightTimer) {
+    clearTimeout(documentPreflightTimer);
+    documentPreflightTimer = null;
+  }
+
+  await refreshPreflightAndContext(editor);
 }
 
 /**
@@ -209,11 +244,12 @@ async function handleActiveEditorChange(editor) {
  * @returns {Promise<void>} Resolves after preflight refresh and context update.
  */
 async function handleWorkspaceFolderChange() {
-  const nextPreflightState = setCachedPreflightState(resolvePreflightState());
-  await updateRunActiveFileContext(
-    vscode.window.activeTextEditor,
-    nextPreflightState
-  );
+  if (documentPreflightTimer) {
+    clearTimeout(documentPreflightTimer);
+    documentPreflightTimer = null;
+  }
+
+  await refreshPreflightAndContext(vscode.window.activeTextEditor);
 }
 
 /**
@@ -222,11 +258,139 @@ async function handleWorkspaceFolderChange() {
  * @returns {Promise<void>} Resolves after preflight refresh and context update.
  */
 async function handleDocumentStateChange() {
-  const nextPreflightState = setCachedPreflightState(resolvePreflightState());
-  await updateRunActiveFileContext(
-    vscode.window.activeTextEditor,
-    nextPreflightState
-  );
+  scheduleDocumentPreflightRefresh();
+}
+
+/**
+ * Builds smoke-test command adapters backed by the workspace view registration.
+ *
+ * @param {{runSmokeTest: Function, stopSmokeTest: Function, clearSmokeResults: Function}} workspaceViewRegistration Workspace algorithms view registration.
+ * @returns {{runSmokeTestHandler: Function, runSmokeTestStopHandler: Function, runSmokeTestClearResultsHandler: Function}} Smoke command adapters.
+ */
+function buildSmokeCommandAdapters(workspaceViewRegistration) {
+  return {
+    runSmokeTestHandler: async (vscodeApi, eligibilityState, item) => {
+      return workspaceViewRegistration.runSmokeTest(
+        vscodeApi,
+        eligibilityState,
+        item
+      );
+    },
+    runSmokeTestStopHandler: async (vscodeApi, eligibilityState, item) => {
+      return workspaceViewRegistration.stopSmokeTest(
+        vscodeApi,
+        eligibilityState,
+        item
+      );
+    },
+    runSmokeTestClearResultsHandler: async (vscodeApi, eligibilityState, item) => {
+      return workspaceViewRegistration.clearSmokeResults(
+        vscodeApi,
+        eligibilityState,
+        item
+      );
+    },
+  };
+}
+
+/**
+ * Builds sidebar mode and refresh command adapters.
+ *
+ * @param {{setViewMode: Function, setFilterMode: Function, refresh: Function, openMissingLanguageFile: Function}} workspaceViewRegistration Workspace algorithms view registration.
+ * @returns {{showSidebarFileView: Function, showSidebarLanguageView: Function, showSidebarAllFilter: Function, showSidebarProblemsFilter: Function, refreshSidebarView: Function, createLanguageFilePlaceholder: Function}} Sidebar command adapters.
+ */
+function buildSidebarCommandAdapters(workspaceViewRegistration) {
+  return {
+    showSidebarFileView: async () => {
+      await workspaceViewRegistration.setViewMode("files");
+    },
+    showSidebarLanguageView: async () => {
+      await workspaceViewRegistration.setViewMode("language");
+    },
+    showSidebarAllFilter: async () => {
+      await workspaceViewRegistration.setFilterMode("all");
+    },
+    showSidebarProblemsFilter: async () => {
+      await workspaceViewRegistration.setFilterMode("problems");
+    },
+    refreshSidebarView: async () => {
+      workspaceViewRegistration.refresh();
+    },
+    createLanguageFilePlaceholder: async (item) => {
+      await workspaceViewRegistration.openMissingLanguageFile(item);
+    },
+  };
+}
+
+/**
+ * Builds algorithms tree mutation command adapters.
+ *
+ * @param {{createFolderAtSrcRoot: Function, createFolder: Function, createFile: Function, addIncludeFile: Function, deleteItem: Function}} workspaceViewRegistration Workspace algorithms view registration.
+ * @returns {{algorithmsCreateFolderAtSrcRoot: Function, algorithmsCreateFolder: Function, algorithmsCreateFile: Function, algorithmsAddIncludeFile: Function, algorithmsDeleteItem: Function}} Algorithms tree command adapters.
+ */
+function buildAlgorithmsTreeCommandAdapters(workspaceViewRegistration) {
+  return {
+    algorithmsCreateFolderAtSrcRoot: async (vscodeApi, eligibilityState) => {
+      await workspaceViewRegistration.createFolderAtSrcRoot(
+        vscodeApi,
+        eligibilityState
+      );
+    },
+    algorithmsCreateFolder: async (vscodeApi, eligibilityState, item) => {
+      await workspaceViewRegistration.createFolder(
+        vscodeApi,
+        eligibilityState,
+        item
+      );
+    },
+    algorithmsCreateFile: async (vscodeApi, eligibilityState, item) => {
+      await workspaceViewRegistration.createFile(
+        vscodeApi,
+        eligibilityState,
+        item
+      );
+    },
+    algorithmsAddIncludeFile: async (vscodeApi, eligibilityState, item) => {
+      await workspaceViewRegistration.addIncludeFile(
+        vscodeApi,
+        eligibilityState,
+        item
+      );
+    },
+    algorithmsDeleteItem: async (vscodeApi, eligibilityState, item) => {
+      await workspaceViewRegistration.deleteItem(
+        vscodeApi,
+        eligibilityState,
+        item
+      );
+    },
+  };
+}
+
+/**
+ * Builds standard-library command adapters.
+ *
+ * @param {{createFile: Function, createFileAtRoot: Function, createFolder: Function, createFolderAtRoot: Function, deleteItem: Function}} standardLibraryRegistration Standard library view registration.
+ * @returns {{standardLibraryCreateFile: Function, standardLibraryCreateFileAtRoot: Function, standardLibraryCreateFolder: Function, standardLibraryCreateFolderAtRoot: Function, standardLibraryDelete: Function}} Standard library command adapters.
+ */
+function buildStandardLibraryCommandAdapters(standardLibraryRegistration) {
+  return {
+    standardLibraryCreateFile: async (item) => {
+      await standardLibraryRegistration.createFile(item);
+    },
+    standardLibraryCreateFileAtRoot: async () => {
+      await standardLibraryRegistration.createFileAtRoot();
+    },
+    standardLibraryCreateFolder: async (item) => {
+      await standardLibraryRegistration.createFolder(item);
+    },
+    standardLibraryCreateFolderAtRoot: async () => {
+      await standardLibraryRegistration.createFolderAtRoot();
+    },
+    standardLibraryDelete: async (item) => {
+      await standardLibraryRegistration.deleteItem(item);
+    },
+  };
 }
 
 /**
@@ -274,27 +438,7 @@ async function activate(context) {
     runActiveFileHandler,
     runFileHandler,
     runLanguageHandler,
-    runSmokeTestHandler: async (vscodeApi, eligibilityState, item) => {
-      return workspaceAlgorithmsRunViewRegistration.runSmokeTest(
-        vscodeApi,
-        eligibilityState,
-        item
-      );
-    },
-    runSmokeTestStopHandler: async (vscodeApi, eligibilityState, item) => {
-      return workspaceAlgorithmsRunViewRegistration.stopSmokeTest(
-        vscodeApi,
-        eligibilityState,
-        item
-      );
-    },
-    runSmokeTestClearResultsHandler: async (vscodeApi, eligibilityState, item) => {
-      return workspaceAlgorithmsRunViewRegistration.clearSmokeResults(
-        vscodeApi,
-        eligibilityState,
-        item
-      );
-    },
+    ...buildSmokeCommandAdapters(workspaceAlgorithmsRunViewRegistration),
     flagLanguageHandler,
     unflagLanguageHandler,
     runLocalCleanHandler,
@@ -308,73 +452,9 @@ async function activate(context) {
     runLanguageCheckOnlyDockerHandler,
     runLanguageCheckOnlySshHandler,
     openRunMenuFlow,
-    showSidebarFileView: async () => {
-      await workspaceAlgorithmsRunViewRegistration.setViewMode("files");
-    },
-    showSidebarLanguageView: async () => {
-      await workspaceAlgorithmsRunViewRegistration.setViewMode("language");
-    },
-    showSidebarAllFilter: async () => {
-      await workspaceAlgorithmsRunViewRegistration.setFilterMode("all");
-    },
-    showSidebarProblemsFilter: async () => {
-      await workspaceAlgorithmsRunViewRegistration.setFilterMode("problems");
-    },
-    refreshSidebarView: async () => {
-      workspaceAlgorithmsRunViewRegistration.refresh();
-    },
-    createLanguageFilePlaceholder: async (item) => {
-      await workspaceAlgorithmsRunViewRegistration.openMissingLanguageFile(item);
-    },
-    algorithmsCreateFolderAtSrcRoot: async (vscodeApi, eligibilityState) => {
-      await workspaceAlgorithmsRunViewRegistration.createFolderAtSrcRoot(
-        vscodeApi,
-        eligibilityState
-      );
-    },
-    algorithmsCreateFolder: async (vscodeApi, eligibilityState, item) => {
-      await workspaceAlgorithmsRunViewRegistration.createFolder(
-        vscodeApi,
-        eligibilityState,
-        item
-      );
-    },
-    algorithmsCreateFile: async (vscodeApi, eligibilityState, item) => {
-      await workspaceAlgorithmsRunViewRegistration.createFile(
-        vscodeApi,
-        eligibilityState,
-        item
-      );
-    },
-    algorithmsAddIncludeFile: async (vscodeApi, eligibilityState, item) => {
-      await workspaceAlgorithmsRunViewRegistration.addIncludeFile(
-        vscodeApi,
-        eligibilityState,
-        item
-      );
-    },
-    algorithmsDeleteItem: async (vscodeApi, eligibilityState, item) => {
-      await workspaceAlgorithmsRunViewRegistration.deleteItem(
-        vscodeApi,
-        eligibilityState,
-        item
-      );
-    },
-    standardLibraryCreateFile: async (item) => {
-      await standardLibraryViewRegistration.createFile(item);
-    },
-    standardLibraryCreateFileAtRoot: async () => {
-      await standardLibraryViewRegistration.createFileAtRoot();
-    },
-    standardLibraryCreateFolder: async (item) => {
-      await standardLibraryViewRegistration.createFolder(item);
-    },
-    standardLibraryCreateFolderAtRoot: async () => {
-      await standardLibraryViewRegistration.createFolderAtRoot();
-    },
-    standardLibraryDelete: async (item) => {
-      await standardLibraryViewRegistration.deleteItem(item);
-    },
+    ...buildSidebarCommandAdapters(workspaceAlgorithmsRunViewRegistration),
+    ...buildAlgorithmsTreeCommandAdapters(workspaceAlgorithmsRunViewRegistration),
+    ...buildStandardLibraryCommandAdapters(standardLibraryViewRegistration),
   });
 
   const visibilityDisposables = [
@@ -400,7 +480,12 @@ async function activate(context) {
  *
  * @returns {void}
  */
-function deactivate() {}
+function deactivate() {
+  if (documentPreflightTimer) {
+    clearTimeout(documentPreflightTimer);
+    documentPreflightTimer = null;
+  }
+}
 
 // Public VS Code extension lifecycle exports.
 module.exports = {

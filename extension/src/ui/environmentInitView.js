@@ -1958,6 +1958,37 @@ class EnvironmentInitViewProvider {
   }
 
   /**
+   * Returns message handlers keyed by message type.
+   *
+   * @returns {Object.<string, (message: {variableKey?: string, value?: string, languageKey?: string, dockerEnabled?: boolean, dockerValue?: string, sshEnabled?: boolean, sshValue?: string}) => void>} Message handlers.
+   */
+  getMessageHandlers() {
+    return {
+      refreshState: () => {
+        this.postStateUpdate();
+      },
+      runCheckEnv: () => {
+        void this.runCheckEnv();
+      },
+      runCopyIcons: () => {
+        void this.runCopyIcons();
+      },
+      saveVariable: (message) => {
+        void this.saveVariable(
+          String(message.variableKey || ""),
+          String(message.value || "")
+        );
+      },
+      saveLanguageRouting: (message) => {
+        void this.saveLanguageRouting(message);
+      },
+      saveBatchRouting: () => {
+        void this.saveBatchRouting();
+      },
+    };
+  }
+
+  /**
    * Handles one webview message from the Environment pane UI.
    *
    * @param {{type?: string, profilePath?: string, copyIconsPath?: string, variableKey?: string, value?: string, languageKey?: string, dockerEnabled?: boolean, dockerValue?: string, sshEnabled?: boolean, sshValue?: string}|undefined} message Incoming webview message.
@@ -1965,38 +1996,11 @@ class EnvironmentInitViewProvider {
    */
   handleMessage(message) {
     this.applyDraftFields(message);
+    const messageType = String(message?.type || "");
+    const messageHandler = this.getMessageHandlers()[messageType];
 
-    if (message?.type === "refreshState") {
-      this.postStateUpdate();
-      return;
-    }
-
-    if (message?.type === "runCheckEnv") {
-      void this.runCheckEnv();
-      return;
-    }
-
-    if (message?.type === "runCopyIcons") {
-      void this.runCopyIcons();
-      return;
-    }
-
-    if (message?.type === "saveVariable") {
-      void this.saveVariable(
-        String(message.variableKey || ""),
-        String(message.value || "")
-      );
-      return;
-    }
-
-    if (message?.type === "saveLanguageRouting") {
-      void this.saveLanguageRouting(message);
-      return;
-    }
-
-    if (message?.type === "saveBatchRouting") {
-      void this.saveBatchRouting();
-      return;
+    if (messageHandler) {
+      messageHandler(message || {});
     }
   }
 

@@ -845,57 +845,59 @@ class SidebarRunControlsViewProvider {
   }
 
   /**
+   * Returns message handlers keyed by message type.
+   *
+   * @returns {Object.<string, (message: {enabled?: boolean, text?: string, mode?: string, route?: string}) => void>} Message handlers.
+   */
+  getMessageHandlers() {
+    return {
+      setEnabled: (message) => {
+        setSidebarRunArgsEnabled(Boolean(message.enabled));
+        this.postStateUpdate();
+      },
+      setText: (message) => {
+        setSidebarRunArgsText(String(message.text || ""));
+        this.postStateUpdate();
+      },
+      setSourceProfileEnabled: (message) => {
+        setSidebarSourceProfileEnabled(Boolean(message.enabled));
+        this.postStateUpdate();
+      },
+      setSourceProfileText: (message) => {
+        setSidebarSourceProfileText(String(message.text || ""));
+        this.postStateUpdate();
+      },
+      setRunChecksMode: (message) => {
+        setSidebarRunChecksMode(String(message.mode || "none"));
+        this.postStateUpdate();
+      },
+      setRunChecksRoute: (message) => {
+        setSidebarRunChecksRoute(String(message.route || "native"));
+        this.postStateUpdate();
+      },
+      setCleanStdlibEnabled: (message) => {
+        setSidebarCleanStdlibEnabled(Boolean(message.enabled));
+        this.postStateUpdate();
+      },
+      setCleanArchivesEnabled: (message) => {
+        setSidebarCleanArchivesEnabled(Boolean(message.enabled));
+        this.postStateUpdate();
+      },
+    };
+  }
+
+  /**
    * Handles one webview message from the run-controls UI.
    *
     * @param {{type?: string, enabled?: boolean, text?: string, mode?: string, route?: string, languageKey?: string}} message Incoming webview message.
    * @returns {void}
    */
   handleMessage(message) {
-    if (message?.type === "setEnabled") {
-      setSidebarRunArgsEnabled(Boolean(message.enabled));
-      this.postStateUpdate();
-      return;
-    }
+    const messageType = String(message?.type || "");
+    const messageHandler = this.getMessageHandlers()[messageType];
 
-    if (message?.type === "setText") {
-      setSidebarRunArgsText(String(message.text || ""));
-      this.postStateUpdate();
-      return;
-    }
-
-    if (message?.type === "setSourceProfileEnabled") {
-      setSidebarSourceProfileEnabled(Boolean(message.enabled));
-      this.postStateUpdate();
-      return;
-    }
-
-    if (message?.type === "setSourceProfileText") {
-      setSidebarSourceProfileText(String(message.text || ""));
-      this.postStateUpdate();
-      return;
-    }
-
-    if (message?.type === "setRunChecksMode") {
-      setSidebarRunChecksMode(String(message.mode || "none"));
-      this.postStateUpdate();
-      return;
-    }
-
-    if (message?.type === "setRunChecksRoute") {
-      setSidebarRunChecksRoute(String(message.route || "native"));
-      this.postStateUpdate();
-      return;
-    }
-
-    if (message?.type === "setCleanStdlibEnabled") {
-      setSidebarCleanStdlibEnabled(Boolean(message.enabled));
-      this.postStateUpdate();
-      return;
-    }
-
-    if (message?.type === "setCleanArchivesEnabled") {
-      setSidebarCleanArchivesEnabled(Boolean(message.enabled));
-      this.postStateUpdate();
+    if (messageHandler) {
+      messageHandler(message || {});
     }
   }
 

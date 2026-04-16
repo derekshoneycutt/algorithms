@@ -3,6 +3,12 @@ const fs = require("fs");
 const path = require("path");
 const { spawnSync } = require("child_process");
 
+// Cache lifetime for run.sh --help-all canary checks.
+const CANARY_CACHE_TTL_MS = 30000;
+
+// In-memory cache keyed by canonical root path.
+const canaryResultCache = new Map();
+
 // Hard eligibility markers expected at a valid repository root.
 const HARD_MARKERS = [
   { name: "run.sh", type: "file" },
@@ -109,12 +115,59 @@ function findCandidateRoot(startPath) {
 }
 
 /**
+ * Returns a cached canary result when still fresh.
+ *
+ * @param {string} rootPath Canonical repository root path.
+ * @returns {{attempted: boolean, command: string, exitCode: number|null, success: boolean, error: string|null}|null} Cached canary result or null.
+ */
+function getCachedCanaryResult(rootPath) {
+  const cacheEntry = canaryResultCache.get(rootPath);
+
+  if (!cacheEntry) {
+    return null;
+  }
+
+  if (Date.now() - cacheEntry.timestamp > CANARY_CACHE_TTL_MS) {
+    canaryResultCache.delete(rootPath);
+    return null;
+  }
+
+  return {
+    attempted: true,
+    command: cacheEntry.result.command,
+    exitCode: cacheEntry.result.exitCode,
+    success: cacheEntry.result.success,
+    error: cacheEntry.result.error,
+  };
+}
+
+/**
+ * Stores one canary result in the TTL cache.
+ *
+ * @param {string} rootPath Canonical repository root path.
+ * @param {{attempted: boolean, command: string, exitCode: number|null, success: boolean, error: string|null}} result Canary execution result.
+ * @returns {void}
+ */
+function setCachedCanaryResult(rootPath, result) {
+  canaryResultCache.set(rootPath, {
+    timestamp: Date.now(),
+    result,
+  });
+}
+
+/**
  * Executes run.sh canary command at the resolved root.
  *
  * @param {string} rootPath Resolved repository root path.
  * @returns {{attempted: boolean, command: string, exitCode: number|null, success: boolean, error: string|null}} Canary result details.
  */
 function runCanary(rootPath) {
+  const cachedResult = getCachedCanaryResult(rootPath);
+
+  if (cachedResult) {
+    return cachedResult;
+  }
+
   const scriptPath = path.join(rootPath, "run.sh");
 
   try {
@@ -125,30 +178,39 @@ function runCanary(rootPath) {
     });
 
     if (result.error) {
-      return {
+      const canaryResult = {
         attempted: true,
         command: `${scriptPath} --help-all`,
         exitCode: null,
         success: false,
         error: result.error.message,
       };
+
+      setCachedCanaryResult(rootPath, canaryResult);
+      return canaryResult;
     }
 
-    return {
+    const canaryResult = {
       attempted: true,
       command: `${scriptPath} --help-all`,
       exitCode: typeof result.status === "number" ? result.status : null,
       success: result.status === 0,
       error: null,
     };
+
+    setCachedCanaryResult(rootPath, canaryResult);
+    return canaryResult;
   } catch (error) {
-    return {
+    const canaryResult = {
       attempted: true,
       command: `${scriptPath} --help-all`,
       exitCode: null,
       success: false,
       error: error.message,
     };
+
+    setCachedCanaryResult(rootPath, canaryResult);
+    return canaryResult;
   }
 }
 
