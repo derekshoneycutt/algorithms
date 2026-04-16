@@ -24,6 +24,14 @@
     "views": {
       "algosSidebar": [
         {
+          "id": "algosWorkspaceEnvironmentView",
+          "name": "Environment",
+          "type": "webview",
+          "icon": "./icons/play-sidebar.svg",
+          "when": "algos.workspaceSupported",
+          "visibility": "collapsed"
+        },
+        {
           "id": "algosWorkspaceSmokeControlsView",
           "name": "Smoke Controls",
           "type": "webview",

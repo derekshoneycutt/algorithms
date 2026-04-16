@@ -50,6 +50,9 @@ const {
 const {
   registerStandardLibraryView,
 } = require("./ui/standardLibraryView");
+const {
+  registerEnvironmentInitView,
+} = require("./ui/environmentInitView");
 
 // Cached preflight snapshot used by visibility event handlers.
 let cachedPreflightState = null;
@@ -248,6 +251,8 @@ async function activate(context) {
     registerSidebarRunControlsView();
   const sidebarSmokeControlsViewRegistration =
     registerSidebarSmokeControlsView(context.extensionUri);
+  const environmentInitViewRegistration =
+    registerEnvironmentInitView(context.extensionUri);
   const standardLibraryViewRegistration =
     registerStandardLibraryView();
 
@@ -382,6 +387,7 @@ async function activate(context) {
   context.subscriptions.push(
     ...commandDisposables,
     ...visibilityDisposables,
+    ...environmentInitViewRegistration.disposables,
     ...sidebarRunControlsViewRegistration.disposables,
     ...sidebarSmokeControlsViewRegistration.disposables,
     ...standardLibraryViewRegistration.disposables,
