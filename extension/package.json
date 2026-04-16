@@ -41,7 +41,13 @@
         },
         {
           "id": "algosWorkspaceAlgorithmsRunView",
-          "name": "Workspace Files",
+          "name": "Algorithms",
+          "icon": "./icons/play-sidebar.svg",
+          "when": "algos.workspaceSupported"
+        },
+        {
+          "id": "algosWorkspaceStandardLibraryView",
+          "name": "Standard Library",
           "icon": "./icons/play-sidebar.svg",
           "when": "algos.workspaceSupported"
         }

@@ -47,6 +47,9 @@ const {
 const {
   registerSidebarSmokeControlsView,
 } = require("./ui/sidebarSmokeControlsView");
+const {
+  registerStandardLibraryView,
+} = require("./ui/standardLibraryView");
 
 // Cached preflight snapshot used by visibility event handlers.
 let cachedPreflightState = null;
@@ -245,6 +248,8 @@ async function activate(context) {
     registerSidebarRunControlsView();
   const sidebarSmokeControlsViewRegistration =
     registerSidebarSmokeControlsView(context.extensionUri);
+  const standardLibraryViewRegistration =
+    registerStandardLibraryView();
 
   await vscode.commands.executeCommand(
     "setContext",
@@ -330,6 +335,7 @@ async function activate(context) {
     ...visibilityDisposables,
     ...sidebarRunControlsViewRegistration.disposables,
     ...sidebarSmokeControlsViewRegistration.disposables,
+    ...standardLibraryViewRegistration.disposables,
     ...workspaceAlgorithmsRunViewRegistration.disposables
   );
 }
