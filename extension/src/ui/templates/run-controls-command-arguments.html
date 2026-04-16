@@ -1,0 +1,22 @@
+<section class="section">
+  {{commandArgumentsHeader}}
+  <div class="inputRow">
+    <label class="toggleRow" for="runArgsEnabled">
+      <input id="runArgsEnabled" type="checkbox" aria-label="Enable command arguments" {{runArgsEnabledChecked}} />
+    </label>
+
+    <div class="inputWithClear">
+      <input
+        id="runArgsText"
+        class="argsInput"
+        type="text"
+        placeholder="--foo=bar &quot;hello world&quot;"
+        value="{{runArgsValue}}"
+        {{runArgsDisabledAttr}}
+      />
+      <button id="clearRunArgs" class="clearInlineButton" type="button" aria-label="Clear run args" title="Clear">×</button>
+    </div>
+  </div>
+  <div class="helperText">Enable extra command-line arguments for run.sh and edit them inline.</div>
+  <span id="runArgsStatus" class="status {{runArgsStatusClassName}}">{{runArgsStatusText}}</span>
+</section>

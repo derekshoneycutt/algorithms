@@ -1,0 +1,22 @@
+<section class="section">
+  {{sourceProfileHeader}}
+  <div class="inputRow">
+    <label class="toggleRow" for="sourceProfileEnabled">
+      <input id="sourceProfileEnabled" type="checkbox" aria-label="Enable profile sourcing override" {{sourceProfileEnabledChecked}} />
+    </label>
+
+    <div class="inputWithClear">
+      <input
+        id="sourceProfileText"
+        class="argsInput"
+        type="text"
+        placeholder="profile/path/or/name"
+        value="{{sourceProfileValue}}"
+        {{sourceProfileDisabledAttr}}
+      />
+      <button id="clearSourceProfile" class="clearInlineButton" type="button" aria-label="Clear source profile" title="Clear">×</button>
+    </div>
+  </div>
+  <span id="sourceProfileStatus" class="status {{sourceProfileStatusClassName}}">{{sourceProfileStatusText}}</span>
+  <span class="helperText">If checked and empty, profile sourcing is disabled entirely. If unchecked, system default profile sourcing behavior is used.</span>
+</section>

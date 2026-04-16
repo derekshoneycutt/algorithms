@@ -1,3 +1,4 @@
+const fs = require("fs");
 const vscode = require("vscode");
 const {
   getSidebarRunArgsState,
@@ -16,6 +17,50 @@ const {
 } = require("../runtime/sidebarRunArgsState");
 
 const RUN_CONTROLS_VIEW_ID = "algosWorkspaceRunControlsView";
+const RUN_CONTROLS_MEDIA_PATH_SEGMENTS = ["src", "ui", "media"];
+const RUN_CONTROLS_CSS_FILE_NAME = "runControls.css";
+const RUN_CONTROLS_JS_FILE_NAME = "runControls.js";
+const RUN_CONTROLS_TEMPLATE_PATH_SEGMENTS = ["src", "ui", "templates"];
+const RUN_CONTROLS_SHELL_TEMPLATE_FILE_NAME = "run-controls-shell.html";
+const RUN_CONTROLS_COMMAND_ARGUMENTS_TEMPLATE_FILE_NAME =
+  "run-controls-command-arguments.html";
+const RUN_CONTROLS_RUN_CHECKS_TEMPLATE_FILE_NAME = "run-controls-run-checks.html";
+const RUN_CONTROLS_SOURCE_PROFILE_TEMPLATE_FILE_NAME =
+  "run-controls-source-profile.html";
+const RUN_CONTROLS_CLEAN_OPTIONS_TEMPLATE_FILE_NAME =
+  "run-controls-clean-options.html";
+const runControlsTemplateCache = new Map();
+
+/**
+ * Reads a text file safely and returns an empty string on failure.
+ *
+ * @param {string} filePath Text file path.
+ * @returns {string} File contents or empty string.
+ */
+function readTextFileSafe(filePath) {
+  try {
+    return fs.readFileSync(filePath, "utf8");
+  } catch (_) {
+    return "";
+  }
+}
+
+/**
+ * Renders one tokenized HTML template with replacement values.
+ *
+ * @param {string} template Raw template source.
+ * @param {Record<string, string>} replacements Placeholder replacements.
+ * @returns {string} Rendered HTML.
+ */
+function renderTemplate(template, replacements) {
+  return String(template || "").replace(/\{\{([a-zA-Z0-9_]+)\}\}/g, (_, key) => {
+    if (Object.prototype.hasOwnProperty.call(replacements, key)) {
+      return String(replacements[key]);
+    }
+
+    return "";
+  });
+}
 
 /**
  * Escapes user-provided text for safe HTML interpolation.
@@ -30,22 +75,6 @@ function escapeHtml(text) {
     .replace(/>/g, "&gt;")
     .replace(/"/g, "&quot;")
     .replace(/'/g, "&#39;");
-}
-
-/**
- * Returns a nonce for CSP-safe inline scripts.
- *
- * @returns {string} Nonce value.
- */
-function createNonce() {
-  const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
-  let nonce = "";
-
-  for (let index = 0; index < 24; index += 1) {
-    nonce += chars.charAt(Math.floor(Math.random() * chars.length));
-  }
-
-  return nonce;
 }
 
 /**
@@ -244,593 +273,120 @@ function getRunControlsSnapshot() {
 }
 
 /**
+ * Renders the command-arguments section.
+ *
+ * @param {ReturnType<typeof getRunControlsSnapshot>} stateSnapshot Current UI state snapshot.
+ * @param {{commandArguments: string}} templates Run-controls templates.
+ * @returns {string} Section HTML.
+ */
+function buildCommandArgumentsSectionHtml(stateSnapshot, templates) {
+  return renderTemplate(templates.commandArguments, {
+    commandArgumentsHeader: renderSectionHeader("Command Arguments", "terminal"),
+    runArgsEnabledChecked: stateSnapshot.enabled ? "checked" : "",
+    runArgsValue: escapeHtml(stateSnapshot.text),
+    runArgsDisabledAttr: stateSnapshot.enabled ? "" : "disabled",
+    runArgsStatusClassName: escapeHtml(stateSnapshot.statusClassName),
+    runArgsStatusText: escapeHtml(stateSnapshot.statusText),
+  });
+}
+
+/**
+ * Renders the run-checks section.
+ *
+ * @param {ReturnType<typeof getRunControlsSnapshot>} stateSnapshot Current UI state snapshot.
+ * @param {{runChecks: string}} templates Run-controls templates.
+ * @returns {string} Section HTML.
+ */
+function buildRunChecksSectionHtml(stateSnapshot, templates) {
+  return renderTemplate(templates.runChecks, {
+    runChecksHeader: renderSectionHeader("Run Checks", "check"),
+    runChecksModeNoneChecked:
+      stateSnapshot.runChecksMode === "none" ? "checked" : "",
+    runChecksModeCompileOnlyChecked:
+      stateSnapshot.runChecksMode === "compile-only" ? "checked" : "",
+    runChecksModeCheckOnlyChecked:
+      stateSnapshot.runChecksMode === "check-only" ? "checked" : "",
+    runChecksRouteDisabledAttr:
+      stateSnapshot.runChecksMode === "check-only" ? "" : "disabled",
+    runChecksRouteNativeSelected:
+      stateSnapshot.runChecksRoute === "native" ? "selected" : "",
+    runChecksRouteDockerSelected:
+      stateSnapshot.runChecksRoute === "docker" ? "selected" : "",
+    runChecksRouteSshSelected:
+      stateSnapshot.runChecksRoute === "ssh" ? "selected" : "",
+    runChecksStatusClassName: escapeHtml(stateSnapshot.runChecksStatusClassName),
+    runChecksStatusText: escapeHtml(stateSnapshot.runChecksStatusText),
+  });
+}
+
+/**
+ * Renders the profile-sourcing section.
+ *
+ * @param {ReturnType<typeof getRunControlsSnapshot>} stateSnapshot Current UI state snapshot.
+ * @param {{sourceProfile: string}} templates Run-controls templates.
+ * @returns {string} Section HTML.
+ */
+function buildSourceProfileSectionHtml(stateSnapshot, templates) {
+  return renderTemplate(templates.sourceProfile, {
+    sourceProfileHeader: renderSectionHeader("Profile Sourcing", "profile"),
+    sourceProfileEnabledChecked: stateSnapshot.sourceProfileEnabled
+      ? "checked"
+      : "",
+    sourceProfileValue: escapeHtml(stateSnapshot.sourceProfileText),
+    sourceProfileDisabledAttr: stateSnapshot.sourceProfileEnabled
+      ? ""
+      : "disabled",
+    sourceProfileStatusClassName: escapeHtml(
+      stateSnapshot.sourceProfileStatusClassName
+    ),
+    sourceProfileStatusText: escapeHtml(stateSnapshot.sourceProfileStatusText),
+  });
+}
+
+/**
+ * Renders the clean-options section.
+ *
+ * @param {ReturnType<typeof getRunControlsSnapshot>} stateSnapshot Current UI state snapshot.
+ * @param {{cleanOptions: string}} templates Run-controls templates.
+ * @returns {string} Section HTML.
+ */
+function buildCleanOptionsSectionHtml(stateSnapshot, templates) {
+  return renderTemplate(templates.cleanOptions, {
+    cleanOptionsHeader: renderSectionHeader("Clean Options", "clean"),
+    cleanStdlibChecked: stateSnapshot.cleanStdlib ? "checked" : "",
+    cleanArchivesChecked: stateSnapshot.cleanArchives ? "checked" : "",
+    cleanOptionsStatusClassName: escapeHtml(
+      stateSnapshot.cleanOptionsStatusClassName
+    ),
+    cleanOptionsStatusText: escapeHtml(stateSnapshot.cleanOptionsStatusText),
+  });
+}
+
+/**
  * Builds webview HTML for the run-controls panel.
  *
  * @param {import("vscode").Webview} webview Webview instance.
+ * @param {string} stylesheetUri Webview stylesheet URI.
+ * @param {string} scriptUri Webview script URI.
+ * @param {{shell: string, commandArguments: string, runChecks: string, sourceProfile: string, cleanOptions: string}} templates Run-controls templates.
  * @returns {string} Rendered HTML.
  */
-function buildRunControlsHtml(webview) {
+function buildRunControlsHtml(webview, stylesheetUri, scriptUri, templates) {
   const stateSnapshot = getRunControlsSnapshot();
-  const escapedRunArgsText = escapeHtml(stateSnapshot.text);
-  const escapedSourceProfileText = escapeHtml(stateSnapshot.sourceProfileText);
-  const escapedStatusText = escapeHtml(stateSnapshot.statusText);
-  const escapedSourceProfileStatusText = escapeHtml(
-    stateSnapshot.sourceProfileStatusText
-  );
-  const escapedRunChecksStatusText = escapeHtml(stateSnapshot.runChecksStatusText);
-  const escapedCleanOptionsStatusText = escapeHtml(
-    stateSnapshot.cleanOptionsStatusText
-  );
-  const nonce = createNonce();
   const cspSource = webview.cspSource;
 
-  return `<!DOCTYPE html>
-<html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <meta
-      http-equiv="Content-Security-Policy"
-      content="default-src 'none'; style-src ${cspSource} 'unsafe-inline'; script-src 'nonce-${nonce}';"
-    />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <style>
-      :root {
-        color-scheme: light dark;
-      }
-
-      body {
-        margin: 0;
-        padding: 8px;
-        font-family: var(--vscode-font-family);
-        font-size: 12px;
-        color: var(--vscode-foreground);
-        background: var(--vscode-sideBar-background);
-      }
-
-      .panel {
-        display: flex;
-        flex-direction: column;
-        gap: 10px;
-      }
-
-      .panelDescription {
-        margin: 0;
-        color: var(--vscode-descriptionForeground);
-        font-size: 11px;
-        line-height: 1.3;
-      }
-
-      .section {
-        display: flex;
-        flex-direction: column;
-        gap: 6px;
-        padding: 8px;
-        border: 1px solid var(--vscode-widget-border);
-        border-radius: 6px;
-        background: color-mix(in srgb, var(--vscode-sideBar-background) 82%, var(--vscode-editor-background) 18%);
-      }
-
-      .sectionHeader {
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        gap: 8px;
-      }
-
-      .sectionTitleGroup {
-        display: inline-flex;
-        align-items: center;
-        gap: 6px;
-        min-width: 0;
-      }
-
-      .sectionTitle {
-        font-size: 11px;
-        font-weight: 700;
-        letter-spacing: 0.04em;
-        text-transform: uppercase;
-        color: var(--vscode-descriptionForeground);
-      }
-
-      .sectionIcon {
-        width: 13px;
-        height: 13px;
-        flex: 0 0 auto;
-        color: var(--vscode-foreground);
-      }
-
-      .inputRow {
-        display: grid;
-        grid-template-columns: auto 1fr auto;
-        align-items: center;
-        gap: 6px;
-      }
-
-      .toggleRow {
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        white-space: nowrap;
-      }
-
-      .argsInput {
-        width: 100%;
-        box-sizing: border-box;
-        border: 1px solid var(--vscode-input-border);
-        border-radius: 4px;
-        background: var(--vscode-input-background);
-        color: var(--vscode-input-foreground);
-        padding: 4px 6px;
-        min-height: 24px;
-        font: inherit;
-      }
-
-      .inputWithClear {
-        position: relative;
-        display: flex;
-        align-items: center;
-      }
-
-      .inputWithClear .argsInput {
-        padding-right: 22px;
-      }
-
-      .argsInput:disabled {
-        opacity: 0.65;
-      }
-
-      .status {
-        min-height: 14px;
-        overflow: hidden;
-        white-space: nowrap;
-        text-overflow: ellipsis;
-        font-size: 11px;
-        line-height: 1.3;
-      }
-
-      .helperText {
-        color: var(--vscode-descriptionForeground);
-        font-size: 11px;
-        line-height: 1.3;
-      }
-
-      .runChecksRow {
-        display: flex;
-        align-items: center;
-        gap: 8px;
-        flex-wrap: wrap;
-      }
-
-      .runChecksOption {
-        display: inline-flex;
-        align-items: center;
-        gap: 4px;
-        font-size: 11px;
-        color: var(--vscode-foreground);
-      }
-
-      .runChecksSelect {
-        min-height: 24px;
-        border: 1px solid var(--vscode-input-border);
-        border-radius: 4px;
-        background: var(--vscode-dropdown-background);
-        color: var(--vscode-dropdown-foreground);
-        padding: 1px 4px;
-        font-size: 11px;
-      }
-
-      .runChecksSelect:disabled {
-        opacity: 0.65;
-      }
-
-      .cleanOptionsRow {
-        display: inline-flex;
-        align-items: center;
-        gap: 6px;
-        font-size: 11px;
-      }
-
-      .status-muted {
-        color: var(--vscode-descriptionForeground);
-      }
-
-      .status-ok {
-        color: var(--vscode-testing-iconPassed);
-      }
-
-      .status-error {
-        color: var(--vscode-testing-iconFailed);
-      }
-
-      .clearInlineButton {
-        position: absolute;
-        right: 3px;
-        width: 16px;
-        height: 16px;
-        border: none;
-        border-radius: 50%;
-        background: transparent;
-        color: var(--vscode-descriptionForeground);
-        cursor: pointer;
-        display: inline-flex;
-        align-items: center;
-        justify-content: center;
-        font-size: 12px;
-        line-height: 1;
-        padding: 0;
-      }
-
-      .clearInlineButton:hover {
-        background: var(--vscode-toolbar-hoverBackground);
-        color: var(--vscode-foreground);
-      }
-
-      .clearInlineButton.hidden {
-        display: none;
-      }
-    </style>
-  </head>
-  <body>
-    <div class="panel">
-      <p class="panelDescription">Controls parameters for all code runs.</p>
-      <section class="section">
-        ${renderSectionHeader("Command Arguments", "terminal")}
-        <div class="inputRow">
-          <label class="toggleRow" for="runArgsEnabled">
-            <input id="runArgsEnabled" type="checkbox" aria-label="Enable command arguments" ${
-              stateSnapshot.enabled ? "checked" : ""
-            } />
-          </label>
-
-          <div class="inputWithClear">
-            <input
-              id="runArgsText"
-              class="argsInput"
-              type="text"
-              placeholder="--foo=bar \"hello world\""
-              value="${escapedRunArgsText}"
-              ${stateSnapshot.enabled ? "" : "disabled"}
-            />
-            <button id="clearRunArgs" class="clearInlineButton" type="button" aria-label="Clear run args" title="Clear">×</button>
-          </div>
-        </div>
-        <div class="helperText">Enable extra command-line arguments for run.sh and edit them inline.</div>
-        <span id="runArgsStatus" class="status ${stateSnapshot.statusClassName}">${escapedStatusText}</span>
-      </section>
-
-      <section class="section">
-        ${renderSectionHeader("Run Checks", "check")}
-        <div class="runChecksRow">
-          <label class="runChecksOption" for="runChecksModeNone">
-            <input id="runChecksModeNone" name="runChecksMode" type="radio" value="none" ${
-              stateSnapshot.runChecksMode === "none" ? "checked" : ""
-            } />
-            <span>None</span>
-          </label>
-          <label class="runChecksOption" for="runChecksModeCompileOnly">
-            <input id="runChecksModeCompileOnly" name="runChecksMode" type="radio" value="compile-only" ${
-              stateSnapshot.runChecksMode === "compile-only" ? "checked" : ""
-            } />
-            <span>Compile Only</span>
-          </label>
-          <label class="runChecksOption" for="runChecksModeCheckOnly">
-            <input id="runChecksModeCheckOnly" name="runChecksMode" type="radio" value="check-only" ${
-              stateSnapshot.runChecksMode === "check-only" ? "checked" : ""
-            } />
-            <span>Check Only</span>
-          </label>
-          <select id="runChecksRoute" class="runChecksSelect" aria-label="Check-only route" ${
-            stateSnapshot.runChecksMode === "check-only" ? "" : "disabled"
-          }>
-            <option value="native" ${
-              stateSnapshot.runChecksRoute === "native" ? "selected" : ""
-            }>Native</option>
-            <option value="docker" ${
-              stateSnapshot.runChecksRoute === "docker" ? "selected" : ""
-            }>Docker</option>
-            <option value="ssh" ${
-              stateSnapshot.runChecksRoute === "ssh" ? "selected" : ""
-            }>SSH</option>
-          </select>
-        </div>
-        <div class="helperText">Use Compile Only or Check Only to override execution behavior for all runs from the sidebar.</div>
-        <span id="runChecksStatus" class="status ${
-          stateSnapshot.runChecksStatusClassName
-        }">${escapedRunChecksStatusText}</span>
-      </section>
-
-      <section class="section">
-        ${renderSectionHeader("Profile Sourcing", "profile")}
-        <div class="inputRow">
-          <label class="toggleRow" for="sourceProfileEnabled">
-            <input id="sourceProfileEnabled" type="checkbox" aria-label="Enable profile sourcing override" ${
-              stateSnapshot.sourceProfileEnabled ? "checked" : ""
-            } />
-          </label>
-
-          <div class="inputWithClear">
-            <input
-              id="sourceProfileText"
-              class="argsInput"
-              type="text"
-              placeholder="profile/path/or/name"
-              value="${escapedSourceProfileText}"
-              ${stateSnapshot.sourceProfileEnabled ? "" : "disabled"}
-            />
-            <button id="clearSourceProfile" class="clearInlineButton" type="button" aria-label="Clear source profile" title="Clear">×</button>
-          </div>
-        </div>
-        <span id="sourceProfileStatus" class="status ${
-          stateSnapshot.sourceProfileStatusClassName
-        }">${escapedSourceProfileStatusText}</span>
-        <span class="helperText">If checked and empty, profile sourcing is disabled entirely. If unchecked, system default profile sourcing behavior is used.</span>
-      </section>
-
-      <section class="section">
-        ${renderSectionHeader("Clean Options", "clean")}
-        <label class="cleanOptionsRow" for="cleanStdlibEnabled">
-          <input id="cleanStdlibEnabled" type="checkbox" ${
-            stateSnapshot.cleanStdlib ? "checked" : ""
-          } />
-          <span>Clean Standard Library</span>
-        </label>
-
-        <label class="cleanOptionsRow" for="cleanArchivesEnabled">
-          <input id="cleanArchivesEnabled" type="checkbox" ${
-            stateSnapshot.cleanArchives ? "checked" : ""
-          } />
-          <span>Clean Archives</span>
-        </label>
-
-        <span id="cleanOptionsStatus" class="status ${
-          stateSnapshot.cleanOptionsStatusClassName
-        }">${escapedCleanOptionsStatusText}</span>
-      </section>
-    </div>
-
-    <script nonce="${nonce}">
-      const vscodeApi = acquireVsCodeApi();
-      const runArgsEnabled = document.getElementById("runArgsEnabled");
-      const runArgsText = document.getElementById("runArgsText");
-      const runArgsStatus = document.getElementById("runArgsStatus");
-      const clearRunArgs = document.getElementById("clearRunArgs");
-      const sourceProfileEnabled = document.getElementById("sourceProfileEnabled");
-      const sourceProfileText = document.getElementById("sourceProfileText");
-      const sourceProfileStatus = document.getElementById("sourceProfileStatus");
-      const clearSourceProfile = document.getElementById("clearSourceProfile");
-      const runChecksModeNone = document.getElementById("runChecksModeNone");
-      const runChecksModeCheckOnly = document.getElementById("runChecksModeCheckOnly");
-      const runChecksModeCompileOnly = document.getElementById("runChecksModeCompileOnly");
-      const runChecksRoute = document.getElementById("runChecksRoute");
-      const runChecksStatus = document.getElementById("runChecksStatus");
-      const cleanStdlibEnabled = document.getElementById("cleanStdlibEnabled");
-      const cleanArchivesEnabled = document.getElementById("cleanArchivesEnabled");
-      const cleanOptionsStatus = document.getElementById("cleanOptionsStatus");
-      const statusClasses = ["status-muted", "status-ok", "status-error"];
-
-      function getSelectedRunChecksMode() {
-        if (runChecksModeCheckOnly.checked) {
-          return "check-only";
-        }
-
-        if (runChecksModeCompileOnly.checked) {
-          return "compile-only";
-        }
-
-        return "none";
-      }
-
-      function updateRunChecksRouteInteractivity() {
-        runChecksRoute.disabled = getSelectedRunChecksMode() !== "check-only";
-      }
-
-      function updateRunArgsClearButtonVisibility() {
-        const shouldShow = !runArgsText.disabled && runArgsText.value.length > 0;
-        clearRunArgs.classList.toggle("hidden", !shouldShow);
-      }
-
-      function updateSourceProfileClearButtonVisibility() {
-        const shouldShow = !sourceProfileText.disabled && sourceProfileText.value.length > 0;
-        clearSourceProfile.classList.toggle("hidden", !shouldShow);
-      }
-
-      function applyState(state) {
-        const nextState = state || {};
-        const activeElement = document.activeElement;
-        const isRunArgsFocused = activeElement === runArgsText;
-        const isSourceProfileFocused = activeElement === sourceProfileText;
-        runArgsEnabled.checked = Boolean(nextState.enabled);
-        runArgsText.disabled = !Boolean(nextState.enabled);
-        sourceProfileEnabled.checked = Boolean(nextState.sourceProfileEnabled);
-        sourceProfileText.disabled = !Boolean(nextState.sourceProfileEnabled);
-        cleanStdlibEnabled.checked = Boolean(nextState.cleanStdlib);
-        cleanArchivesEnabled.checked = Boolean(nextState.cleanArchives);
-
-        const nextRunChecksMode = String(nextState.runChecksMode || "none");
-        runChecksModeNone.checked = nextRunChecksMode === "none";
-        runChecksModeCheckOnly.checked = nextRunChecksMode === "check-only";
-        runChecksModeCompileOnly.checked = nextRunChecksMode === "compile-only";
-
-        if (typeof nextState.runChecksRoute === "string") {
-          runChecksRoute.value = nextState.runChecksRoute;
-        }
-
-        updateRunChecksRouteInteractivity();
-
-        if (!isRunArgsFocused && typeof nextState.text === "string") {
-          runArgsText.value = nextState.text;
-        }
-
-        if (!isSourceProfileFocused && typeof nextState.sourceProfileText === "string") {
-          sourceProfileText.value = nextState.sourceProfileText;
-        }
-
-        runArgsStatus.textContent = String(nextState.statusText || "");
-        runArgsStatus.classList.remove(...statusClasses);
-
-        if (statusClasses.includes(nextState.statusClassName)) {
-          runArgsStatus.classList.add(nextState.statusClassName);
-        }
-
-        sourceProfileStatus.textContent = String(nextState.sourceProfileStatusText || "");
-        sourceProfileStatus.classList.remove(...statusClasses);
-
-        if (statusClasses.includes(nextState.sourceProfileStatusClassName)) {
-          sourceProfileStatus.classList.add(nextState.sourceProfileStatusClassName);
-        }
-
-        runChecksStatus.textContent = String(nextState.runChecksStatusText || "");
-        runChecksStatus.classList.remove(...statusClasses);
-
-        if (statusClasses.includes(nextState.runChecksStatusClassName)) {
-          runChecksStatus.classList.add(nextState.runChecksStatusClassName);
-        }
-
-        cleanOptionsStatus.textContent = String(nextState.cleanOptionsStatusText || "");
-        cleanOptionsStatus.classList.remove(...statusClasses);
-
-        if (statusClasses.includes(nextState.cleanOptionsStatusClassName)) {
-          cleanOptionsStatus.classList.add(nextState.cleanOptionsStatusClassName);
-        }
-
-        updateRunArgsClearButtonVisibility();
-        updateSourceProfileClearButtonVisibility();
-      }
-
-      runArgsEnabled.addEventListener("change", () => {
-        const enabled = runArgsEnabled.checked;
-        runArgsText.disabled = !enabled;
-        vscodeApi.postMessage({
-          type: "setEnabled",
-          enabled,
-        });
-      });
-      runArgsText.addEventListener("input", () => {
-        updateRunArgsClearButtonVisibility();
-        vscodeApi.postMessage({
-          type: "setText",
-          text: runArgsText.value,
-        });
-      });
-
-      clearRunArgs.addEventListener("click", () => {
-        runArgsText.value = "";
-        vscodeApi.postMessage({
-          type: "setText",
-          text: "",
-        });
-
-        if (!runArgsText.disabled) {
-          runArgsText.focus();
-        }
-
-        updateRunArgsClearButtonVisibility();
-      });
-
-      sourceProfileEnabled.addEventListener("change", () => {
-        const enabled = sourceProfileEnabled.checked;
-        sourceProfileText.disabled = !enabled;
-        vscodeApi.postMessage({
-          type: "setSourceProfileEnabled",
-          enabled,
-        });
-      });
-
-      sourceProfileText.addEventListener("input", () => {
-        updateSourceProfileClearButtonVisibility();
-        vscodeApi.postMessage({
-          type: "setSourceProfileText",
-          text: sourceProfileText.value,
-        });
-      });
-
-      clearSourceProfile.addEventListener("click", () => {
-        sourceProfileText.value = "";
-        vscodeApi.postMessage({
-          type: "setSourceProfileText",
-          text: "",
-        });
-
-        if (!sourceProfileText.disabled) {
-          sourceProfileText.focus();
-        }
-
-        updateSourceProfileClearButtonVisibility();
-      });
-
-      runChecksModeNone.addEventListener("change", () => {
-        if (!runChecksModeNone.checked) {
-          return;
-        }
-
-        updateRunChecksRouteInteractivity();
-        vscodeApi.postMessage({
-          type: "setRunChecksMode",
-          mode: "none",
-        });
-      });
-
-      runChecksModeCheckOnly.addEventListener("change", () => {
-        if (!runChecksModeCheckOnly.checked) {
-          return;
-        }
-
-        updateRunChecksRouteInteractivity();
-        vscodeApi.postMessage({
-          type: "setRunChecksMode",
-          mode: "check-only",
-        });
-      });
-
-      runChecksModeCompileOnly.addEventListener("change", () => {
-        if (!runChecksModeCompileOnly.checked) {
-          return;
-        }
-
-        updateRunChecksRouteInteractivity();
-        vscodeApi.postMessage({
-          type: "setRunChecksMode",
-          mode: "compile-only",
-        });
-      });
-
-      runChecksRoute.addEventListener("change", () => {
-        vscodeApi.postMessage({
-          type: "setRunChecksRoute",
-          route: runChecksRoute.value,
-        });
-      });
-
-      cleanStdlibEnabled.addEventListener("change", () => {
-        vscodeApi.postMessage({
-          type: "setCleanStdlibEnabled",
-          enabled: cleanStdlibEnabled.checked,
-        });
-      });
-
-      cleanArchivesEnabled.addEventListener("change", () => {
-        vscodeApi.postMessage({
-          type: "setCleanArchivesEnabled",
-          enabled: cleanArchivesEnabled.checked,
-        });
-      });
-
-      window.addEventListener("message", (event) => {
-        const message = event.data;
-
-        if (message?.type !== "runArgsState") {
-          return;
-        }
-
-        applyState(message.state);
-      });
-
-      updateRunArgsClearButtonVisibility();
-      updateSourceProfileClearButtonVisibility();
-      updateRunChecksRouteInteractivity();
-    </script>
-  </body>
-</html>`;
+  return renderTemplate(templates.shell, {
+    cspSource,
+    stylesheetUri,
+    scriptUri,
+    commandArgumentsSection: buildCommandArgumentsSectionHtml(
+      stateSnapshot,
+      templates
+    ),
+    runChecksSection: buildRunChecksSectionHtml(stateSnapshot, templates),
+    sourceProfileSection: buildSourceProfileSectionHtml(stateSnapshot, templates),
+    cleanOptionsSection: buildCleanOptionsSectionHtml(stateSnapshot, templates),
+  });
 }
 
 /**
@@ -839,9 +395,77 @@ function buildRunControlsHtml(webview) {
 class SidebarRunControlsViewProvider {
   /**
    * Creates a run-controls view provider.
+   *
+   * @param {import("vscode").Uri} extensionUri Extension installation URI.
    */
-  constructor() {
+  constructor(extensionUri) {
     this._view = null;
+    this._mediaRootUri = vscode.Uri.joinPath(
+      extensionUri,
+      ...RUN_CONTROLS_MEDIA_PATH_SEGMENTS
+    );
+    this._templateRootUri = vscode.Uri.joinPath(
+      extensionUri,
+      ...RUN_CONTROLS_TEMPLATE_PATH_SEGMENTS
+    );
+  }
+
+  /**
+   * Loads one run-controls template file using shared process cache.
+   *
+   * @param {string} templateFileName Template file name.
+   * @returns {string} Template contents.
+   */
+  getTemplate(templateFileName) {
+    const templateUri = vscode.Uri.joinPath(this._templateRootUri, templateFileName);
+    const templatePath = templateUri.fsPath;
+
+    if (runControlsTemplateCache.has(templatePath)) {
+      return runControlsTemplateCache.get(templatePath);
+    }
+
+    const templateText = readTextFileSafe(templatePath);
+    runControlsTemplateCache.set(templatePath, templateText);
+    return templateText;
+  }
+
+  /**
+   * Returns all run-controls templates.
+   *
+   * @returns {{shell: string, commandArguments: string, runChecks: string, sourceProfile: string, cleanOptions: string}} Template map.
+   */
+  getTemplates() {
+    return {
+      shell: this.getTemplate(RUN_CONTROLS_SHELL_TEMPLATE_FILE_NAME),
+      commandArguments: this.getTemplate(
+        RUN_CONTROLS_COMMAND_ARGUMENTS_TEMPLATE_FILE_NAME
+      ),
+      runChecks: this.getTemplate(RUN_CONTROLS_RUN_CHECKS_TEMPLATE_FILE_NAME),
+      sourceProfile: this.getTemplate(
+        RUN_CONTROLS_SOURCE_PROFILE_TEMPLATE_FILE_NAME
+      ),
+      cleanOptions: this.getTemplate(RUN_CONTROLS_CLEAN_OPTIONS_TEMPLATE_FILE_NAME),
+    };
+  }
+
+  /**
+   * Returns webview resource URIs for run-controls assets.
+   *
+   * @param {import("vscode").Webview} webview Webview instance.
+   * @returns {{stylesheetUri: string, scriptUri: string}} Resource URI map.
+   */
+  getAssetUris(webview) {
+    const stylesheetUri = webview.asWebviewUri(
+      vscode.Uri.joinPath(this._mediaRootUri, RUN_CONTROLS_CSS_FILE_NAME)
+    ).toString();
+    const scriptUri = webview.asWebviewUri(
+      vscode.Uri.joinPath(this._mediaRootUri, RUN_CONTROLS_JS_FILE_NAME)
+    ).toString();
+
+    return {
+      stylesheetUri,
+      scriptUri,
+    };
   }
 
   /**
@@ -927,8 +551,16 @@ class SidebarRunControlsViewProvider {
     this._view = webviewView;
     webviewView.webview.options = {
       enableScripts: true,
+      localResourceRoots: [this._mediaRootUri],
     };
-    webviewView.webview.html = buildRunControlsHtml(webviewView.webview);
+    const assets = this.getAssetUris(webviewView.webview);
+    const templates = this.getTemplates();
+    webviewView.webview.html = buildRunControlsHtml(
+      webviewView.webview,
+      assets.stylesheetUri,
+      assets.scriptUri,
+      templates
+    );
 
     webviewView.webview.onDidReceiveMessage((message) => {
       this.handleMessage(message);
@@ -951,17 +583,25 @@ class SidebarRunControlsViewProvider {
       return;
     }
 
-    this._view.webview.html = buildRunControlsHtml(this._view.webview);
+    const assets = this.getAssetUris(this._view.webview);
+    const templates = this.getTemplates();
+    this._view.webview.html = buildRunControlsHtml(
+      this._view.webview,
+      assets.stylesheetUri,
+      assets.scriptUri,
+      templates
+    );
   }
 }
 
 /**
  * Registers the sidebar run-controls webview.
  *
+ * @param {import("vscode").Uri} extensionUri Extension installation URI.
  * @returns {{refresh: () => void, disposables: import("vscode").Disposable[]}} Registration result.
  */
-function registerSidebarRunControlsView() {
-  const provider = new SidebarRunControlsViewProvider();
+function registerSidebarRunControlsView(extensionUri) {
+  const provider = new SidebarRunControlsViewProvider(extensionUri);
   const registration = vscode.window.registerWebviewViewProvider(
     RUN_CONTROLS_VIEW_ID,
     provider,

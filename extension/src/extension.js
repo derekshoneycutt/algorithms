@@ -412,7 +412,7 @@ async function activate(context) {
   const workspaceAlgorithmsRunViewRegistration =
     registerWorkspaceAlgorithmsRunView();
   const sidebarRunControlsViewRegistration =
-    registerSidebarRunControlsView();
+    registerSidebarRunControlsView(context.extensionUri);
   const sidebarSmokeControlsViewRegistration =
     registerSidebarSmokeControlsView(context.extensionUri);
   const environmentInitViewRegistration =

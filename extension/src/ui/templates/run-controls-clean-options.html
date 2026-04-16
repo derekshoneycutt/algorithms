@@ -1,0 +1,14 @@
+<section class="section">
+  {{cleanOptionsHeader}}
+  <label class="cleanOptionsRow" for="cleanStdlibEnabled">
+    <input id="cleanStdlibEnabled" type="checkbox" {{cleanStdlibChecked}} />
+    <span>Clean Standard Library</span>
+  </label>
+
+  <label class="cleanOptionsRow" for="cleanArchivesEnabled">
+    <input id="cleanArchivesEnabled" type="checkbox" {{cleanArchivesChecked}} />
+    <span>Clean Archives</span>
+  </label>
+
+  <span id="cleanOptionsStatus" class="status {{cleanOptionsStatusClassName}}">{{cleanOptionsStatusText}}</span>
+</section>
