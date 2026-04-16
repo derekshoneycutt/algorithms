@@ -49,6 +49,67 @@ function createNonce() {
 }
 
 /**
+ * Returns the inline SVG used for one Run Controls section header.
+ *
+ * @param {string} iconName Semantic section icon key.
+ * @returns {string} Inline SVG markup.
+ */
+function getSectionIconSvg(iconName) {
+  if (iconName === "terminal") {
+    return '<svg class="sectionIcon" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-hidden="true">'
+      + '<path d="M2 3.5C2 2.67 2.67 2 3.5 2H12.5C13.33 2 14 2.67 14 3.5V12.5C14 13.33 13.33 14 12.5 14H3.5C2.67 14 2 13.33 2 12.5V3.5Z" stroke="currentColor" stroke-width="1"/>'
+      + '<path d="M4.5 6L6.75 8L4.5 10" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"/>'
+      + '<path d="M8.5 10H11.5" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/>'
+      + '</svg>';
+  }
+
+  if (iconName === "check") {
+    return '<svg class="sectionIcon" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-hidden="true">'
+      + '<path d="M3 3.5C3 2.67 3.67 2 4.5 2H11.5C12.33 2 13 2.67 13 3.5V12.5C13 13.33 12.33 14 11.5 14H4.5C3.67 14 3 13.33 3 12.5V3.5Z" stroke="currentColor" stroke-width="1"/>'
+      + '<path d="M5 8L7 10L11 6" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"/>'
+      + '</svg>';
+  }
+
+  if (iconName === "profile") {
+    return '<svg class="sectionIcon" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-hidden="true">'
+      + '<path d="M8 8C9.66 8 11 6.66 11 5C11 3.34 9.66 2 8 2C6.34 2 5 3.34 5 5C5 6.66 6.34 8 8 8Z" stroke="currentColor" stroke-width="1.1"/>'
+      + '<path d="M3 13C3.55 10.9 5.52 9.5 8 9.5C10.48 9.5 12.45 10.9 13 13" stroke="currentColor" stroke-width="1.1" stroke-linecap="round"/>'
+      + '<path d="M11.75 4.25L12.5 5L14 3.5" stroke="currentColor" stroke-width="1.1" stroke-linecap="round" stroke-linejoin="round"/>'
+      + '</svg>';
+  }
+
+  if (iconName === "clean") {
+    return '<svg class="sectionIcon" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-hidden="true">'
+      + '<path d="M4 4.5C4 3.67 4.67 3 5.5 3H10.5C11.33 3 12 3.67 12 4.5V5.5H4V4.5Z" stroke="currentColor" stroke-width="1"/>'
+      + '<path d="M3.5 5.5H12.5" stroke="currentColor" stroke-width="1"/>'
+      + '<path d="M5 5.5V12C5 12.55 5.45 13 6 13H10C10.55 13 11 12.55 11 12V5.5" stroke="currentColor" stroke-width="1"/>'
+      + '<path d="M7 7.5V11" stroke="currentColor" stroke-width="1" stroke-linecap="round"/>'
+      + '<path d="M9 7.5V11" stroke="currentColor" stroke-width="1" stroke-linecap="round"/>'
+      + '</svg>';
+  }
+
+  return "";
+}
+
+/**
+ * Renders one Run Controls section header with an icon and optional actions.
+ *
+ * @param {string} title Section title.
+ * @param {string} iconName Semantic section icon key.
+ * @param {string} actionsHtml Optional action markup.
+ * @returns {string} Header markup.
+ */
+function renderSectionHeader(title, iconName, actionsHtml) {
+  return '<div class="sectionHeader">'
+    + '<div class="sectionTitleGroup">'
+    + getSectionIconSvg(iconName)
+    + '<div class="sectionTitle">' + escapeHtml(title) + '</div>'
+    + '</div>'
+    + (actionsHtml || "")
+    + '</div>';
+}
+
+/**
  * Builds status metadata for the run-args input.
  *
  * @param {{enabled: boolean, text: string}} runArgsState Current run-args state.
@@ -219,42 +280,62 @@ function buildRunControlsHtml(webview) {
 
       body {
         margin: 0;
-        padding: 6px 8px;
+        padding: 8px;
         font-family: var(--vscode-font-family);
-        font-size: 11px;
+        font-size: 12px;
         color: var(--vscode-foreground);
         background: var(--vscode-sideBar-background);
       }
 
-      .controls {
+      .panel {
         display: flex;
         flex-direction: column;
-        gap: 4px;
+        gap: 10px;
       }
 
       .panelDescription {
-        margin: 0 0 4px 2px;
+        margin: 0;
         color: var(--vscode-descriptionForeground);
         font-size: 11px;
         line-height: 1.3;
       }
 
+      .section {
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+        padding: 8px;
+        border: 1px solid var(--vscode-widget-border);
+        border-radius: 6px;
+        background: color-mix(in srgb, var(--vscode-sideBar-background) 82%, var(--vscode-editor-background) 18%);
+      }
+
       .sectionHeader {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 8px;
+      }
+
+      .sectionTitleGroup {
         display: inline-flex;
         align-items: center;
-        gap: 4px;
-        margin-top: 2px;
-        margin-left: 2px;
-        font-size: 10px;
-        font-weight: 600;
-        letter-spacing: 0.02em;
+        gap: 6px;
+        min-width: 0;
+      }
+
+      .sectionTitle {
+        font-size: 11px;
+        font-weight: 700;
+        letter-spacing: 0.04em;
+        text-transform: uppercase;
         color: var(--vscode-descriptionForeground);
       }
 
       .sectionIcon {
-        width: 12px;
-        height: 12px;
-        display: inline-block;
+        width: 13px;
+        height: 13px;
+        flex: 0 0 auto;
         color: var(--vscode-foreground);
       }
 
@@ -279,9 +360,9 @@ function buildRunControlsHtml(webview) {
         border-radius: 4px;
         background: var(--vscode-input-background);
         color: var(--vscode-input-foreground);
-        padding: 3px 6px;
-        min-height: 22px;
-        font-size: 11px;
+        padding: 4px 6px;
+        min-height: 24px;
+        font: inherit;
       }
 
       .inputWithClear {
@@ -300,22 +381,20 @@ function buildRunControlsHtml(webview) {
 
       .status {
         min-height: 14px;
-        margin-left: 2px;
         overflow: hidden;
         white-space: nowrap;
         text-overflow: ellipsis;
-        font-size: 10px;
+        font-size: 11px;
+        line-height: 1.3;
       }
 
       .helperText {
-        margin-left: 2px;
         color: var(--vscode-descriptionForeground);
-        font-size: 10px;
-        line-height: 1.2;
+        font-size: 11px;
+        line-height: 1.3;
       }
 
       .runChecksRow {
-        margin-left: 2px;
         display: flex;
         align-items: center;
         gap: 8px;
@@ -325,19 +404,19 @@ function buildRunControlsHtml(webview) {
       .runChecksOption {
         display: inline-flex;
         align-items: center;
-        gap: 3px;
-        font-size: 10px;
+        gap: 4px;
+        font-size: 11px;
         color: var(--vscode-foreground);
       }
 
       .runChecksSelect {
-        min-height: 22px;
+        min-height: 24px;
         border: 1px solid var(--vscode-input-border);
         border-radius: 4px;
         background: var(--vscode-dropdown-background);
         color: var(--vscode-dropdown-foreground);
         padding: 1px 4px;
-        font-size: 10px;
+        font-size: 11px;
       }
 
       .runChecksSelect:disabled {
@@ -345,18 +424,10 @@ function buildRunControlsHtml(webview) {
       }
 
       .cleanOptionsRow {
-        margin-left: 2px;
         display: inline-flex;
         align-items: center;
-        gap: 4px;
-        font-size: 10px;
-      }
-
-      .smokeLanguageOption {
-        display: inline-flex;
-        align-items: center;
-        gap: 3px;
-        font-size: 10px;
+        gap: 6px;
+        font-size: 11px;
       }
 
       .status-muted {
@@ -400,146 +471,121 @@ function buildRunControlsHtml(webview) {
     </style>
   </head>
   <body>
-    <div class="controls">
+    <div class="panel">
       <p class="panelDescription">Controls parameters for all code runs.</p>
-      <span class="sectionHeader">
-        <svg class="sectionIcon" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Terminal">
-          <path d="M2 3.5C2 2.67 2.67 2 3.5 2H12.5C13.33 2 14 2.67 14 3.5V12.5C14 13.33 13.33 14 12.5 14H3.5C2.67 14 2 13.33 2 12.5V3.5Z" stroke="currentColor" stroke-width="1"/>
-          <path d="M4.5 6L6.75 8L4.5 10" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"/>
-          <path d="M8.5 10H11.5" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/>
-        </svg>
-        <span>Command Arguments</span>
-      </span>
+      <section class="section">
+        ${renderSectionHeader("Command Arguments", "terminal")}
+        <div class="inputRow">
+          <label class="toggleRow" for="runArgsEnabled">
+            <input id="runArgsEnabled" type="checkbox" aria-label="Enable command arguments" ${
+              stateSnapshot.enabled ? "checked" : ""
+            } />
+          </label>
 
-      <div class="inputRow">
-        <label class="toggleRow" for="runArgsEnabled">
-          <input id="runArgsEnabled" type="checkbox" aria-label="Enable command arguments" ${
-            stateSnapshot.enabled ? "checked" : ""
-          } />
-        </label>
-
-        <div class="inputWithClear">
-          <input
-            id="runArgsText"
-            class="argsInput"
-            type="text"
-            placeholder="--foo=bar \"hello world\""
-            value="${escapedRunArgsText}"
-            ${stateSnapshot.enabled ? "" : "disabled"}
-          />
-          <button id="clearRunArgs" class="clearInlineButton" type="button" aria-label="Clear run args" title="Clear">×</button>
+          <div class="inputWithClear">
+            <input
+              id="runArgsText"
+              class="argsInput"
+              type="text"
+              placeholder="--foo=bar \"hello world\""
+              value="${escapedRunArgsText}"
+              ${stateSnapshot.enabled ? "" : "disabled"}
+            />
+            <button id="clearRunArgs" class="clearInlineButton" type="button" aria-label="Clear run args" title="Clear">×</button>
+          </div>
         </div>
-      </div>
+        <div class="helperText">Enable extra command-line arguments for run.sh and edit them inline.</div>
+        <span id="runArgsStatus" class="status ${stateSnapshot.statusClassName}">${escapedStatusText}</span>
+      </section>
 
-      <span id="runArgsStatus" class="status ${stateSnapshot.statusClassName}">${escapedStatusText}</span>
-
-      <span class="sectionHeader">
-        <svg class="sectionIcon" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Run Checks">
-          <path d="M3 3.5C3 2.67 3.67 2 4.5 2H11.5C12.33 2 13 2.67 13 3.5V12.5C13 13.33 12.33 14 11.5 14H4.5C3.67 14 3 13.33 3 12.5V3.5Z" stroke="currentColor" stroke-width="1"/>
-          <path d="M5 8L7 10L11 6" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"/>
-        </svg>
-        <span>Run Checks</span>
-      </span>
-
-      <div class="runChecksRow">
-        <label class="runChecksOption" for="runChecksModeNone">
-          <input id="runChecksModeNone" name="runChecksMode" type="radio" value="none" ${
-            stateSnapshot.runChecksMode === "none" ? "checked" : ""
-          } />
-          <span>None</span>
-        </label>
-        <label class="runChecksOption" for="runChecksModeCompileOnly">
-          <input id="runChecksModeCompileOnly" name="runChecksMode" type="radio" value="compile-only" ${
-            stateSnapshot.runChecksMode === "compile-only" ? "checked" : ""
-          } />
-          <span>Compile Only</span>
-        </label>
-        <label class="runChecksOption" for="runChecksModeCheckOnly">
-          <input id="runChecksModeCheckOnly" name="runChecksMode" type="radio" value="check-only" ${
-            stateSnapshot.runChecksMode === "check-only" ? "checked" : ""
-          } />
-          <span>Check Only</span>
-        </label>
-        <select id="runChecksRoute" class="runChecksSelect" aria-label="Check-only route" ${
-          stateSnapshot.runChecksMode === "check-only" ? "" : "disabled"
-        }>
-          <option value="native" ${
-            stateSnapshot.runChecksRoute === "native" ? "selected" : ""
-          }>Native</option>
-          <option value="docker" ${
-            stateSnapshot.runChecksRoute === "docker" ? "selected" : ""
-          }>Docker</option>
-          <option value="ssh" ${
-            stateSnapshot.runChecksRoute === "ssh" ? "selected" : ""
-          }>SSH</option>
-        </select>
-      </div>
-      <span id="runChecksStatus" class="status ${
-        stateSnapshot.runChecksStatusClassName
-      }">${escapedRunChecksStatusText}</span>
-
-      <span class="sectionHeader">
-        <svg class="sectionIcon" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Profile Sourcing">
-          <path d="M8 8C9.66 8 11 6.66 11 5C11 3.34 9.66 2 8 2C6.34 2 5 3.34 5 5C5 6.66 6.34 8 8 8Z" stroke="currentColor" stroke-width="1.1"/>
-          <path d="M3 13C3.55 10.9 5.52 9.5 8 9.5C10.48 9.5 12.45 10.9 13 13" stroke="currentColor" stroke-width="1.1" stroke-linecap="round"/>
-          <path d="M11.75 4.25L12.5 5L14 3.5" stroke="currentColor" stroke-width="1.1" stroke-linecap="round" stroke-linejoin="round"/>
-        </svg>
-        <span>Profile Sourcing</span>
-      </span>
-
-      <div class="inputRow">
-        <label class="toggleRow" for="sourceProfileEnabled">
-          <input id="sourceProfileEnabled" type="checkbox" aria-label="Enable profile sourcing override" ${
-            stateSnapshot.sourceProfileEnabled ? "checked" : ""
-          } />
-        </label>
-
-        <div class="inputWithClear">
-          <input
-            id="sourceProfileText"
-            class="argsInput"
-            type="text"
-            placeholder="profile/path/or/name"
-            value="${escapedSourceProfileText}"
-            ${stateSnapshot.sourceProfileEnabled ? "" : "disabled"}
-          />
-          <button id="clearSourceProfile" class="clearInlineButton" type="button" aria-label="Clear source profile" title="Clear">×</button>
+      <section class="section">
+        ${renderSectionHeader("Run Checks", "check")}
+        <div class="runChecksRow">
+          <label class="runChecksOption" for="runChecksModeNone">
+            <input id="runChecksModeNone" name="runChecksMode" type="radio" value="none" ${
+              stateSnapshot.runChecksMode === "none" ? "checked" : ""
+            } />
+            <span>None</span>
+          </label>
+          <label class="runChecksOption" for="runChecksModeCompileOnly">
+            <input id="runChecksModeCompileOnly" name="runChecksMode" type="radio" value="compile-only" ${
+              stateSnapshot.runChecksMode === "compile-only" ? "checked" : ""
+            } />
+            <span>Compile Only</span>
+          </label>
+          <label class="runChecksOption" for="runChecksModeCheckOnly">
+            <input id="runChecksModeCheckOnly" name="runChecksMode" type="radio" value="check-only" ${
+              stateSnapshot.runChecksMode === "check-only" ? "checked" : ""
+            } />
+            <span>Check Only</span>
+          </label>
+          <select id="runChecksRoute" class="runChecksSelect" aria-label="Check-only route" ${
+            stateSnapshot.runChecksMode === "check-only" ? "" : "disabled"
+          }>
+            <option value="native" ${
+              stateSnapshot.runChecksRoute === "native" ? "selected" : ""
+            }>Native</option>
+            <option value="docker" ${
+              stateSnapshot.runChecksRoute === "docker" ? "selected" : ""
+            }>Docker</option>
+            <option value="ssh" ${
+              stateSnapshot.runChecksRoute === "ssh" ? "selected" : ""
+            }>SSH</option>
+          </select>
         </div>
-      </div>
+        <div class="helperText">Use Compile Only or Check Only to override execution behavior for all runs from the sidebar.</div>
+        <span id="runChecksStatus" class="status ${
+          stateSnapshot.runChecksStatusClassName
+        }">${escapedRunChecksStatusText}</span>
+      </section>
 
-      <span id="sourceProfileStatus" class="status ${
-        stateSnapshot.sourceProfileStatusClassName
-      }">${escapedSourceProfileStatusText}</span>
-      <span class="helperText">If checked and empty, profile sourcing is disabled entirely. If unchecked, system default profile sourcing behavior is used.</span>
+      <section class="section">
+        ${renderSectionHeader("Profile Sourcing", "profile")}
+        <div class="inputRow">
+          <label class="toggleRow" for="sourceProfileEnabled">
+            <input id="sourceProfileEnabled" type="checkbox" aria-label="Enable profile sourcing override" ${
+              stateSnapshot.sourceProfileEnabled ? "checked" : ""
+            } />
+          </label>
 
-      <span class="sectionHeader">
-        <svg class="sectionIcon" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Clean Options">
-          <path d="M4 4.5C4 3.67 4.67 3 5.5 3H10.5C11.33 3 12 3.67 12 4.5V5.5H4V4.5Z" stroke="currentColor" stroke-width="1"/>
-          <path d="M3.5 5.5H12.5" stroke="currentColor" stroke-width="1"/>
-          <path d="M5 5.5V12C5 12.55 5.45 13 6 13H10C10.55 13 11 12.55 11 12V5.5" stroke="currentColor" stroke-width="1"/>
-          <path d="M7 7.5V11" stroke="currentColor" stroke-width="1" stroke-linecap="round"/>
-          <path d="M9 7.5V11" stroke="currentColor" stroke-width="1" stroke-linecap="round"/>
-        </svg>
-        <span>Clean Options</span>
-      </span>
+          <div class="inputWithClear">
+            <input
+              id="sourceProfileText"
+              class="argsInput"
+              type="text"
+              placeholder="profile/path/or/name"
+              value="${escapedSourceProfileText}"
+              ${stateSnapshot.sourceProfileEnabled ? "" : "disabled"}
+            />
+            <button id="clearSourceProfile" class="clearInlineButton" type="button" aria-label="Clear source profile" title="Clear">×</button>
+          </div>
+        </div>
+        <span id="sourceProfileStatus" class="status ${
+          stateSnapshot.sourceProfileStatusClassName
+        }">${escapedSourceProfileStatusText}</span>
+        <span class="helperText">If checked and empty, profile sourcing is disabled entirely. If unchecked, system default profile sourcing behavior is used.</span>
+      </section>
 
-      <label class="cleanOptionsRow" for="cleanStdlibEnabled">
-        <input id="cleanStdlibEnabled" type="checkbox" ${
-          stateSnapshot.cleanStdlib ? "checked" : ""
-        } />
-        <span>Clean Standard Library</span>
-      </label>
+      <section class="section">
+        ${renderSectionHeader("Clean Options", "clean")}
+        <label class="cleanOptionsRow" for="cleanStdlibEnabled">
+          <input id="cleanStdlibEnabled" type="checkbox" ${
+            stateSnapshot.cleanStdlib ? "checked" : ""
+          } />
+          <span>Clean Standard Library</span>
+        </label>
 
-      <label class="cleanOptionsRow" for="cleanArchivesEnabled">
-        <input id="cleanArchivesEnabled" type="checkbox" ${
-          stateSnapshot.cleanArchives ? "checked" : ""
-        } />
-        <span>Clean Archives</span>
-      </label>
+        <label class="cleanOptionsRow" for="cleanArchivesEnabled">
+          <input id="cleanArchivesEnabled" type="checkbox" ${
+            stateSnapshot.cleanArchives ? "checked" : ""
+          } />
+          <span>Clean Archives</span>
+        </label>
 
-      <span id="cleanOptionsStatus" class="status ${
-        stateSnapshot.cleanOptionsStatusClassName
-      }">${escapedCleanOptionsStatusText}</span>
+        <span id="cleanOptionsStatus" class="status ${
+          stateSnapshot.cleanOptionsStatusClassName
+        }">${escapedCleanOptionsStatusText}</span>
+      </section>
     </div>
 
     <script nonce="${nonce}">

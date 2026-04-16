@@ -110,6 +110,58 @@ function createNonce() {
 }
 
 /**
+ * Returns the inline SVG used for one Smoke Controls section header.
+ *
+ * @param {string} iconName Semantic section icon key.
+ * @returns {string} Inline SVG markup.
+ */
+function getSectionIconSvg(iconName) {
+  if (iconName === "report") {
+    return '<svg class="sectionIcon" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-hidden="true">'
+      + '<path d="M4 2H10L12 4V13C12 13.55 11.55 14 11 14H4C3.45 14 3 13.55 3 13V3C3 2.45 3.45 2 4 2Z" stroke="currentColor" stroke-width="1"/>'
+      + '<path d="M10 2V4H12" stroke="currentColor" stroke-width="1"/>'
+      + '<path d="M5 7H11" stroke="currentColor" stroke-width="1" stroke-linecap="round"/>'
+      + '<path d="M5 9.5H9" stroke="currentColor" stroke-width="1" stroke-linecap="round"/>'
+      + '</svg>';
+  }
+
+  if (iconName === "timeout") {
+    return '<svg class="sectionIcon" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-hidden="true">'
+      + '<circle cx="8" cy="8" r="5.5" stroke="currentColor" stroke-width="1"/>'
+      + '<path d="M8 5V8L10 9.5" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"/>'
+      + '</svg>';
+  }
+
+  if (iconName === "languages") {
+    return '<svg class="sectionIcon" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-hidden="true">'
+      + '<path d="M5 5L2 8L5 11" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"/>'
+      + '<path d="M11 5L14 8L11 11" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"/>'
+      + '<path d="M9 3L7 13" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/>'
+      + '</svg>';
+  }
+
+  return "";
+}
+
+/**
+ * Renders one Smoke Controls section header with an icon and optional actions.
+ *
+ * @param {string} title Section title.
+ * @param {string} iconName Semantic section icon key.
+ * @param {string} actionsHtml Optional action markup.
+ * @returns {string} Header markup.
+ */
+function renderSectionHeader(title, iconName, actionsHtml) {
+  return '<div class="sectionHeader">'
+    + '<div class="sectionTitleGroup">'
+    + getSectionIconSvg(iconName)
+    + '<div class="sectionTitle">' + escapeHtml(title) + '</div>'
+    + '</div>'
+    + (actionsHtml || "")
+    + '</div>';
+}
+
+/**
  * Builds status metadata for smoke-controls language selection.
  *
  * @param {{languages: {key: string, enabled: boolean}[]}} smokeControlsState Current smoke-controls state.
@@ -275,41 +327,58 @@ function buildSmokeControlsHtml(webview, languageIconBaseUri, fallbackIconUri) {
       }
 
       body {
-        padding: 6px 8px;
+        padding: 8px;
         box-sizing: border-box;
-        display: flex;
         font-family: var(--vscode-font-family);
-        font-size: 11px;
+        font-size: 12px;
         color: var(--vscode-foreground);
         background: var(--vscode-sideBar-background);
       }
 
-      .controls {
+      .panel {
         display: flex;
         flex-direction: column;
-        gap: 4px;
+        gap: 10px;
         height: 100%;
-        flex: 1 1 auto;
         min-height: 0;
-        width: 100%;
+      }
+
+      .section {
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+        padding: 8px;
+        border: 1px solid var(--vscode-widget-border);
+        border-radius: 6px;
+        background: color-mix(in srgb, var(--vscode-sideBar-background) 82%, var(--vscode-editor-background) 18%);
       }
 
       .sectionHeader {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 8px;
+      }
+
+      .sectionTitleGroup {
         display: inline-flex;
         align-items: center;
-        gap: 4px;
-        margin-top: 2px;
-        margin-left: 2px;
-        font-size: 10px;
-        font-weight: 600;
-        letter-spacing: 0.02em;
+        gap: 6px;
+        min-width: 0;
+      }
+
+      .sectionTitle {
+        font-size: 11px;
+        font-weight: 700;
+        letter-spacing: 0.04em;
+        text-transform: uppercase;
         color: var(--vscode-descriptionForeground);
       }
 
       .sectionIcon {
-        width: 12px;
-        height: 12px;
-        display: inline-block;
+        width: 13px;
+        height: 13px;
+        flex: 0 0 auto;
         color: var(--vscode-foreground);
       }
 
@@ -320,9 +389,9 @@ function buildSmokeControlsHtml(webview, languageIconBaseUri, fallbackIconUri) {
         border-radius: 4px;
         background: var(--vscode-input-background);
         color: var(--vscode-input-foreground);
-        padding: 3px 6px;
-        min-height: 22px;
-        font-size: 11px;
+        padding: 4px 6px;
+        min-height: 24px;
+        font: inherit;
       }
 
       .argsInput:disabled {
@@ -331,11 +400,11 @@ function buildSmokeControlsHtml(webview, languageIconBaseUri, fallbackIconUri) {
 
       .status {
         min-height: 14px;
-        margin-left: 2px;
         overflow: hidden;
         white-space: nowrap;
         text-overflow: ellipsis;
-        font-size: 10px;
+        font-size: 11px;
+        line-height: 1.3;
       }
 
       .status-muted {
@@ -351,21 +420,19 @@ function buildSmokeControlsHtml(webview, languageIconBaseUri, fallbackIconUri) {
       }
 
       .panelDescription {
-        margin: 0 0 4px 2px;
+        margin: 0;
         color: var(--vscode-descriptionForeground);
         font-size: 11px;
         line-height: 1.3;
       }
 
       .helperText {
-        margin-left: 2px;
         color: var(--vscode-descriptionForeground);
-        font-size: 10px;
-        line-height: 1.2;
+        font-size: 11px;
+        line-height: 1.3;
       }
 
       .smokeMarkdownRow {
-        margin-left: 2px;
         display: grid;
         grid-template-columns: auto 1fr;
         gap: 6px;
@@ -376,12 +443,11 @@ function buildSmokeControlsHtml(webview, languageIconBaseUri, fallbackIconUri) {
         display: inline-flex;
         align-items: center;
         gap: 0;
-        font-size: 10px;
+        font-size: 11px;
         white-space: nowrap;
       }
 
       .smokeTimeoutRow {
-        margin-left: 2px;
         display: grid;
         grid-template-columns: 1fr 1fr;
         gap: 6px;
@@ -390,33 +456,42 @@ function buildSmokeControlsHtml(webview, languageIconBaseUri, fallbackIconUri) {
       .smokeTimeoutField {
         display: flex;
         flex-direction: column;
-        gap: 2px;
-        font-size: 10px;
+        gap: 4px;
+        font-size: 11px;
       }
 
       .smokeLangActions {
-        margin-left: 2px;
         display: inline-flex;
         gap: 6px;
         flex-wrap: wrap;
       }
 
-      .smokeLangButton {
+      .buttonRow {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 6px;
+      }
+
+      .button {
         border: 1px solid var(--vscode-button-border, transparent);
-        background: var(--vscode-button-secondaryBackground);
-        color: var(--vscode-button-secondaryForeground);
+        background: var(--vscode-button-background);
+        color: var(--vscode-button-foreground);
         border-radius: 4px;
-        font-size: 10px;
-        padding: 2px 6px;
+        padding: 4px 8px;
+        font: inherit;
         cursor: pointer;
       }
 
-      .smokeLangButton:hover {
+      .button.secondary {
+        background: var(--vscode-button-secondaryBackground);
+        color: var(--vscode-button-secondaryForeground);
+      }
+
+      .button.secondary:hover {
         background: var(--vscode-button-secondaryHoverBackground);
       }
 
       .languageListContainer {
-        margin-left: 2px;
         min-height: 96px;
         flex: 1 1 auto;
         overflow-y: auto;
@@ -436,13 +511,13 @@ function buildSmokeControlsHtml(webview, languageIconBaseUri, fallbackIconUri) {
       .smokeLanguageOption {
         display: inline-flex;
         align-items: center;
-        gap: 3px;
-        font-size: 10px;
+        gap: 4px;
+        font-size: 11px;
       }
 
       .languageIcon {
-        width: 12px;
-        height: 12px;
+        width: 14px;
+        height: 14px;
         object-fit: contain;
         flex: 0 0 auto;
         opacity: 0.95;
@@ -456,72 +531,50 @@ function buildSmokeControlsHtml(webview, languageIconBaseUri, fallbackIconUri) {
     </style>
   </head>
   <body>
-    <div class="controls">
+    <div class="panel">
       <p class="panelDescription">Controls smoke tests run in supported directories.</p>
-      <span class="sectionHeader">
-        <svg class="sectionIcon" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Report Generation">
-          <path d="M4 2H10L12 4V13C12 13.55 11.55 14 11 14H4C3.45 14 3 13.55 3 13V3C3 2.45 3.45 2 4 2Z" stroke="currentColor" stroke-width="1"/>
-          <path d="M10 2V4H12" stroke="currentColor" stroke-width="1"/>
-          <path d="M5 7H11" stroke="currentColor" stroke-width="1" stroke-linecap="round"/>
-          <path d="M5 9.5H9" stroke="currentColor" stroke-width="1" stroke-linecap="round"/>
-        </svg>
-        <span>Report Generation</span>
-      </span>
-
-      <div class="smokeMarkdownRow">
-        <label class="smokeMarkdownLabel" for="smokeMarkdownEnabled">
-          <input id="smokeMarkdownEnabled" type="checkbox" aria-label="Enable report generation" ${
-            stateSnapshot.markdownEnabled ? "checked" : ""
+      <section class="section">
+        ${renderSectionHeader("Report Generation", "report")}
+        <div class="smokeMarkdownRow">
+          <label class="smokeMarkdownLabel" for="smokeMarkdownEnabled">
+            <input id="smokeMarkdownEnabled" type="checkbox" aria-label="Enable report generation" ${
+              stateSnapshot.markdownEnabled ? "checked" : ""
+            } />
+          </label>
+          <input id="smokeMarkdownPath" class="argsInput" type="text" placeholder="Optional report path" value="${escapedMarkdownPath}" ${
+            stateSnapshot.markdownEnabled ? "" : "disabled"
           } />
-        </label>
-        <input id="smokeMarkdownPath" class="argsInput" type="text" placeholder="Optional report path" value="${escapedMarkdownPath}" ${
-          stateSnapshot.markdownEnabled ? "" : "disabled"
-        } />
-      </div>
-      <span id="reportGenerationStatus" class="status ${
-        stateSnapshot.reportStatusClassName
-      }">${escapedReportStatusText}</span>
+        </div>
+        <div class="helperText">Enable markdown output and optionally override the generated report path.</div>
+        <span id="reportGenerationStatus" class="status ${
+          stateSnapshot.reportStatusClassName
+        }">${escapedReportStatusText}</span>
+      </section>
 
-      <span class="sectionHeader">
-        <svg class="sectionIcon" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Timeouts">
-          <circle cx="8" cy="8" r="5.5" stroke="currentColor" stroke-width="1"/>
-          <path d="M8 5V8L10 9.5" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"/>
-        </svg>
-        <span>Timeouts</span>
-      </span>
+      <section class="section">
+        ${renderSectionHeader("Timeouts", "timeout")}
+        <div class="smokeTimeoutRow">
+          <label class="smokeTimeoutField" for="smokeTimeout">
+            <span>Timeout</span>
+            <input id="smokeTimeout" class="argsInput" type="text" placeholder="8m" value="${escapedTimeout}" />
+          </label>
+          <label class="smokeTimeoutField" for="smokeSlowTimeout">
+            <span>Slow Timeout</span>
+            <input id="smokeSlowTimeout" class="argsInput" type="text" placeholder="20m" value="${escapedSlowTimeout}" />
+          </label>
+        </div>
+        <span class="helperText">Defaults use timeout. Known long-running languages use slow-timeout so smoke processing completes correctly.</span>
+      </section>
 
-      <div class="smokeTimeoutRow">
-        <label class="smokeTimeoutField" for="smokeTimeout">
-          <span>Timeout</span>
-          <input id="smokeTimeout" class="argsInput" type="text" placeholder="8m" value="${escapedTimeout}" />
-        </label>
-        <label class="smokeTimeoutField" for="smokeSlowTimeout">
-          <span>Slow Timeout</span>
-          <input id="smokeSlowTimeout" class="argsInput" type="text" placeholder="20m" value="${escapedSlowTimeout}" />
-        </label>
-      </div>
-      <span class="helperText">Defaults use timeout. Known long-running languages use slow-timeout so smoke processing completes correctly.</span>
-
-      <span class="sectionHeader">
-        <svg class="sectionIcon" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Languages">
-          <path d="M5 5L2 8L5 11" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"/>
-          <path d="M11 5L14 8L11 11" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"/>
-          <path d="M9 3L7 13" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/>
-        </svg>
-        <span>Languages</span>
-      </span>
-
-      <div class="smokeLangActions">
-        <button id="smokeSelectAll" class="smokeLangButton" type="button">Select All</button>
-        <button id="smokeDeselectAll" class="smokeLangButton" type="button">Deselect All</button>
-      </div>
-
-      <div class="languageListContainer">
-        <div id="smokeLanguageGrid" class="smokeLanguageGrid">${languagesGridHtml}</div>
-      </div>
-      <span id="smokeStatus" class="status ${
-        stateSnapshot.smokeStatusClassName
-      }">${escapedStatusText}</span>
+      <section class="section">
+        ${renderSectionHeader("Languages", "languages", '<div class="buttonRow"><button id="smokeSelectAll" class="button secondary" type="button">Select All</button><button id="smokeDeselectAll" class="button secondary" type="button">Deselect All</button></div>')}
+        <div class="languageListContainer">
+          <div id="smokeLanguageGrid" class="smokeLanguageGrid">${languagesGridHtml}</div>
+        </div>
+        <span id="smokeStatus" class="status ${
+          stateSnapshot.smokeStatusClassName
+        }">${escapedStatusText}</span>
+      </section>
     </div>
 
     <script nonce="${nonce}">
