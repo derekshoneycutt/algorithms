@@ -177,7 +177,19 @@ function invalidateCanaryCache(rootPath) {
  * @param {string} rootPath Resolved repository root path.
  * @returns {{attempted: boolean, command: string, exitCode: number|null, success: boolean, error: string|null}} Canary result details.
  */
-function runCanary(rootPath) {
+function runCanary(rootPath, options = {}) {
+  const skipCanary = options.skipCanary === true;
+
+  if (skipCanary) {
+    return {
+      attempted: false,
+      command: `${path.join(rootPath, "run.sh")} --help-all`,
+      exitCode: null,
+      success: true,
+      error: null,
+    };
+  }
+
   const cachedResult = getCachedCanaryResult(rootPath);
 
   if (cachedResult) {
@@ -245,6 +257,16 @@ function classifyEligibility(markers, canary) {
   const hasRunScript = Boolean(markers["run.sh"]);
   const hasSrcDirectory = Boolean(markers.src);
 
+  if (missingMarkers.length === 0 && canary.attempted === false) {
+    return {
+      status: "eligible",
+      missingMarkers,
+      reason: "markers-passed-canary-skipped",
+      guidance:
+        "Workspace marker checks passed. Canary execution is deferred and does not block preflight eligibility.",
+    };
+  }
+
   if (missingMarkers.length === 0 && canary.success) {
     return {
       status: "eligible",
@@ -287,14 +309,15 @@ function classifyEligibility(markers, canary) {
  * Evaluates one workspace folder and returns eligibility details.
  *
  * @param {string} folderPath Workspace folder path.
+ * @param {{skipCanary?: boolean}} [options] Evaluation options.
  * @returns {{workspaceFolderPath: string, resolvedRoot: string, scriptPath: string, markers: Record<string, boolean>, canary: object, status: string, missingMarkers: string[], reason: string, guidance: string}} Evaluation result.
  */
-function evaluateWorkspaceFolder(folderPath) {
+function evaluateWorkspaceFolder(folderPath, options = {}) {
   const folderRealPath = realpathSafe(folderPath);
   const resolvedRoot = findCandidateRoot(folderRealPath);
   const canonicalRoot = realpathSafe(resolvedRoot);
   const markers = evaluateMarkers(canonicalRoot);
-  const canary = runCanary(canonicalRoot);
+  const canary = runCanary(canonicalRoot, options);
   const classification = classifyEligibility(markers, canary);
 
   return {
@@ -311,9 +334,10 @@ function evaluateWorkspaceFolder(folderPath) {
  * Resolves overall workspace eligibility across open workspace folders.
  *
  * @param {{uri: {fsPath: string}}[]|undefined} workspaceFolders VS Code workspace folders.
+ * @param {{skipCanary?: boolean}} [options] Resolution options.
  * @returns {{status: string, reason: string, guidance: string, selected: object|null, evaluations: object[]}} Aggregated eligibility state.
  */
-function resolveEligibilityState(workspaceFolders) {
+function resolveEligibilityState(workspaceFolders, options = {}) {
   if (!Array.isArray(workspaceFolders) || workspaceFolders.length === 0) {
     return {
       status: "ineligible",
@@ -325,7 +349,7 @@ function resolveEligibilityState(workspaceFolders) {
   }
 
   const rawEvaluations = workspaceFolders.map((workspaceFolder) =>
-    evaluateWorkspaceFolder(workspaceFolder.uri.fsPath)
+    evaluateWorkspaceFolder(workspaceFolder.uri.fsPath, options)
   );
 
   const dedupMap = new Map();

@@ -179,12 +179,99 @@ function makeTemplateLoader(basePath) {
   };
 }
 
+/**
+ * Renders webview HTML with optional fallback rendering on failure.
+ *
+ * @param {{webview: import("vscode").Webview, buildHtml: (webview: import("vscode").Webview) => string, buildErrorHtml?: (webview: import("vscode").Webview, error: unknown) => string}} options Render options.
+ * @returns {boolean} True when primary render succeeded.
+ */
+function renderWebviewHtmlWithFallback(options) {
+  const webview = options.webview;
+  const buildHtml = options.buildHtml;
+  const buildErrorHtml = options.buildErrorHtml;
+
+  try {
+    webview.html = buildHtml(webview);
+    return true;
+  } catch (error) {
+    if (typeof buildErrorHtml === "function") {
+      webview.html = buildErrorHtml(webview, error);
+      return false;
+    }
+
+    throw error;
+  }
+}
+
+/**
+ * Applies common resolve lifecycle behavior for sidebar webviews.
+ *
+ * @param {{webviewView: import("vscode").WebviewView, localResourceRoots: import("vscode").Uri[], buildHtml: (webview: import("vscode").Webview) => string, buildErrorHtml?: (webview: import("vscode").Webview, error: unknown) => string, handleMessage?: (message: unknown) => void, handleDispose?: (webviewView: import("vscode").WebviewView) => void}} options Resolve options.
+ * @returns {void}
+ */
+function resolveSidebarWebviewView(options) {
+  const webviewView = options.webviewView;
+
+  webviewView.webview.options = {
+    enableScripts: true,
+    localResourceRoots: options.localResourceRoots,
+  };
+
+  renderWebviewHtmlWithFallback({
+    webview: webviewView.webview,
+    buildHtml: options.buildHtml,
+    buildErrorHtml: options.buildErrorHtml,
+  });
+
+  webviewView.webview.onDidReceiveMessage((message) => {
+    if (typeof options.handleMessage === "function") {
+      options.handleMessage(message);
+    }
+  });
+
+  webviewView.onDidDispose(() => {
+    if (typeof options.handleDispose === "function") {
+      options.handleDispose(webviewView);
+    }
+  });
+}
+
+/**
+ * Builds a CSP-safe fallback error document without inline styles.
+ *
+ * @param {import("vscode").Webview} webview Webview instance.
+ * @param {string} errorMessage Visible failure text.
+ * @returns {string} Error HTML.
+ */
+function buildWebviewErrorHtmlDocument(webview, errorMessage) {
+  const cspSource = webview.cspSource;
+  const escapedMessage = escapeHtml(errorMessage);
+
+  return `<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta
+      http-equiv="Content-Security-Policy"
+      content="default-src 'none'; base-uri 'none'; object-src 'none'; frame-ancestors 'none'; style-src ${cspSource};"
+    />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  </head>
+  <body>
+    <pre>${escapedMessage}</pre>
+  </body>
+</html>`;
+}
+
 // Shared host-side helpers used by sidebar webview providers.
 module.exports = {
+  buildWebviewErrorHtmlDocument,
   escapeHtml,
   getSectionIconSvg,
   makeTemplateLoader,
   readTextFileSafe,
+  renderWebviewHtmlWithFallback,
+  resolveSidebarWebviewView,
   renderSectionHeader,
   renderTemplate,
   serializeForScript,

@@ -1,9 +1,12 @@
 const vscode = require("vscode");
 const { VIEW_IDS } = require("../runtime/viewConstants");
 const {
+  buildWebviewErrorHtmlDocument,
   escapeHtml,
   makeTemplateLoader,
+  renderWebviewHtmlWithFallback,
   renderTemplate,
+  resolveSidebarWebviewView,
   serializeForScript,
 } = require("./webviewHostUtils");
 const {
@@ -37,6 +40,17 @@ const SMOKE_CONTROLS_REQUIRED_TEMPLATE_NAMES = [
   SMOKE_CONTROLS_TIMEOUTS_TEMPLATE_FILE_NAME,
   SMOKE_CONTROLS_LANGUAGES_TEMPLATE_FILE_NAME,
 ];
+
+/**
+ * Builds an explicit error document for smoke-controls webview failures.
+ *
+ * @param {import("vscode").Webview} webview Webview instance.
+ * @param {string} errorMessage Visible failure text.
+ * @returns {string} Error HTML.
+ */
+function buildSmokeControlsErrorHtml(webview, errorMessage) {
+  return buildWebviewErrorHtmlDocument(webview, errorMessage);
+}
 
 /**
  * Returns the inline SVG used for one Smoke Controls section header.
@@ -474,39 +488,45 @@ class SidebarSmokeControlsViewProvider {
    */
   resolveWebviewView(webviewView) {
     this._view = webviewView;
-    const templates = this.getTemplates();
-    const assetUris = this.getAssetUris(webviewView.webview);
-    const languageIconUris = buildLanguageIconUris(
-      webviewView.webview,
-      this._languageIconBaseUri,
-      this._fallbackIconUri
-    );
-
-    webviewView.webview.options = {
-      enableScripts: true,
+    resolveSidebarWebviewView({
+      webviewView,
       localResourceRoots: [
         this._languageIconBaseUri,
         this._iconRootUri,
         this._mediaBaseUri,
         this._templateBaseUri,
       ],
-    };
-    webviewView.webview.html = buildSmokeControlsHtml(
-      webviewView.webview,
-      assetUris.stylesheetUri,
-      assetUris.scriptUri,
-      templates,
-      languageIconUris
-    );
+      buildHtml: (webview) => {
+        const templates = this.getTemplates();
+        const assetUris = this.getAssetUris(webview);
+        const languageIconUris = buildLanguageIconUris(
+          webview,
+          this._languageIconBaseUri,
+          this._fallbackIconUri
+        );
 
-    webviewView.webview.onDidReceiveMessage((message) => {
-      this.handleMessage(message);
-    });
-
-    webviewView.onDidDispose(() => {
-      if (this._view === webviewView) {
-        this._view = null;
-      }
+        return buildSmokeControlsHtml(
+          webview,
+          assetUris.stylesheetUri,
+          assetUris.scriptUri,
+          templates,
+          languageIconUris
+        );
+      },
+      buildErrorHtml: (webview, error) => {
+        const failureText = String(
+          error?.message || "Smoke Controls failed to load templates."
+        );
+        return buildSmokeControlsErrorHtml(webview, failureText);
+      },
+      handleMessage: (message) => {
+        this.handleMessage(message);
+      },
+      handleDispose: (disposedWebviewView) => {
+        if (this._view === disposedWebviewView) {
+          this._view = null;
+        }
+      },
     });
   }
 
@@ -520,21 +540,32 @@ class SidebarSmokeControlsViewProvider {
       return;
     }
 
-    const templates = this.getTemplates();
-    const assetUris = this.getAssetUris(this._view.webview);
-    const languageIconUris = buildLanguageIconUris(
-      this._view.webview,
-      this._languageIconBaseUri,
-      this._fallbackIconUri
-    );
+    renderWebviewHtmlWithFallback({
+      webview: this._view.webview,
+      buildHtml: (webview) => {
+        const templates = this.getTemplates();
+        const assetUris = this.getAssetUris(webview);
+        const languageIconUris = buildLanguageIconUris(
+          webview,
+          this._languageIconBaseUri,
+          this._fallbackIconUri
+        );
 
-    this._view.webview.html = buildSmokeControlsHtml(
-      this._view.webview,
-      assetUris.stylesheetUri,
-      assetUris.scriptUri,
-      templates,
-      languageIconUris
-    );
+        return buildSmokeControlsHtml(
+          webview,
+          assetUris.stylesheetUri,
+          assetUris.scriptUri,
+          templates,
+          languageIconUris
+        );
+      },
+      buildErrorHtml: (webview, error) => {
+        const failureText = String(
+          error?.message || "Smoke Controls failed to refresh templates."
+        );
+        return buildSmokeControlsErrorHtml(webview, failureText);
+      },
+    });
   }
 }
 

@@ -1,9 +1,12 @@
 const vscode = require("vscode");
 const { VIEW_IDS } = require("../runtime/viewConstants");
 const {
+  buildWebviewErrorHtmlDocument,
   escapeHtml,
   makeTemplateLoader,
+  renderWebviewHtmlWithFallback,
   renderTemplate,
+  resolveSidebarWebviewView,
   serializeForScript,
 } = require("./webviewHostUtils");
 const {
@@ -50,41 +53,7 @@ const RUN_CONTROLS_REQUIRED_TEMPLATE_NAMES = [
  * @returns {string} Error HTML.
  */
 function buildRunControlsErrorHtml(webview, errorMessage) {
-  const cspSource = webview.cspSource;
-  const escapedMessage = escapeHtml(errorMessage);
-
-  return `<!DOCTYPE html>
-<html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <meta
-      http-equiv="Content-Security-Policy"
-      content="default-src 'none'; base-uri 'none'; object-src 'none'; frame-ancestors 'none'; style-src ${cspSource};"
-    />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <style>
-      body {
-        margin: 0;
-        padding: 10px;
-        font-family: var(--vscode-font-family);
-        font-size: 12px;
-        color: var(--vscode-errorForeground);
-        background: var(--vscode-sideBar-background);
-      }
-
-      .errorBox {
-        border: 1px solid var(--vscode-errorForeground);
-        border-radius: 6px;
-        padding: 8px;
-        line-height: 1.4;
-        white-space: pre-wrap;
-      }
-    </style>
-  </head>
-  <body>
-    <div class="errorBox">${escapedMessage}</div>
-  </body>
-</html>`;
+  return buildWebviewErrorHtmlDocument(webview, errorMessage);
 }
 
 /**
@@ -564,35 +533,34 @@ class SidebarRunControlsViewProvider {
    */
   resolveWebviewView(webviewView) {
     this._view = webviewView;
-    webviewView.webview.options = {
-      enableScripts: true,
+    resolveSidebarWebviewView({
+      webviewView,
       localResourceRoots: [this._mediaRootUri],
-    };
-    try {
-      const assets = this.getAssetUris(webviewView.webview);
-      const templates = this.getTemplates();
-      webviewView.webview.html = buildRunControlsHtml(
-        webviewView.webview,
-        assets.stylesheetUri,
-        assets.scriptUri,
-        templates
-      );
-    } catch (error) {
-      const failureText = String(error?.message || "Run Controls failed to load templates.");
-      webviewView.webview.html = buildRunControlsErrorHtml(
-        webviewView.webview,
-        failureText
-      );
-    }
+      buildHtml: (webview) => {
+        const assets = this.getAssetUris(webview);
+        const templates = this.getTemplates();
 
-    webviewView.webview.onDidReceiveMessage((message) => {
-      this.handleMessage(message);
-    });
-
-    webviewView.onDidDispose(() => {
-      if (this._view === webviewView) {
-        this._view = null;
-      }
+        return buildRunControlsHtml(
+          webview,
+          assets.stylesheetUri,
+          assets.scriptUri,
+          templates
+        );
+      },
+      buildErrorHtml: (webview, error) => {
+        const failureText = String(
+          error?.message || "Run Controls failed to load templates."
+        );
+        return buildRunControlsErrorHtml(webview, failureText);
+      },
+      handleMessage: (message) => {
+        this.handleMessage(message);
+      },
+      handleDispose: (disposedWebviewView) => {
+        if (this._view === disposedWebviewView) {
+          this._view = null;
+        }
+      },
     });
   }
 
@@ -606,22 +574,26 @@ class SidebarRunControlsViewProvider {
       return;
     }
 
-    try {
-      const assets = this.getAssetUris(this._view.webview);
-      const templates = this.getTemplates();
-      this._view.webview.html = buildRunControlsHtml(
-        this._view.webview,
-        assets.stylesheetUri,
-        assets.scriptUri,
-        templates
-      );
-    } catch (error) {
-      const failureText = String(error?.message || "Run Controls failed to refresh templates.");
-      this._view.webview.html = buildRunControlsErrorHtml(
-        this._view.webview,
-        failureText
-      );
-    }
+    renderWebviewHtmlWithFallback({
+      webview: this._view.webview,
+      buildHtml: (webview) => {
+        const assets = this.getAssetUris(webview);
+        const templates = this.getTemplates();
+
+        return buildRunControlsHtml(
+          webview,
+          assets.stylesheetUri,
+          assets.scriptUri,
+          templates
+        );
+      },
+      buildErrorHtml: (webview, error) => {
+        const failureText = String(
+          error?.message || "Run Controls failed to refresh templates."
+        );
+        return buildRunControlsErrorHtml(webview, failureText);
+      },
+    });
   }
 }
 

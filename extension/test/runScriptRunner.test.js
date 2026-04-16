@@ -6,7 +6,9 @@ const {
 } = require("../src/runtime/runScriptRunner");
 const { runTests: runArgumentBuilderTests } = require("./argumentBuilder.test");
 const { runTests: runInputValidationTests } = require("./inputValidation.test");
+const { runTests: runPathResolverTests } = require("./pathResolver.test");
 const { runTests: runSidebarRunArgsStateTests } = require("./sidebarRunArgsState.test");
+const { runTests: runSmokeStatusStateTests } = require("./smokeStatusState.test");
 const { runTests: runWebviewHostUtilsTests } = require("./webviewHostUtils.test");
 
 /**
@@ -232,7 +234,9 @@ function main() {
   runTests();
   runArgumentBuilderTests();
   runInputValidationTests();
+  runPathResolverTests();
   runSidebarRunArgsStateTests();
+  runSmokeStatusStateTests();
   runWebviewHostUtilsTests();
   console.log("extension tests passed");
 }

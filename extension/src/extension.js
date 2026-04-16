@@ -59,8 +59,14 @@ const {
 let cachedPreflightState = null;
 // Debounce delay for document lifecycle-driven preflight updates.
 const DOCUMENT_PRECHECK_DEBOUNCE_MS = 250;
+// Debounce delay for async canary-backed preflight refreshes.
+const CANARY_PRECHECK_DEBOUNCE_MS = 750;
 // Timer handle for coalescing document lifecycle preflight updates.
 let documentPreflightTimer = null;
+// Timer handle for coalescing async canary-backed preflight refreshes.
+let canaryPreflightTimer = null;
+// Tracks whether one async canary-backed preflight refresh is in flight.
+let canaryPreflightInFlight = false;
 
 /**
  * Returns the currently open workspace folders.
@@ -90,9 +96,55 @@ function logEligibility(stage, eligibilityState) {
  * @returns {object} Eligibility state for current workspace context.
  */
 function resolvePreflightState() {
-  const preflightState = resolveEligibilityState(getWorkspaceFolders());
+  const preflightState = resolveEligibilityState(getWorkspaceFolders(), {
+    skipCanary: true,
+  });
   logEligibility("preflight", preflightState);
   return preflightState;
+}
+
+/**
+ * Runs one canary-backed eligibility refresh without blocking preflight callers.
+ *
+ * @param {import('vscode').TextEditor|undefined} editor Active editor candidate.
+ * @returns {Promise<void>} Resolves after cache/context updates complete.
+ */
+async function runCanaryPreflightRefresh(editor) {
+  if (canaryPreflightInFlight) {
+    return;
+  }
+
+  canaryPreflightInFlight = true;
+
+  try {
+    const canaryState = resolveEligibilityState(getWorkspaceFolders());
+    logEligibility("canary-preflight", canaryState);
+    setCachedPreflightState(canaryState);
+    await updateRunActiveFileContext(editor, canaryState);
+  } finally {
+    canaryPreflightInFlight = false;
+  }
+}
+
+/**
+ * Schedules one debounced async canary-backed preflight refresh.
+ *
+ * @returns {void}
+ */
+function scheduleCanaryPreflightRefresh() {
+  if (canaryPreflightTimer) {
+    clearTimeout(canaryPreflightTimer);
+  }
+
+  canaryPreflightTimer = setTimeout(() => {
+    canaryPreflightTimer = null;
+
+    if (canaryPreflightInFlight) {
+      return;
+    }
+
+    void runCanaryPreflightRefresh(vscode.window.activeTextEditor);
+  }, CANARY_PRECHECK_DEBOUNCE_MS);
 }
 
 /**
@@ -206,6 +258,7 @@ function getCachedPreflightState() {
 async function refreshPreflightAndContext(editor) {
   const nextPreflightState = setCachedPreflightState(resolvePreflightState());
   await updateRunActiveFileContext(editor, nextPreflightState);
+  scheduleCanaryPreflightRefresh();
 }
 
 /**
@@ -413,7 +466,9 @@ function buildStandardLibraryCommandAdapters(standardLibraryRegistration) {
  * @returns {Promise<void>}
  */
 async function activate(context) {
-  const activationState = resolveEligibilityState(getWorkspaceFolders());
+  const activationState = resolveEligibilityState(getWorkspaceFolders(), {
+    skipCanary: true,
+  });
   logEligibility("activation", activationState);
   setCachedPreflightState(activationState);
 
@@ -421,6 +476,7 @@ async function activate(context) {
     vscode.window.activeTextEditor,
     getCachedPreflightState()
   );
+  scheduleCanaryPreflightRefresh();
 
   const workspaceAlgorithmsRunViewRegistration =
     registerWorkspaceAlgorithmsRunView();
@@ -503,6 +559,11 @@ function deactivate() {
   if (documentPreflightTimer) {
     clearTimeout(documentPreflightTimer);
     documentPreflightTimer = null;
+  }
+
+  if (canaryPreflightTimer) {
+    clearTimeout(canaryPreflightTimer);
+    canaryPreflightTimer = null;
   }
 }
 

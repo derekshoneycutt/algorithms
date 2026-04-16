@@ -3,10 +3,13 @@ const fs = require("fs");
 const os = require("os");
 const path = require("path");
 const {
+  buildWebviewErrorHtmlDocument,
   escapeHtml,
   makeTemplateLoader,
+  renderWebviewHtmlWithFallback,
   renderSectionHeader,
   renderTemplate,
+  resolveSidebarWebviewView,
 } = require("../src/ui/webviewHostUtils");
 
 /**
@@ -126,6 +129,176 @@ function testMakeTemplateLoaderThrowsForMissingTemplate() {
 }
 
 /**
+ * Verifies webview render helper writes HTML and reports success.
+ *
+ * @returns {void}
+ */
+function testRenderWebviewHtmlWithFallbackSuccess() {
+  const mockWebview = {
+    html: "",
+  };
+  const didRender = renderWebviewHtmlWithFallback({
+    webview: mockWebview,
+    buildHtml: () => "<div>ok</div>",
+  });
+
+  assert.strictEqual(didRender, true);
+  assert.strictEqual(mockWebview.html, "<div>ok</div>");
+}
+
+/**
+ * Verifies webview render helper uses fallback when primary rendering fails.
+ *
+ * @returns {void}
+ */
+function testRenderWebviewHtmlWithFallbackError() {
+  const mockWebview = {
+    html: "",
+  };
+  const didRender = renderWebviewHtmlWithFallback({
+    webview: mockWebview,
+    buildHtml: () => {
+      throw new Error("render failed");
+    },
+    buildErrorHtml: (_webview, error) => {
+      return `<div>${String(error.message)}</div>`;
+    },
+  });
+
+  assert.strictEqual(didRender, false);
+  assert.strictEqual(mockWebview.html, "<div>render failed</div>");
+}
+
+/**
+ * Verifies shared resolve helper applies options, rendering, and lifecycle handlers.
+ *
+ * @returns {void}
+ */
+function testResolveSidebarWebviewView() {
+  let receivedMessage = null;
+  let disposedView = null;
+  let onDidReceiveMessageHandler = null;
+  let onDidDisposeHandler = null;
+  const expectedRoots = ["root-a", "root-b"];
+  const mockWebview = {
+    html: "",
+    options: {},
+    onDidReceiveMessage(handler) {
+      onDidReceiveMessageHandler = handler;
+    },
+  };
+  const mockWebviewView = {
+    webview: mockWebview,
+    onDidDispose(handler) {
+      onDidDisposeHandler = handler;
+    },
+  };
+
+  resolveSidebarWebviewView({
+    webviewView: mockWebviewView,
+    localResourceRoots: expectedRoots,
+    buildHtml: () => "<main>rendered</main>",
+    handleMessage: (message) => {
+      receivedMessage = message;
+    },
+    handleDispose: (view) => {
+      disposedView = view;
+    },
+  });
+
+  assert.strictEqual(mockWebview.html, "<main>rendered</main>");
+  assert.deepStrictEqual(mockWebview.options, {
+    enableScripts: true,
+    localResourceRoots: expectedRoots,
+  });
+  assert.strictEqual(typeof onDidReceiveMessageHandler, "function");
+  assert.strictEqual(typeof onDidDisposeHandler, "function");
+
+  onDidReceiveMessageHandler({ type: "message" });
+  onDidDisposeHandler();
+
+  assert.deepStrictEqual(receivedMessage, { type: "message" });
+  assert.strictEqual(disposedView, mockWebviewView);
+}
+
+/**
+ * Verifies shared resolve helper uses fallback HTML when primary render throws.
+ *
+ * @returns {void}
+ */
+function testResolveSidebarWebviewViewUsesFallbackHtml() {
+  let onDidReceiveMessageHandler = null;
+  let onDidDisposeHandler = null;
+  const mockWebview = {
+    html: "",
+    options: {},
+    onDidReceiveMessage(handler) {
+      onDidReceiveMessageHandler = handler;
+    },
+  };
+  const mockWebviewView = {
+    webview: mockWebview,
+    onDidDispose(handler) {
+      onDidDisposeHandler = handler;
+    },
+  };
+
+  resolveSidebarWebviewView({
+    webviewView: mockWebviewView,
+    localResourceRoots: [],
+    buildHtml: () => {
+      throw new Error("primary render failed");
+    },
+    buildErrorHtml: (_webview, error) => {
+      return `<main>${String(error.message)}</main>`;
+    },
+  });
+
+  assert.strictEqual(mockWebview.html, "<main>primary render failed</main>");
+  assert.strictEqual(typeof onDidReceiveMessageHandler, "function");
+  assert.strictEqual(typeof onDidDisposeHandler, "function");
+}
+
+/**
+ * Verifies render helper rethrows when no fallback renderer is supplied.
+ *
+ * @returns {void}
+ */
+function testRenderWebviewHtmlWithFallbackThrowsWithoutFallback() {
+  const mockWebview = {
+    html: "",
+  };
+
+  assert.throws(() => {
+    renderWebviewHtmlWithFallback({
+      webview: mockWebview,
+      buildHtml: () => {
+        throw new Error("no fallback configured");
+      },
+    });
+  }, /no fallback configured/);
+}
+
+/**
+ * Verifies shared error document builder avoids inline styles and escapes text.
+ *
+ * @returns {void}
+ */
+function testBuildWebviewErrorHtmlDocument() {
+  const html = buildWebviewErrorHtmlDocument(
+    {
+      cspSource: "vscode-resource:",
+    },
+    'bad <message> & "quotes"'
+  );
+
+  assert.ok(html.includes("style-src vscode-resource:"));
+  assert.ok(html.includes("&lt;message&gt;"));
+  assert.ok(html.includes("&amp;"));
+  assert.ok(!html.includes("<style>"));
+}
+
+/**
  * Runs all webviewHostUtils tests.
  *
  * @returns {void}
@@ -136,6 +309,12 @@ function runTests() {
   testRenderSectionHeader();
   testMakeTemplateLoaderCachesText();
   testMakeTemplateLoaderThrowsForMissingTemplate();
+  testRenderWebviewHtmlWithFallbackSuccess();
+  testRenderWebviewHtmlWithFallbackError();
+  testRenderWebviewHtmlWithFallbackThrowsWithoutFallback();
+  testResolveSidebarWebviewView();
+  testResolveSidebarWebviewViewUsesFallbackHtml();
+  testBuildWebviewErrorHtmlDocument();
 }
 
 // Public test entrypoint for the shared test runner.

@@ -9,10 +9,13 @@ const {
   resolveEligibilityState,
 } = require("../runtime/pathResolver");
 const {
+  buildWebviewErrorHtmlDocument,
   makeTemplateLoader,
   readTextFileSafe,
   renderSectionHeader,
   renderTemplate,
+  renderWebviewHtmlWithFallback,
+  resolveSidebarWebviewView,
   serializeForScript,
 } = require("./webviewHostUtils");
 const {
@@ -710,46 +713,7 @@ function buildEnvironmentHtml(webview, provider) {
  * @returns {string} Error HTML.
  */
 function buildEnvironmentErrorHtml(webview, errorMessage) {
-  const cspSource = webview.cspSource;
-  const escapedMessage = String(errorMessage || "")
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/\"/g, "&quot;")
-    .replace(/'/g, "&#39;");
-
-  return `<!DOCTYPE html>
-<html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <meta
-      http-equiv="Content-Security-Policy"
-      content="default-src 'none'; base-uri 'none'; object-src 'none'; frame-ancestors 'none'; style-src ${cspSource};"
-    />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <style>
-      body {
-        margin: 0;
-        padding: 10px;
-        font-family: var(--vscode-font-family);
-        font-size: 12px;
-        color: var(--vscode-errorForeground);
-        background: var(--vscode-sideBar-background);
-      }
-
-      .errorBox {
-        border: 1px solid var(--vscode-errorForeground);
-        border-radius: 6px;
-        padding: 8px;
-        line-height: 1.4;
-        white-space: pre-wrap;
-      }
-    </style>
-  </head>
-  <body>
-    <div class="errorBox">${escapedMessage}</div>
-  </body>
-</html>`;
+  return buildWebviewErrorHtmlDocument(webview, errorMessage);
 }
 
 /**
@@ -1290,35 +1254,31 @@ class EnvironmentInitViewProvider {
    */
   resolveWebviewView(webviewView) {
     this._view = webviewView;
-    webviewView.webview.options = {
-      enableScripts: true,
+    resolveSidebarWebviewView({
+      webviewView,
       localResourceRoots: [
         this._languageIconBaseUri,
         this._iconRootUri,
         this._mediaBaseUri,
         this._templateBaseUri,
       ],
-    };
-    try {
-      webviewView.webview.html = buildEnvironmentHtml(webviewView.webview, this);
-    } catch (error) {
-      const failureText = String(
-        error?.message || "Environment pane failed to load templates."
-      );
-      webviewView.webview.html = buildEnvironmentErrorHtml(
-        webviewView.webview,
-        failureText
-      );
-    }
-
-    webviewView.webview.onDidReceiveMessage((message) => {
-      this.handleMessage(message);
-    });
-
-    webviewView.onDidDispose(() => {
-      if (this._view === webviewView) {
-        this._view = null;
-      }
+      buildHtml: (webview) => {
+        return buildEnvironmentHtml(webview, this);
+      },
+      buildErrorHtml: (webview, error) => {
+        const failureText = String(
+          error?.message || "Environment pane failed to load templates."
+        );
+        return buildEnvironmentErrorHtml(webview, failureText);
+      },
+      handleMessage: (message) => {
+        this.handleMessage(message);
+      },
+      handleDispose: (disposedWebviewView) => {
+        if (this._view === disposedWebviewView) {
+          this._view = null;
+        }
+      },
     });
   }
 
@@ -1332,17 +1292,18 @@ class EnvironmentInitViewProvider {
       return;
     }
 
-    try {
-      this._view.webview.html = buildEnvironmentHtml(this._view.webview, this);
-    } catch (error) {
-      const failureText = String(
-        error?.message || "Environment pane failed to refresh templates."
-      );
-      this._view.webview.html = buildEnvironmentErrorHtml(
-        this._view.webview,
-        failureText
-      );
-    }
+    renderWebviewHtmlWithFallback({
+      webview: this._view.webview,
+      buildHtml: (webview) => {
+        return buildEnvironmentHtml(webview, this);
+      },
+      buildErrorHtml: (webview, error) => {
+        const failureText = String(
+          error?.message || "Environment pane failed to refresh templates."
+        );
+        return buildEnvironmentErrorHtml(webview, failureText);
+      },
+    });
   }
 }
 

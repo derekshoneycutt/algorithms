@@ -1,16 +1,85 @@
 const vscodeApi = acquireVsCodeApi();
 const initialStateNode = document.getElementById("smokeControlsInitialState");
-const smokeMarkdownEnabled = document.getElementById("smokeMarkdownEnabled");
-const smokeMarkdownPath = document.getElementById("smokeMarkdownPath");
-const smokeTimeout = document.getElementById("smokeTimeout");
-const smokeSlowTimeout = document.getElementById("smokeSlowTimeout");
-const smokeSelectAll = document.getElementById("smokeSelectAll");
-const smokeDeselectAll = document.getElementById("smokeDeselectAll");
-const reportGenerationStatus = document.getElementById("reportGenerationStatus");
-const smokeStatus = document.getElementById("smokeStatus");
-const smokeLanguageCheckboxes = Array.from(document.querySelectorAll("input[data-smoke-lang]"));
+const REQUIRED_NODE_IDS = [
+  "smokeMarkdownEnabled",
+  "smokeMarkdownPath",
+  "smokeTimeout",
+  "smokeSlowTimeout",
+  "smokeSelectAll",
+  "smokeDeselectAll",
+  "reportGenerationStatus",
+  "smokeStatus",
+];
 const statusClasses = ["status-muted", "status-ok", "status-error"];
 let initialState = {};
+
+/**
+ * Returns required nodes keyed by id or throws with actionable diagnostics.
+ *
+ * @returns {Record<string, HTMLElement>} Required nodes.
+ */
+function getRequiredNodes() {
+  const nodes = {};
+  const missingNodeIds = [];
+
+  for (const nodeId of REQUIRED_NODE_IDS) {
+    const element = document.getElementById(nodeId);
+
+    if (!element) {
+      missingNodeIds.push(nodeId);
+      continue;
+    }
+
+    nodes[nodeId] = element;
+  }
+
+  if (missingNodeIds.length > 0) {
+    throw new Error(
+      "Smoke Controls webview missing required nodes: "
+        + missingNodeIds.join(", ")
+    );
+  }
+
+  return nodes;
+}
+
+/**
+ * Replaces the document body with a clear startup failure message.
+ *
+ * @param {string} message Startup failure details.
+ * @returns {void}
+ */
+function showStartupFailure(message) {
+  document.body.innerHTML =
+    '<div style="margin:0;padding:10px;font-family:var(--vscode-font-family);font-size:12px;color:var(--vscode-errorForeground);background:var(--vscode-sideBar-background);white-space:pre-wrap;border:1px solid var(--vscode-errorForeground);border-radius:6px;line-height:1.4;">'
+    + String(message || "Smoke Controls failed to initialize.")
+    + "</div>";
+}
+
+let requiredNodes = null;
+
+try {
+  requiredNodes = getRequiredNodes();
+} catch (error) {
+  const failureText = String(
+    error?.message || "Smoke Controls failed required-node bootstrap."
+  );
+  console.error(`[algorithms-runner] ${failureText}`);
+  showStartupFailure(failureText);
+  throw error;
+}
+
+const smokeMarkdownEnabled = requiredNodes.smokeMarkdownEnabled;
+const smokeMarkdownPath = requiredNodes.smokeMarkdownPath;
+const smokeTimeout = requiredNodes.smokeTimeout;
+const smokeSlowTimeout = requiredNodes.smokeSlowTimeout;
+const smokeSelectAll = requiredNodes.smokeSelectAll;
+const smokeDeselectAll = requiredNodes.smokeDeselectAll;
+const reportGenerationStatus = requiredNodes.reportGenerationStatus;
+const smokeStatus = requiredNodes.smokeStatus;
+const smokeLanguageCheckboxes = Array.from(
+  document.querySelectorAll("input[data-smoke-lang]")
+);
 
 if (initialStateNode) {
   try {

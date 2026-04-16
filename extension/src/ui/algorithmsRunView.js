@@ -13,6 +13,10 @@ const {
   getSupportedLanguageKeys,
   normalizeExtensionToLanguageKey,
 } = require("../runtime/languageMetadata");
+const {
+  applyRemainingSmokeStatus,
+  buildSmokeStatusSummary,
+} = require("../runtime/smokeStatusState");
 
 const LANGUAGE_ICON_DIRECTORY_SEGMENT = ".algos-language-icons";
 const LANGUAGE_PRESENT_URI_FRAGMENT = "algos-language-present";
@@ -23,6 +27,7 @@ const SMOKE_QUEUED_URI_FRAGMENT = "algos-smoke-queued";
 const SMOKE_RUNNING_URI_FRAGMENT = "algos-smoke-running";
 const SMOKE_PASSED_URI_FRAGMENT = "algos-smoke-passed";
 const SMOKE_FAILED_URI_FRAGMENT = "algos-smoke-failed";
+const SMOKE_STOPPED_URI_FRAGMENT = "algos-smoke-stopped";
 const SMOKE_TEST_OUTPUT_CHANNEL_NAME = "Algorithms Smoke Test";
 
 const SMOKE_STATUS_LABELS = {
@@ -30,6 +35,7 @@ const SMOKE_STATUS_LABELS = {
   running: "Running",
   passed: "Passed",
   failed: "Failed",
+  stopped: "Stopped",
 };
 
 /**
@@ -1551,7 +1557,7 @@ function parseSmokeStatusLine(line) {
 /**
  * Returns the URI fragment used for one smoke status.
  *
- * @param {"queued"|"running"|"passed"|"failed"|null|undefined} smokeStatus Smoke status value.
+ * @param {"queued"|"running"|"passed"|"failed"|"stopped"|null|undefined} smokeStatus Smoke status value.
  * @returns {string|null} Decoration fragment.
  */
 function getSmokeStatusFragment(smokeStatus) {
@@ -1571,13 +1577,17 @@ function getSmokeStatusFragment(smokeStatus) {
     return SMOKE_FAILED_URI_FRAGMENT;
   }
 
+  if (smokeStatus === "stopped") {
+    return SMOKE_STOPPED_URI_FRAGMENT;
+  }
+
   return null;
 }
 
 /**
  * Returns the user-facing label for one smoke status.
  *
- * @param {"queued"|"running"|"passed"|"failed"|null|undefined} smokeStatus Smoke status value.
+ * @param {"queued"|"running"|"passed"|"failed"|"stopped"|null|undefined} smokeStatus Smoke status value.
  * @returns {string} User-facing status label.
  */
 function getSmokeStatusLabel(smokeStatus) {
@@ -1779,7 +1789,7 @@ class WorkspaceStatusTreeDataProvider {
    *
    * @param {string} algorithmPath Algorithm directory path.
    * @param {string} languageKey Canonical language key.
-   * @param {"queued"|"running"|"passed"|"failed"} smokeStatus Smoke status value.
+  * @param {"queued"|"running"|"passed"|"failed"|"stopped"} smokeStatus Smoke status value.
    * @returns {void}
    */
   setSmokeLanguageStatus(algorithmPath, languageKey, smokeStatus) {
@@ -1819,20 +1829,27 @@ class WorkspaceStatusTreeDataProvider {
       return;
     }
 
-    for (const [languageKey, entry] of smokeState.entries()) {
-      if (entry.locked) {
-        continue;
-      }
+    if (applyRemainingSmokeStatus(smokeState, "failed")) {
+      this.refresh();
+    }
+  }
 
-      if (entry.status === "queued" || entry.status === "running") {
-        smokeState.set(languageKey, {
-          status: "failed",
-          locked: false,
-        });
-      }
+  /**
+   * Marks queued or running smoke entries as stopped after manual cancellation.
+   *
+   * @param {string} algorithmPath Algorithm directory path.
+   * @returns {void}
+   */
+  markRemainingSmokeStatusesStopped(algorithmPath) {
+    const smokeState = this._smokeStateByAlgorithmPath.get(algorithmPath);
+
+    if (!smokeState) {
+      return;
     }
 
-    this.refresh();
+    if (applyRemainingSmokeStatus(smokeState, "stopped")) {
+      this.refresh();
+    }
   }
 
   /**
@@ -1840,7 +1857,7 @@ class WorkspaceStatusTreeDataProvider {
    *
    * @param {string|null|undefined} algorithmPath Algorithm directory path.
    * @param {string|null|undefined} languageKey Canonical language key.
-   * @returns {{status: "queued"|"running"|"passed"|"failed", locked: boolean}|null} Smoke-state entry.
+  * @returns {{status: "queued"|"running"|"passed"|"failed"|"stopped", locked: boolean}|null} Smoke-state entry.
    */
   getSmokeLanguageState(algorithmPath, languageKey) {
     if (!algorithmPath || !languageKey) {
@@ -1860,7 +1877,7 @@ class WorkspaceStatusTreeDataProvider {
    * Returns the smoke status currently applied to one tree element.
    *
    * @param {{algorithmPath?: string, languageKey?: string, isDirectory?: boolean}|undefined} element Tree element.
-   * @returns {"queued"|"running"|"passed"|"failed"|null} Smoke status for the element.
+  * @returns {"queued"|"running"|"passed"|"failed"|"stopped"|null} Smoke status for the element.
    */
   getSmokeStatusForElement(element) {
     if (!element || element.isDirectory) {
@@ -1923,26 +1940,12 @@ class WorkspaceStatusTreeDataProvider {
    * Returns a smoke status summary for one algorithm directory.
    *
    * @param {string} algorithmPath Algorithm directory path.
-   * @returns {{queued: number, running: number, passed: number, failed: number}} Smoke-status counts.
+   * @returns {{queued: number, running: number, passed: number, failed: number, stopped: number}} Smoke-status counts.
    */
   getSmokeStatusSummary(algorithmPath) {
-    const summary = {
-      queued: 0,
-      running: 0,
-      passed: 0,
-      failed: 0,
-    };
     const smokeState = this._smokeStateByAlgorithmPath.get(algorithmPath);
 
-    if (!smokeState) {
-      return summary;
-    }
-
-    for (const entry of smokeState.values()) {
-      summary[entry.status] += 1;
-    }
-
-    return summary;
+    return buildSmokeStatusSummary(smokeState);
   }
 
   /**
@@ -2216,6 +2219,7 @@ function registerWorkspaceAlgorithmsRunView() {
   );
   const smokeProcessByAlgorithmPath = new Map();
   const smokeRunTokenByAlgorithmPath = new Map();
+  const stoppedSmokeRunTokenByAlgorithmPath = new Map();
   const languageStatusDecorationProvider = {
     provideFileDecoration(uri) {
       if (
@@ -2227,6 +2231,7 @@ function registerWorkspaceAlgorithmsRunView() {
         && uri.fragment !== SMOKE_RUNNING_URI_FRAGMENT
         && uri.fragment !== SMOKE_PASSED_URI_FRAGMENT
         && uri.fragment !== SMOKE_FAILED_URI_FRAGMENT
+        && uri.fragment !== SMOKE_STOPPED_URI_FRAGMENT
       ) {
         return undefined;
       }
@@ -2260,6 +2265,14 @@ function registerWorkspaceAlgorithmsRunView() {
           badge: "✕",
           color: new vscode.ThemeColor("testing.iconFailed"),
           tooltip: "Smoke test failed",
+        };
+      }
+
+      if (uri.fragment === SMOKE_STOPPED_URI_FRAGMENT) {
+        return {
+          badge: "!",
+          color: new vscode.ThemeColor("testing.iconQueued"),
+          tooltip: "Smoke test stopped",
         };
       }
 
@@ -2327,11 +2340,32 @@ function registerWorkspaceAlgorithmsRunView() {
    * @param {string} algorithmPath Algorithm directory path.
    * @returns {void}
    */
-  function stopActiveSmokeProcess(algorithmPath) {
+  function stopActiveSmokeProcess(
+    algorithmPath,
+    options = {
+      markStopped: false,
+      invalidateRunToken: true,
+    }
+  ) {
     const activeProcess = smokeProcessByAlgorithmPath.get(algorithmPath);
 
     if (!activeProcess) {
-      return;
+      return false;
+    }
+
+    const markStopped = options.markStopped === true;
+    const invalidateRunToken = options.invalidateRunToken !== false;
+    const activeRunToken = smokeRunTokenByAlgorithmPath.get(algorithmPath) || 0;
+
+    if (markStopped) {
+      stoppedSmokeRunTokenByAlgorithmPath.set(algorithmPath, activeRunToken);
+      provider.markRemainingSmokeStatusesStopped(algorithmPath);
+    } else {
+      stoppedSmokeRunTokenByAlgorithmPath.delete(algorithmPath);
+    }
+
+    if (invalidateRunToken) {
+      smokeRunTokenByAlgorithmPath.set(algorithmPath, activeRunToken + 1);
     }
 
     smokeProcessByAlgorithmPath.delete(algorithmPath);
@@ -2342,6 +2376,19 @@ function registerWorkspaceAlgorithmsRunView() {
     } catch (_) {
       // Ignore process termination errors during replacement/disposal.
     }
+
+    return true;
+  }
+
+  /**
+   * Returns whether one smoke-test callback belongs to a manually stopped run.
+   *
+   * @param {string} algorithmPath Algorithm directory path.
+   * @param {number} runToken Smoke run token.
+   * @returns {boolean} True when the callback belongs to a stopped run token.
+   */
+  function isStoppedSmokeRun(algorithmPath, runToken) {
+    return stoppedSmokeRunTokenByAlgorithmPath.get(algorithmPath) === runToken;
   }
 
   /**
@@ -2491,6 +2538,7 @@ function registerWorkspaceAlgorithmsRunView() {
     }
 
     stopActiveSmokeProcess(algorithmPath);
+    stoppedSmokeRunTokenByAlgorithmPath.delete(algorithmPath);
 
     const runToken = (smokeRunTokenByAlgorithmPath.get(algorithmPath) || 0) + 1;
     smokeRunTokenByAlgorithmPath.set(algorithmPath, runToken);
@@ -2564,6 +2612,11 @@ function registerWorkspaceAlgorithmsRunView() {
     });
 
     smokeProcess.on("error", (error) => {
+      if (isStoppedSmokeRun(algorithmPath, runToken)) {
+        stoppedSmokeRunTokenByAlgorithmPath.delete(algorithmPath);
+        return;
+      }
+
       if (!isCurrentSmokeRun(algorithmPath, runToken)) {
         return;
       }
@@ -2578,6 +2631,11 @@ function registerWorkspaceAlgorithmsRunView() {
     });
 
     smokeProcess.on("close", (code, signal) => {
+      if (isStoppedSmokeRun(algorithmPath, runToken)) {
+        stoppedSmokeRunTokenByAlgorithmPath.delete(algorithmPath);
+        return;
+      }
+
       if (!isCurrentSmokeRun(algorithmPath, runToken)) {
         return;
       }
@@ -2587,7 +2645,7 @@ function registerWorkspaceAlgorithmsRunView() {
       provider.markRemainingSmokeStatusesFailed(algorithmPath);
 
       const summary = provider.getSmokeStatusSummary(algorithmPath);
-      const summaryLine = `Smoke summary for ${path.basename(algorithmPath)}: queued=${summary.queued} running=${summary.running} passed=${summary.passed} failed=${summary.failed}`;
+      const summaryLine = `Smoke summary for ${path.basename(algorithmPath)}: queued=${summary.queued} running=${summary.running} passed=${summary.passed} failed=${summary.failed} stopped=${summary.stopped}`;
 
       if (signal) {
         smokeOutputChannel.appendLine(`Smoke process terminated by signal: ${signal}`);
@@ -2663,7 +2721,10 @@ function registerWorkspaceAlgorithmsRunView() {
       };
     }
 
-    stopActiveSmokeProcess(algorithmPath);
+    stopActiveSmokeProcess(algorithmPath, {
+      markStopped: true,
+      invalidateRunToken: true,
+    });
     vscodeApi.window.showInformationMessage(
       `Stop requested for smoke test: ${path.basename(algorithmPath)}.`
     );
