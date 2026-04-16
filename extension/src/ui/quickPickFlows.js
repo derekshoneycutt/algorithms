@@ -1,4 +1,4 @@
-// Run actions shown by FEAT-207 launcher quick-pick.
+// Run actions shown by launcher quick-pick.
 const RUN_MENU_ITEMS = [
   {
     commandId: "algos.runActiveFile",

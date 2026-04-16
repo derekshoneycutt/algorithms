@@ -159,8 +159,8 @@ function getOwnedTerminal(options) {
 /**
  * Starts a run invocation in the extension-owned terminal.
  *
- * Input `build` should come from FEAT-204 argumentBuilder and preserve FEAT-203
- * canonical path artifacts.
+ * Input `build` should come from argumentBuilder
+ * and preserve canonical path artifacts.
  *
  * @param {{build: {ok: boolean, reason: string|null, commandParts: string[]|null, displayCommand: string|null, cwd: string|null, commandFamily: string|null}, reuseTerminal?: boolean, vscodeApi?: object, logger?: (message: string) => void, now?: () => number}} options Runner options.
  * @returns {RunLifecycleResult} Lifecycle result with `started` or `blocked` state.

@@ -1,14 +1,14 @@
-// Non-Play launcher menu actions for FEAT-207 quick-pick flow.
+// Non-Play launcher menu actions for quick-pick flow.
 const { RUN_MENU_ITEMS } = require("../ui/quickPickFlows");
 
 /**
- * Builds a placeholder message for non-Play commands pending FEAT-208+.
+ * Builds a placeholder message for non-Play commands.
  *
  * @param {string} commandId Command identifier.
  * @returns {string} User-facing placeholder guidance.
  */
 function buildNotImplementedMessage(commandId) {
-  return `${commandId} is not implemented yet. Planned in FEAT-208 through FEAT-211.`;
+  return `${commandId} is not implemented yet.`;
 }
 
 /**

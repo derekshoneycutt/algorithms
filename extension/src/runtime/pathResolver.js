@@ -393,7 +393,7 @@ function summarizeEligibilityState(state) {
   ].join(" ");
 }
 
-// FEAT-203 path and CWD resolution helpers.
+// Path and CWD resolution helpers.
 
 /**
  * Result returned by resolveActiveFileCwd.
@@ -444,12 +444,12 @@ function deriveDisplayScriptPath(algorithmDirCwd, absoluteRunScriptPath) {
  *
  * Validates that the file is an immediate child under `src/<category>/<algorithm>/`
  * and returns the resolved CWD, internal absolute script path, and display script path.
- * The caller must supply the resolved repository root from FEAT-202 eligibility state;
+ * The caller must supply the resolved repository root from eligibility state;
  * this function does not re-run eligibility resolution.
  * `Path Policy: Internal Absolute, Display Relative With Safe Fallback`
  *
  * @param {string} absoluteFilePath Absolute path to the active source file.
- * @param {string} resolvedRepoRoot Canonical absolute repository root from FEAT-202 eligibility state.
+ * @param {string} resolvedRepoRoot Canonical absolute repository root from eligibility state.
  * @returns {ActiveFileCwdResult} Resolution result.
  */
 function resolveActiveFileCwd(absoluteFilePath, resolvedRepoRoot) {
@@ -484,12 +484,12 @@ function resolveActiveFileCwd(absoluteFilePath, resolvedRepoRoot) {
  * Accepts an algorithm-directory selection, an immediate-child file selection, or
  * an immediate-child directory selection and normalizes all three to one canonical
  * algorithm-directory CWD. Rejects deeper descendants and paths outside `src/`.
- * The caller must supply the resolved repository root from FEAT-202 eligibility state;
+ * The caller must supply the resolved repository root from eligibility state;
  * this function does not re-run eligibility resolution.
  * `Path Policy: Internal Absolute, Display Relative With Safe Fallback`
  *
  * @param {string} selectedPath Absolute path of the Explorer-selected item.
- * @param {string} resolvedRepoRoot Canonical absolute repository root from FEAT-202 eligibility state.
+ * @param {string} resolvedRepoRoot Canonical absolute repository root from eligibility state.
  * @returns {ExplorerTargetCwdResult} Resolution result.
  */
 function resolveExplorerTargetCwd(selectedPath, resolvedRepoRoot) {

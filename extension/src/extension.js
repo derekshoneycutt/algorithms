@@ -14,7 +14,7 @@ const {
   showNotificationBySeverity,
   buildEligibilityPreflightMessage,
 } = require("./ui/notifications");
-// Primary FEAT-205 command handler implementation.
+// Primary command handler implementation.
 const {
   runActiveFileHandler,
   runFileHandler,
@@ -33,11 +33,11 @@ const {
   runLanguageCheckOnlySshHandler,
   resolveActiveFileRunContext,
 } = require("./commands/fileCommands");
-// FEAT-207 centralized command registration.
+// Centralized command registration.
 const { registerCommands } = require("./commands/registerCommands");
-// FEAT-207 launcher quick-pick flow.
+// Launcher quick-pick flow.
 const { openRunMenuFlow } = require("./ui/quickPickFlows");
-// FEAT-212 workspace status sidebar registration.
+// Workspace status sidebar registration.
 const {
   registerWorkspaceAlgorithmsRunView,
 } = require("./ui/workspaceAlgorithmsRunView");
@@ -95,7 +95,7 @@ function resolvePreflightState() {
 }
 
 /**
- * Wraps command handlers with FEAT-202 eligibility preflight behavior.
+ * Wraps command handlers with eligibility preflight behavior.
  *
  * @param {(eligibilityState: object, ...args: unknown[]) => Promise<unknown>} handler Guarded command handler.
  * @returns {(...args: unknown[]) => Promise<void>} Wrapped command callback.
@@ -394,7 +394,7 @@ function buildStandardLibraryCommandAdapters(standardLibraryRegistration) {
 }
 
 /**
- * Activates the extension and registers FEAT-202 guarded command behavior.
+ * Activates the extension and registers guarded command behavior.
  *
  * @param {import('vscode').ExtensionContext} context VS Code extension context.
  * @returns {Promise<void>}

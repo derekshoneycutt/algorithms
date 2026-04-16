@@ -601,7 +601,7 @@ function resolveCleanContextFromExplorer(targetPath, eligibilityState) {
 }
 
 /**
- * Executes run flow for one resolved file path after FEAT-202 preflight.
+ * Executes run flow for one resolved file path after preflight.
  *
  * @param {import("vscode")} vscodeApi VS Code API object.
  * @param {{selected?: {resolvedRoot?: string, scriptPath?: string}}|null|undefined} eligibilityState Eligible workspace state.

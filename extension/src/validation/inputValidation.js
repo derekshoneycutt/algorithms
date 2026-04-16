@@ -292,7 +292,7 @@ function validateSupportedLanguage(editor, eligibilityState, filePath) {
     ok: false,
     reason: "unsupported-language",
     guidance:
-      `Active editor language '${languageId}' is not supported for Run Active File in FEAT-205.`,
+      `Active editor language '${languageId}' is not supported for Run Active File.`,
     severity: "warning",
   };
 }
