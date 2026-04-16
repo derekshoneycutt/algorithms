@@ -786,6 +786,13 @@ function buildEnvironmentHtml(webview, provider) {
         gap: 10px;
       }
 
+      .panelDescription {
+        margin: 0;
+        color: var(--vscode-descriptionForeground);
+        font-size: 11px;
+        line-height: 1.3;
+      }
+
       .section {
         display: flex;
         flex-direction: column;
@@ -801,6 +808,20 @@ function buildEnvironmentHtml(webview, provider) {
         align-items: center;
         justify-content: space-between;
         gap: 8px;
+      }
+
+      .sectionTitleGroup {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        min-width: 0;
+      }
+
+      .sectionIcon {
+        width: 13px;
+        height: 13px;
+        flex: 0 0 auto;
+        color: var(--vscode-foreground);
       }
 
       .sectionTitle {
@@ -904,6 +925,18 @@ function buildEnvironmentHtml(webview, provider) {
         background: var(--vscode-editor-background);
       }
 
+      .formatPre {
+        margin: 4px 0;
+        padding: 4px 8px;
+        background: var(--vscode-editor-background);
+        border: 1px solid var(--vscode-input-border);
+        border-radius: 3px;
+        font-size: 10px;
+        font-family: monospace;
+        white-space: pre;
+        display: block;
+      }
+
       .variableGrid {
         display: flex;
         flex-direction: column;
@@ -911,6 +944,12 @@ function buildEnvironmentHtml(webview, provider) {
       }
 
       .variableCard {
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+      }
+
+      .variableInputRow {
         display: grid;
         grid-template-columns: 1fr auto;
         gap: 6px;
@@ -918,7 +957,7 @@ function buildEnvironmentHtml(webview, provider) {
       }
 
       .variableCard .status {
-        grid-column: 1 / -1;
+        margin-top: -2px;
       }
 
       .routingTable {
@@ -1034,12 +1073,92 @@ function buildEnvironmentHtml(webview, provider) {
         return '<div class="status ' + escapeHtmlClient(resolvedKind) + '">' + escapeHtmlClient(resolvedText) + '</div>';
       }
 
+      /**
+       * Returns the inline SVG used for one Environment-pane section header.
+       *
+       * @param {string} iconName Semantic section icon key.
+       * @returns {string} Inline SVG markup.
+       */
+      function getSectionIconSvg(iconName) {
+        if (iconName === 'profile') {
+          return '<svg class="sectionIcon" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-hidden="true">'
+            + '<path d="M8 8C9.66 8 11 6.66 11 5C11 3.34 9.66 2 8 2C6.34 2 5 3.34 5 5C5 6.66 6.34 8 8 8Z" stroke="currentColor" stroke-width="1.1"/>'
+            + '<path d="M3 13C3.55 10.9 5.52 9.5 8 9.5C10.48 9.5 12.45 10.9 13 13" stroke="currentColor" stroke-width="1.1" stroke-linecap="round"/>'
+            + '</svg>';
+        }
+
+        if (iconName === 'check') {
+          return '<svg class="sectionIcon" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-hidden="true">'
+            + '<path d="M3 3.5C3 2.67 3.67 2 4.5 2H11.5C12.33 2 13 2.67 13 3.5V12.5C13 13.33 12.33 14 11.5 14H4.5C3.67 14 3 13.33 3 12.5V3.5Z" stroke="currentColor" stroke-width="1"/>'
+            + '<path d="M5 8L7 10L11 6" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"/>'
+            + '</svg>';
+        }
+
+        if (iconName === 'copy') {
+          return '<svg class="sectionIcon" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-hidden="true">'
+            + '<path d="M6 3H11.5C12.33 3 13 3.67 13 4.5V10" stroke="currentColor" stroke-width="1" stroke-linecap="round"/>'
+            + '<rect x="3" y="6" width="7" height="7" rx="1" stroke="currentColor" stroke-width="1"/>'
+            + '</svg>';
+        }
+
+        if (iconName === 'variables') {
+          return '<svg class="sectionIcon" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-hidden="true">'
+            + '<path d="M4 4.5H12" stroke="currentColor" stroke-width="1.1" stroke-linecap="round"/>'
+            + '<path d="M4 8H12" stroke="currentColor" stroke-width="1.1" stroke-linecap="round"/>'
+            + '<path d="M4 11.5H12" stroke="currentColor" stroke-width="1.1" stroke-linecap="round"/>'
+            + '<circle cx="6" cy="4.5" r="1.2" fill="currentColor"/>'
+            + '<circle cx="10" cy="8" r="1.2" fill="currentColor"/>'
+            + '<circle cx="7.5" cy="11.5" r="1.2" fill="currentColor"/>'
+            + '</svg>';
+        }
+
+        if (iconName === 'routing') {
+          return '<svg class="sectionIcon" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-hidden="true">'
+            + '<circle cx="4" cy="4" r="1.5" stroke="currentColor" stroke-width="1"/>'
+            + '<circle cx="12" cy="4" r="1.5" stroke="currentColor" stroke-width="1"/>'
+            + '<circle cx="8" cy="12" r="1.5" stroke="currentColor" stroke-width="1"/>'
+            + '<path d="M5.2 4.8L6.9 10.8" stroke="currentColor" stroke-width="1.1" stroke-linecap="round"/>'
+            + '<path d="M10.8 4.8L9.1 10.8" stroke="currentColor" stroke-width="1.1" stroke-linecap="round"/>'
+            + '<path d="M5.5 4H10.5" stroke="currentColor" stroke-width="1.1" stroke-linecap="round"/>'
+            + '</svg>';
+        }
+
+        if (iconName === 'batch') {
+          return '<svg class="sectionIcon" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-hidden="true">'
+            + '<rect x="3" y="3" width="7" height="7" rx="1" stroke="currentColor" stroke-width="1"/>'
+            + '<rect x="6" y="6" width="7" height="7" rx="1" stroke="currentColor" stroke-width="1"/>'
+            + '</svg>';
+        }
+
+        return '';
+      }
+
+      /**
+       * Renders one Environment-pane section header with an icon and optional actions.
+       *
+       * @param {string} title Section title.
+       * @param {string} iconName Semantic section icon key.
+       * @param {string} actionsHtml Optional action markup.
+       * @returns {string} Header markup.
+       */
+      function renderSectionHeader(title, iconName, actionsHtml) {
+        return '<div class="sectionHeader">'
+          + '<div class="sectionTitleGroup">'
+          + getSectionIconSvg(iconName)
+          + '<div class="sectionTitle">' + escapeHtmlClient(title) + '</div>'
+          + '</div>'
+          + (actionsHtml || '')
+          + '</div>';
+      }
+
       function buildVariableCardsHtml() {
         return state.variables.map((variable) => {
           return '<div class="variableCard">'
             + '<div class="fieldLabel">' + escapeHtmlClient(variable.label) + '</div>'
-            + '<button class="button" data-action="save-variable" data-variable-key="' + escapeHtmlClient(variable.key) + '">Save</button>'
+            + '<div class="variableInputRow">'
             + '<input class="input" data-variable-key="' + escapeHtmlClient(variable.key) + '" data-input-kind="variable" value="' + escapeHtmlClient(variable.value) + '" />'
+            + '<button class="button" data-action="save-variable" data-variable-key="' + escapeHtmlClient(variable.key) + '">Save</button>'
+            + '</div>'
             + renderStatus(variable.statusKind, variable.statusText)
             + '</div>';
         }).join("");
@@ -1089,40 +1208,39 @@ function buildEnvironmentHtml(webview, provider) {
       function render() {
         app.innerHTML = ''
           + '<div class="panel">'
+          + '<p class="panelDescription">Controls environment factors for the algorithms project via init.sh.</p>'
           + '<section class="section">'
-          + '<div class="sectionHeader">'
-          + '<div class="sectionTitle">Profile</div>'
-          + '<div class="buttonRow"><button class="button secondary" data-action="refresh-state">Refresh</button></div>'
-          + '</div>'
+          + renderSectionHeader('Profile', 'profile', '<div class="buttonRow"><button class="button secondary" data-action="refresh-state">Refresh</button></div>')
           + '<input id="profilePath" class="input" value="' + escapeHtmlClient(state.profilePath) + '" placeholder="' + escapeHtmlClient(state.profilePlaceholder) + '" />'
           + '<div class="effectiveProfile">Effective profile for reads: ' + escapeHtmlClient(state.effectiveProfilePath || state.profilePlaceholder) + '</div>'
           + '<div class="helperText">Leave blank to let init.sh use its platform default profile path.</div>'
           + '</section>'
           + '<section class="section">'
-          + '<div class="sectionHeader"><div class="sectionTitle">Check Environment</div><div class="buttonRow"><button class="button" data-action="check-env">Check Environment</button></div></div>'
+          + renderSectionHeader('Check Environment', 'check', '<div class="buttonRow"><button class="button" data-action="check-env">Check Environment</button></div>')
           + renderStatus(state.checkEnv.kind, state.checkEnv.text)
           + '<div class="outputBox">' + escapeHtmlClient(state.checkEnv.filteredOutput || 'No check-environment output yet.') + '</div>'
           + '<div class="rawOutput"><details><summary>Raw Output</summary><div class="outputBox">' + escapeHtmlClient(state.checkEnv.rawOutput || 'No raw output yet.') + '</div></details></div>'
           + '</section>'
           + '<section class="section">'
-          + '<div class="sectionHeader"><div class="sectionTitle">Copy Icons</div><div class="buttonRow"><button class="button" data-action="copy-icons">Copy Icons</button></div></div>'
+          + renderSectionHeader('Copy Icons', 'copy', '<div class="buttonRow"><button class="button" data-action="copy-icons">Copy Icons</button></div>')
           + '<input id="copyIconsPath" class="input" value="' + escapeHtmlClient(state.copyIconsPath) + '" placeholder="' + escapeHtmlClient(state.copyIconsPlaceholder) + '" />'
-          + '<div class="helperText">This action uses init.sh with profile updates skipped.</div>'
+          + '<div class="helperText">Skips profile updates.</div>'
           + renderStatus(state.copyIconsResult.kind, state.copyIconsResult.text)
           + '</section>'
           + '<section class="section">'
-          + '<div class="sectionHeader"><div class="sectionTitle">Core Environment Variables</div></div>'
+          + renderSectionHeader('Use Environment Variables', 'variables')
           + '<div class="variableGrid">' + buildVariableCardsHtml() + '</div>'
           + '</section>'
           + '<section class="section">'
-          + '<div class="sectionHeader"><div class="sectionTitle">Language Routing</div></div>'
+          + renderSectionHeader('Language Routing', 'routing')
+          + '<div class="helperText">Configure per-language docker or ssh execution targets. SSH route value must use one of two formats:<pre class="formatPre">ssh-destination|code-dir|run-script<br>ssh-address|ssh-user|ssh-port|code-dir|run-script</pre>Each language should have exactly one target configured (docker or ssh) or none.</div>'
           + '<div class="section">'
-          + '<div class="sectionTitle">Batch All</div>'
+          + renderSectionHeader('Batch All', 'batch')
           + '<label class="toggleRow"><input id="batchDockerEnabled" type="checkbox" ' + (state.batch.dockerEnabled ? 'checked' : '') + ' /><span class="checkboxText">Docker</span></label>'
           + '<input id="batchDockerValue" class="input" value="' + escapeHtmlClient(state.batch.dockerValue) + '" placeholder="Docker image" ' + (state.batch.dockerEnabled ? '' : 'disabled') + ' />'
           + '<label class="toggleRow"><input id="batchSshEnabled" type="checkbox" ' + (state.batch.sshEnabled ? 'checked' : '') + ' /><span class="checkboxText">SSH</span></label>'
           + '<input id="batchSshValue" class="input" value="' + escapeHtmlClient(state.batch.sshValue) + '" placeholder="SSH route" ' + (state.batch.sshEnabled ? '' : 'disabled') + ' />'
-          + '<div class="buttonRow"><button class="button" data-action="save-batch">Save/Apply</button></div>'
+          + '<div class="buttonRow"><button class="button" data-action="save-batch">Save</button></div>'
           + renderStatus(state.batch.statusKind, state.batch.statusText)
           + '</div>'
           + '<div class="routingTable">' + buildLanguageRowsHtml() + '</div>'
