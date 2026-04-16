@@ -2,6 +2,7 @@ const path = require('path');
 const webpack = require('webpack');
 const MiniCssExtractPlugin = require('mini-css-extract-plugin');
 const HtmlWebpackPlugin = require('html-webpack-plugin');
+const FaviconsWebpackPlugin = require('favicons-webpack-plugin');
 const pagesModule = require('./web/pages.js');
 const ALGORITHMS_PAGES =
     pagesModule.ALGORITHMS_PAGES
@@ -84,6 +85,27 @@ module.exports = {
     plugins: [
         new MiniCssExtractPlugin({
             filename: 'bundle.css'
+        }),
+
+        // Generate favicon assets once and inject head links across all generated pages.
+        new FaviconsWebpackPlugin({
+            logo: path.resolve(__dirname, 'web/favicon.svg'),
+            prefix: '',
+            publicPath: '',
+            inject: true,
+            favicons: {
+                appName: "Derek's Algorithms Project",
+                appDescription: 'A collection of algorithms implemented in various programming languages.',
+                icons: {
+                    android: false,
+                    appleIcon: false,
+                    appleStartup: false,
+                    coast: false,
+                    windows: false,
+                    yandex: false,
+                    favicons: true
+                }
+            }
         }),
 
         ...[ALGORITHMS_PAGES, ...ALGORITHMS_PAGES.writings].map(page =>

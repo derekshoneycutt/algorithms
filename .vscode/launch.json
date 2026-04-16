@@ -1,0 +1,20 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "Run Algorithms Extension",
+      "type": "extensionHost",
+      "request": "launch",
+      "runtimeExecutable": "${execPath}",
+      "args": [
+        "--user-data-dir=/tmp/algorithms-edh-user-data",
+        "--extensions-dir=/tmp/algorithms-edh-extensions",
+        "--disable-extensions",
+        "--extensionDevelopmentPath=${workspaceFolder}/extension"
+      ],
+      "outFiles": [
+        "${workspaceFolder}/extension/**/*.js"
+      ]
+    }
+  ]
+}

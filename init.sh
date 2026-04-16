@@ -29,6 +29,7 @@ copyIconsTo=~/.vscode/extensions/icons/
 updateEnvironment=1
 updateProfileOverridePath=
 buildDocker=0
+buildVscodeExtension=0
 checkOnly=0
 checkEnv=0
 useTimeout="-k 10s 2m"
@@ -123,6 +124,7 @@ print_usage_env_section() {
     echo "  --skip-environment     Disable profile environment updates"
     echo "  --update-profile=<f>   Read/write DEREKALGOS vars in this profile file"
     echo "  --build-docker         Build Dockerfile as linux/amd64 (default: off)"
+    echo "  --build-vscode-extension Build VS Code extension VSIX package (default: off)"
     echo "  --check-only           Dry-run mode; do not write files [default: off]"
     echo "  --check-env            Read-only environment diagnostics and map validation"
     echo ""
@@ -204,6 +206,7 @@ print_usage_short() {
     echo "  --check-env            Run read-only environment diagnostics and exit"
     echo "  --update-profile=<f>   Override which profile file gets updated"
     echo "  --build-docker         Build Dockerfile as linux/amd64"
+    echo "  --build-vscode-extension Build VS Code extension VSIX package"
     echo "  --set-use-only         Set only one following --use-* or run-on flag"
     echo "  --runondocker          Enter run-on-docker map mode"
     echo "  --runonssh             Enter run-on-ssh map mode"
@@ -696,6 +699,9 @@ for arg in "$@"; do
     --build-docker)
         buildDocker=1
         ;;
+    --build-vscode-extension)
+        buildVscodeExtension=1
+        ;;
     --check-only)
         checkOnly=1
         doPrompt=0
@@ -706,6 +712,7 @@ for arg in "$@"; do
         copyIcons=0
         updateEnvironment=0
         buildDocker=0
+        buildVscodeExtension=0
         ;;
     --runondocker-only|--runonssh-only)
         echo "$arg is no longer supported. Use --runondocker or --runonssh." >&2
@@ -1023,6 +1030,19 @@ if [ "$doPrompt" -eq 1 ]; then
         * ) ;;
     esac
     echo ""
+
+    YN_PROMPT="[y/N]"
+    if [ "$buildVscodeExtension" -eq 1 ]; then
+        YN_PROMPT="[Y/n]"
+    fi
+    printf "Do you wish to build VS Code extension package now? %s " "$YN_PROMPT"
+    yn=$(read_user_input)
+    case "$yn" in
+        [Yy]* ) buildVscodeExtension=1 ;;
+        [Nn]* ) buildVscodeExtension=0 ;;
+        * ) ;;
+    esac
+    echo ""
 fi
 
 if [ "$buildDocker" -eq 1 ]; then
@@ -1048,11 +1068,39 @@ if [ "$buildDocker" -eq 1 ]; then
     fi
 fi
 
+if [ "$buildVscodeExtension" -eq 1 ]; then
+    if [ "$checkOnly" -eq 1 ]; then
+        echo "CHECK: would install npm dependencies and build VS Code extension VSIX package"
+    else
+        if ! command -v npm > /dev/null 2>&1; then
+            echo "npm command not found; unable to build VS Code extension." >&2
+            exit "$exitSetupFailure"
+        fi
+
+        echo "Installing npm dependencies..."
+        npm install
+        npmInstallRet="$?"
+        if [ "$npmInstallRet" -ne 0 ]; then
+            echo "npm install failed with exit code $npmInstallRet" >&2
+            exit "$npmInstallRet"
+        fi
+
+        echo "Building VS Code extension package..."
+        npm run buildextension
+        npmRet="$?"
+        if [ "$npmRet" -ne 0 ]; then
+            echo "npm run buildextension failed with exit code $npmRet" >&2
+            exit "$npmRet"
+        fi
+    fi
+fi
+
 echo ""
 echo "==== INIT SUMMARY ===="
 echo "platform: $currentPlatform"
 echo "check-only: $checkOnly"
 echo "build-docker: $buildDocker"
+echo "build-vscode-extension: $buildVscodeExtension"
 echo "copy-icons: $copyIcons"
 echo "update-environment: $updateEnvironment"
 echo "timeout: $useTimeout"
