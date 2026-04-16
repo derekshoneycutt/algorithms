@@ -321,6 +321,40 @@ async function activate(context) {
     createLanguageFilePlaceholder: async (item) => {
       await workspaceAlgorithmsRunViewRegistration.openMissingLanguageFile(item);
     },
+    algorithmsCreateFolderAtSrcRoot: async (vscodeApi, eligibilityState) => {
+      await workspaceAlgorithmsRunViewRegistration.createFolderAtSrcRoot(
+        vscodeApi,
+        eligibilityState
+      );
+    },
+    algorithmsCreateFolder: async (vscodeApi, eligibilityState, item) => {
+      await workspaceAlgorithmsRunViewRegistration.createFolder(
+        vscodeApi,
+        eligibilityState,
+        item
+      );
+    },
+    algorithmsCreateFile: async (vscodeApi, eligibilityState, item) => {
+      await workspaceAlgorithmsRunViewRegistration.createFile(
+        vscodeApi,
+        eligibilityState,
+        item
+      );
+    },
+    algorithmsAddIncludeFile: async (vscodeApi, eligibilityState, item) => {
+      await workspaceAlgorithmsRunViewRegistration.addIncludeFile(
+        vscodeApi,
+        eligibilityState,
+        item
+      );
+    },
+    algorithmsDeleteItem: async (vscodeApi, eligibilityState, item) => {
+      await workspaceAlgorithmsRunViewRegistration.deleteItem(
+        vscodeApi,
+        eligibilityState,
+        item
+      );
+    },
     standardLibraryCreateFile: async (item) => {
       await standardLibraryViewRegistration.createFile(item);
     },

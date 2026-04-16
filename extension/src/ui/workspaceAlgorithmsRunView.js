@@ -249,6 +249,49 @@ function getPathPartsRelativeToSrc(fileSystemPath, resolvedRoot) {
 }
 
 /**
+ * Returns the canonical src root for one resolved repository root.
+ *
+ * @param {string|null} resolvedRoot Canonical repository root path.
+ * @returns {string|null} Canonical src root path when available.
+ */
+function resolveSrcRootPath(resolvedRoot) {
+  if (!resolvedRoot) {
+    return null;
+  }
+
+  const srcRootPath = path.join(realpathSafe(resolvedRoot), "src");
+
+  try {
+    if (fs.statSync(srcRootPath).isDirectory()) {
+      return realpathSafe(srcRootPath);
+    }
+  } catch (_) {
+    return null;
+  }
+
+  return null;
+}
+
+/**
+ * Checks whether one candidate path is inside a root directory.
+ *
+ * @param {string} rootPath Root directory path.
+ * @param {string} candidatePath Candidate path.
+ * @returns {boolean} True when candidate path is inside root.
+ */
+function isPathWithinRoot(rootPath, candidatePath) {
+  const canonicalRootPath = realpathSafe(rootPath);
+  const normalizedCandidatePath = path.resolve(candidatePath);
+  const relativePath = path.relative(canonicalRootPath, normalizedCandidatePath);
+
+  if (!relativePath || relativePath === ".") {
+    return true;
+  }
+
+  return !relativePath.startsWith("..") && !path.isAbsolute(relativePath);
+}
+
+/**
  * Checks whether a directory name represents a language include folder.
  *
  * @param {string} name Directory name.
@@ -256,6 +299,60 @@ function getPathPartsRelativeToSrc(fileSystemPath, resolvedRoot) {
  */
 function isLanguageIncludeDirectoryName(name) {
   return typeof name === "string" && name.endsWith("_include") && name.length > 8;
+}
+
+/**
+ * Returns whether a path is one first-layer category directory: src/<category>.
+ *
+ * @param {string|null} directoryPath Candidate absolute path.
+ * @param {string|null} resolvedRoot Canonical repository root path.
+ * @returns {boolean} True when path is a first-layer category directory.
+ */
+function isFirstLayerDirectoryPath(directoryPath, resolvedRoot) {
+  if (!directoryPath) {
+    return false;
+  }
+
+  const relativeParts = getPathPartsRelativeToSrc(directoryPath, resolvedRoot);
+  return Array.isArray(relativeParts) && relativeParts.length === 1;
+}
+
+/**
+ * Returns whether a directory path is an include folder: src/<category>/<algorithm>/<lang>_include.
+ *
+ * @param {string|null} directoryPath Candidate absolute path.
+ * @param {string|null} resolvedRoot Canonical repository root path.
+ * @returns {boolean} True when path is a language include directory.
+ */
+function isIncludeDirectoryPath(directoryPath, resolvedRoot) {
+  if (!directoryPath) {
+    return false;
+  }
+
+  const relativeParts = getPathPartsRelativeToSrc(directoryPath, resolvedRoot);
+
+  return Array.isArray(relativeParts)
+    && relativeParts.length === 3
+    && isLanguageIncludeDirectoryName(relativeParts[2]);
+}
+
+/**
+ * Returns whether a file path is an include child file.
+ *
+ * @param {string|null} filePath Candidate absolute path.
+ * @param {string|null} resolvedRoot Canonical repository root path.
+ * @returns {boolean} True when file path is under <lang>_include.
+ */
+function isIncludeChildFilePath(filePath, resolvedRoot) {
+  if (!filePath) {
+    return false;
+  }
+
+  const relativeParts = getPathPartsRelativeToSrc(filePath, resolvedRoot);
+
+  return Array.isArray(relativeParts)
+    && relativeParts.length === 4
+    && isLanguageIncludeDirectoryName(relativeParts[2]);
 }
 
 /**
@@ -487,6 +584,7 @@ function createSidebarTreeNode(
     algorithmPath: algorithmPath || null,
     languageKey: languageKey || null,
     hasIncludeChildren: Boolean(hasIncludeChildren),
+    isIncludeFileChild: false,
     isFlagged: Boolean(isFlagged),
     resourceUri:
       !entry.isDirectory() && isFlagged
@@ -516,6 +614,7 @@ function createIncludeFileTreeNode(filePath, algorithmPath, languageKey, isFlagg
     algorithmPath: algorithmPath || null,
     languageKey: languageKey || null,
     hasIncludeChildren: false,
+    isIncludeFileChild: true,
     isFlagged: Boolean(isFlagged),
     resourceUri: isFlagged
       ? baseResourceUri.with({ fragment: LANGUAGE_FLAGGED_URI_FRAGMENT })
@@ -1718,6 +1817,28 @@ class WorkspaceStatusTreeDataProvider {
   }
 
   /**
+   * Returns the context value for one non-language-summary directory row.
+   *
+   * @param {string|null|undefined} directoryPath Directory row path.
+   * @returns {string} Context value for view-item menu visibility.
+   */
+  getDirectoryContextValue(directoryPath) {
+    if (isAlgorithmDirectoryPath(directoryPath, this._resolvedRootPath)) {
+      return this.getAlgorithmDirectoryContextValue(directoryPath);
+    }
+
+    if (isFirstLayerDirectoryPath(directoryPath, this._resolvedRootPath)) {
+      return "algos.workspaceCategoryDirectory";
+    }
+
+    if (isIncludeDirectoryPath(directoryPath, this._resolvedRootPath)) {
+      return "algos.workspaceIncludeDirectory";
+    }
+
+    return "algos.workspaceDirectory";
+  }
+
+  /**
    * Updates the smoke status for one algorithm/language pair.
    *
    * @param {string} algorithmPath Algorithm directory path.
@@ -1966,9 +2087,9 @@ class WorkspaceStatusTreeDataProvider {
     treeItem.label = element.label;
     treeItem.resourceUri = resourceUri;
     treeItem.contextValue = element.isDirectory
-      ? isAlgorithmDirectoryPath(element.filePath, this._resolvedRootPath)
-        ? this.getAlgorithmDirectoryContextValue(element.filePath)
-        : "algos.workspaceDirectory"
+      ? this.getDirectoryContextValue(element.filePath)
+      : element.isIncludeFileChild || isIncludeChildFilePath(element.filePath, this._resolvedRootPath)
+      ? "algos.workspaceIncludeFile"
       : element.isRunnableFile
       ? element.isFlagged
         ? "algos.workspaceRunnableFileFlagged"
@@ -2728,6 +2849,531 @@ function registerWorkspaceAlgorithmsRunView() {
   void applySidebarFilterMode("all");
 
   /**
+   * Returns the canonical src root path used by Algorithms pane operations.
+   *
+   * @param {{selected?: {resolvedRoot?: string}|null|undefined}|undefined} eligibilityState Eligible workspace state.
+   * @returns {string|null} Canonical src root path when available.
+   */
+  function getCommandSrcRootPath(eligibilityState) {
+    const resolvedRoot = eligibilityState?.selected?.resolvedRoot || null;
+    return resolveSrcRootPath(resolvedRoot);
+  }
+
+  /**
+   * Returns whether one user-provided name is a valid immediate child name.
+   *
+   * @param {string} candidateName User-entered name.
+   * @returns {boolean} True when candidate name is one immediate child segment.
+   */
+  function isValidImmediateChildName(candidateName) {
+    const trimmedName = String(candidateName || "").trim();
+
+    if (!trimmedName || trimmedName === "." || trimmedName === "..") {
+      return false;
+    }
+
+    return !trimmedName.includes("/") && !trimmedName.includes("\\");
+  }
+
+  /**
+   * Returns whether one file-system path currently exists.
+   *
+   * @param {string} targetPath Candidate file-system path.
+   * @returns {boolean} True when path exists.
+   */
+  function pathExists(targetPath) {
+    try {
+      fs.lstatSync(targetPath);
+      return true;
+    } catch (_) {
+      return false;
+    }
+  }
+
+  /**
+   * Returns whether one existing file-system path is a directory.
+   *
+   * @param {string} targetPath Candidate file-system path.
+   * @returns {boolean} True when existing path is a directory.
+   */
+  function isDirectoryPath(targetPath) {
+    try {
+      return fs.lstatSync(targetPath).isDirectory();
+    } catch (_) {
+      return false;
+    }
+  }
+
+  /**
+   * Prompts for one immediate child name and validates slash-free input.
+   *
+   * @param {string} title Prompt title.
+   * @param {string} prompt Prompt description.
+   * @param {string} placeholder Placeholder example.
+   * @returns {Promise<string|undefined>} Valid name, or undefined when canceled/invalid.
+   */
+  async function promptImmediateChildName(title, prompt, placeholder) {
+    const value = await vscode.window.showInputBox({
+      title,
+      prompt,
+      placeHolder: placeholder,
+      ignoreFocusOut: true,
+      value: "",
+    });
+
+    if (typeof value !== "string") {
+      return undefined;
+    }
+
+    const trimmedValue = value.trim();
+
+    if (!isValidImmediateChildName(trimmedValue)) {
+      vscode.window.showWarningMessage(
+        "Use one immediate name only (no slashes, no empty value)."
+      );
+      return undefined;
+    }
+
+    return trimmedValue;
+  }
+
+  /**
+   * Shows unsupported-file warning and asks whether creation should continue.
+   *
+   * @param {string} targetPath Candidate file path.
+   * @returns {Promise<boolean>} True when creation should continue.
+   */
+  async function confirmUnsupportedFileCreation(targetPath) {
+    const fileName = path.basename(targetPath);
+    const selection = await vscode.window.showWarningMessage(
+      `"${fileName}" uses an unsupported extension and will be hidden in the Algorithms tree.`,
+      { modal: true },
+      "Create Anyway"
+    );
+
+    return selection === "Create Anyway";
+  }
+
+  /**
+   * Shows delete confirmation for one operation target label.
+   *
+   * @param {string} message Confirmation message.
+   * @returns {Promise<boolean>} True when deletion is confirmed.
+   */
+  async function confirmDeleteAction(message) {
+    const selection = await vscode.window.showWarningMessage(
+      message,
+      { modal: true },
+      "Delete"
+    );
+
+    return selection === "Delete";
+  }
+
+  /**
+   * Deletes one URI by trying OS trash first, then falling back to direct delete.
+   *
+   * @param {import("vscode").Uri} targetUri Target URI.
+   * @param {boolean} recursive Whether deletion should recurse.
+   * @returns {Promise<boolean>} True when target was moved to trash.
+   */
+  async function deleteWithTrashFallback(targetUri, recursive) {
+    try {
+      await vscode.workspace.fs.delete(targetUri, {
+        recursive,
+        useTrash: true,
+      });
+      return true;
+    } catch (_) {
+      await vscode.workspace.fs.delete(targetUri, {
+        recursive,
+        useTrash: false,
+      });
+      return false;
+    }
+  }
+
+  /**
+   * Creates a new folder directly under src root.
+   *
+   * @param {import("vscode")} vscodeApi VS Code API object.
+   * @param {{selected?: {resolvedRoot?: string}|null|undefined}|undefined} eligibilityState Eligible workspace state.
+   * @returns {Promise<{ok: boolean, status: string, reason: string|null}>} Handler execution summary.
+   */
+  async function createFolderAtSrcRoot(vscodeApi, eligibilityState) {
+    const srcRootPath = getCommandSrcRootPath(eligibilityState);
+
+    if (!srcRootPath) {
+      vscodeApi.window.showWarningMessage(
+        "Algorithms source root is unavailable for this workspace."
+      );
+      return { ok: false, status: "blocked", reason: "missing-src-root" };
+    }
+
+    const folderName = await promptImmediateChildName(
+      "Algorithms: New Folder",
+      "Enter a new folder name under src/.",
+      "example: numeric"
+    );
+
+    if (!folderName) {
+      return { ok: false, status: "cancelled", reason: "invalid-or-cancelled-name" };
+    }
+
+    const targetPath = path.join(srcRootPath, folderName);
+
+    if (pathExists(targetPath)) {
+      vscodeApi.window.showWarningMessage("A file or folder with that name already exists.");
+      return { ok: false, status: "blocked", reason: "target-exists" };
+    }
+
+    fs.mkdirSync(targetPath, { recursive: false });
+    provider.refresh();
+    vscodeApi.window.showInformationMessage(`Created folder: src/${folderName}`);
+    return { ok: true, status: "created", reason: null };
+  }
+
+  /**
+   * Creates a child folder under a selected first-layer category directory.
+   *
+   * @param {import("vscode")} vscodeApi VS Code API object.
+   * @param {{selected?: {resolvedRoot?: string}|null|undefined}|undefined} eligibilityState Eligible workspace state.
+   * @param {{filePath?: string, isDirectory?: boolean}|undefined} item Sidebar item payload.
+   * @returns {Promise<{ok: boolean, status: string, reason: string|null}>} Handler execution summary.
+   */
+  async function createFolder(vscodeApi, eligibilityState, item) {
+    const resolvedRoot = eligibilityState?.selected?.resolvedRoot || null;
+    const srcRootPath = getCommandSrcRootPath(eligibilityState);
+    const targetParentPath = item?.filePath || null;
+
+    if (!srcRootPath || !targetParentPath || !item?.isDirectory) {
+      vscodeApi.window.showInformationMessage(
+        "Select a first-layer src/<category> folder row and try again."
+      );
+      return { ok: false, status: "blocked", reason: "missing-category-row" };
+    }
+
+    if (!isFirstLayerDirectoryPath(targetParentPath, resolvedRoot)) {
+      vscodeApi.window.showInformationMessage(
+        "New Folder is available on first-layer src/<category> rows only."
+      );
+      return { ok: false, status: "blocked", reason: "not-first-layer-directory" };
+    }
+
+    const folderName = await promptImmediateChildName(
+      "Algorithms: New Folder",
+      "Enter a new immediate child folder name.",
+      "example: helpers"
+    );
+
+    if (!folderName) {
+      return { ok: false, status: "cancelled", reason: "invalid-or-cancelled-name" };
+    }
+
+    const targetPath = path.join(targetParentPath, folderName);
+
+    if (!isPathWithinRoot(srcRootPath, targetPath) || pathExists(targetPath)) {
+      vscodeApi.window.showWarningMessage(
+        pathExists(targetPath)
+          ? "A file or folder with that name already exists."
+          : "Target path must stay inside src/."
+      );
+      return { ok: false, status: "blocked", reason: "invalid-target-path" };
+    }
+
+    fs.mkdirSync(targetPath, { recursive: false });
+    provider.refresh();
+    vscodeApi.window.showInformationMessage(`Created folder: ${path.basename(targetPath)}`);
+    return { ok: true, status: "created", reason: null };
+  }
+
+  /**
+   * Creates a file directly under a selected algorithm directory.
+   *
+   * @param {import("vscode")} vscodeApi VS Code API object.
+   * @param {{selected?: {resolvedRoot?: string}|null|undefined}|undefined} eligibilityState Eligible workspace state.
+   * @param {{filePath?: string, isDirectory?: boolean}|undefined} item Sidebar item payload.
+   * @returns {Promise<{ok: boolean, status: string, reason: string|null}>} Handler execution summary.
+   */
+  async function createFile(vscodeApi, eligibilityState, item) {
+    const resolvedRoot = eligibilityState?.selected?.resolvedRoot || null;
+    const srcRootPath = getCommandSrcRootPath(eligibilityState);
+    const algorithmPath = item?.filePath || null;
+
+    if (!srcRootPath || !algorithmPath || !item?.isDirectory) {
+      vscodeApi.window.showInformationMessage(
+        "Select one src/<category>/<algorithm> directory row and try again."
+      );
+      return { ok: false, status: "blocked", reason: "missing-algorithm-directory" };
+    }
+
+    if (!isAlgorithmDirectoryPath(algorithmPath, resolvedRoot)) {
+      vscodeApi.window.showInformationMessage(
+        "New File is available on src/<category>/<algorithm> directory rows only."
+      );
+      return { ok: false, status: "blocked", reason: "not-algorithm-directory" };
+    }
+
+    const fileName = await promptImmediateChildName(
+      "Algorithms: New File",
+      "Enter a new file name for this algorithm folder.",
+      "example: easter.py"
+    );
+
+    if (!fileName) {
+      return { ok: false, status: "cancelled", reason: "invalid-or-cancelled-name" };
+    }
+
+    const targetPath = path.join(algorithmPath, fileName);
+
+    if (!isPathWithinRoot(srcRootPath, targetPath) || pathExists(targetPath)) {
+      vscodeApi.window.showWarningMessage(
+        pathExists(targetPath)
+          ? "A file or folder with that name already exists."
+          : "Target path must stay inside src/."
+      );
+      return { ok: false, status: "blocked", reason: "invalid-target-path" };
+    }
+
+    const normalizedLanguage = normalizeExtensionToLanguageKey(targetPath);
+    const isSupportedLanguage = Boolean(
+      normalizedLanguage && provider._supportedLanguageKeys.has(normalizedLanguage)
+    );
+
+    if (!isSupportedLanguage) {
+      const shouldCreate = await confirmUnsupportedFileCreation(targetPath);
+
+      if (!shouldCreate) {
+        return { ok: false, status: "cancelled", reason: "unsupported-extension-cancelled" };
+      }
+    }
+
+    fs.writeFileSync(targetPath, "", { flag: "wx" });
+    provider.refresh();
+    await vscodeApi.commands.executeCommand("vscode.open", vscode.Uri.file(targetPath));
+
+    if (!isSupportedLanguage) {
+      vscodeApi.window.showInformationMessage(
+        "File created. It may be hidden in the Algorithms tree because the extension is unsupported."
+      );
+    }
+
+    return { ok: true, status: "created", reason: null };
+  }
+
+  /**
+   * Adds a new include file under <language>_include for runnable file/language rows.
+   *
+   * @param {import("vscode")} vscodeApi VS Code API object.
+   * @param {{selected?: {resolvedRoot?: string}|null|undefined}|undefined} eligibilityState Eligible workspace state.
+   * @param {{filePath?: string, algorithmPath?: string, languageKey?: string, isRunnableFile?: boolean, isLanguageSummary?: boolean, openTargetUri?: import("vscode").Uri, contextValue?: string}|undefined} item Sidebar item payload.
+   * @returns {Promise<{ok: boolean, status: string, reason: string|null}>} Handler execution summary.
+   */
+  async function addIncludeFile(vscodeApi, eligibilityState, item) {
+    const srcRootPath = getCommandSrcRootPath(eligibilityState);
+    const algorithmPath = item?.algorithmPath || null;
+    const languageKey = item?.languageKey || null;
+    const isPresentLanguageRow = item?.isLanguageSummary
+      && (item?.contextValue === "algos.languagePresentUnflagged"
+        || item?.contextValue === "algos.languagePresentFlagged");
+    const isRunnableFileRow = !item?.isDirectory && item?.isRunnableFile === true;
+
+    if (!srcRootPath || !algorithmPath || !languageKey || (!isPresentLanguageRow && !isRunnableFileRow)) {
+      vscodeApi.window.showInformationMessage(
+        "Add Include File is available on runnable file rows and present language rows only."
+      );
+      return { ok: false, status: "blocked", reason: "unsupported-row-context" };
+    }
+
+    const referenceFilePath = isPresentLanguageRow
+      ? item?.openTargetUri?.fsPath || null
+      : item?.filePath || null;
+
+    const includeDirectoryPath = path.join(algorithmPath, `${languageKey}_include`);
+    const requiredExtension = (referenceFilePath
+      ? path.extname(referenceFilePath)
+      : `.${LANGUAGE_ICON_SAMPLE_EXTENSIONS[languageKey] || "txt"}`).toLowerCase();
+
+    const fileName = await promptImmediateChildName(
+      "Algorithms: Add Include File",
+      `Enter a file name with extension ${requiredExtension}.`,
+      `example${requiredExtension}`
+    );
+
+    if (!fileName) {
+      return { ok: false, status: "cancelled", reason: "invalid-or-cancelled-name" };
+    }
+
+    const enteredExtension = path.extname(fileName).toLowerCase();
+
+    if (!enteredExtension || enteredExtension !== requiredExtension) {
+      vscodeApi.window.showWarningMessage(
+        `Include file extension must be ${requiredExtension} for ${languageKey}.`
+      );
+      return { ok: false, status: "blocked", reason: "include-extension-mismatch" };
+    }
+
+    const targetPath = path.join(includeDirectoryPath, fileName);
+
+    if (!isPathWithinRoot(srcRootPath, targetPath) || pathExists(targetPath)) {
+      vscodeApi.window.showWarningMessage(
+        pathExists(targetPath)
+          ? "A file or folder with that name already exists."
+          : "Target path must stay inside src/."
+      );
+      return { ok: false, status: "blocked", reason: "invalid-target-path" };
+    }
+
+    const normalizedLanguage = normalizeExtensionToLanguageKey(targetPath);
+
+    if (normalizedLanguage !== languageKey) {
+      vscodeApi.window.showWarningMessage(
+        `Include file extension must map to language ${languageKey}.`
+      );
+      return { ok: false, status: "blocked", reason: "include-language-mismatch" };
+    }
+
+    fs.mkdirSync(includeDirectoryPath, { recursive: true });
+    fs.writeFileSync(targetPath, "", { flag: "wx" });
+    provider.refresh();
+    await vscodeApi.commands.executeCommand("vscode.open", vscode.Uri.file(targetPath));
+    return { ok: true, status: "created", reason: null };
+  }
+
+  /**
+   * Deletes one Algorithms pane target according to row semantics.
+   *
+   * @param {import("vscode")} vscodeApi VS Code API object.
+   * @param {{selected?: {resolvedRoot?: string}|null|undefined}|undefined} eligibilityState Eligible workspace state.
+   * @param {{filePath?: string, algorithmPath?: string, languageKey?: string, isDirectory?: boolean, isRunnableFile?: boolean, isLanguageSummary?: boolean, isIncludeFileChild?: boolean, contextValue?: string, openTargetUri?: import("vscode").Uri}|undefined} item Sidebar item payload.
+   * @returns {Promise<{ok: boolean, status: string, reason: string|null}>} Handler execution summary.
+   */
+  async function deleteItem(vscodeApi, eligibilityState, item) {
+    const resolvedRoot = eligibilityState?.selected?.resolvedRoot || null;
+    const srcRootPath = getCommandSrcRootPath(eligibilityState);
+
+    if (!srcRootPath || !item?.filePath) {
+      vscodeApi.window.showInformationMessage("Select a deletable row and try again.");
+      return { ok: false, status: "blocked", reason: "missing-delete-target" };
+    }
+
+    const isPresentLanguageRow = item?.isLanguageSummary
+      && (item?.contextValue === "algos.languagePresentUnflagged"
+        || item?.contextValue === "algos.languagePresentFlagged");
+    const deleteTargets = [];
+
+    if (item.isDirectory) {
+      if (
+        !isFirstLayerDirectoryPath(item.filePath, resolvedRoot)
+        && !isAlgorithmDirectoryPath(item.filePath, resolvedRoot)
+      ) {
+        vscodeApi.window.showInformationMessage(
+          "Delete is available on first-layer and algorithm directory rows only."
+        );
+        return { ok: false, status: "blocked", reason: "unsupported-directory-delete" };
+      }
+
+      deleteTargets.push({ filePath: item.filePath, recursive: true });
+    } else if (item.isIncludeFileChild || isIncludeChildFilePath(item.filePath, resolvedRoot)) {
+      deleteTargets.push({ filePath: item.filePath, recursive: false });
+    } else if (item.isRunnableFile || isPresentLanguageRow) {
+      const algorithmPath = item.algorithmPath || path.dirname(item.filePath);
+      const languageKey = item.languageKey || normalizeExtensionToLanguageKey(item.filePath);
+      const includeDirectoryPath =
+        algorithmPath && languageKey
+          ? path.join(algorithmPath, `${languageKey}_include`)
+          : null;
+      const mainFilePath = isPresentLanguageRow
+        ? item?.openTargetUri?.fsPath || null
+        : item.filePath;
+
+      if (mainFilePath && pathExists(mainFilePath)) {
+        deleteTargets.push({ filePath: mainFilePath, recursive: false });
+      }
+
+      if (includeDirectoryPath && isDirectoryPath(includeDirectoryPath)) {
+        const mainWithinInclude = mainFilePath
+          && isPathWithinRoot(includeDirectoryPath, mainFilePath);
+
+        if (mainWithinInclude) {
+          for (let index = deleteTargets.length - 1; index >= 0; index -= 1) {
+            if (deleteTargets[index].filePath === mainFilePath) {
+              deleteTargets.splice(index, 1);
+            }
+          }
+        }
+
+        deleteTargets.push({ filePath: includeDirectoryPath, recursive: true });
+      }
+    } else {
+      vscodeApi.window.showInformationMessage(
+        "Delete is not available for this row type."
+      );
+      return { ok: false, status: "blocked", reason: "unsupported-delete-context" };
+    }
+
+    const normalizedTargets = [];
+
+    for (const target of deleteTargets) {
+      if (!target.filePath || !pathExists(target.filePath)) {
+        continue;
+      }
+
+      if (!isPathWithinRoot(srcRootPath, target.filePath)) {
+        vscodeApi.window.showWarningMessage("Delete target must stay inside src/.");
+        return { ok: false, status: "blocked", reason: "delete-outside-src" };
+      }
+
+      if (realpathSafe(target.filePath) === srcRootPath) {
+        vscodeApi.window.showWarningMessage("Deleting src/ root is not allowed.");
+        return { ok: false, status: "blocked", reason: "delete-src-root" };
+      }
+
+      if (!normalizedTargets.some((existing) => existing.filePath === target.filePath)) {
+        normalizedTargets.push(target);
+      }
+    }
+
+    if (normalizedTargets.length === 0) {
+      vscodeApi.window.showInformationMessage("Nothing to delete for this row.");
+      provider.refresh();
+      return { ok: false, status: "noop", reason: "no-existing-delete-targets" };
+    }
+
+    const deleteLabel = normalizedTargets.length === 1
+      ? path.basename(normalizedTargets[0].filePath)
+      : `${normalizedTargets.length} targets`;
+    const deleteMessage = normalizedTargets.some((target) => target.recursive)
+      ? `Delete ${deleteLabel}? Folder deletes remove all nested contents.`
+      : `Delete ${deleteLabel}?`;
+    const isConfirmed = await confirmDeleteAction(deleteMessage);
+
+    if (!isConfirmed) {
+      return { ok: false, status: "cancelled", reason: "delete-cancelled" };
+    }
+
+    const usedTrashResults = [];
+
+    for (const target of normalizedTargets) {
+      const usedTrash = await deleteWithTrashFallback(
+        vscode.Uri.file(target.filePath),
+        target.recursive
+      );
+      usedTrashResults.push(usedTrash);
+    }
+
+    provider.refresh();
+    const allUsedTrash = usedTrashResults.every((value) => value === true);
+    vscodeApi.window.showInformationMessage(
+      allUsedTrash
+        ? `Moved to trash: ${deleteLabel}`
+        : `Deleted permanently: ${deleteLabel}`
+    );
+
+    return { ok: true, status: "deleted", reason: null };
+  }
+
+  /**
    * Opens an untitled suggested file for a missing-language row.
    *
    * @param {{suggestedUntitledUri?: import("vscode").Uri}} element Missing-language tree element.
@@ -2772,6 +3418,11 @@ function registerWorkspaceAlgorithmsRunView() {
     runSmokeTest,
     stopSmokeTest,
     clearSmokeResults,
+    createFolderAtSrcRoot,
+    createFolder,
+    createFile,
+    addIncludeFile,
+    deleteItem,
     openMissingLanguageFile,
     disposables: [
       view,

@@ -194,6 +194,11 @@ function deriveImplementedRunMenuCommandIds(guardedCommandDefs) {
  *   showSidebarProblemsFilter: () => Promise<void>,
  *   refreshSidebarView: () => Promise<void>,
  *   createLanguageFilePlaceholder: (item?: unknown) => Promise<void>,
+ *   algorithmsCreateFolderAtSrcRoot: (vscodeApi: import("vscode"), eligibilityState: object) => Promise<void>,
+ *   algorithmsCreateFolder: (vscodeApi: import("vscode"), eligibilityState: object, item?: unknown) => Promise<void>,
+ *   algorithmsCreateFile: (vscodeApi: import("vscode"), eligibilityState: object, item?: unknown) => Promise<void>,
+ *   algorithmsAddIncludeFile: (vscodeApi: import("vscode"), eligibilityState: object, item?: unknown) => Promise<void>,
+ *   algorithmsDeleteItem: (vscodeApi: import("vscode"), eligibilityState: object, item?: unknown) => Promise<void>,
  *   standardLibraryCreateFile: (item?: unknown) => Promise<void>,
  *   standardLibraryCreateFileAtRoot: () => Promise<void>,
  *   standardLibraryCreateFolder: (item?: unknown) => Promise<void>,
@@ -291,6 +296,36 @@ function registerCommands(deps) {
     {
       commandId: "algos.runMenuCheckOnly",
       handler: deps.runActiveFileCheckOnlyNativeHandler,
+    },
+    {
+      commandId: "algos.algorithmsCreateFolderAtSrcRoot",
+      handler: async (vscodeApi, eligibilityState) => {
+        await deps.algorithmsCreateFolderAtSrcRoot(vscodeApi, eligibilityState);
+      },
+    },
+    {
+      commandId: "algos.algorithmsCreateFolder",
+      handler: async (vscodeApi, eligibilityState, item) => {
+        await deps.algorithmsCreateFolder(vscodeApi, eligibilityState, item);
+      },
+    },
+    {
+      commandId: "algos.algorithmsCreateFile",
+      handler: async (vscodeApi, eligibilityState, item) => {
+        await deps.algorithmsCreateFile(vscodeApi, eligibilityState, item);
+      },
+    },
+    {
+      commandId: "algos.algorithmsAddIncludeFile",
+      handler: async (vscodeApi, eligibilityState, item) => {
+        await deps.algorithmsAddIncludeFile(vscodeApi, eligibilityState, item);
+      },
+    },
+    {
+      commandId: "algos.algorithmsDeleteItem",
+      handler: async (vscodeApi, eligibilityState, item) => {
+        await deps.algorithmsDeleteItem(vscodeApi, eligibilityState, item);
+      },
     },
     {
       commandId: "algos.standardLibraryCreateFile",
