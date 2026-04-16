@@ -3,6 +3,7 @@ const os = require("os");
 const path = require("path");
 const { spawn } = require("child_process");
 const vscode = require("vscode");
+const { renderTemplate } = require("./webviewHostUtils");
 const { resolveEligibilityState } = require("../runtime/pathResolver");
 const {
   getSupportedLanguageKeys,
@@ -10,6 +11,41 @@ const {
 
 // Stable view identifier contributed in package.json.
 const ENVIRONMENT_VIEW_ID = "algosWorkspaceEnvironmentView";
+const ENVIRONMENT_MEDIA_PATH_SEGMENTS = ["src", "ui", "media"];
+const ENVIRONMENT_INIT_CSS_FILE_NAME = "environmentInit.css";
+const ENVIRONMENT_INIT_JS_FILE_NAME = "environmentInit.js";
+const ENVIRONMENT_TEMPLATE_PATH_SEGMENTS = ["src", "ui", "templates"];
+const ENVIRONMENT_SHELL_TEMPLATE_FILE_NAME = "environment-shell.html";
+const ENVIRONMENT_PANEL_TEMPLATE_FILE_NAME = "environment-panel.html";
+const ENVIRONMENT_PROFILE_SECTION_TEMPLATE_FILE_NAME =
+  "environment-section-profile.html";
+const ENVIRONMENT_CHECK_ENV_SECTION_TEMPLATE_FILE_NAME =
+  "environment-section-check-env.html";
+const ENVIRONMENT_COPY_ICONS_SECTION_TEMPLATE_FILE_NAME =
+  "environment-section-copy-icons.html";
+const ENVIRONMENT_VARIABLES_SECTION_TEMPLATE_FILE_NAME =
+  "environment-section-variables.html";
+const ENVIRONMENT_ROUTING_SECTION_TEMPLATE_FILE_NAME =
+  "environment-section-routing.html";
+const ENVIRONMENT_BATCH_SECTION_TEMPLATE_FILE_NAME =
+  "environment-section-batch.html";
+const ENVIRONMENT_VARIABLE_CARD_TEMPLATE_FILE_NAME =
+  "environment-item-variable-card.html";
+const ENVIRONMENT_LANGUAGE_ROW_TEMPLATE_FILE_NAME =
+  "environment-item-language-row.html";
+const ENVIRONMENT_REQUIRED_TEMPLATE_NAMES = [
+  ENVIRONMENT_SHELL_TEMPLATE_FILE_NAME,
+  ENVIRONMENT_PANEL_TEMPLATE_FILE_NAME,
+  ENVIRONMENT_PROFILE_SECTION_TEMPLATE_FILE_NAME,
+  ENVIRONMENT_CHECK_ENV_SECTION_TEMPLATE_FILE_NAME,
+  ENVIRONMENT_COPY_ICONS_SECTION_TEMPLATE_FILE_NAME,
+  ENVIRONMENT_VARIABLES_SECTION_TEMPLATE_FILE_NAME,
+  ENVIRONMENT_ROUTING_SECTION_TEMPLATE_FILE_NAME,
+  ENVIRONMENT_BATCH_SECTION_TEMPLATE_FILE_NAME,
+  ENVIRONMENT_VARIABLE_CARD_TEMPLATE_FILE_NAME,
+  ENVIRONMENT_LANGUAGE_ROW_TEMPLATE_FILE_NAME,
+];
+const environmentTemplateCache = new Map();
 // Relative directory containing packaged language icons.
 const LANGUAGE_ICON_PATH_SEGMENT = "icons/languages";
 // Relative fallback icon path used when a language icon is missing.
@@ -118,37 +154,6 @@ const CORE_VARIABLE_DEFINITIONS = [
     profileExportName: "DEREKALGOS_GXX13NAME",
   },
 ];
-
-/**
- * Escapes text for safe HTML interpolation.
- *
- * @param {string} text Raw text value.
- * @returns {string} HTML-safe text.
- */
-function escapeHtml(text) {
-  return String(text || "")
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/\"/g, "&quot;")
-    .replace(/'/g, "&#39;");
-}
-
-/**
- * Returns a nonce for CSP-safe inline scripts.
- *
- * @returns {string} Nonce value.
- */
-function createNonce() {
-  const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
-  let nonce = "";
-
-  for (let index = 0; index < 24; index += 1) {
-    nonce += chars.charAt(Math.floor(Math.random() * chars.length));
-  }
-
-  return nonce;
-}
 
 /**
  * Serializes JSON for safe inline-script embedding.
@@ -746,9 +751,41 @@ function buildEnvironmentStateSnapshot(provider, webview) {
  */
 function buildEnvironmentHtml(webview, provider) {
   const stateSnapshot = buildEnvironmentStateSnapshot(provider, webview);
-  const nonce = createNonce();
   const cspSource = webview.cspSource;
   const serializedState = serializeForScript(stateSnapshot);
+  const templates = provider.getTemplates();
+  const serializedTemplates = serializeForScript(templates);
+  const stylesheetUri = webview.asWebviewUri(
+    vscode.Uri.joinPath(provider._mediaBaseUri, ENVIRONMENT_INIT_CSS_FILE_NAME)
+  ).toString();
+  const scriptUri = webview.asWebviewUri(
+    vscode.Uri.joinPath(provider._mediaBaseUri, ENVIRONMENT_INIT_JS_FILE_NAME)
+  ).toString();
+
+  return renderTemplate(templates.shell, {
+    cspSource,
+    stylesheetUri,
+    scriptUri,
+    serializedState,
+    serializedTemplates,
+  });
+}
+
+/**
+ * Builds an explicit error document for Environment pane failures.
+ *
+ * @param {import("vscode").Webview} webview Webview instance.
+ * @param {string} errorMessage Visible failure text.
+ * @returns {string} Error HTML.
+ */
+function buildEnvironmentErrorHtml(webview, errorMessage) {
+  const cspSource = webview.cspSource;
+  const escapedMessage = String(errorMessage || "")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/\"/g, "&quot;")
+    .replace(/'/g, "&#39;");
 
   return `<!DOCTYPE html>
 <html lang="en">
@@ -756,779 +793,30 @@ function buildEnvironmentHtml(webview, provider) {
     <meta charset="UTF-8" />
     <meta
       http-equiv="Content-Security-Policy"
-      content="default-src 'none'; img-src ${cspSource} data:; style-src ${cspSource} 'unsafe-inline'; script-src 'nonce-${nonce}';"
+      content="default-src 'none'; base-uri 'none'; object-src 'none'; frame-ancestors 'none'; style-src ${cspSource};"
     />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <style>
-      :root {
-        color-scheme: light dark;
-      }
-
-      html,
       body {
         margin: 0;
-        padding: 0;
-        height: 100%;
+        padding: 10px;
         font-family: var(--vscode-font-family);
         font-size: 12px;
-        color: var(--vscode-foreground);
+        color: var(--vscode-errorForeground);
         background: var(--vscode-sideBar-background);
       }
 
-      body {
-        padding: 8px;
-        box-sizing: border-box;
-      }
-
-      .panel {
-        display: flex;
-        flex-direction: column;
-        gap: 10px;
-      }
-
-      .panelDescription {
-        margin: 0;
-        color: var(--vscode-descriptionForeground);
-        font-size: 11px;
-        line-height: 1.3;
-      }
-
-      .section {
-        display: flex;
-        flex-direction: column;
-        gap: 6px;
-        padding: 8px;
-        border: 1px solid var(--vscode-widget-border);
+      .errorBox {
+        border: 1px solid var(--vscode-errorForeground);
         border-radius: 6px;
-        background: color-mix(in srgb, var(--vscode-sideBar-background) 82%, var(--vscode-editor-background) 18%);
-      }
-
-      .sectionHeader {
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        gap: 8px;
-      }
-
-      .sectionTitleGroup {
-        display: inline-flex;
-        align-items: center;
-        gap: 6px;
-        min-width: 0;
-      }
-
-      .sectionIcon {
-        width: 13px;
-        height: 13px;
-        flex: 0 0 auto;
-        color: var(--vscode-foreground);
-      }
-
-      .sectionTitle {
-        font-size: 11px;
-        font-weight: 700;
-        letter-spacing: 0.04em;
-        text-transform: uppercase;
-        color: var(--vscode-descriptionForeground);
-      }
-
-      .fieldRow {
-        display: grid;
-        grid-template-columns: 1fr auto;
-        gap: 6px;
-        align-items: center;
-      }
-
-      .fieldLabel {
-        font-size: 11px;
-        color: var(--vscode-descriptionForeground);
-      }
-
-      .input,
-      .textarea {
-        width: 100%;
-        box-sizing: border-box;
-        border: 1px solid var(--vscode-input-border);
-        border-radius: 4px;
-        background: var(--vscode-input-background);
-        color: var(--vscode-input-foreground);
-        padding: 4px 6px;
-        font: inherit;
-      }
-
-      .textarea {
-        min-height: 88px;
-        resize: vertical;
-      }
-
-      .buttonRow {
-        display: flex;
-        flex-wrap: wrap;
-        gap: 6px;
-      }
-
-      .button {
-        border: 1px solid var(--vscode-button-border, transparent);
-        background: var(--vscode-button-background);
-        color: var(--vscode-button-foreground);
-        border-radius: 4px;
-        padding: 4px 8px;
-        font: inherit;
-        cursor: pointer;
-      }
-
-      .button.secondary {
-        background: var(--vscode-button-secondaryBackground);
-        color: var(--vscode-button-secondaryForeground);
-      }
-
-      .button:disabled {
-        opacity: 0.6;
-        cursor: default;
-      }
-
-      .helperText,
-      .effectiveProfile {
-        color: var(--vscode-descriptionForeground);
-        font-size: 11px;
-        line-height: 1.3;
-      }
-
-      .status {
-        font-size: 11px;
-        line-height: 1.3;
-      }
-
-      .status.idle {
-        color: var(--vscode-descriptionForeground);
-      }
-
-      .status.running {
-        color: var(--vscode-charts-blue);
-      }
-
-      .status.ok {
-        color: var(--vscode-testing-iconPassed);
-      }
-
-      .status.error {
-        color: var(--vscode-testing-iconFailed);
-      }
-
-      .outputBox {
-        max-height: 120px;
-        overflow: auto;
+        padding: 8px;
+        line-height: 1.4;
         white-space: pre-wrap;
-        border: 1px solid var(--vscode-input-border);
-        border-radius: 4px;
-        padding: 6px;
-        background: var(--vscode-editor-background);
-      }
-
-      .formatPre {
-        margin: 4px 0;
-        padding: 4px 8px;
-        background: var(--vscode-editor-background);
-        border: 1px solid var(--vscode-input-border);
-        border-radius: 3px;
-        font-size: 10px;
-        font-family: monospace;
-        white-space: pre;
-        display: block;
-      }
-
-      .variableGrid {
-        display: flex;
-        flex-direction: column;
-        gap: 8px;
-      }
-
-      .variableCard {
-        display: flex;
-        flex-direction: column;
-        gap: 6px;
-      }
-
-      .variableInputRow {
-        display: grid;
-        grid-template-columns: 1fr auto;
-        gap: 6px;
-        align-items: center;
-      }
-
-      .variableCard .status {
-        margin-top: -2px;
-      }
-
-      .routingTable {
-        display: flex;
-        flex-direction: column;
-        gap: 6px;
-      }
-
-      .languageRow {
-        border: 1px solid var(--vscode-widget-border);
-        border-radius: 6px;
-        background: color-mix(in srgb, var(--vscode-editor-background) 86%, transparent 14%);
-      }
-
-      .languageRow.conflict {
-        border-color: var(--vscode-testing-iconFailed);
-        background: color-mix(in srgb, var(--vscode-testing-iconFailed) 10%, var(--vscode-editor-background) 90%);
-      }
-
-      .languageSummary {
-        list-style: none;
-        display: grid;
-        grid-template-columns: auto 1fr auto;
-        align-items: center;
-        gap: 8px;
-        padding: 8px;
-        cursor: pointer;
-      }
-
-      .languageSummary::-webkit-details-marker {
-        display: none;
-      }
-
-      .languageMain {
-        display: flex;
-        align-items: center;
-        gap: 8px;
-        min-width: 0;
-      }
-
-      .languageIcon {
-        width: 16px;
-        height: 16px;
-        flex: 0 0 auto;
-      }
-
-      .languageName {
-        min-width: 0;
-        overflow: hidden;
-        text-overflow: ellipsis;
-      }
-
-      .indicatorList {
-        display: flex;
-        gap: 4px;
-        flex-wrap: wrap;
-      }
-
-      .indicator {
-        border-radius: 999px;
-        padding: 1px 6px;
-        font-size: 10px;
-        color: var(--vscode-badge-foreground);
-        background: var(--vscode-badge-background);
-      }
-
-      .editorBody {
-        display: flex;
-        flex-direction: column;
-        gap: 6px;
-        padding: 0 8px 8px;
-      }
-
-      .toggleRow {
-        display: flex;
-        align-items: center;
-        gap: 6px;
-      }
-
-      .checkboxText {
-        font-size: 11px;
-      }
-
-      .rawOutput details {
-        margin-top: 6px;
       }
     </style>
   </head>
   <body>
-    <div id="app"></div>
-    <script nonce="${nonce}">
-      const vscodeApi = acquireVsCodeApi();
-      const app = document.getElementById("app");
-      let state = ${serializedState};
-
-      function escapeHtmlClient(text) {
-        return String(text || "")
-          .replace(/&/g, "&amp;")
-          .replace(/</g, "&lt;")
-          .replace(/>/g, "&gt;")
-          .replace(/\"/g, "&quot;")
-          .replace(/'/g, "&#39;");
-      }
-
-      function renderStatus(statusKind, statusText) {
-        const resolvedKind = String(statusKind || "idle");
-        const resolvedText = String(statusText || "").trim();
-
-        if (!resolvedText) {
-          return "";
-        }
-
-        return '<div class="status ' + escapeHtmlClient(resolvedKind) + '">' + escapeHtmlClient(resolvedText) + '</div>';
-      }
-
-      /**
-       * Returns the inline SVG used for one Environment-pane section header.
-       *
-       * @param {string} iconName Semantic section icon key.
-       * @returns {string} Inline SVG markup.
-       */
-      function getSectionIconSvg(iconName) {
-        if (iconName === 'profile') {
-          return '<svg class="sectionIcon" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-hidden="true">'
-            + '<path d="M8 8C9.66 8 11 6.66 11 5C11 3.34 9.66 2 8 2C6.34 2 5 3.34 5 5C5 6.66 6.34 8 8 8Z" stroke="currentColor" stroke-width="1.1"/>'
-            + '<path d="M3 13C3.55 10.9 5.52 9.5 8 9.5C10.48 9.5 12.45 10.9 13 13" stroke="currentColor" stroke-width="1.1" stroke-linecap="round"/>'
-            + '</svg>';
-        }
-
-        if (iconName === 'check') {
-          return '<svg class="sectionIcon" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-hidden="true">'
-            + '<path d="M3 3.5C3 2.67 3.67 2 4.5 2H11.5C12.33 2 13 2.67 13 3.5V12.5C13 13.33 12.33 14 11.5 14H4.5C3.67 14 3 13.33 3 12.5V3.5Z" stroke="currentColor" stroke-width="1"/>'
-            + '<path d="M5 8L7 10L11 6" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"/>'
-            + '</svg>';
-        }
-
-        if (iconName === 'copy') {
-          return '<svg class="sectionIcon" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-hidden="true">'
-            + '<path d="M6 3H11.5C12.33 3 13 3.67 13 4.5V10" stroke="currentColor" stroke-width="1" stroke-linecap="round"/>'
-            + '<rect x="3" y="6" width="7" height="7" rx="1" stroke="currentColor" stroke-width="1"/>'
-            + '</svg>';
-        }
-
-        if (iconName === 'variables') {
-          return '<svg class="sectionIcon" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-hidden="true">'
-            + '<path d="M4 4.5H12" stroke="currentColor" stroke-width="1.1" stroke-linecap="round"/>'
-            + '<path d="M4 8H12" stroke="currentColor" stroke-width="1.1" stroke-linecap="round"/>'
-            + '<path d="M4 11.5H12" stroke="currentColor" stroke-width="1.1" stroke-linecap="round"/>'
-            + '<circle cx="6" cy="4.5" r="1.2" fill="currentColor"/>'
-            + '<circle cx="10" cy="8" r="1.2" fill="currentColor"/>'
-            + '<circle cx="7.5" cy="11.5" r="1.2" fill="currentColor"/>'
-            + '</svg>';
-        }
-
-        if (iconName === 'routing') {
-          return '<svg class="sectionIcon" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-hidden="true">'
-            + '<circle cx="4" cy="4" r="1.5" stroke="currentColor" stroke-width="1"/>'
-            + '<circle cx="12" cy="4" r="1.5" stroke="currentColor" stroke-width="1"/>'
-            + '<circle cx="8" cy="12" r="1.5" stroke="currentColor" stroke-width="1"/>'
-            + '<path d="M5.2 4.8L6.9 10.8" stroke="currentColor" stroke-width="1.1" stroke-linecap="round"/>'
-            + '<path d="M10.8 4.8L9.1 10.8" stroke="currentColor" stroke-width="1.1" stroke-linecap="round"/>'
-            + '<path d="M5.5 4H10.5" stroke="currentColor" stroke-width="1.1" stroke-linecap="round"/>'
-            + '</svg>';
-        }
-
-        if (iconName === 'batch') {
-          return '<svg class="sectionIcon" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-hidden="true">'
-            + '<rect x="3" y="3" width="7" height="7" rx="1" stroke="currentColor" stroke-width="1"/>'
-            + '<rect x="6" y="6" width="7" height="7" rx="1" stroke="currentColor" stroke-width="1"/>'
-            + '</svg>';
-        }
-
-        return '';
-      }
-
-      /**
-       * Renders one Environment-pane section header with an icon and optional actions.
-       *
-       * @param {string} title Section title.
-       * @param {string} iconName Semantic section icon key.
-       * @param {string} actionsHtml Optional action markup.
-       * @returns {string} Header markup.
-       */
-      function renderSectionHeader(title, iconName, actionsHtml) {
-        return '<div class="sectionHeader">'
-          + '<div class="sectionTitleGroup">'
-          + getSectionIconSvg(iconName)
-          + '<div class="sectionTitle">' + escapeHtmlClient(title) + '</div>'
-          + '</div>'
-          + (actionsHtml || '')
-          + '</div>';
-      }
-
-      function buildVariableCardsHtml() {
-        return state.variables.map((variable) => {
-          return '<div class="variableCard">'
-            + '<div class="fieldLabel">' + escapeHtmlClient(variable.label) + '</div>'
-            + '<div class="variableInputRow">'
-            + '<input class="input" data-variable-key="' + escapeHtmlClient(variable.key) + '" data-input-kind="variable" value="' + escapeHtmlClient(variable.value) + '" />'
-            + '<button class="button" data-action="save-variable" data-variable-key="' + escapeHtmlClient(variable.key) + '">Save</button>'
-            + '</div>'
-            + renderStatus(variable.statusKind, variable.statusText)
-            + '</div>';
-        }).join("");
-      }
-
-      function buildIndicatorHtml(label) {
-        return '<span class="indicator">' + escapeHtmlClient(label) + '</span>';
-      }
-
-      function buildLanguageRowsHtml() {
-        return state.languages.map((language) => {
-          const conflictClass = language.isConflict ? ' conflict' : '';
-          const indicators = [
-            language.dockerEnabled ? buildIndicatorHtml('docker') : '',
-            language.sshEnabled ? buildIndicatorHtml('ssh') : ''
-          ].join('');
-
-          return '<details class="languageRow' + conflictClass + '">' 
-            + '<summary class="languageSummary">'
-            + '<div class="languageMain">'
-            + '<img class="languageIcon" src="' + escapeHtmlClient(language.iconUri) + '" alt="' + escapeHtmlClient(language.label) + '" />'
-            + '<span class="languageName">' + escapeHtmlClient(language.label) + '</span>'
-            + '</div>'
-            + '<div class="indicatorList">' + indicators + '</div>'
-            + '<div></div>'
-            + '</summary>'
-            + '<div class="editorBody">'
-            + '<label class="toggleRow">'
-            + '<input type="checkbox" data-lang-key="' + escapeHtmlClient(language.key) + '" data-input-kind="language-docker-enabled" ' + (language.dockerEnabled ? 'checked' : '') + ' />'
-            + '<span class="checkboxText">Docker</span>'
-            + '</label>'
-            + '<input class="input" data-lang-key="' + escapeHtmlClient(language.key) + '" data-input-kind="language-docker-value" value="' + escapeHtmlClient(language.dockerValue) + '" placeholder="Docker image" ' + (language.dockerEnabled ? '' : 'disabled') + ' />'
-            + '<label class="toggleRow">'
-            + '<input type="checkbox" data-lang-key="' + escapeHtmlClient(language.key) + '" data-input-kind="language-ssh-enabled" ' + (language.sshEnabled ? 'checked' : '') + ' />'
-            + '<span class="checkboxText">SSH</span>'
-            + '</label>'
-            + '<input class="input" data-lang-key="' + escapeHtmlClient(language.key) + '" data-input-kind="language-ssh-value" value="' + escapeHtmlClient(language.sshValue) + '" placeholder="SSH route" ' + (language.sshEnabled ? '' : 'disabled') + ' />'
-            + '<div class="buttonRow">'
-            + '<button class="button" data-action="save-language" data-lang-key="' + escapeHtmlClient(language.key) + '">Save</button>'
-            + '</div>'
-            + renderStatus(language.statusKind, language.statusText)
-            + '</div>'
-            + '</details>';
-        }).join('');
-      }
-
-      function render() {
-        app.innerHTML = ''
-          + '<div class="panel">'
-          + '<p class="panelDescription">Controls environment factors for the algorithms project via init.sh.</p>'
-          + '<section class="section">'
-          + renderSectionHeader('Profile', 'profile', '<div class="buttonRow"><button class="button secondary" data-action="refresh-state">Refresh</button></div>')
-          + '<input id="profilePath" class="input" value="' + escapeHtmlClient(state.profilePath) + '" placeholder="' + escapeHtmlClient(state.profilePlaceholder) + '" />'
-          + '<div class="effectiveProfile">Effective profile for reads: ' + escapeHtmlClient(state.effectiveProfilePath || state.profilePlaceholder) + '</div>'
-          + '<div class="helperText">Leave blank to let init.sh use its platform default profile path.</div>'
-          + '</section>'
-          + '<section class="section">'
-          + renderSectionHeader('Check Environment', 'check', '<div class="buttonRow"><button class="button" data-action="check-env">Check Environment</button></div>')
-          + renderStatus(state.checkEnv.kind, state.checkEnv.text)
-          + '<div class="outputBox">' + escapeHtmlClient(state.checkEnv.filteredOutput || 'No check-environment output yet.') + '</div>'
-          + '<div class="rawOutput"><details><summary>Raw Output</summary><div class="outputBox">' + escapeHtmlClient(state.checkEnv.rawOutput || 'No raw output yet.') + '</div></details></div>'
-          + '</section>'
-          + '<section class="section">'
-          + renderSectionHeader('Copy Icons', 'copy', '<div class="buttonRow"><button class="button" data-action="copy-icons">Copy Icons</button></div>')
-          + '<input id="copyIconsPath" class="input" value="' + escapeHtmlClient(state.copyIconsPath) + '" placeholder="' + escapeHtmlClient(state.copyIconsPlaceholder) + '" />'
-          + '<div class="helperText">Skips profile updates.</div>'
-          + renderStatus(state.copyIconsResult.kind, state.copyIconsResult.text)
-          + '</section>'
-          + '<section class="section">'
-          + renderSectionHeader('Use Environment Variables', 'variables')
-          + '<div class="variableGrid">' + buildVariableCardsHtml() + '</div>'
-          + '</section>'
-          + '<section class="section">'
-          + renderSectionHeader('Language Routing', 'routing')
-          + '<div class="helperText">Configure per-language docker or ssh execution targets. SSH route value must use one of two formats:<pre class="formatPre">ssh-destination|code-dir|run-script<br>ssh-address|ssh-user|ssh-port|code-dir|run-script</pre>Each language should have exactly one target configured (docker or ssh) or none.</div>'
-          + '<div class="section">'
-          + renderSectionHeader('Batch All', 'batch')
-          + '<label class="toggleRow"><input id="batchDockerEnabled" type="checkbox" ' + (state.batch.dockerEnabled ? 'checked' : '') + ' /><span class="checkboxText">Docker</span></label>'
-          + '<input id="batchDockerValue" class="input" value="' + escapeHtmlClient(state.batch.dockerValue) + '" placeholder="Docker image" ' + (state.batch.dockerEnabled ? '' : 'disabled') + ' />'
-          + '<label class="toggleRow"><input id="batchSshEnabled" type="checkbox" ' + (state.batch.sshEnabled ? 'checked' : '') + ' /><span class="checkboxText">SSH</span></label>'
-          + '<input id="batchSshValue" class="input" value="' + escapeHtmlClient(state.batch.sshValue) + '" placeholder="SSH route" ' + (state.batch.sshEnabled ? '' : 'disabled') + ' />'
-          + '<div class="buttonRow"><button class="button" data-action="save-batch">Save</button></div>'
-          + renderStatus(state.batch.statusKind, state.batch.statusText)
-          + '</div>'
-          + '<div class="routingTable">' + buildLanguageRowsHtml() + '</div>'
-          + '</section>'
-          + '</div>';
-      }
-
-      function getProfilePath() {
-        const profileInput = document.getElementById('profilePath');
-        return profileInput ? profileInput.value : '';
-      }
-
-      function getCopyIconsPath() {
-        const copyIconsInput = document.getElementById('copyIconsPath');
-        return copyIconsInput ? copyIconsInput.value : '';
-      }
-
-      function setLocalStatus(targetKind, targetKey, statusKind, statusText) {
-        if (targetKind === 'variable') {
-          const variable = state.variables.find((item) => item.key === targetKey);
-          if (variable) {
-            variable.statusKind = statusKind;
-            variable.statusText = statusText;
-          }
-          render();
-          return;
-        }
-
-        if (targetKind === 'language') {
-          const language = state.languages.find((item) => item.key === targetKey);
-          if (language) {
-            language.statusKind = statusKind;
-            language.statusText = statusText;
-          }
-          render();
-          return;
-        }
-
-        if (targetKind === 'batch') {
-          state.batch.statusKind = statusKind;
-          state.batch.statusText = statusText;
-          render();
-        }
-      }
-
-      function updateLanguageDraft(target) {
-        const languageKey = target.getAttribute('data-lang-key');
-        const inputKind = target.getAttribute('data-input-kind');
-        const language = state.languages.find((item) => item.key === languageKey);
-
-        if (!language) {
-          return;
-        }
-
-        if (inputKind === 'language-docker-enabled') {
-          language.dockerEnabled = target.checked;
-        }
-
-        if (inputKind === 'language-docker-value') {
-          language.dockerValue = target.value;
-        }
-
-        if (inputKind === 'language-ssh-enabled') {
-          language.sshEnabled = target.checked;
-        }
-
-        if (inputKind === 'language-ssh-value') {
-          language.sshValue = target.value;
-        }
-
-        language.isConflict = language.dockerEnabled && language.sshEnabled;
-      }
-
-      function updateVariableDraft(target) {
-        const variableKey = target.getAttribute('data-variable-key');
-        const variable = state.variables.find((item) => item.key === variableKey);
-
-        if (variable) {
-          variable.value = target.value;
-        }
-      }
-
-      function updateBatchDraft() {
-        const batchDockerEnabled = document.getElementById('batchDockerEnabled');
-        const batchDockerValue = document.getElementById('batchDockerValue');
-        const batchSshEnabled = document.getElementById('batchSshEnabled');
-        const batchSshValue = document.getElementById('batchSshValue');
-
-        state.batch.dockerEnabled = batchDockerEnabled ? batchDockerEnabled.checked : false;
-        state.batch.dockerValue = batchDockerValue ? batchDockerValue.value : '';
-        state.batch.sshEnabled = batchSshEnabled ? batchSshEnabled.checked : false;
-        state.batch.sshValue = batchSshValue ? batchSshValue.value : '';
-        state.batch.isConflict = state.batch.dockerEnabled && state.batch.sshEnabled;
-      }
-
-      app.addEventListener('input', (event) => {
-        const target = event.target;
-
-        if (!(target instanceof HTMLInputElement)) {
-          return;
-        }
-
-        if (target.getAttribute('data-input-kind') && target.getAttribute('data-lang-key')) {
-          updateLanguageDraft(target);
-          return;
-        }
-
-        if (target.getAttribute('data-input-kind') === 'variable') {
-          updateVariableDraft(target);
-          return;
-        }
-
-        if (
-          target.id === 'batchDockerEnabled'
-          || target.id === 'batchDockerValue'
-          || target.id === 'batchSshEnabled'
-          || target.id === 'batchSshValue'
-        ) {
-          updateBatchDraft();
-        }
-      });
-
-      app.addEventListener('change', (event) => {
-        const target = event.target;
-
-        if (!(target instanceof HTMLInputElement)) {
-          return;
-        }
-
-        if (target.getAttribute('data-input-kind') && target.getAttribute('data-lang-key')) {
-          updateLanguageDraft(target);
-          render();
-          return;
-        }
-
-        if (
-          target.id === 'batchDockerEnabled'
-          || target.id === 'batchDockerValue'
-          || target.id === 'batchSshEnabled'
-          || target.id === 'batchSshValue'
-        ) {
-          updateBatchDraft();
-          render();
-        }
-      });
-
-      app.addEventListener('click', (event) => {
-        const target = event.target;
-
-        if (!(target instanceof HTMLElement)) {
-          return;
-        }
-
-        const action = target.getAttribute('data-action');
-
-        if (!action) {
-          return;
-        }
-
-        if (action === 'refresh-state') {
-          vscodeApi.postMessage({
-            type: 'refreshState',
-            profilePath: getProfilePath(),
-            copyIconsPath: getCopyIconsPath(),
-          });
-          return;
-        }
-
-        if (action === 'check-env') {
-          vscodeApi.postMessage({
-            type: 'runCheckEnv',
-            profilePath: getProfilePath(),
-            copyIconsPath: getCopyIconsPath(),
-          });
-          return;
-        }
-
-        if (action === 'copy-icons') {
-          vscodeApi.postMessage({
-            type: 'runCopyIcons',
-            profilePath: getProfilePath(),
-            copyIconsPath: getCopyIconsPath(),
-          });
-          return;
-        }
-
-        if (action === 'save-variable') {
-          const variableKey = target.getAttribute('data-variable-key');
-          const variable = state.variables.find((item) => item.key === variableKey);
-
-          if (!variable) {
-            return;
-          }
-
-          vscodeApi.postMessage({
-            type: 'saveVariable',
-            profilePath: getProfilePath(),
-            copyIconsPath: getCopyIconsPath(),
-            variableKey,
-            value: variable.value,
-          });
-          return;
-        }
-
-        if (action === 'save-language') {
-          const languageKey = target.getAttribute('data-lang-key');
-          const language = state.languages.find((item) => item.key === languageKey);
-
-          if (!language) {
-            return;
-          }
-
-          if (language.dockerEnabled && language.sshEnabled) {
-            setLocalStatus(
-              'language',
-              languageKey,
-              'error',
-              'Cannot save with both docker and ssh enabled.'
-            );
-            return;
-          }
-
-          if (language.dockerEnabled && !String(language.dockerValue || '').trim()) {
-            setLocalStatus('language', languageKey, 'error', 'Enter a Docker value before saving.');
-            return;
-          }
-
-          if (language.sshEnabled && !String(language.sshValue || '').trim()) {
-            setLocalStatus('language', languageKey, 'error', 'Enter an SSH route before saving.');
-            return;
-          }
-
-          vscodeApi.postMessage({
-            type: 'saveLanguageRouting',
-            profilePath: getProfilePath(),
-            copyIconsPath: getCopyIconsPath(),
-            languageKey,
-            dockerEnabled: language.dockerEnabled,
-            dockerValue: language.dockerValue,
-            sshEnabled: language.sshEnabled,
-            sshValue: language.sshValue,
-          });
-          return;
-        }
-
-        if (action === 'save-batch') {
-          updateBatchDraft();
-
-          if (state.batch.dockerEnabled && state.batch.sshEnabled) {
-            setLocalStatus('batch', '', 'error', 'Cannot save Batch All with both docker and ssh enabled.');
-            return;
-          }
-
-          if (state.batch.dockerEnabled && !String(state.batch.dockerValue || '').trim()) {
-            setLocalStatus('batch', '', 'error', 'Enter a Docker value before saving Batch All.');
-            return;
-          }
-
-          if (state.batch.sshEnabled && !String(state.batch.sshValue || '').trim()) {
-            setLocalStatus('batch', '', 'error', 'Enter an SSH route before saving Batch All.');
-            return;
-          }
-
-          vscodeApi.postMessage({
-            type: 'saveBatchRouting',
-            profilePath: getProfilePath(),
-            copyIconsPath: getCopyIconsPath(),
-            dockerEnabled: state.batch.dockerEnabled,
-            dockerValue: state.batch.dockerValue,
-            sshEnabled: state.batch.sshEnabled,
-            sshValue: state.batch.sshValue,
-          });
-        }
-      });
-
-      window.addEventListener('message', (event) => {
-        const message = event.data;
-
-        if (message?.type !== 'environmentState') {
-          return;
-        }
-
-        state = message.state;
-        render();
-      });
-
-      render();
-    </script>
+    <div class="errorBox">${escapedMessage}</div>
   </body>
 </html>`;
 }
@@ -1567,6 +855,14 @@ class EnvironmentInitViewProvider {
     };
     this._variableStatusByKey = new Map();
     this._routingStatusByLanguageKey = new Map();
+    this._mediaBaseUri = vscode.Uri.joinPath(
+      extensionUri,
+      ...ENVIRONMENT_MEDIA_PATH_SEGMENTS
+    );
+    this._templateBaseUri = vscode.Uri.joinPath(
+      extensionUri,
+      ...ENVIRONMENT_TEMPLATE_PATH_SEGMENTS
+    );
     this._languageIconBaseUri = vscode.Uri.joinPath(
       extensionUri,
       ...LANGUAGE_ICON_PATH_SEGMENT.split("/")
@@ -1576,6 +872,68 @@ class EnvironmentInitViewProvider {
       extensionUri,
       ...FALLBACK_ICON_PATH_SEGMENT.split("/")
     );
+  }
+
+  /**
+   * Loads one Environment template file using shared process cache.
+   *
+   * @param {string} templateFileName Template file name.
+   * @returns {string} Template contents.
+   */
+  getTemplate(templateFileName) {
+    const templateUri = vscode.Uri.joinPath(this._templateBaseUri, templateFileName);
+    const templatePath = templateUri.fsPath;
+
+    if (environmentTemplateCache.has(templatePath)) {
+      return environmentTemplateCache.get(templatePath);
+    }
+
+    const templateText = readTextFileSafe(templatePath);
+
+    if (!templateText.trim()) {
+      const errorMessage =
+        `Environment template load failed: ${templateFileName}\n`
+        + `Expected path: ${templatePath}`;
+      console.error(`[algorithms-runner] ${errorMessage}`);
+      throw new Error(errorMessage);
+    }
+
+    environmentTemplateCache.set(templatePath, templateText);
+    return templateText;
+  }
+
+  /**
+   * Returns all Environment templates.
+   *
+   * @returns {{shell: string, panel: string, profileSection: string, checkEnvSection: string, copyIconsSection: string, variablesSection: string, routingSection: string, batchSection: string, variableCard: string, languageRow: string}} Template map.
+   */
+  getTemplates() {
+    const templateByName = Object.fromEntries(
+      ENVIRONMENT_REQUIRED_TEMPLATE_NAMES.map((templateFileName) => {
+        return [templateFileName, this.getTemplate(templateFileName)];
+      })
+    );
+
+    return {
+      shell: templateByName[ENVIRONMENT_SHELL_TEMPLATE_FILE_NAME],
+      panel: templateByName[ENVIRONMENT_PANEL_TEMPLATE_FILE_NAME],
+      profileSection:
+        templateByName[ENVIRONMENT_PROFILE_SECTION_TEMPLATE_FILE_NAME],
+      checkEnvSection:
+        templateByName[ENVIRONMENT_CHECK_ENV_SECTION_TEMPLATE_FILE_NAME],
+      copyIconsSection:
+        templateByName[ENVIRONMENT_COPY_ICONS_SECTION_TEMPLATE_FILE_NAME],
+      variablesSection:
+        templateByName[ENVIRONMENT_VARIABLES_SECTION_TEMPLATE_FILE_NAME],
+      routingSection:
+        templateByName[ENVIRONMENT_ROUTING_SECTION_TEMPLATE_FILE_NAME],
+      batchSection:
+        templateByName[ENVIRONMENT_BATCH_SECTION_TEMPLATE_FILE_NAME],
+      variableCard:
+        templateByName[ENVIRONMENT_VARIABLE_CARD_TEMPLATE_FILE_NAME],
+      languageRow:
+        templateByName[ENVIRONMENT_LANGUAGE_ROW_TEMPLATE_FILE_NAME],
+    };
   }
 
   /**
@@ -1963,7 +1321,11 @@ class EnvironmentInitViewProvider {
    * @returns {Object.<string, (message: {variableKey?: string, value?: string, languageKey?: string, dockerEnabled?: boolean, dockerValue?: string, sshEnabled?: boolean, sshValue?: string}) => void>} Message handlers.
    */
   getMessageHandlers() {
-    return {
+    if (this._messageHandlers) {
+      return this._messageHandlers;
+    }
+
+    this._messageHandlers = {
       refreshState: () => {
         this.postStateUpdate();
       },
@@ -1986,6 +1348,8 @@ class EnvironmentInitViewProvider {
         void this.saveBatchRouting();
       },
     };
+
+    return this._messageHandlers;
   }
 
   /**
@@ -2014,9 +1378,24 @@ class EnvironmentInitViewProvider {
     this._view = webviewView;
     webviewView.webview.options = {
       enableScripts: true,
-      localResourceRoots: [this._languageIconBaseUri, this._iconRootUri],
+      localResourceRoots: [
+        this._languageIconBaseUri,
+        this._iconRootUri,
+        this._mediaBaseUri,
+        this._templateBaseUri,
+      ],
     };
-    webviewView.webview.html = buildEnvironmentHtml(webviewView.webview, this);
+    try {
+      webviewView.webview.html = buildEnvironmentHtml(webviewView.webview, this);
+    } catch (error) {
+      const failureText = String(
+        error?.message || "Environment pane failed to load templates."
+      );
+      webviewView.webview.html = buildEnvironmentErrorHtml(
+        webviewView.webview,
+        failureText
+      );
+    }
 
     webviewView.webview.onDidReceiveMessage((message) => {
       this.handleMessage(message);
@@ -2039,7 +1418,17 @@ class EnvironmentInitViewProvider {
       return;
     }
 
-    this._view.webview.html = buildEnvironmentHtml(this._view.webview, this);
+    try {
+      this._view.webview.html = buildEnvironmentHtml(this._view.webview, this);
+    } catch (error) {
+      const failureText = String(
+        error?.message || "Environment pane failed to refresh templates."
+      );
+      this._view.webview.html = buildEnvironmentErrorHtml(
+        this._view.webview,
+        failureText
+      );
+    }
   }
 }
 

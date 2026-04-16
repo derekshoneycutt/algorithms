@@ -40,13 +40,13 @@ const { openRunMenuFlow } = require("./ui/quickPickFlows");
 // Workspace status sidebar registration.
 const {
   registerWorkspaceAlgorithmsRunView,
-} = require("./ui/workspaceAlgorithmsRunView");
+} = require("./ui/algorithmsRunView");
 const {
   registerSidebarRunControlsView,
-} = require("./ui/sidebarRunControlsView");
+} = require("./ui/runControlsView");
 const {
   registerSidebarSmokeControlsView,
-} = require("./ui/sidebarSmokeControlsView");
+} = require("./ui/smokeControlsView");
 const {
   registerStandardLibraryView,
 } = require("./ui/standardLibraryView");

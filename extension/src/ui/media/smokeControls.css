@@ -1,0 +1,212 @@
+:root {
+  color-scheme: light dark;
+}
+
+html,
+body {
+  height: 100%;
+  margin: 0;
+}
+
+body {
+  padding: 8px;
+  box-sizing: border-box;
+  font-family: var(--vscode-font-family);
+  font-size: 12px;
+  color: var(--vscode-foreground);
+  background: var(--vscode-sideBar-background);
+}
+
+.panel {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  height: 100%;
+  min-height: 0;
+}
+
+.section {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 8px;
+  border: 1px solid var(--vscode-widget-border);
+  border-radius: 6px;
+  background: color-mix(in srgb, var(--vscode-sideBar-background) 82%, var(--vscode-editor-background) 18%);
+}
+
+.sectionHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.sectionTitleGroup {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+
+.sectionTitle {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--vscode-descriptionForeground);
+}
+
+.sectionIcon {
+  width: 13px;
+  height: 13px;
+  flex: 0 0 auto;
+  color: var(--vscode-foreground);
+}
+
+.argsInput {
+  width: 100%;
+  box-sizing: border-box;
+  border: 1px solid var(--vscode-input-border);
+  border-radius: 4px;
+  background: var(--vscode-input-background);
+  color: var(--vscode-input-foreground);
+  padding: 4px 6px;
+  min-height: 24px;
+  font: inherit;
+}
+
+.argsInput:disabled {
+  opacity: 0.65;
+}
+
+.status {
+  min-height: 14px;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  font-size: 11px;
+  line-height: 1.3;
+}
+
+.status-muted {
+  color: var(--vscode-descriptionForeground);
+}
+
+.status-ok {
+  color: var(--vscode-testing-iconPassed);
+}
+
+.status-error {
+  color: var(--vscode-testing-iconFailed);
+}
+
+.panelDescription {
+  margin: 0;
+  color: var(--vscode-descriptionForeground);
+  font-size: 11px;
+  line-height: 1.3;
+}
+
+.helperText {
+  color: var(--vscode-descriptionForeground);
+  font-size: 11px;
+  line-height: 1.3;
+}
+
+.smokeMarkdownRow {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 6px;
+  align-items: center;
+}
+
+.smokeMarkdownLabel {
+  display: inline-flex;
+  align-items: center;
+  gap: 0;
+  font-size: 11px;
+  white-space: nowrap;
+}
+
+.smokeTimeoutRow {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px;
+}
+
+.smokeTimeoutField {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 11px;
+}
+
+.smokeLangActions {
+  display: inline-flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.buttonRow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.button {
+  border: 1px solid var(--vscode-button-border, transparent);
+  background: var(--vscode-button-background);
+  color: var(--vscode-button-foreground);
+  border-radius: 4px;
+  padding: 4px 8px;
+  font: inherit;
+  cursor: pointer;
+}
+
+.button.secondary {
+  background: var(--vscode-button-secondaryBackground);
+  color: var(--vscode-button-secondaryForeground);
+}
+
+.button.secondary:hover {
+  background: var(--vscode-button-secondaryHoverBackground);
+}
+
+.languageListContainer {
+  min-height: 96px;
+  flex: 1 1 auto;
+  overflow-y: auto;
+  overflow-x: hidden;
+  border: 1px solid var(--vscode-widget-border);
+  border-radius: 4px;
+  padding: 4px;
+  box-sizing: border-box;
+}
+
+.smokeLanguageGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(112px, 1fr));
+  gap: 4px 6px;
+}
+
+.smokeLanguageOption {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 11px;
+}
+
+.languageIcon {
+  width: 14px;
+  height: 14px;
+  object-fit: contain;
+  flex: 0 0 auto;
+  opacity: 0.95;
+}
+
+@media (max-width: 260px) {
+  .smokeLanguageGrid {
+    grid-template-columns: repeat(auto-fill, minmax(90px, 1fr));
+  }
+}

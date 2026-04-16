@@ -1,5 +1,9 @@
-const fs = require("fs");
 const vscode = require("vscode");
+const {
+  escapeHtml,
+  readTextFileSafe,
+  renderTemplate,
+} = require("./webviewHostUtils");
 const {
   getSidebarRunArgsState,
   setSidebarRunArgsEnabled,
@@ -30,51 +34,57 @@ const RUN_CONTROLS_SOURCE_PROFILE_TEMPLATE_FILE_NAME =
 const RUN_CONTROLS_CLEAN_OPTIONS_TEMPLATE_FILE_NAME =
   "run-controls-clean-options.html";
 const runControlsTemplateCache = new Map();
+const RUN_CONTROLS_REQUIRED_TEMPLATE_NAMES = [
+  RUN_CONTROLS_SHELL_TEMPLATE_FILE_NAME,
+  RUN_CONTROLS_COMMAND_ARGUMENTS_TEMPLATE_FILE_NAME,
+  RUN_CONTROLS_RUN_CHECKS_TEMPLATE_FILE_NAME,
+  RUN_CONTROLS_SOURCE_PROFILE_TEMPLATE_FILE_NAME,
+  RUN_CONTROLS_CLEAN_OPTIONS_TEMPLATE_FILE_NAME,
+];
 
 /**
- * Reads a text file safely and returns an empty string on failure.
+ * Builds an explicit error document for run-controls webview failures.
  *
- * @param {string} filePath Text file path.
- * @returns {string} File contents or empty string.
+ * @param {import("vscode").Webview} webview Webview instance.
+ * @param {string} errorMessage Visible failure text.
+ * @returns {string} Error HTML.
  */
-function readTextFileSafe(filePath) {
-  try {
-    return fs.readFileSync(filePath, "utf8");
-  } catch (_) {
-    return "";
-  }
-}
+function buildRunControlsErrorHtml(webview, errorMessage) {
+  const cspSource = webview.cspSource;
+  const escapedMessage = escapeHtml(errorMessage);
 
-/**
- * Renders one tokenized HTML template with replacement values.
- *
- * @param {string} template Raw template source.
- * @param {Record<string, string>} replacements Placeholder replacements.
- * @returns {string} Rendered HTML.
- */
-function renderTemplate(template, replacements) {
-  return String(template || "").replace(/\{\{([a-zA-Z0-9_]+)\}\}/g, (_, key) => {
-    if (Object.prototype.hasOwnProperty.call(replacements, key)) {
-      return String(replacements[key]);
-    }
+  return `<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta
+      http-equiv="Content-Security-Policy"
+      content="default-src 'none'; base-uri 'none'; object-src 'none'; frame-ancestors 'none'; style-src ${cspSource};"
+    />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <style>
+      body {
+        margin: 0;
+        padding: 10px;
+        font-family: var(--vscode-font-family);
+        font-size: 12px;
+        color: var(--vscode-errorForeground);
+        background: var(--vscode-sideBar-background);
+      }
 
-    return "";
-  });
-}
-
-/**
- * Escapes user-provided text for safe HTML interpolation.
- *
- * @param {string} text Raw text value.
- * @returns {string} Escaped HTML-safe text.
- */
-function escapeHtml(text) {
-  return String(text || "")
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;")
-    .replace(/'/g, "&#39;");
+      .errorBox {
+        border: 1px solid var(--vscode-errorForeground);
+        border-radius: 6px;
+        padding: 8px;
+        line-height: 1.4;
+        white-space: pre-wrap;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="errorBox">${escapedMessage}</div>
+  </body>
+</html>`;
 }
 
 /**
@@ -425,6 +435,15 @@ class SidebarRunControlsViewProvider {
     }
 
     const templateText = readTextFileSafe(templatePath);
+
+    if (!templateText.trim()) {
+      const errorMessage =
+        `Run Controls template load failed: ${templateFileName}\n`
+        + `Expected path: ${templatePath}`;
+      console.error(`[algorithms-runner] ${errorMessage}`);
+      throw new Error(errorMessage);
+    }
+
     runControlsTemplateCache.set(templatePath, templateText);
     return templateText;
   }
@@ -435,16 +454,21 @@ class SidebarRunControlsViewProvider {
    * @returns {{shell: string, commandArguments: string, runChecks: string, sourceProfile: string, cleanOptions: string}} Template map.
    */
   getTemplates() {
+    const templateByName = Object.fromEntries(
+      RUN_CONTROLS_REQUIRED_TEMPLATE_NAMES.map((templateFileName) => {
+        return [templateFileName, this.getTemplate(templateFileName)];
+      })
+    );
+
     return {
-      shell: this.getTemplate(RUN_CONTROLS_SHELL_TEMPLATE_FILE_NAME),
-      commandArguments: this.getTemplate(
-        RUN_CONTROLS_COMMAND_ARGUMENTS_TEMPLATE_FILE_NAME
-      ),
-      runChecks: this.getTemplate(RUN_CONTROLS_RUN_CHECKS_TEMPLATE_FILE_NAME),
-      sourceProfile: this.getTemplate(
-        RUN_CONTROLS_SOURCE_PROFILE_TEMPLATE_FILE_NAME
-      ),
-      cleanOptions: this.getTemplate(RUN_CONTROLS_CLEAN_OPTIONS_TEMPLATE_FILE_NAME),
+      shell: templateByName[RUN_CONTROLS_SHELL_TEMPLATE_FILE_NAME],
+      commandArguments:
+        templateByName[RUN_CONTROLS_COMMAND_ARGUMENTS_TEMPLATE_FILE_NAME],
+      runChecks: templateByName[RUN_CONTROLS_RUN_CHECKS_TEMPLATE_FILE_NAME],
+      sourceProfile:
+        templateByName[RUN_CONTROLS_SOURCE_PROFILE_TEMPLATE_FILE_NAME],
+      cleanOptions:
+        templateByName[RUN_CONTROLS_CLEAN_OPTIONS_TEMPLATE_FILE_NAME],
     };
   }
 
@@ -474,7 +498,11 @@ class SidebarRunControlsViewProvider {
    * @returns {Object.<string, (message: {enabled?: boolean, text?: string, mode?: string, route?: string}) => void>} Message handlers.
    */
   getMessageHandlers() {
-    return {
+    if (this._messageHandlers) {
+      return this._messageHandlers;
+    }
+
+    this._messageHandlers = {
       setEnabled: (message) => {
         setSidebarRunArgsEnabled(Boolean(message.enabled));
         this.postStateUpdate();
@@ -508,6 +536,8 @@ class SidebarRunControlsViewProvider {
         this.postStateUpdate();
       },
     };
+
+    return this._messageHandlers;
   }
 
   /**
@@ -553,14 +583,22 @@ class SidebarRunControlsViewProvider {
       enableScripts: true,
       localResourceRoots: [this._mediaRootUri],
     };
-    const assets = this.getAssetUris(webviewView.webview);
-    const templates = this.getTemplates();
-    webviewView.webview.html = buildRunControlsHtml(
-      webviewView.webview,
-      assets.stylesheetUri,
-      assets.scriptUri,
-      templates
-    );
+    try {
+      const assets = this.getAssetUris(webviewView.webview);
+      const templates = this.getTemplates();
+      webviewView.webview.html = buildRunControlsHtml(
+        webviewView.webview,
+        assets.stylesheetUri,
+        assets.scriptUri,
+        templates
+      );
+    } catch (error) {
+      const failureText = String(error?.message || "Run Controls failed to load templates.");
+      webviewView.webview.html = buildRunControlsErrorHtml(
+        webviewView.webview,
+        failureText
+      );
+    }
 
     webviewView.webview.onDidReceiveMessage((message) => {
       this.handleMessage(message);
@@ -583,14 +621,22 @@ class SidebarRunControlsViewProvider {
       return;
     }
 
-    const assets = this.getAssetUris(this._view.webview);
-    const templates = this.getTemplates();
-    this._view.webview.html = buildRunControlsHtml(
-      this._view.webview,
-      assets.stylesheetUri,
-      assets.scriptUri,
-      templates
-    );
+    try {
+      const assets = this.getAssetUris(this._view.webview);
+      const templates = this.getTemplates();
+      this._view.webview.html = buildRunControlsHtml(
+        this._view.webview,
+        assets.stylesheetUri,
+        assets.scriptUri,
+        templates
+      );
+    } catch (error) {
+      const failureText = String(error?.message || "Run Controls failed to refresh templates.");
+      this._view.webview.html = buildRunControlsErrorHtml(
+        this._view.webview,
+        failureText
+      );
+    }
   }
 }
 

@@ -1,0 +1,50 @@
+<details class="languageRow{{conflictClass}}">
+  <summary class="languageSummary">
+    <div class="languageMain">
+      <img class="languageIcon" src="{{languageIconUri}}" alt="{{languageLabel}}" />
+      <span class="languageName">{{languageLabel}}</span>
+    </div>
+    <div class="indicatorList">{{languageIndicators}}</div>
+    <div></div>
+  </summary>
+  <div class="editorBody">
+    <label class="toggleRow">
+      <input
+        type="checkbox"
+        data-lang-key="{{languageKey}}"
+        data-input-kind="language-docker-enabled"
+        {{dockerChecked}}
+      />
+      <span class="checkboxText">Docker</span>
+    </label>
+    <input
+      class="input"
+      data-lang-key="{{languageKey}}"
+      data-input-kind="language-docker-value"
+      value="{{dockerValue}}"
+      placeholder="Docker image"
+      {{dockerDisabledAttr}}
+    />
+    <label class="toggleRow">
+      <input
+        type="checkbox"
+        data-lang-key="{{languageKey}}"
+        data-input-kind="language-ssh-enabled"
+        {{sshChecked}}
+      />
+      <span class="checkboxText">SSH</span>
+    </label>
+    <input
+      class="input"
+      data-lang-key="{{languageKey}}"
+      data-input-kind="language-ssh-value"
+      value="{{sshValue}}"
+      placeholder="SSH route"
+      {{sshDisabledAttr}}
+    />
+    <div class="buttonRow">
+      <button class="button" data-action="save-language" data-lang-key="{{languageKey}}">Save</button>
+    </div>
+    {{languageStatus}}
+  </div>
+</details>

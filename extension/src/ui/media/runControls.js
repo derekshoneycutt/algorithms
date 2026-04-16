@@ -1,20 +1,95 @@
 const vscodeApi = acquireVsCodeApi();
-const runArgsEnabled = document.getElementById("runArgsEnabled");
-const runArgsText = document.getElementById("runArgsText");
-const runArgsStatus = document.getElementById("runArgsStatus");
-const clearRunArgs = document.getElementById("clearRunArgs");
-const sourceProfileEnabled = document.getElementById("sourceProfileEnabled");
-const sourceProfileText = document.getElementById("sourceProfileText");
-const sourceProfileStatus = document.getElementById("sourceProfileStatus");
-const clearSourceProfile = document.getElementById("clearSourceProfile");
-const runChecksModeNone = document.getElementById("runChecksModeNone");
-const runChecksModeCheckOnly = document.getElementById("runChecksModeCheckOnly");
-const runChecksModeCompileOnly = document.getElementById("runChecksModeCompileOnly");
-const runChecksRoute = document.getElementById("runChecksRoute");
-const runChecksStatus = document.getElementById("runChecksStatus");
-const cleanStdlibEnabled = document.getElementById("cleanStdlibEnabled");
-const cleanArchivesEnabled = document.getElementById("cleanArchivesEnabled");
-const cleanOptionsStatus = document.getElementById("cleanOptionsStatus");
+const REQUIRED_NODE_IDS = [
+  "runArgsEnabled",
+  "runArgsText",
+  "runArgsStatus",
+  "clearRunArgs",
+  "sourceProfileEnabled",
+  "sourceProfileText",
+  "sourceProfileStatus",
+  "clearSourceProfile",
+  "runChecksModeNone",
+  "runChecksModeCheckOnly",
+  "runChecksModeCompileOnly",
+  "runChecksRoute",
+  "runChecksStatus",
+  "cleanStdlibEnabled",
+  "cleanArchivesEnabled",
+  "cleanOptionsStatus",
+];
+
+/**
+ * Returns required nodes keyed by id or throws with actionable diagnostics.
+ *
+ * @returns {Record<string, HTMLElement>} Required nodes.
+ */
+function getRequiredNodes() {
+  const nodes = {};
+  const missingNodeIds = [];
+
+  for (const nodeId of REQUIRED_NODE_IDS) {
+    const element = document.getElementById(nodeId);
+
+    if (!element) {
+      missingNodeIds.push(nodeId);
+      continue;
+    }
+
+    nodes[nodeId] = element;
+  }
+
+  if (missingNodeIds.length > 0) {
+    throw new Error(
+      "Run Controls webview missing required nodes: "
+        + missingNodeIds.join(", ")
+    );
+  }
+
+  return nodes;
+}
+
+/**
+ * Replaces the document body with a clear startup failure message.
+ *
+ * @param {string} message Startup failure details.
+ * @returns {void}
+ */
+function showStartupFailure(message) {
+  document.body.innerHTML =
+    '<div style="margin:0;padding:10px;font-family:var(--vscode-font-family);font-size:12px;color:var(--vscode-errorForeground);background:var(--vscode-sideBar-background);white-space:pre-wrap;border:1px solid var(--vscode-errorForeground);border-radius:6px;line-height:1.4;">'
+    + String(message || "Run Controls failed to initialize.")
+    + "</div>";
+}
+
+let requiredNodes = null;
+
+try {
+  requiredNodes = getRequiredNodes();
+} catch (error) {
+  const failureText = String(
+    error?.message || "Run Controls failed required-node bootstrap."
+  );
+  console.error(`[algorithms-runner] ${failureText}`);
+  showStartupFailure(failureText);
+  throw error;
+}
+
+const runArgsEnabled = requiredNodes.runArgsEnabled;
+const runArgsText = requiredNodes.runArgsText;
+const runArgsStatus = requiredNodes.runArgsStatus;
+const clearRunArgs = requiredNodes.clearRunArgs;
+const sourceProfileEnabled = requiredNodes.sourceProfileEnabled;
+const sourceProfileText = requiredNodes.sourceProfileText;
+const sourceProfileStatus = requiredNodes.sourceProfileStatus;
+const clearSourceProfile = requiredNodes.clearSourceProfile;
+const runChecksModeNone = requiredNodes.runChecksModeNone;
+const runChecksModeCheckOnly = requiredNodes.runChecksModeCheckOnly;
+const runChecksModeCompileOnly = requiredNodes.runChecksModeCompileOnly;
+const runChecksRoute = requiredNodes.runChecksRoute;
+const runChecksStatus = requiredNodes.runChecksStatus;
+const cleanStdlibEnabled = requiredNodes.cleanStdlibEnabled;
+const cleanArchivesEnabled = requiredNodes.cleanArchivesEnabled;
+const cleanOptionsStatus = requiredNodes.cleanOptionsStatus;
 const statusClasses = ["status-muted", "status-ok", "status-error"];
 
 /**

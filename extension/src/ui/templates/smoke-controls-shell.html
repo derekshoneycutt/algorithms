@@ -4,19 +4,19 @@
     <meta charset="UTF-8" />
     <meta
       http-equiv="Content-Security-Policy"
-      content="default-src 'none'; base-uri 'none'; object-src 'none'; frame-ancestors 'none'; style-src {{cspSource}}; script-src {{cspSource}};"
+      content="default-src 'none'; base-uri 'none'; object-src 'none'; frame-ancestors 'none'; img-src {{cspSource}} data:; style-src {{cspSource}}; script-src {{cspSource}};"
     />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <link rel="stylesheet" href="{{stylesheetUri}}" />
   </head>
   <body>
     <div class="panel">
-      <p class="panelDescription">Controls parameters for all code runs.</p>
-      {{commandArgumentsSection}}
-      {{runChecksSection}}
-      {{sourceProfileSection}}
-      {{cleanOptionsSection}}
+      <p class="panelDescription">Controls smoke tests run in supported directories.</p>
+      {{reportGenerationSection}}
+      {{timeoutsSection}}
+      {{languagesSection}}
     </div>
+
     <script src="{{scriptUri}}"></script>
   </body>
 </html>

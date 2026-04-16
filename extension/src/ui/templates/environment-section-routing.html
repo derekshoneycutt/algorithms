@@ -1,0 +1,10 @@
+<section class="section">
+  {{routingHeader}}
+  <div class="helperText">
+    Configure per-language docker or ssh execution targets. SSH route value must use one of two formats:
+    <pre class="formatPre">ssh-destination|code-dir|run-script<br>ssh-address|ssh-user|ssh-port|code-dir|run-script</pre>
+    Each language should have exactly one target configured (docker or ssh) or none.
+  </div>
+  {{batchSection}}
+  <div class="routingTable">{{languageRowsHtml}}</div>
+</section>

@@ -1,0 +1,13 @@
+<div class="variableCard">
+  <div class="fieldLabel">{{variableLabel}}</div>
+  <div class="variableInputRow">
+    <input
+      class="input"
+      data-variable-key="{{variableKey}}"
+      data-input-kind="variable"
+      value="{{variableValue}}"
+    />
+    <button class="button" data-action="save-variable" data-variable-key="{{variableKey}}">Save</button>
+  </div>
+  {{variableStatus}}
+</div>
