@@ -206,6 +206,36 @@
         "title": "Create Language File",
         "category": "Derek's Algorithms",
         "icon": "$(add)"
+      },
+      {
+        "command": "algos.standardLibraryCreateFile",
+        "title": "Create File",
+        "category": "Derek's Algorithms",
+        "icon": "$(new-file)"
+      },
+      {
+        "command": "algos.standardLibraryCreateFileAtRoot",
+        "title": "Create File",
+        "category": "Derek's Algorithms",
+        "icon": "$(new-file)"
+      },
+      {
+        "command": "algos.standardLibraryCreateFolder",
+        "title": "Create Folder",
+        "category": "Derek's Algorithms",
+        "icon": "$(new-folder)"
+      },
+      {
+        "command": "algos.standardLibraryCreateFolderAtRoot",
+        "title": "Create Folder",
+        "category": "Derek's Algorithms",
+        "icon": "$(new-folder)"
+      },
+      {
+        "command": "algos.standardLibraryDelete",
+        "title": "Delete",
+        "category": "Derek's Algorithms",
+        "icon": "$(trash)"
       }
     ],
     "submenus": [
@@ -361,6 +391,21 @@
           "command": "algos.createLanguageFilePlaceholder",
           "when": "view == algosWorkspaceAlgorithmsRunView && (viewItem == algos.languageMissingUnflagged || viewItem == algos.languageMissingFlagged)",
           "group": "inline@1"
+        },
+        {
+          "command": "algos.standardLibraryCreateFile",
+          "when": "view == algosWorkspaceStandardLibraryView && viewItem == standardLibraryDirectory",
+          "group": "inline@1"
+        },
+        {
+          "command": "algos.standardLibraryCreateFolder",
+          "when": "view == algosWorkspaceStandardLibraryView && viewItem == standardLibraryDirectory",
+          "group": "inline@2"
+        },
+        {
+          "command": "algos.standardLibraryDelete",
+          "when": "view == algosWorkspaceStandardLibraryView && (viewItem == standardLibraryDirectory || viewItem == standardLibraryFile)",
+          "group": "inline@3"
         }
       ],
       "view/title": [
@@ -383,6 +428,16 @@
           "command": "algos.sidebarShowProblemsFilter",
           "when": "view == algosWorkspaceAlgorithmsRunView && algos.sidebarFilterMode == all",
           "group": "navigation@4"
+        },
+        {
+          "command": "algos.standardLibraryCreateFileAtRoot",
+          "when": "view == algosWorkspaceStandardLibraryView",
+          "group": "navigation@1"
+        },
+        {
+          "command": "algos.standardLibraryCreateFolderAtRoot",
+          "when": "view == algosWorkspaceStandardLibraryView",
+          "group": "navigation@2"
         }
       ],
       "algos.runMenuExplorer": [

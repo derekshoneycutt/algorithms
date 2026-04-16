@@ -321,6 +321,21 @@ async function activate(context) {
     createLanguageFilePlaceholder: async (item) => {
       await workspaceAlgorithmsRunViewRegistration.openMissingLanguageFile(item);
     },
+    standardLibraryCreateFile: async (item) => {
+      await standardLibraryViewRegistration.createFile(item);
+    },
+    standardLibraryCreateFileAtRoot: async () => {
+      await standardLibraryViewRegistration.createFileAtRoot();
+    },
+    standardLibraryCreateFolder: async (item) => {
+      await standardLibraryViewRegistration.createFolder(item);
+    },
+    standardLibraryCreateFolderAtRoot: async () => {
+      await standardLibraryViewRegistration.createFolderAtRoot();
+    },
+    standardLibraryDelete: async (item) => {
+      await standardLibraryViewRegistration.deleteItem(item);
+    },
   });
 
   const visibilityDisposables = [

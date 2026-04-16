@@ -193,7 +193,12 @@ function deriveImplementedRunMenuCommandIds(guardedCommandDefs) {
  *   showSidebarAllFilter: () => Promise<void>,
  *   showSidebarProblemsFilter: () => Promise<void>,
  *   refreshSidebarView: () => Promise<void>,
- *   createLanguageFilePlaceholder: (item?: unknown) => Promise<void>
+ *   createLanguageFilePlaceholder: (item?: unknown) => Promise<void>,
+ *   standardLibraryCreateFile: (item?: unknown) => Promise<void>,
+ *   standardLibraryCreateFileAtRoot: () => Promise<void>,
+ *   standardLibraryCreateFolder: (item?: unknown) => Promise<void>,
+ *   standardLibraryCreateFolderAtRoot: () => Promise<void>,
+ *   standardLibraryDelete: (item?: unknown) => Promise<void>
  * }} deps Command registration dependencies.
  * @returns {import("vscode").Disposable[]} Command disposables.
  */
@@ -286,6 +291,36 @@ function registerCommands(deps) {
     {
       commandId: "algos.runMenuCheckOnly",
       handler: deps.runActiveFileCheckOnlyNativeHandler,
+    },
+    {
+      commandId: "algos.standardLibraryCreateFile",
+      handler: async (_vscodeApi, _eligibilityState, item) => {
+        await deps.standardLibraryCreateFile(item);
+      },
+    },
+    {
+      commandId: "algos.standardLibraryCreateFileAtRoot",
+      handler: async () => {
+        await deps.standardLibraryCreateFileAtRoot();
+      },
+    },
+    {
+      commandId: "algos.standardLibraryCreateFolder",
+      handler: async (_vscodeApi, _eligibilityState, item) => {
+        await deps.standardLibraryCreateFolder(item);
+      },
+    },
+    {
+      commandId: "algos.standardLibraryCreateFolderAtRoot",
+      handler: async () => {
+        await deps.standardLibraryCreateFolderAtRoot();
+      },
+    },
+    {
+      commandId: "algos.standardLibraryDelete",
+      handler: async (_vscodeApi, _eligibilityState, item) => {
+        await deps.standardLibraryDelete(item);
+      },
     },
   ];
   const implementedMenuCommandIds = deriveImplementedRunMenuCommandIds(
