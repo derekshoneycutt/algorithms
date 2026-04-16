@@ -2,12 +2,15 @@ const fs = require("fs");
 const path = require("path");
 const { spawn } = require("child_process");
 const vscode = require("vscode");
+const { VIEW_IDS } = require("../constants");
+const { realpathSafe } = require("../utils/fileUtils");
 const { resolveEligibilityState } = require("../runtime/pathResolver");
 const { getEffectiveSidebarSmokeArgs } = require("../runtime/sidebarRunArgsState");
 const {
   getSupportedLanguageKeys,
   normalizeExtensionToLanguageKey,
 } = require("../validation/inputValidation");
+const { LANGUAGE_ICON_SAMPLE_EXTENSIONS } = require("../validation/languageMetadata");
 
 const LANGUAGE_ICON_DIRECTORY_SEGMENT = ".algos-language-icons";
 const LANGUAGE_PRESENT_URI_FRAGMENT = "algos-language-present";
@@ -25,71 +28,6 @@ const SMOKE_STATUS_LABELS = {
   running: "Running",
   passed: "Passed",
   failed: "Failed",
-};
-
-const LANGUAGE_ICON_SAMPLE_EXTENSIONS = {
-  ada: "adb",
-  arm64asm: "s",
-  asm: "asm",
-  ballerina: "bal",
-  c: "c",
-  clojure: "clj",
-  cobol: "cob",
-  cpp: "cpp",
-  csharp: "cs",
-  d: "d",
-  dart: "dart",
-  eiffel: "e",
-  elixir: "exs",
-  erlang: "erl",
-  factor: "factor",
-  forth: "fth",
-  fortran: "f90",
-  freebasic: "bas",
-  fsharp: "fs",
-  gleam: "gleam",
-  go: "go",
-  haskell: "hs",
-  haxe: "hx",
-  icon: "icn",
-  idris: "idr",
-  java: "java",
-  javascript: "js",
-  julia: "jl",
-  kit: "kit",
-  kotlin: "kt",
-  llvmir: "ll",
-  lua: "lua",
-  mercury: "moo",
-  mmixal: "mms",
-  modula3: "m3",
-  mojo: "mojo",
-  nasm: "nasm",
-  nim: "nim",
-  oberon: "mod",
-  objectivec: "m",
-  ocaml: "ml",
-  octave: "mat",
-  pascal: "pas",
-  perl: "plx",
-  php: "php",
-  prolog: "pl",
-  python: "py",
-  r: "r",
-  racket: "rkt",
-  ruby: "rb",
-  rust: "rs",
-  scala: "scala",
-  scheme: "scm",
-  simula: "sim",
-  smalltalk: "st",
-  swift: "swift",
-  tcl: "tcl",
-  typescript: "ts",
-  v: "v",
-  visualbasic: "vb",
-  wat: "wat",
-  zig: "zig",
 };
 
 /**
@@ -114,20 +52,6 @@ function createEmptyWorkspaceState() {
  */
 function getWorkspaceFolders() {
   return vscode.workspace.workspaceFolders || [];
-}
-
-/**
- * Resolves a canonical path and falls back to absolute normalization if needed.
- *
- * @param {string} targetPath Path to normalize.
- * @returns {string} Canonical or normalized path.
- */
-function realpathSafe(targetPath) {
-  try {
-    return fs.realpathSync(targetPath);
-  } catch (_) {
-    return path.resolve(targetPath);
-  }
 }
 
 /**
@@ -2369,7 +2293,7 @@ function registerWorkspaceAlgorithmsRunView() {
     languageStatusDecorationProvider
   );
 
-  const view = vscode.window.createTreeView("algosWorkspaceAlgorithmsRunView", {
+  const view = vscode.window.createTreeView(VIEW_IDS.ALGORITHMS_RUN, {
     treeDataProvider: provider,
     showCollapseAll: false,
   });

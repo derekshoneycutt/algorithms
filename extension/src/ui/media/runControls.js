@@ -1,4 +1,5 @@
 const vscodeApi = acquireVsCodeApi();
+const initialStateNode = document.getElementById("runControlsInitialState");
 const REQUIRED_NODE_IDS = [
   "runArgsEnabled",
   "runArgsText",
@@ -91,6 +92,17 @@ const cleanStdlibEnabled = requiredNodes.cleanStdlibEnabled;
 const cleanArchivesEnabled = requiredNodes.cleanArchivesEnabled;
 const cleanOptionsStatus = requiredNodes.cleanOptionsStatus;
 const statusClasses = ["status-muted", "status-ok", "status-error"];
+let initialState = {};
+
+if (initialStateNode) {
+  try {
+    initialState = JSON.parse(initialStateNode.textContent || "{}");
+  } catch (error) {
+    console.error(
+      `[algorithms-runner] Run Controls failed to parse initial state: ${error.message}`
+    );
+  }
+}
 
 /**
  * Returns the selected run-checks mode from the UI radio group.
@@ -336,6 +348,7 @@ window.addEventListener("message", (event) => {
   applyState(message.state);
 });
 
+applyState(initialState);
 updateRunArgsClearButtonVisibility();
 updateSourceProfileClearButtonVisibility();
 updateRunChecksRouteInteractivity();

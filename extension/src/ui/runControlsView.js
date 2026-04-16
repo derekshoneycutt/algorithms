@@ -1,8 +1,10 @@
 const vscode = require("vscode");
+const { VIEW_IDS } = require("../constants");
 const {
   escapeHtml,
-  readTextFileSafe,
+  makeTemplateLoader,
   renderTemplate,
+  serializeForScript,
 } = require("./webviewHostUtils");
 const {
   getSidebarRunArgsState,
@@ -20,7 +22,6 @@ const {
   parseSidebarRunArgsText,
 } = require("../runtime/sidebarRunArgsState");
 
-const RUN_CONTROLS_VIEW_ID = "algosWorkspaceRunControlsView";
 const RUN_CONTROLS_MEDIA_PATH_SEGMENTS = ["src", "ui", "media"];
 const RUN_CONTROLS_CSS_FILE_NAME = "runControls.css";
 const RUN_CONTROLS_JS_FILE_NAME = "runControls.js";
@@ -33,7 +34,6 @@ const RUN_CONTROLS_SOURCE_PROFILE_TEMPLATE_FILE_NAME =
   "run-controls-source-profile.html";
 const RUN_CONTROLS_CLEAN_OPTIONS_TEMPLATE_FILE_NAME =
   "run-controls-clean-options.html";
-const runControlsTemplateCache = new Map();
 const RUN_CONTROLS_REQUIRED_TEMPLATE_NAMES = [
   RUN_CONTROLS_SHELL_TEMPLATE_FILE_NAME,
   RUN_CONTROLS_COMMAND_ARGUMENTS_TEMPLATE_FILE_NAME,
@@ -135,7 +135,7 @@ function getSectionIconSvg(iconName) {
  *
  * @param {string} title Section title.
  * @param {string} iconName Semantic section icon key.
- * @param {string} actionsHtml Optional action markup.
+ * @param {string} [actionsHtml] Trusted pre-built HTML markup — must never contain user-supplied content.
  * @returns {string} Header markup.
  */
 function renderSectionHeader(title, iconName, actionsHtml) {
@@ -384,11 +384,13 @@ function buildCleanOptionsSectionHtml(stateSnapshot, templates) {
 function buildRunControlsHtml(webview, stylesheetUri, scriptUri, templates) {
   const stateSnapshot = getRunControlsSnapshot();
   const cspSource = webview.cspSource;
+  const serializedState = serializeForScript(stateSnapshot);
 
   return renderTemplate(templates.shell, {
     cspSource,
     stylesheetUri,
     scriptUri,
+    serializedState,
     commandArgumentsSection: buildCommandArgumentsSectionHtml(
       stateSnapshot,
       templates
@@ -418,6 +420,7 @@ class SidebarRunControlsViewProvider {
       extensionUri,
       ...RUN_CONTROLS_TEMPLATE_PATH_SEGMENTS
     );
+    this._loadTemplate = makeTemplateLoader(this._templateRootUri.fsPath);
   }
 
   /**
@@ -427,25 +430,7 @@ class SidebarRunControlsViewProvider {
    * @returns {string} Template contents.
    */
   getTemplate(templateFileName) {
-    const templateUri = vscode.Uri.joinPath(this._templateRootUri, templateFileName);
-    const templatePath = templateUri.fsPath;
-
-    if (runControlsTemplateCache.has(templatePath)) {
-      return runControlsTemplateCache.get(templatePath);
-    }
-
-    const templateText = readTextFileSafe(templatePath);
-
-    if (!templateText.trim()) {
-      const errorMessage =
-        `Run Controls template load failed: ${templateFileName}\n`
-        + `Expected path: ${templatePath}`;
-      console.error(`[algorithms-runner] ${errorMessage}`);
-      throw new Error(errorMessage);
-    }
-
-    runControlsTemplateCache.set(templatePath, templateText);
-    return templateText;
+    return this._loadTemplate(templateFileName, "Run Controls");
   }
 
   /**
@@ -649,7 +634,7 @@ class SidebarRunControlsViewProvider {
 function registerSidebarRunControlsView(extensionUri) {
   const provider = new SidebarRunControlsViewProvider(extensionUri);
   const registration = vscode.window.registerWebviewViewProvider(
-    RUN_CONTROLS_VIEW_ID,
+    VIEW_IDS.RUN_CONTROLS,
     provider,
     {
       webviewOptions: {

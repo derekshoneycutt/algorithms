@@ -1,4 +1,5 @@
 const vscodeApi = acquireVsCodeApi();
+const initialStateNode = document.getElementById("smokeControlsInitialState");
 const smokeMarkdownEnabled = document.getElementById("smokeMarkdownEnabled");
 const smokeMarkdownPath = document.getElementById("smokeMarkdownPath");
 const smokeTimeout = document.getElementById("smokeTimeout");
@@ -9,6 +10,17 @@ const reportGenerationStatus = document.getElementById("reportGenerationStatus")
 const smokeStatus = document.getElementById("smokeStatus");
 const smokeLanguageCheckboxes = Array.from(document.querySelectorAll("input[data-smoke-lang]"));
 const statusClasses = ["status-muted", "status-ok", "status-error"];
+let initialState = {};
+
+if (initialStateNode) {
+  try {
+    initialState = JSON.parse(initialStateNode.textContent || "{}");
+  } catch (error) {
+    console.error(
+      `[algorithms-runner] Smoke Controls failed to parse initial state: ${error.message}`
+    );
+  }
+}
 
 /**
  * Updates whether markdown path input is interactive.
@@ -131,4 +143,5 @@ window.addEventListener("message", (event) => {
   applyState(message.state);
 });
 
+applyState(initialState);
 updateSmokeMarkdownInteractivity();

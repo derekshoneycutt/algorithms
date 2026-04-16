@@ -1,8 +1,10 @@
 const vscode = require("vscode");
+const { VIEW_IDS } = require("../constants");
 const {
   escapeHtml,
-  readTextFileSafe,
+  makeTemplateLoader,
   renderTemplate,
+  serializeForScript,
 } = require("./webviewHostUtils");
 const {
   getSidebarSmokeControlsState,
@@ -14,10 +16,11 @@ const {
   setSidebarSmokeAllLanguagesEnabled,
 } = require("../runtime/sidebarRunArgsState");
 
-const SMOKE_CONTROLS_VIEW_ID = "algosWorkspaceSmokeControlsView";
 const LANGUAGE_ICON_PATH_SEGMENT = "icons/languages";
 const FALLBACK_ICON_PATH_SEGMENT = "icons/play-sidebar.svg";
 const SMOKE_CONTROLS_MEDIA_PATH_SEGMENTS = ["src", "ui", "media"];
+const { LANGUAGE_ICON_FILE_BY_KEY } = require("../validation/languageMetadata");
+
 const SMOKE_CONTROLS_CSS_FILE_NAME = "smokeControls.css";
 const SMOKE_CONTROLS_JS_FILE_NAME = "smokeControls.js";
 const SMOKE_CONTROLS_TEMPLATE_PATH_SEGMENTS = ["src", "ui", "templates"];
@@ -34,72 +37,6 @@ const SMOKE_CONTROLS_REQUIRED_TEMPLATE_NAMES = [
   SMOKE_CONTROLS_TIMEOUTS_TEMPLATE_FILE_NAME,
   SMOKE_CONTROLS_LANGUAGES_TEMPLATE_FILE_NAME,
 ];
-const smokeControlsTemplateCache = new Map();
-
-const LANGUAGE_ICON_FILE_BY_KEY = {
-  ada: "ada.svg",
-  arm64asm: "assembly.svg",
-  asm: "assembly.svg",
-  ballerina: "ballerina.svg",
-  c: "c.svg",
-  clojure: "clojure.svg",
-  cobol: "cobol.svg",
-  cpp: "cpp.svg",
-  csharp: "csharp.svg",
-  d: "d.svg",
-  dart: "dart.svg",
-  eiffel: "eiffel.svg",
-  elixir: "elixir.svg",
-  erlang: "erlang.svg",
-  factor: "factor.svg",
-  forth: "forth.svg",
-  fortran: "fortran.svg",
-  freebasic: "freebasic.svg",
-  fsharp: "fsharp.svg",
-  gleam: "gleam.svg",
-  go: "go.svg",
-  haskell: "haskell.svg",
-  haxe: "haxe.svg",
-  icon: "icon.svg",
-  idris: "idris.svg",
-  java: "java.svg",
-  javascript: "javascript.svg",
-  julia: "julia.svg",
-  kit: "kit.svg",
-  kotlin: "kotlin.svg",
-  llvmir: "llvm.png",
-  lua: "lua.svg",
-  mercury: "mercury.svg",
-  mmixal: "assembly.svg",
-  modula3: "modula3.svg",
-  mojo: "mojo.svg",
-  nasm: "assembly.svg",
-  nim: "nim.svg",
-  oberon: "oberon.svg",
-  objectivec: "objective-c.svg",
-  ocaml: "ocaml.svg",
-  octave: "octave.svg",
-  pascal: "pascal.svg",
-  perl: "perl.svg",
-  php: "php.svg",
-  prolog: "prolog.svg",
-  python: "python.svg",
-  r: "r.svg",
-  racket: "racket.svg",
-  ruby: "ruby.svg",
-  rust: "rust.svg",
-  scala: "scala.svg",
-  scheme: "scheme.svg",
-  simula: "simula.svg",
-  smalltalk: "smalltalk.svg",
-  swift: "swift.svg",
-  tcl: "tcl.svg",
-  typescript: "typescript.svg",
-  v: "vlang.svg",
-  visualbasic: "visualstudio.svg",
-  wat: "webassembly.svg",
-  zig: "zig.svg",
-};
 
 /**
  * Returns the inline SVG used for one Smoke Controls section header.
@@ -140,7 +77,7 @@ function getSectionIconSvg(iconName) {
  *
  * @param {string} title Section title.
  * @param {string} iconName Semantic section icon key.
- * @param {string} actionsHtml Optional action markup.
+ * @param {string} [actionsHtml] Trusted pre-built HTML markup — must never contain user-supplied content.
  * @returns {string} Header markup.
  */
 function renderSectionHeader(title, iconName, actionsHtml) {
@@ -355,11 +292,13 @@ function buildLanguagesSectionHtml(stateSnapshot, templates, languageIconUris) {
  */
 function buildSmokeControlsHtml(webview, stylesheetUri, scriptUri, templates, languageIconUris) {
   const stateSnapshot = getSmokeControlsSnapshot();
+  const serializedState = serializeForScript(stateSnapshot);
 
   return renderTemplate(templates.shell, {
     cspSource: webview.cspSource,
     stylesheetUri,
     scriptUri,
+    serializedState,
     reportGenerationSection: buildReportGenerationSectionHtml(
       stateSnapshot,
       templates
@@ -399,6 +338,7 @@ class SidebarSmokeControlsViewProvider {
       extensionUri,
       ...FALLBACK_ICON_PATH_SEGMENT.split("/")
     );
+    this._loadTemplate = makeTemplateLoader(this._templateBaseUri.fsPath);
   }
 
   /**
@@ -408,25 +348,7 @@ class SidebarSmokeControlsViewProvider {
    * @returns {string} Template contents.
    */
   getTemplate(templateFileName) {
-    const templateUri = vscode.Uri.joinPath(this._templateBaseUri, templateFileName);
-    const templatePath = templateUri.fsPath;
-
-    if (smokeControlsTemplateCache.has(templatePath)) {
-      return smokeControlsTemplateCache.get(templatePath);
-    }
-
-    const templateText = readTextFileSafe(templatePath);
-
-    if (!templateText.trim()) {
-      const errorMessage =
-        `Smoke Controls template load failed: ${templateFileName}\n`
-        + `Expected path: ${templatePath}`;
-      console.error(`[algorithms-runner] ${errorMessage}`);
-      throw new Error(errorMessage);
-    }
-
-    smokeControlsTemplateCache.set(templatePath, templateText);
-    return templateText;
+    return this._loadTemplate(templateFileName, "Smoke Controls");
   }
 
   /**
@@ -625,7 +547,7 @@ class SidebarSmokeControlsViewProvider {
 function registerSidebarSmokeControlsView(extensionUri) {
   const provider = new SidebarSmokeControlsViewProvider(extensionUri);
   const registration = vscode.window.registerWebviewViewProvider(
-    SMOKE_CONTROLS_VIEW_ID,
+    VIEW_IDS.SMOKE_CONTROLS,
     provider,
     {
       webviewOptions: {

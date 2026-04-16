@@ -2,6 +2,7 @@
 const vscode = require("vscode");
 // Eligibility and summary helpers used to gate command execution.
 const {
+  invalidateCanaryCache,
   resolveEligibilityState,
   summarizeEligibilityState,
 } = require("./runtime/pathResolver");
@@ -241,13 +242,25 @@ async function handleActiveEditorChange(editor) {
 /**
  * Handles workspace folder changes and refreshes visibility context.
  *
- * @returns {Promise<void>} Resolves after preflight refresh and context update.
+ * @param {{refresh: () => void}} sidebarRunControlsViewRegistration Run-controls sidebar registration.
+ * @param {{refresh: () => void}} sidebarSmokeControlsViewRegistration Smoke-controls sidebar registration.
+ * @param {{refresh: () => void}} environmentInitViewRegistration Environment sidebar registration.
+ * @returns {Promise<void>} Resolves after refresh and context update.
  */
-async function handleWorkspaceFolderChange() {
+async function handleWorkspaceFolderChange(
+  sidebarRunControlsViewRegistration,
+  sidebarSmokeControlsViewRegistration,
+  environmentInitViewRegistration
+) {
   if (documentPreflightTimer) {
     clearTimeout(documentPreflightTimer);
     documentPreflightTimer = null;
   }
+
+  invalidateCanaryCache();
+  sidebarRunControlsViewRegistration.refresh();
+  sidebarSmokeControlsViewRegistration.refresh();
+  environmentInitViewRegistration.refresh();
 
   await refreshPreflightAndContext(vscode.window.activeTextEditor);
 }
@@ -459,7 +472,13 @@ async function activate(context) {
 
   const visibilityDisposables = [
     vscode.window.onDidChangeActiveTextEditor(handleActiveEditorChange),
-    vscode.workspace.onDidChangeWorkspaceFolders(handleWorkspaceFolderChange),
+    vscode.workspace.onDidChangeWorkspaceFolders(() => {
+      return handleWorkspaceFolderChange(
+        sidebarRunControlsViewRegistration,
+        sidebarSmokeControlsViewRegistration,
+        environmentInitViewRegistration
+      );
+    }),
     vscode.workspace.onDidOpenTextDocument(handleDocumentStateChange),
     vscode.workspace.onDidSaveTextDocument(handleDocumentStateChange),
   ];

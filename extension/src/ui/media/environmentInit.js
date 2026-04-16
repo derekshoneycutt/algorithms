@@ -33,6 +33,14 @@ const requiredTemplateNames = [
   "languageRow",
 ];
 
+// Browser-side copy of escapeHtml from webviewHostUtils.js.
+// These two implementations must stay in sync — any fix here must be applied there too.
+/**
+ * Escapes user-provided text for safe HTML interpolation in the webview client.
+ *
+ * @param {string} text Raw text value.
+ * @returns {string} Escaped HTML-safe text.
+ */
 function escapeHtmlClient(text) {
   return String(text || "")
     .replace(/&/g, "&amp;")
@@ -42,6 +50,13 @@ function escapeHtmlClient(text) {
     .replace(/'/g, "&#39;");
 }
 
+/**
+ * Renders a status badge element, or an empty string if there is no text.
+ *
+ * @param {string} statusKind CSS class name for the status kind (e.g. "idle", "error", "success").
+ * @param {string} statusText Human-readable status message.
+ * @returns {string} Status badge HTML, or empty string.
+ */
 function renderStatus(statusKind, statusText) {
   const resolvedKind = String(statusKind || "idle");
   const resolvedText = String(statusText || "").trim();
@@ -53,6 +68,15 @@ function renderStatus(statusKind, statusText) {
   return '<div class="status ' + escapeHtmlClient(resolvedKind) + '">' + escapeHtmlClient(resolvedText) + '</div>';
 }
 
+// Browser-side copy of renderTemplate from webviewHostUtils.js.
+// These two implementations must stay in sync — any fix here must be applied there too.
+/**
+ * Renders one tokenized HTML template with replacement values in the webview client.
+ *
+ * @param {string} template Raw template source containing {{key}} placeholders.
+ * @param {Record<string, string>} replacements Placeholder replacement values.
+ * @returns {string} Rendered HTML with all known placeholders substituted.
+ */
 function renderTemplateClient(template, replacements) {
   return String(template || "").replace(/\{\{([a-zA-Z0-9_]+)\}\}/g, (_, key) => {
     if (Object.prototype.hasOwnProperty.call(replacements, key)) {
@@ -63,10 +87,21 @@ function renderTemplateClient(template, replacements) {
   });
 }
 
+/**
+ * Returns the source string for a named template from the bootstrapped templates object.
+ *
+ * @param {string} templateName Template key as declared in requiredTemplateNames.
+ * @returns {string} Template source, or empty string if not found.
+ */
 function getTemplateSource(templateName) {
   return String(templates[templateName] || "");
 }
 
+/**
+ * Returns whether all required templates are present and non-empty.
+ *
+ * @returns {boolean} True if every entry in requiredTemplateNames has source.
+ */
 function hasRequiredTemplates() {
   return requiredTemplateNames.every((templateName) => {
     return getTemplateSource(templateName).trim().length > 0;
@@ -74,83 +109,21 @@ function hasRequiredTemplates() {
 }
 
 /**
- * Returns the inline SVG used for one Environment-pane section header.
+ * Returns the names of any required templates that are absent or empty.
  *
- * @param {string} iconName Semantic section icon key.
- * @returns {string} Inline SVG markup.
+ * @returns {string[]} Names of missing templates.
  */
-function getSectionIconSvg(iconName) {
-  if (iconName === 'profile') {
-    return '<svg class="sectionIcon" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-hidden="true">'
-      + '<path d="M8 8C9.66 8 11 6.66 11 5C11 3.34 9.66 2 8 2C6.34 2 5 3.34 5 5C5 6.66 6.34 8 8 8Z" stroke="currentColor" stroke-width="1.1"/>'
-      + '<path d="M3 13C3.55 10.9 5.52 9.5 8 9.5C10.48 9.5 12.45 10.9 13 13" stroke="currentColor" stroke-width="1.1" stroke-linecap="round"/>'
-      + '</svg>';
-  }
-
-  if (iconName === 'check') {
-    return '<svg class="sectionIcon" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-hidden="true">'
-      + '<path d="M3 3.5C3 2.67 3.67 2 4.5 2H11.5C12.33 2 13 2.67 13 3.5V12.5C13 13.33 12.33 14 11.5 14H4.5C3.67 14 3 13.33 3 12.5V3.5Z" stroke="currentColor" stroke-width="1"/>'
-      + '<path d="M5 8L7 10L11 6" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"/>'
-      + '</svg>';
-  }
-
-  if (iconName === 'copy') {
-    return '<svg class="sectionIcon" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-hidden="true">'
-      + '<path d="M6 3H11.5C12.33 3 13 3.67 13 4.5V10" stroke="currentColor" stroke-width="1" stroke-linecap="round"/>'
-      + '<rect x="3" y="6" width="7" height="7" rx="1" stroke="currentColor" stroke-width="1"/>'
-      + '</svg>';
-  }
-
-  if (iconName === 'variables') {
-    return '<svg class="sectionIcon" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-hidden="true">'
-      + '<path d="M4 4.5H12" stroke="currentColor" stroke-width="1.1" stroke-linecap="round"/>'
-      + '<path d="M4 8H12" stroke="currentColor" stroke-width="1.1" stroke-linecap="round"/>'
-      + '<path d="M4 11.5H12" stroke="currentColor" stroke-width="1.1" stroke-linecap="round"/>'
-      + '<circle cx="6" cy="4.5" r="1.2" fill="currentColor"/>'
-      + '<circle cx="10" cy="8" r="1.2" fill="currentColor"/>'
-      + '<circle cx="7.5" cy="11.5" r="1.2" fill="currentColor"/>'
-      + '</svg>';
-  }
-
-  if (iconName === 'routing') {
-    return '<svg class="sectionIcon" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-hidden="true">'
-      + '<circle cx="4" cy="4" r="1.5" stroke="currentColor" stroke-width="1"/>'
-      + '<circle cx="12" cy="4" r="1.5" stroke="currentColor" stroke-width="1"/>'
-      + '<circle cx="8" cy="12" r="1.5" stroke="currentColor" stroke-width="1"/>'
-      + '<path d="M5.2 4.8L6.9 10.8" stroke="currentColor" stroke-width="1.1" stroke-linecap="round"/>'
-      + '<path d="M10.8 4.8L9.1 10.8" stroke="currentColor" stroke-width="1.1" stroke-linecap="round"/>'
-      + '<path d="M5.5 4H10.5" stroke="currentColor" stroke-width="1.1" stroke-linecap="round"/>'
-      + '</svg>';
-  }
-
-  if (iconName === 'batch') {
-    return '<svg class="sectionIcon" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-hidden="true">'
-      + '<rect x="3" y="3" width="7" height="7" rx="1" stroke="currentColor" stroke-width="1"/>'
-      + '<rect x="6" y="6" width="7" height="7" rx="1" stroke="currentColor" stroke-width="1"/>'
-      + '</svg>';
-  }
-
-  return '';
+function getMissingTemplateNames() {
+  return requiredTemplateNames.filter(
+    (templateName) => getTemplateSource(templateName).trim().length === 0
+  );
 }
 
 /**
- * Renders one Environment-pane section header with an icon and optional actions.
+ * Builds the combined HTML for all environment variable cards using the variableCard template.
  *
- * @param {string} title Section title.
- * @param {string} iconName Semantic section icon key.
- * @param {string} actionsHtml Optional action markup.
- * @returns {string} Header markup.
+ * @returns {string} Concatenated variable card HTML.
  */
-function renderSectionHeader(title, iconName, actionsHtml) {
-  return '<div class="sectionHeader">'
-    + '<div class="sectionTitleGroup">'
-    + getSectionIconSvg(iconName)
-    + '<div class="sectionTitle">' + escapeHtmlClient(title) + '</div>'
-    + '</div>'
-    + (actionsHtml || '')
-    + '</div>';
-}
-
 function buildVariableCardsHtml() {
   const variableCardTemplate = getTemplateSource("variableCard");
 
@@ -164,10 +137,21 @@ function buildVariableCardsHtml() {
   }).join("");
 }
 
+/**
+ * Renders a small indicator badge with an escaped label.
+ *
+ * @param {string} label Indicator label text.
+ * @returns {string} Indicator span HTML.
+ */
 function buildIndicatorHtml(label) {
   return '<span class="indicator">' + escapeHtmlClient(label) + '</span>';
 }
 
+/**
+ * Builds the combined HTML for all language routing rows using the languageRow template.
+ *
+ * @returns {string} Concatenated language row HTML.
+ */
 function buildLanguageRowsHtml() {
   const languageRowTemplate = getTemplateSource("languageRow");
 
@@ -195,36 +179,46 @@ function buildLanguageRowsHtml() {
   }).join('');
 }
 
+/**
+ * Fully re-renders the environment pane into the app element using current state and templates.
+ * All section header HTML values are produced locally; leaf data values arrive pre-escaped.
+ *
+ * @returns {void}
+ */
 function render() {
   if (!hasRequiredTemplates()) {
+    const missingNames = getMissingTemplateNames();
+    console.error('[algorithms-runner] Environment pane missing templates: ' + missingNames.join(', '));
     app.innerHTML = '<div class="panel"><section class="section"><div class="status error">Environment templates failed to load.</div></section></div>';
     return;
   }
 
+  const sectionHeaders = state.sectionHeaders || {};
+
   const profileSectionHtml = renderTemplateClient(getTemplateSource('profileSection'), {
-    profileHeader: renderSectionHeader('Profile', 'profile', '<div class="buttonRow"><button class="button secondary" data-action="refresh-state">Refresh</button></div>'),
+    profileHeader: String(sectionHeaders.profile || ''),
     profilePath: escapeHtmlClient(state.profilePath),
     profilePlaceholder: escapeHtmlClient(state.profilePlaceholder),
     effectiveProfilePath: escapeHtmlClient(state.effectiveProfilePath || state.profilePlaceholder),
   });
   const checkEnvSectionHtml = renderTemplateClient(getTemplateSource('checkEnvSection'), {
-    checkEnvHeader: renderSectionHeader('Check Environment', 'check', '<div class="buttonRow"><button class="button" data-action="check-env">Check Environment</button></div>'),
+    checkEnvHeader: String(sectionHeaders.checkEnv || ''),
     checkEnvStatus: renderStatus(state.checkEnv.kind, state.checkEnv.text),
     checkEnvFilteredOutput: escapeHtmlClient(state.checkEnv.filteredOutput || 'No check-environment output yet.'),
     checkEnvRawOutput: escapeHtmlClient(state.checkEnv.rawOutput || 'No raw output yet.'),
   });
   const copyIconsSectionHtml = renderTemplateClient(getTemplateSource('copyIconsSection'), {
-    copyIconsHeader: renderSectionHeader('Copy Icons', 'copy', '<div class="buttonRow"><button class="button" data-action="copy-icons">Copy Icons</button></div>'),
+    copyIconsHeader: String(sectionHeaders.copyIcons || ''),
     copyIconsPath: escapeHtmlClient(state.copyIconsPath),
     copyIconsPlaceholder: escapeHtmlClient(state.copyIconsPlaceholder),
     copyIconsStatus: renderStatus(state.copyIconsResult.kind, state.copyIconsResult.text),
   });
   const variablesSectionHtml = renderTemplateClient(getTemplateSource('variablesSection'), {
-    variablesHeader: renderSectionHeader('Use Environment Variables', 'variables'),
+    variablesHeader: String(sectionHeaders.variables || ''),
     variableCardsHtml: buildVariableCardsHtml(),
   });
   const batchSectionHtml = renderTemplateClient(getTemplateSource('batchSection'), {
-    batchHeader: renderSectionHeader('Batch All', 'batch'),
+    batchHeader: String(sectionHeaders.batch || ''),
     batchDockerChecked: state.batch.dockerEnabled ? 'checked' : '',
     batchDockerValue: escapeHtmlClient(state.batch.dockerValue),
     batchDockerDisabledAttr: state.batch.dockerEnabled ? '' : 'disabled',
@@ -234,7 +228,7 @@ function render() {
     batchStatus: renderStatus(state.batch.statusKind, state.batch.statusText),
   });
   const routingSectionHtml = renderTemplateClient(getTemplateSource('routingSection'), {
-    routingHeader: renderSectionHeader('Language Routing', 'routing'),
+    routingHeader: String(sectionHeaders.routing || ''),
     batchSection: batchSectionHtml,
     languageRowsHtml: buildLanguageRowsHtml(),
   });
@@ -248,16 +242,35 @@ function render() {
   });
 }
 
+/**
+ * Returns the current value of the profile path input, or an empty string if not present.
+ *
+ * @returns {string} Profile path input value.
+ */
 function getProfilePath() {
   const profileInput = document.getElementById('profilePath');
   return profileInput ? profileInput.value : '';
 }
 
+/**
+ * Returns the current value of the copy-icons path input, or an empty string if not present.
+ *
+ * @returns {string} Copy-icons path input value.
+ */
 function getCopyIconsPath() {
   const copyIconsInput = document.getElementById('copyIconsPath');
   return copyIconsInput ? copyIconsInput.value : '';
 }
 
+/**
+ * Updates the status fields on one state entry and triggers a re-render.
+ *
+ * @param {"variable"|"language"|"batch"} targetKind Category of the target entry.
+ * @param {string} targetKey Key identifying the specific entry (empty string for batch).
+ * @param {string} statusKind CSS class for the status kind.
+ * @param {string} statusText Human-readable status message.
+ * @returns {void}
+ */
 function setLocalStatus(targetKind, targetKey, statusKind, statusText) {
   if (targetKind === 'variable') {
     const variable = state.variables.find((item) => item.key === targetKey);
@@ -286,6 +299,12 @@ function setLocalStatus(targetKind, targetKey, statusKind, statusText) {
   }
 }
 
+/**
+ * Applies inputs from a language row control to the in-memory state draft without saving.
+ *
+ * @param {HTMLElement} target Control element carrying data-lang-key and data-input-kind attributes.
+ * @returns {void}
+ */
 function updateLanguageDraft(target) {
   const languageKey = target.getAttribute('data-lang-key');
   const inputKind = target.getAttribute('data-input-kind');
@@ -314,6 +333,12 @@ function updateLanguageDraft(target) {
   language.isConflict = language.dockerEnabled && language.sshEnabled;
 }
 
+/**
+ * Applies the current input value of a variable card to the in-memory state draft without saving.
+ *
+ * @param {HTMLElement} target Input element carrying a data-variable-key attribute.
+ * @returns {void}
+ */
 function updateVariableDraft(target) {
   const variableKey = target.getAttribute('data-variable-key');
   const variable = state.variables.find((item) => item.key === variableKey);
@@ -323,6 +348,11 @@ function updateVariableDraft(target) {
   }
 }
 
+/**
+ * Reads the current batch-all form inputs and updates the in-memory state draft without saving.
+ *
+ * @returns {void}
+ */
 function updateBatchDraft() {
   const batchDockerEnabled = document.getElementById('batchDockerEnabled');
   const batchDockerValue = document.getElementById('batchDockerValue');
@@ -336,6 +366,11 @@ function updateBatchDraft() {
   state.batch.isConflict = state.batch.dockerEnabled && state.batch.sshEnabled;
 }
 
+/**
+ * Posts a refreshState message to the extension host using the current path inputs.
+ *
+ * @returns {void}
+ */
 function handleRefreshStateAction() {
   vscodeApi.postMessage({
     type: 'refreshState',
@@ -344,6 +379,11 @@ function handleRefreshStateAction() {
   });
 }
 
+/**
+ * Posts a runCheckEnv message to the extension host to execute the check-environment script.
+ *
+ * @returns {void}
+ */
 function handleCheckEnvAction() {
   vscodeApi.postMessage({
     type: 'runCheckEnv',
@@ -352,6 +392,11 @@ function handleCheckEnvAction() {
   });
 }
 
+/**
+ * Posts a runCopyIcons message to the extension host to copy language icons to the target path.
+ *
+ * @returns {void}
+ */
 function handleCopyIconsAction() {
   vscodeApi.postMessage({
     type: 'runCopyIcons',
@@ -360,6 +405,12 @@ function handleCopyIconsAction() {
   });
 }
 
+/**
+ * Posts a saveVariable message for the variable identified by the target element's data attribute.
+ *
+ * @param {HTMLElement} target Element carrying a data-variable-key attribute.
+ * @returns {void}
+ */
 function handleSaveVariableAction(target) {
   const variableKey = target.getAttribute('data-variable-key');
   const variable = state.variables.find((item) => item.key === variableKey);
@@ -377,6 +428,13 @@ function handleSaveVariableAction(target) {
   });
 }
 
+/**
+ * Validates a language routing entry before saving; sets a local error status and returns false on failure.
+ *
+ * @param {string} languageKey Identifier of the language being validated.
+ * @param {{dockerEnabled: boolean, dockerValue: string, sshEnabled: boolean, sshValue: string}} language Current language state draft.
+ * @returns {boolean} True if the entry is valid and safe to save.
+ */
 function canSaveLanguage(languageKey, language) {
   if (language.dockerEnabled && language.sshEnabled) {
     setLocalStatus(
@@ -401,6 +459,12 @@ function canSaveLanguage(languageKey, language) {
   return true;
 }
 
+/**
+ * Posts a saveLanguageRouting message for the language row identified by the target element.
+ *
+ * @param {HTMLElement} target Element carrying a data-lang-key attribute.
+ * @returns {void}
+ */
 function handleSaveLanguageAction(target) {
   const languageKey = target.getAttribute('data-lang-key');
   const language = state.languages.find((item) => item.key === languageKey);
@@ -421,6 +485,11 @@ function handleSaveLanguageAction(target) {
   });
 }
 
+/**
+ * Validates the batch-all state before saving; sets a local error status and returns false on failure.
+ *
+ * @returns {boolean} True if the batch entry is valid and safe to save.
+ */
 function canSaveBatch() {
   if (state.batch.dockerEnabled && state.batch.sshEnabled) {
     setLocalStatus('batch', '', 'error', 'Cannot save Batch All with both docker and ssh enabled.');
@@ -440,6 +509,11 @@ function canSaveBatch() {
   return true;
 }
 
+/**
+ * Reads the current batch form state, validates it, and posts a saveBatchRouting message.
+ *
+ * @returns {void}
+ */
 function handleSaveBatchAction() {
   updateBatchDraft();
 
@@ -459,22 +533,22 @@ function handleSaveBatchAction() {
 }
 
 const clickActionHandlers = {
-  'refresh-state': () => {
+  refreshState: () => {
     handleRefreshStateAction();
   },
-  'check-env': () => {
+  runCheckEnv: () => {
     handleCheckEnvAction();
   },
-  'copy-icons': () => {
+  runCopyIcons: () => {
     handleCopyIconsAction();
   },
-  'save-variable': (target) => {
+  saveVariable: (target) => {
     handleSaveVariableAction(target);
   },
-  'save-language': (target) => {
+  saveLanguage: (target) => {
     handleSaveLanguageAction(target);
   },
-  'save-batch': () => {
+  saveBatch: () => {
     handleSaveBatchAction();
   },
 };

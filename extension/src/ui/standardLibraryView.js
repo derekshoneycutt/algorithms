@@ -1,30 +1,16 @@
 const fs = require("fs");
 const path = require("path");
 const vscode = require("vscode");
+const { VIEW_IDS } = require("../constants");
+const { realpathSafe } = require("../utils/fileUtils");
 const { resolveEligibilityState } = require("../runtime/pathResolver");
 const {
   getSupportedLanguageKeys,
   normalizeExtensionToLanguageKey,
 } = require("../validation/inputValidation");
 
-// Stable view identifier contributed in package.json.
-const STANDARD_LIBRARY_VIEW_ID = "algosWorkspaceStandardLibraryView";
 const DELETE_CONFIRM_ACTION = "Delete";
 const CREATE_ANYWAY_ACTION = "Create Anyway";
-
-/**
- * Resolves a canonical path and falls back to absolute normalization if needed.
- *
- * @param {string} targetPath Input path to normalize.
- * @returns {string} Canonical or normalized absolute path.
- */
-function realpathSafe(targetPath) {
-  try {
-    return fs.realpathSync(targetPath);
-  } catch (_) {
-    return path.resolve(targetPath);
-  }
-}
 
 /**
  * Returns workspace folders from VS Code API.
@@ -606,7 +592,7 @@ class StandardLibraryTreeDataProvider {
  */
 function registerStandardLibraryView(vscodeApi = vscode) {
   const provider = new StandardLibraryTreeDataProvider(vscodeApi);
-  const view = vscodeApi.window.createTreeView(STANDARD_LIBRARY_VIEW_ID, {
+  const view = vscodeApi.window.createTreeView(VIEW_IDS.STANDARD_LIBRARY, {
     treeDataProvider: provider,
     showCollapseAll: false,
   });

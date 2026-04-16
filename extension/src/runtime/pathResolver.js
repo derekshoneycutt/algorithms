@@ -2,6 +2,7 @@
 const fs = require("fs");
 const path = require("path");
 const { spawnSync } = require("child_process");
+const { realpathSafe } = require("../utils/fileUtils");
 
 // Cache lifetime for run.sh --help-all canary checks.
 const CANARY_CACHE_TTL_MS = 30000;
@@ -18,20 +19,6 @@ const HARD_MARKERS = [
   { name: "stdlib", type: "directory" },
   { name: "templates", type: "directory" },
 ];
-
-/**
- * Resolves a canonical path and falls back to absolute normalization if needed.
- *
- * @param {string} targetPath Input path to normalize.
- * @returns {string} Canonical or normalized absolute path.
- */
-function realpathSafe(targetPath) {
-  try {
-    return fs.realpathSync(targetPath);
-  } catch (_) {
-    return path.resolve(targetPath);
-  }
-}
 
 /**
  * Checks whether a marker exists with the expected file-system type.
@@ -153,6 +140,21 @@ function setCachedCanaryResult(rootPath, result) {
     timestamp: Date.now(),
     result,
   });
+}
+
+/**
+ * Invalidates cached canary results for one root or for all roots.
+ *
+ * @param {string} [rootPath] Canonical repository root path to invalidate.
+ * @returns {void}
+ */
+function invalidateCanaryCache(rootPath) {
+  if (typeof rootPath === "string" && rootPath.trim()) {
+    canaryResultCache.delete(realpathSafe(rootPath));
+    return;
+  }
+
+  canaryResultCache.clear();
 }
 
 /**
@@ -543,6 +545,7 @@ function resolveExplorerTargetCwd(selectedPath, resolvedRepoRoot) {
 // Public eligibility and path-resolution API consumed by extension entry points.
 module.exports = {
   HARD_MARKERS,
+  invalidateCanaryCache,
   resolveEligibilityState,
   summarizeEligibilityState,
   resolveActiveFileCwd,

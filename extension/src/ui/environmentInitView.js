@@ -3,14 +3,21 @@ const os = require("os");
 const path = require("path");
 const { spawn } = require("child_process");
 const vscode = require("vscode");
-const { renderTemplate } = require("./webviewHostUtils");
+const { VIEW_IDS } = require("../constants");
+const { realpathSafe } = require("../utils/fileUtils");
+const {
+  makeTemplateLoader,
+  readTextFileSafe,
+  renderSectionHeader,
+  renderTemplate,
+  serializeForScript,
+} = require("./webviewHostUtils");
 const { resolveEligibilityState } = require("../runtime/pathResolver");
 const {
   getSupportedLanguageKeys,
 } = require("../validation/inputValidation");
+const { LANGUAGE_ICON_FILE_BY_KEY } = require("../validation/languageMetadata");
 
-// Stable view identifier contributed in package.json.
-const ENVIRONMENT_VIEW_ID = "algosWorkspaceEnvironmentView";
 const ENVIRONMENT_MEDIA_PATH_SEGMENTS = ["src", "ui", "media"];
 const ENVIRONMENT_INIT_CSS_FILE_NAME = "environmentInit.css";
 const ENVIRONMENT_INIT_JS_FILE_NAME = "environmentInit.js";
@@ -45,7 +52,6 @@ const ENVIRONMENT_REQUIRED_TEMPLATE_NAMES = [
   ENVIRONMENT_VARIABLE_CARD_TEMPLATE_FILE_NAME,
   ENVIRONMENT_LANGUAGE_ROW_TEMPLATE_FILE_NAME,
 ];
-const environmentTemplateCache = new Map();
 // Relative directory containing packaged language icons.
 const LANGUAGE_ICON_PATH_SEGMENT = "icons/languages";
 // Relative fallback icon path used when a language icon is missing.
@@ -56,71 +62,6 @@ const PROFILE_BLOCK_START = "# >>> DEREKALGOS INIT >>>";
 const PROFILE_BLOCK_END = "# <<< DEREKALGOS INIT <<<";
 
 // Language-to-icon mapping aligned to other extension panels.
-const LANGUAGE_ICON_FILE_BY_KEY = {
-  ada: "ada.svg",
-  arm64asm: "assembly.svg",
-  asm: "assembly.svg",
-  ballerina: "ballerina.svg",
-  c: "c.svg",
-  clojure: "clojure.svg",
-  cobol: "cobol.svg",
-  cpp: "cpp.svg",
-  csharp: "csharp.svg",
-  d: "d.svg",
-  dart: "dart.svg",
-  eiffel: "eiffel.svg",
-  elixir: "elixir.svg",
-  erlang: "erlang.svg",
-  factor: "factor.svg",
-  forth: "forth.svg",
-  fortran: "fortran.svg",
-  freebasic: "freebasic.svg",
-  fsharp: "fsharp.svg",
-  gleam: "gleam.svg",
-  go: "go.svg",
-  haskell: "haskell.svg",
-  haxe: "haxe.svg",
-  icon: "icon.svg",
-  idris: "idris.svg",
-  java: "java.svg",
-  javascript: "javascript.svg",
-  julia: "julia.svg",
-  kit: "kit.svg",
-  kotlin: "kotlin.svg",
-  llvmir: "llvm.png",
-  lua: "lua.svg",
-  mercury: "mercury.svg",
-  mmixal: "assembly.svg",
-  modula3: "modula3.svg",
-  mojo: "mojo.svg",
-  nasm: "assembly.svg",
-  nim: "nim.svg",
-  oberon: "oberon.svg",
-  objectivec: "objective-c.svg",
-  ocaml: "ocaml.svg",
-  octave: "octave.svg",
-  pascal: "pascal.svg",
-  perl: "perl.svg",
-  php: "php.svg",
-  prolog: "prolog.svg",
-  python: "python.svg",
-  r: "r.svg",
-  racket: "racket.svg",
-  ruby: "ruby.svg",
-  rust: "rust.svg",
-  scala: "scala.svg",
-  scheme: "scheme.svg",
-  simula: "simula.svg",
-  smalltalk: "smalltalk.svg",
-  swift: "swift.svg",
-  tcl: "tcl.svg",
-  typescript: "typescript.svg",
-  v: "vlang.svg",
-  visualbasic: "visualstudio.svg",
-  wat: "webassembly.svg",
-  zig: "zig.svg",
-};
-
 // Variable save controls displayed in the Environment pane.
 const CORE_VARIABLE_DEFINITIONS = [
   {
@@ -156,33 +97,6 @@ const CORE_VARIABLE_DEFINITIONS = [
 ];
 
 /**
- * Serializes JSON for safe inline-script embedding.
- *
- * @param {unknown} value JSON-serializable value.
- * @returns {string} Safe JSON string.
- */
-function serializeForScript(value) {
-  return JSON.stringify(value)
-    .replace(/</g, "\\u003c")
-    .replace(/>/g, "\\u003e")
-    .replace(/&/g, "\\u0026");
-}
-
-/**
- * Resolves a canonical path and falls back to absolute normalization if needed.
- *
- * @param {string} targetPath Input path to normalize.
- * @returns {string} Canonical or normalized absolute path.
- */
-function realpathSafe(targetPath) {
-  try {
-    return fs.realpathSync(targetPath);
-  } catch (_) {
-    return path.resolve(targetPath);
-  }
-}
-
-/**
  * Expands a leading home marker in a profile path.
  *
  * @param {string} profilePath Candidate profile path.
@@ -204,20 +118,6 @@ function expandHomePath(profilePath) {
   }
 
   return rawValue;
-}
-
-/**
- * Reads a text file safely and returns an empty string on failure.
- *
- * @param {string} filePath Text file path.
- * @returns {string} File contents or empty string.
- */
-function readTextFileSafe(filePath) {
-  try {
-    return fs.readFileSync(filePath, "utf8");
-  } catch (_) {
-    return "";
-  }
 }
 
 /**
@@ -651,11 +551,39 @@ function buildMergedEnvironmentConfig(initScriptText, profileText, resolvedRootP
 }
 
 /**
+ * Builds static section header markup for the Environment pane.
+ *
+ * @returns {{profile: string, checkEnv: string, copyIcons: string, variables: string, batch: string, routing: string}} Header markup.
+ */
+function buildEnvironmentSectionHeaders() {
+  return {
+    profile: renderSectionHeader(
+      "Profile",
+      "profile",
+      '<div class="buttonRow"><button class="button secondary" data-action="refreshState">Refresh</button></div>'
+    ),
+    checkEnv: renderSectionHeader(
+      "Check Environment",
+      "check",
+      '<div class="buttonRow"><button class="button" data-action="runCheckEnv">Check Environment</button></div>'
+    ),
+    copyIcons: renderSectionHeader(
+      "Copy Icons",
+      "copy",
+      '<div class="buttonRow"><button class="button" data-action="runCopyIcons">Copy Icons</button></div>'
+    ),
+    variables: renderSectionHeader("Use Environment Variables", "variables"),
+    batch: renderSectionHeader("Batch All", "batch"),
+    routing: renderSectionHeader("Language Routing", "routing"),
+  };
+}
+
+/**
  * Builds the Environment pane snapshot sent to the webview.
  *
  * @param {EnvironmentInitViewProvider} provider Environment pane provider.
  * @param {import("vscode").Webview} webview Webview instance.
- * @returns {{profilePath: string, profilePlaceholder: string, effectiveProfilePath: string, copyIconsPath: string, copyIconsPlaceholder: string, checkEnv: object, copyIconsResult: object, variables: object[], batch: object, languages: object[]}} Current state snapshot.
+ * @returns {{profilePath: string, profilePlaceholder: string, effectiveProfilePath: string, copyIconsPath: string, copyIconsPlaceholder: string, sectionHeaders: {profile: string, checkEnv: string, copyIcons: string, variables: string, batch: string, routing: string}, checkEnv: object, copyIconsResult: object, variables: object[], batch: object, languages: object[]}} Current state snapshot.
  */
 function buildEnvironmentStateSnapshot(provider, webview) {
   const rootInfo = resolveEnvironmentRootInfo();
@@ -726,6 +654,7 @@ function buildEnvironmentStateSnapshot(provider, webview) {
     effectiveProfilePath,
     copyIconsPath: String(provider._copyIconsPath || ""),
     copyIconsPlaceholder: mergedConfig.defaults.copyIconsTo,
+    sectionHeaders: buildEnvironmentSectionHeaders(),
     checkEnv: provider._checkEnvResult,
     copyIconsResult: provider._copyIconsResult,
     variables,
@@ -872,6 +801,7 @@ class EnvironmentInitViewProvider {
       extensionUri,
       ...FALLBACK_ICON_PATH_SEGMENT.split("/")
     );
+    this._loadTemplate = makeTemplateLoader(this._templateBaseUri.fsPath);
   }
 
   /**
@@ -881,25 +811,7 @@ class EnvironmentInitViewProvider {
    * @returns {string} Template contents.
    */
   getTemplate(templateFileName) {
-    const templateUri = vscode.Uri.joinPath(this._templateBaseUri, templateFileName);
-    const templatePath = templateUri.fsPath;
-
-    if (environmentTemplateCache.has(templatePath)) {
-      return environmentTemplateCache.get(templatePath);
-    }
-
-    const templateText = readTextFileSafe(templatePath);
-
-    if (!templateText.trim()) {
-      const errorMessage =
-        `Environment template load failed: ${templateFileName}\n`
-        + `Expected path: ${templatePath}`;
-      console.error(`[algorithms-runner] ${errorMessage}`);
-      throw new Error(errorMessage);
-    }
-
-    environmentTemplateCache.set(templatePath, templateText);
-    return templateText;
+    return this._loadTemplate(templateFileName, "Environment");
   }
 
   /**
@@ -1441,7 +1353,7 @@ class EnvironmentInitViewProvider {
 function registerEnvironmentInitView(extensionUri) {
   const provider = new EnvironmentInitViewProvider(extensionUri);
   const registration = vscode.window.registerWebviewViewProvider(
-    ENVIRONMENT_VIEW_ID,
+    VIEW_IDS.ENVIRONMENT,
     provider,
     {
       webviewOptions: {

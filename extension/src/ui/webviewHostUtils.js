@@ -1,4 +1,47 @@
 const fs = require("fs");
+const path = require("path");
+
+const templateTextCache = new Map();
+const ENVIRONMENT_SECTION_ICON_SVG_BY_NAME = Object.freeze({
+  profile:
+    '<svg class="sectionIcon" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-hidden="true">'
+    + '<path d="M8 8C9.66 8 11 6.66 11 5C11 3.34 9.66 2 8 2C6.34 2 5 3.34 5 5C5 6.66 6.34 8 8 8Z" stroke="currentColor" stroke-width="1.1"/>'
+    + '<path d="M3 13C3.55 10.9 5.52 9.5 8 9.5C10.48 9.5 12.45 10.9 13 13" stroke="currentColor" stroke-width="1.1" stroke-linecap="round"/>'
+    + '</svg>',
+  check:
+    '<svg class="sectionIcon" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-hidden="true">'
+    + '<path d="M3 3.5C3 2.67 3.67 2 4.5 2H11.5C12.33 2 13 2.67 13 3.5V12.5C13 13.33 12.33 14 11.5 14H4.5C3.67 14 3 13.33 3 12.5V3.5Z" stroke="currentColor" stroke-width="1"/>'
+    + '<path d="M5 8L7 10L11 6" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"/>'
+    + '</svg>',
+  copy:
+    '<svg class="sectionIcon" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-hidden="true">'
+    + '<path d="M6 3H11.5C12.33 3 13 3.67 13 4.5V10" stroke="currentColor" stroke-width="1" stroke-linecap="round"/>'
+    + '<rect x="3" y="6" width="7" height="7" rx="1" stroke="currentColor" stroke-width="1"/>'
+    + '</svg>',
+  variables:
+    '<svg class="sectionIcon" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-hidden="true">'
+    + '<path d="M4 4.5H12" stroke="currentColor" stroke-width="1.1" stroke-linecap="round"/>'
+    + '<path d="M4 8H12" stroke="currentColor" stroke-width="1.1" stroke-linecap="round"/>'
+    + '<path d="M4 11.5H12" stroke="currentColor" stroke-width="1.1" stroke-linecap="round"/>'
+    + '<circle cx="6" cy="4.5" r="1.2" fill="currentColor"/>'
+    + '<circle cx="10" cy="8" r="1.2" fill="currentColor"/>'
+    + '<circle cx="7.5" cy="11.5" r="1.2" fill="currentColor"/>'
+    + '</svg>',
+  routing:
+    '<svg class="sectionIcon" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-hidden="true">'
+    + '<circle cx="4" cy="4" r="1.5" stroke="currentColor" stroke-width="1"/>'
+    + '<circle cx="12" cy="4" r="1.5" stroke="currentColor" stroke-width="1"/>'
+    + '<circle cx="8" cy="12" r="1.5" stroke="currentColor" stroke-width="1"/>'
+    + '<path d="M5.2 4.8L6.9 10.8" stroke="currentColor" stroke-width="1.1" stroke-linecap="round"/>'
+    + '<path d="M10.8 4.8L9.1 10.8" stroke="currentColor" stroke-width="1.1" stroke-linecap="round"/>'
+    + '<path d="M5.5 4H10.5" stroke="currentColor" stroke-width="1.1" stroke-linecap="round"/>'
+    + '</svg>',
+  batch:
+    '<svg class="sectionIcon" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-hidden="true">'
+    + '<rect x="3" y="3" width="7" height="7" rx="1" stroke="currentColor" stroke-width="1"/>'
+    + '<rect x="6" y="6" width="7" height="7" rx="1" stroke="currentColor" stroke-width="1"/>'
+    + '</svg>',
+});
 
 /**
  * Escapes user-provided text for safe HTML interpolation.
@@ -24,7 +67,8 @@ function escapeHtml(text) {
 function readTextFileSafe(filePath) {
   try {
     return fs.readFileSync(filePath, "utf8");
-  } catch (_) {
+  } catch (err) {
+    console.error(`[algorithms-runner] readTextFileSafe failed for "${filePath}": ${err.message}`);
     return "";
   }
 }
@@ -46,8 +90,102 @@ function renderTemplate(template, replacements) {
   });
 }
 
+/**
+ * Serializes JSON for safe inline-script embedding.
+ *
+ * @param {unknown} value JSON-serializable value.
+ * @returns {string} Safe JSON string.
+ */
+function serializeForScript(value) {
+  return JSON.stringify(value)
+    .replace(/</g, "\\u003c")
+    .replace(/>/g, "\\u003e")
+    .replace(/&/g, "\\u0026");
+}
+
+/**
+ * Returns inline SVG markup for a named section icon.
+ *
+ * @param {string} iconName Semantic icon key.
+ * @param {Record<string, string>} [iconSvgByName] Icon map override.
+ * @returns {string} Inline SVG markup.
+ */
+function getSectionIconSvg(iconName, iconSvgByName = ENVIRONMENT_SECTION_ICON_SVG_BY_NAME) {
+  if (Object.prototype.hasOwnProperty.call(iconSvgByName, iconName)) {
+    return iconSvgByName[iconName];
+  }
+
+  return "";
+}
+
+/**
+ * Renders one section header with an icon and optional trusted actions.
+ *
+ * @param {string} title Section title.
+ * @param {string} iconName Semantic icon key.
+ * @param {string} [actionsHtml] Trusted pre-built HTML markup.
+ * @param {Record<string, string>} [iconSvgByName] Icon map override.
+ * @returns {string} Header markup.
+ */
+function renderSectionHeader(
+  title,
+  iconName,
+  actionsHtml,
+  iconSvgByName = ENVIRONMENT_SECTION_ICON_SVG_BY_NAME
+) {
+  return '<div class="sectionHeader">'
+    + '<div class="sectionTitleGroup">'
+    + getSectionIconSvg(iconName, iconSvgByName)
+    + '<div class="sectionTitle">' + escapeHtml(title) + '</div>'
+    + '</div>'
+    + (actionsHtml || "")
+    + '</div>';
+}
+
+/**
+ * Creates a cached template loader rooted at one template directory.
+ *
+ * @param {string} basePath Absolute template directory path.
+ * @returns {(templateFileName: string, templateOwnerName?: string) => string} Cached template loader.
+ */
+function makeTemplateLoader(basePath) {
+  /**
+   * Loads one template file from the configured base path.
+   *
+   * @param {string} templateFileName Template file name.
+   * @param {string} [templateOwnerName] Human-readable template owner for error messages.
+   * @returns {string} Template contents.
+   */
+  return function loadTemplate(templateFileName, templateOwnerName) {
+    const templatePath = path.join(basePath, templateFileName);
+
+    if (templateTextCache.has(templatePath)) {
+      return templateTextCache.get(templatePath);
+    }
+
+    const templateText = readTextFileSafe(templatePath);
+
+    if (!templateText.trim()) {
+      const ownerName = String(templateOwnerName || "Template");
+      const errorMessage =
+        `${ownerName} template load failed: ${templateFileName}\n`
+        + `Expected path: ${templatePath}`;
+      console.error(`[algorithms-runner] ${errorMessage}`);
+      throw new Error(errorMessage);
+    }
+
+    templateTextCache.set(templatePath, templateText);
+    return templateText;
+  };
+}
+
+// Shared host-side helpers used by sidebar webview providers.
 module.exports = {
   escapeHtml,
+  getSectionIconSvg,
+  makeTemplateLoader,
   readTextFileSafe,
+  renderSectionHeader,
   renderTemplate,
+  serializeForScript,
 };

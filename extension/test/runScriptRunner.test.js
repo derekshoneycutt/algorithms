@@ -4,6 +4,10 @@ const {
   renderShellCommand,
   _internal,
 } = require("../src/runtime/runScriptRunner");
+const { runTests: runArgumentBuilderTests } = require("./argumentBuilder.test");
+const { runTests: runInputValidationTests } = require("./inputValidation.test");
+const { runTests: runSidebarRunArgsStateTests } = require("./sidebarRunArgsState.test");
+const { runTests: runWebviewHostUtilsTests } = require("./webviewHostUtils.test");
 
 /**
  * Creates a mock VS Code API terminal surface for runner tests.
@@ -213,11 +217,29 @@ function testRunCommandRetriesAfterTerminalSendFailure() {
  *
  * @returns {void}
  */
-function main() {
+function runTests() {
   testRunCommandUsesQuotedCommandParts();
   testRunCommandWithNoArgs();
   testRunCommandRetriesAfterTerminalSendFailure();
-  console.log("runScriptRunner tests passed");
 }
+
+/**
+ * Runs the extension unit test suite and exits non-zero on failure.
+ *
+ * @returns {void}
+ */
+function main() {
+  runTests();
+  runArgumentBuilderTests();
+  runInputValidationTests();
+  runSidebarRunArgsStateTests();
+  runWebviewHostUtilsTests();
+  console.log("extension tests passed");
+}
+
+// Public test entrypoint for the shared test runner.
+module.exports = {
+  runTests,
+};
 
 main();
