@@ -14,7 +14,7 @@ const {
 const {
   getSupportedLanguageKeys,
   normalizeExtensionToLanguageKey,
-} = require("../validation/inputValidation");
+} = require("../runtime/languageMetadata");
 
 const DELETE_CONFIRM_ACTION = "Delete";
 const CREATE_ANYWAY_ACTION = "Create Anyway";

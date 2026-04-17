@@ -1,5 +1,151 @@
-const fs = require("fs");
 const path = require("path");
+const { GENERATED_LANGUAGE_DATA } = require("./generated/languages.generated");
+
+/**
+ * Returns language records from generated metadata.
+ *
+ * @returns {Array<{key: string, extension: string, icon: {fileName: string}, aliases: {languageIds: string[], fileExtensions: string[]}}>} Language records.
+ */
+function getGeneratedLanguages() {
+  return Array.isArray(GENERATED_LANGUAGE_DATA?.languages)
+    ? GENERATED_LANGUAGE_DATA.languages
+    : [];
+}
+
+/**
+ * Builds language icon map keyed by canonical language key.
+ *
+ * @returns {Record<string, string>} Language icon filename map.
+ */
+function buildLanguageIconFileByKey() {
+  const mapping = {};
+
+  for (const language of getGeneratedLanguages()) {
+    const key = String(language.key || "").trim().toLowerCase();
+    const iconFileName = String(language.icon?.fileName || "").trim();
+
+    if (!key || !iconFileName) {
+      continue;
+    }
+
+    mapping[key] = iconFileName;
+  }
+
+  return mapping;
+}
+
+/**
+ * Builds sample extension map keyed by canonical language key.
+ *
+ * @returns {Record<string, string>} Language-to-sample-extension map.
+ */
+function buildLanguageSampleExtensions() {
+  const mapping = {};
+
+  for (const language of getGeneratedLanguages()) {
+    const key = String(language.key || "").trim().toLowerCase();
+    const sampleExtension = String(language.extension || "").trim().toLowerCase();
+
+    if (!key || !sampleExtension) {
+      continue;
+    }
+
+    mapping[key] = sampleExtension;
+  }
+
+  return mapping;
+}
+
+/**
+ * Builds language-id aliases map from generated language metadata.
+ *
+ * @returns {Record<string, string>} Alias languageId to canonical key map.
+ */
+function buildLanguageIdAliases() {
+  const mapping = {};
+
+  for (const language of getGeneratedLanguages()) {
+    const key = String(language.key || "").trim().toLowerCase();
+    const languageIds = Array.isArray(language.aliases?.languageIds)
+      ? language.aliases.languageIds
+      : [];
+
+    for (const languageId of languageIds) {
+      const normalizedLanguageId = String(languageId || "").trim().toLowerCase();
+
+      if (!normalizedLanguageId || normalizedLanguageId === key) {
+        continue;
+      }
+
+      mapping[normalizedLanguageId] = key;
+    }
+  }
+
+  return mapping;
+}
+
+/**
+ * Builds file-extension alias map from generated language metadata.
+ *
+ * @returns {Record<string, string>} Dot-extension to canonical key map.
+ */
+function buildFileExtensionAliases() {
+  const mapping = {};
+
+  for (const language of getGeneratedLanguages()) {
+    const key = String(language.key || "").trim().toLowerCase();
+    const fileExtensions = Array.isArray(language.aliases?.fileExtensions)
+      ? language.aliases.fileExtensions
+      : [];
+
+    for (const fileExtension of fileExtensions) {
+      const normalizedExtension = String(fileExtension || "").trim().toLowerCase();
+
+      if (!normalizedExtension.startsWith(".")) {
+        continue;
+      }
+
+      mapping[normalizedExtension] = key;
+    }
+  }
+
+  return mapping;
+}
+
+/**
+ * Builds display-label map keyed by canonical language key.
+ *
+ * @returns {Record<string, string>} Canonical language display labels.
+ */
+function buildLanguageDisplayLabels() {
+  const mapping = {};
+
+  for (const language of getGeneratedLanguages()) {
+    const key = String(language.key || "").trim().toLowerCase();
+    const displayLabel = String(language.displayLabel || language.key || "").trim();
+
+    if (!key || !displayLabel) {
+      continue;
+    }
+
+    mapping[key] = displayLabel;
+  }
+
+  return mapping;
+}
+
+/**
+ * Builds default smoke language key list from generated metadata.
+ *
+ * @returns {string[]} Canonical smoke-default language keys.
+ */
+function buildDefaultSmokeLanguageKeys() {
+  return getGeneratedLanguages()
+    .filter((language) => language?.smoke?.defaultEnabled === true)
+    .map((language) => String(language.key || "").trim().toLowerCase())
+    .filter(Boolean)
+    .sort((left, right) => left.localeCompare(right));
+}
 
 /**
  * Language icon file names keyed by language identifier.
@@ -8,70 +154,7 @@ const path = require("path");
  *
  * @type {Record<string, string>}
  */
-const LANGUAGE_ICON_FILE_BY_KEY = {
-  ada: "ada.svg",
-  arm64asm: "assembly.svg",
-  asm: "assembly.svg",
-  ballerina: "ballerina.svg",
-  c: "c.svg",
-  clojure: "clojure.svg",
-  cobol: "cobol.svg",
-  cpp: "cpp.svg",
-  csharp: "csharp.svg",
-  d: "d.svg",
-  dart: "dart.svg",
-  eiffel: "eiffel.svg",
-  elixir: "elixir.svg",
-  erlang: "erlang.svg",
-  factor: "factor.svg",
-  forth: "forth.svg",
-  fortran: "fortran.svg",
-  freebasic: "freebasic.svg",
-  fsharp: "fsharp.svg",
-  gleam: "gleam.svg",
-  go: "go.svg",
-  haskell: "haskell.svg",
-  haxe: "haxe.svg",
-  icon: "icon.svg",
-  idris: "idris.svg",
-  java: "java.svg",
-  javascript: "javascript.svg",
-  julia: "julia.svg",
-  kit: "kit.svg",
-  kotlin: "kotlin.svg",
-  llvmir: "llvm.png",
-  lua: "lua.svg",
-  mercury: "mercury.svg",
-  mmixal: "assembly.svg",
-  modula3: "modula3.svg",
-  mojo: "mojo.svg",
-  nasm: "assembly.svg",
-  nim: "nim.svg",
-  oberon: "oberon.svg",
-  objectivec: "objective-c.svg",
-  ocaml: "ocaml.svg",
-  octave: "octave.svg",
-  pascal: "pascal.svg",
-  perl: "perl.svg",
-  php: "php.svg",
-  prolog: "prolog.svg",
-  python: "python.svg",
-  r: "r.svg",
-  racket: "racket.svg",
-  ruby: "ruby.svg",
-  rust: "rust.svg",
-  scala: "scala.svg",
-  scheme: "scheme.svg",
-  simula: "simula.svg",
-  smalltalk: "smalltalk.svg",
-  swift: "swift.svg",
-  tcl: "tcl.svg",
-  typescript: "typescript.svg",
-  v: "vlang.svg",
-  visualbasic: "visualstudio.svg",
-  wat: "webassembly.svg",
-  zig: "zig.svg",
-};
+const LANGUAGE_ICON_FILE_BY_KEY = buildLanguageIconFileByKey();
 
 /**
  * Sample source file extensions keyed by language identifier.
@@ -80,159 +163,35 @@ const LANGUAGE_ICON_FILE_BY_KEY = {
  *
  * @type {Record<string, string>}
  */
-const LANGUAGE_ICON_SAMPLE_EXTENSIONS = {
-  ada: "adb",
-  arm64asm: "s",
-  asm: "asm",
-  ballerina: "bal",
-  c: "c",
-  clojure: "clj",
-  cobol: "cob",
-  cpp: "cpp",
-  csharp: "cs",
-  d: "d",
-  dart: "dart",
-  eiffel: "e",
-  elixir: "exs",
-  erlang: "erl",
-  factor: "factor",
-  forth: "fth",
-  fortran: "f90",
-  freebasic: "bas",
-  fsharp: "fs",
-  gleam: "gleam",
-  go: "go",
-  haskell: "hs",
-  haxe: "hx",
-  icon: "icn",
-  idris: "idr",
-  java: "java",
-  javascript: "js",
-  julia: "jl",
-  kit: "kit",
-  kotlin: "kt",
-  llvmir: "ll",
-  lua: "lua",
-  mercury: "moo",
-  mmixal: "mms",
-  modula3: "m3",
-  mojo: "mojo",
-  nasm: "nasm",
-  nim: "nim",
-  oberon: "mod",
-  objectivec: "m",
-  ocaml: "ml",
-  octave: "mat",
-  pascal: "pas",
-  perl: "plx",
-  php: "php",
-  prolog: "pl",
-  python: "py",
-  r: "r",
-  racket: "rkt",
-  ruby: "rb",
-  rust: "rs",
-  scala: "scala",
-  scheme: "scm",
-  simula: "sim",
-  smalltalk: "st",
-  swift: "swift",
-  tcl: "tcl",
-  typescript: "ts",
-  v: "v",
-  visualbasic: "vb",
-  wat: "wat",
-  zig: "zig",
-};
+const LANGUAGE_ICON_SAMPLE_EXTENSIONS = buildLanguageSampleExtensions();
 
 /**
  * Known VS Code languageId aliases mapped to canonical run-language keys.
  *
  * @type {Record<string, string>}
  */
-const LANGUAGE_ID_ALIASES = {
-  "asm-intel-x86-generic": "asm",
-  fortranfreeform: "fortran",
-  llvm: "llvmir",
-  m3: "modula3",
-  mmix: "mmixal",
-  "objective-c": "objectivec",
-  "objective-cpp": "objectivec",
-  objectpascal: "pascal",
-  unicon: "icon",
-  vb: "visualbasic",
-  x86asm: "asm",
-};
+const LANGUAGE_ID_ALIASES = buildLanguageIdAliases();
 
 /**
  * File-extension fallback map aligned to the run.sh language catalog.
  *
  * @type {Record<string, string>}
  */
-const FILE_EXTENSION_LANGUAGE_ALIASES = {
-  ".adb": "ada",
-  ".asm": "asm",
-  ".bal": "ballerina",
-  ".bas": "freebasic",
-  ".c": "c",
-  ".clj": "clojure",
-  ".cob": "cobol",
-  ".cpp": "cpp",
-  ".cs": "csharp",
-  ".d": "d",
-  ".dart": "dart",
-  ".e": "eiffel",
-  ".erl": "erlang",
-  ".exs": "elixir",
-  ".f90": "fortran",
-  ".factor": "factor",
-  ".fs": "fsharp",
-  ".fth": "forth",
-  ".gleam": "gleam",
-  ".go": "go",
-  ".hs": "haskell",
-  ".hx": "haxe",
-  ".icn": "icon",
-  ".idr": "idris",
-  ".java": "java",
-  ".jl": "julia",
-  ".js": "javascript",
-  ".kit": "kit",
-  ".kt": "kotlin",
-  ".ll": "llvmir",
-  ".lua": "lua",
-  ".m": "objectivec",
-  ".m3": "modula3",
-  ".mat": "octave",
-  ".ml": "ocaml",
-  ".mms": "mmixal",
-  ".mod": "oberon",
-  ".mojo": "mojo",
-  ".moo": "mercury",
-  ".nasm": "nasm",
-  ".nim": "nim",
-  ".pas": "pascal",
-  ".php": "php",
-  ".pl": "prolog",
-  ".plx": "perl",
-  ".py": "python",
-  ".r": "r",
-  ".rb": "ruby",
-  ".rkt": "racket",
-  ".rs": "rust",
-  ".s": "arm64asm",
-  ".scala": "scala",
-  ".scm": "scheme",
-  ".sim": "simula",
-  ".st": "smalltalk",
-  ".swift": "swift",
-  ".tcl": "tcl",
-  ".ts": "typescript",
-  ".v": "v",
-  ".vb": "visualbasic",
-  ".wat": "wat",
-  ".zig": "zig",
-};
+const FILE_EXTENSION_LANGUAGE_ALIASES = buildFileExtensionAliases();
+
+/**
+ * Human-friendly display labels keyed by canonical language key.
+ *
+ * @type {Record<string, string>}
+ */
+const LANGUAGE_DISPLAY_LABELS = buildLanguageDisplayLabels();
+
+/**
+ * Smoke-default language keys from generated metadata.
+ *
+ * @type {string[]}
+ */
+const DEFAULT_SMOKE_LANGUAGE_KEYS = buildDefaultSmokeLanguageKeys();
 
 /**
  * Reads canonical supported language keys from run-language modules.
@@ -241,17 +200,9 @@ const FILE_EXTENSION_LANGUAGE_ALIASES = {
  * @returns {Set<string>} Supported language keys.
  */
 function getSupportedLanguageKeys(resolvedRoot) {
-  const moduleDir = path.join(resolvedRoot, "shlib", "run-languages");
-
-  try {
-    const names = fs.readdirSync(moduleDir);
-    const keys = names
-      .filter((name) => name.endsWith(".sh"))
-      .map((name) => name.slice(0, -3).toLowerCase());
-    return new Set(keys);
-  } catch (_) {
-    return new Set();
-  }
+  void resolvedRoot;
+  const keys = getGeneratedLanguages().map((language) => String(language.key || "").trim().toLowerCase());
+  return new Set(keys.filter(Boolean));
 }
 
 /**
@@ -290,11 +241,44 @@ function normalizeExtensionToLanguageKey(filePath) {
   return null;
 }
 
+/**
+ * Returns one display label for one canonical language key.
+ *
+ * @param {string} languageKey Canonical language key.
+ * @returns {string} Human-friendly display label.
+ */
+function getLanguageDisplayLabel(languageKey) {
+  const normalizedLanguageKey = String(languageKey || "").trim().toLowerCase();
+
+  if (!normalizedLanguageKey) {
+    return "";
+  }
+
+  if (LANGUAGE_DISPLAY_LABELS[normalizedLanguageKey]) {
+    return LANGUAGE_DISPLAY_LABELS[normalizedLanguageKey];
+  }
+
+  return normalizedLanguageKey;
+}
+
+/**
+ * Returns smoke-default language keys.
+ *
+ * @returns {string[]} Canonical smoke-default language keys.
+ */
+function getDefaultSmokeLanguageKeys() {
+  return [...DEFAULT_SMOKE_LANGUAGE_KEYS];
+}
+
 module.exports = {
+  DEFAULT_SMOKE_LANGUAGE_KEYS,
   FILE_EXTENSION_LANGUAGE_ALIASES,
+  LANGUAGE_DISPLAY_LABELS,
   LANGUAGE_ICON_FILE_BY_KEY,
   LANGUAGE_ICON_SAMPLE_EXTENSIONS,
   LANGUAGE_ID_ALIASES,
+  getDefaultSmokeLanguageKeys,
+  getLanguageDisplayLabel,
   getSupportedLanguageKeys,
   normalizeExtensionToLanguageKey,
   normalizeLanguageId,

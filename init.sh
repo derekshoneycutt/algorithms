@@ -23,6 +23,15 @@ load_required_shlib_modules "init.sh" "$scriptDir" \
     help-common.sh \
     help-catalogs.sh \
     init-runon-map.sh || exit 78
+generatedLanguagesScript="$scriptDir/shlib/generated/languages.generated.sh"
+[ -f "$generatedLanguagesScript" ] || {
+    echo "ERROR: missing generated language catalog: $generatedLanguagesScript" >&2
+    exit 78
+}
+. "$generatedLanguagesScript" || {
+    echo "ERROR: unable to source generated language catalog: $generatedLanguagesScript" >&2
+    exit 78
+}
 doPrompt=1
 copyIcons=1
 copyIconsTo=~/.vscode/extensions/icons/
@@ -39,7 +48,9 @@ useGcc13Name="gcc-13"
 useGxx13Name="g++-13"
 useRunOnDocker="ada=code-runner asm=code-runner ballerina=code-runner freebasic=code-runner c=code-runner clojure=code-runner cobol=code-runner cpp=code-runner csharp=code-runner d=code-runner dart=code-runner eiffel=code-runner erlang=code-runner elixir=code-runner fortran=code-runner factor=code-runner fsharp=code-runner forth=code-runner gleam=code-runner go=code-runner haskell=code-runner haxe=code-runner icon=code-runner idris=code-runner java=code-runner julia=code-runner javascript=code-runner kit=code-runner kotlin=code-runner llvmir=code-runner lua=code-runner objectivec=code-runner modula3=code-runner octave=code-runner ocaml=code-runner mmixal=code-runner oberon=code-runner mojo=code-runner mercury=code-runner nasm=code-runner nim=code-runner pascal=code-runner php=code-runner prolog=code-runner perl=code-runner python=code-runner r=code-runner ruby=code-runner racket=code-runner rust=code-runner scala=code-runner scheme=code-runner simula=code-runner smalltalk=code-runner swift=code-runner tcl=code-runner typescript=code-runner v=code-runner visualbasic=code-runner wat=code-runner zig=code-runner"
 useRunOnSsh=""
-supportedLanguageKeys="ada arm64asm asm ballerina c clojure cobol cpp csharp d dart eiffel elixir erlang factor forth fortran freebasic fsharp gleam go haskell haxe icon idris java javascript julia kit kotlin llvmir lua mercury mmixal modula3 mojo nasm nim oberon objectivec ocaml octave pascal perl php prolog python r racket ruby rust scala scheme simula smalltalk swift tcl typescript v visualbasic wat zig"
+supportedLanguageKeys=$(get_generated_supported_language_keys | tr '\n' ' ' | sed 's/[[:space:]]*$//')
+managedProfileBlockStart="$GENERATED_PROFILE_BLOCK_START"
+managedProfileBlockEnd="$GENERATED_PROFILE_BLOCK_END"
 defaultRunOnDockerMap="$useRunOnDocker"
 lockDir=""
 profileTmpFile=""
@@ -407,6 +418,38 @@ get_profile_export_value() {
             ;;
     esac
     printf '%s\n' "$raw_value"
+}
+
+# Return escaped managed export value by export name.
+get_managed_export_escaped_value() {
+    exportName="$1"
+
+    case "$exportName" in
+        DEREKALGOS_TIMEOUT)
+            printf '%s' "$escaped_timeout"
+            ;;
+        DEREKALGOS_EIFFEL)
+            printf '%s' "$escaped_eiffel"
+            ;;
+        DEREKALGOS_GCC13)
+            printf '%s' "$escaped_gcc13"
+            ;;
+        DEREKALGOS_GCC13NAME)
+            printf '%s' "$escaped_gcc13name"
+            ;;
+        DEREKALGOS_GXX13NAME)
+            printf '%s' "$escaped_gxx13name"
+            ;;
+        DEREKALGOS_RUNONDOCKER)
+            printf '%s' "$escaped_runondocker"
+            ;;
+        DEREKALGOS_RUNONSSH)
+            printf '%s' "$escaped_runonssh"
+            ;;
+        *)
+            printf '%s' ""
+            ;;
+    esac
 }
 
 # Pull existing profile values so updates preserve current settings by default.
@@ -982,32 +1025,37 @@ if [ "$updateEnvironment" -eq 1 ]; then
         # This is a standard rewrite-via-temp-file flow: strip the old managed
         # block, append the new managed block, then replace the profile in one move.
         if [ -f "$useProfile" ]; then
-            sed \
-                -e '/^# >>> DEREKALGOS INIT >>>$/d' \
-                -e '/^# <<< DEREKALGOS INIT <<<$/d' \
-                -e '/^export DEREKALGOS_TIMEOUT=/d' \
-                -e '/^export DEREKALGOS_EIFFEL=/d' \
-                -e '/^export DEREKALGOS_GCC13=/d' \
-                -e '/^export DEREKALGOS_GCC13NAME=/d' \
-                -e '/^export DEREKALGOS_GXX13NAME=/d' \
-                -e '/^export DEREKALGOS_RUNONDOCKER=/d' \
-                -e '/^export DEREKALGOS_RUNONSSH=/d' \
-                "$useProfile" > "$profile_tmp"
+            sed_script_file=$(make_temp_file_secure "profile-sed" "$profile_dir")
+            if [ -z "$sed_script_file" ]; then
+                echo "Unable to create temporary sed script for profile rewrite." >&2
+                exit "$exitIoFailure"
+            fi
+
+            {
+                printf '/^%s$/d\n' "$managedProfileBlockStart"
+                printf '/^%s$/d\n' "$managedProfileBlockEnd"
+
+                get_generated_managed_profile_exports | while IFS= read -r export_name; do
+                    [ -n "$export_name" ] || continue
+                    printf '/^export %s=/d\n' "$export_name"
+                done
+            } > "$sed_script_file"
+
+            sed -f "$sed_script_file" "$useProfile" > "$profile_tmp"
+            rm -f "$sed_script_file"
         else
             : > "$profile_tmp"
         fi
 
         {
             echo ""
-            echo "# >>> DEREKALGOS INIT >>>"
-            echo "export DEREKALGOS_TIMEOUT=\"$escaped_timeout\""
-            echo "export DEREKALGOS_EIFFEL=\"$escaped_eiffel\""
-            echo "export DEREKALGOS_GCC13=\"$escaped_gcc13\""
-            echo "export DEREKALGOS_GCC13NAME=\"$escaped_gcc13name\""
-            echo "export DEREKALGOS_GXX13NAME=\"$escaped_gxx13name\""
-            echo "export DEREKALGOS_RUNONDOCKER=\"$escaped_runondocker\""
-            echo "export DEREKALGOS_RUNONSSH=\"$escaped_runonssh\""
-            echo "# <<< DEREKALGOS INIT <<<"
+            echo "$managedProfileBlockStart"
+            get_generated_managed_profile_exports | while IFS= read -r export_name; do
+                [ -n "$export_name" ] || continue
+                escaped_value=$(get_managed_export_escaped_value "$export_name")
+                echo "export ${export_name}=\"$escaped_value\""
+            done
+            echo "$managedProfileBlockEnd"
         } >> "$profile_tmp"
 
         mv "$profile_tmp" "$useProfile"

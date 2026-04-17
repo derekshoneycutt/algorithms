@@ -14,6 +14,8 @@ const {
 } = require("./uiWorkspaceFsUtils");
 const { getEffectiveSidebarSmokeArgs } = require("../runtime/sidebarRunArgsState");
 const {
+  getDefaultSmokeLanguageKeys,
+  getLanguageDisplayLabel,
   LANGUAGE_ICON_SAMPLE_EXTENSIONS,
   getSupportedLanguageKeys,
   normalizeExtensionToLanguageKey,
@@ -685,6 +687,7 @@ function createLanguageSummaryTreeNode(
   isFlagged,
   suggestedUntitledUri
 ) {
+  const displayLabel = getLanguageDisplayLabel(languageKey);
   const sampleExtension = LANGUAGE_ICON_SAMPLE_EXTENSIONS[languageKey] || "txt";
   const sampleFileName = `${languageKey}.${sampleExtension}`;
   const openTargetUri = openTargetPath ? vscode.Uri.file(openTargetPath) : null;
@@ -702,7 +705,7 @@ function createLanguageSummaryTreeNode(
     : absentSampleUri.with({ fragment: LANGUAGE_ABSENT_URI_FRAGMENT });
 
   return {
-    label: languageKey,
+    label: displayLabel,
     languageKey,
     algorithmPath,
     filePath: algorithmPath,
@@ -725,8 +728,8 @@ function createLanguageSummaryTreeNode(
       : "algos.languageMissingUnflagged",
     tooltip:
       fileCount > 0 && openTargetPath
-        ? `${languageKey}: present (${fileCount})\nOpens: ${openTargetPath}`
-        : `${languageKey}: not present (${fileCount})\nCreate: ${suggestedUntitledUri.fsPath}`,
+        ? `${displayLabel}: present (${fileCount})\nOpens: ${openTargetPath}`
+        : `${displayLabel}: not present (${fileCount})\nCreate: ${suggestedUntitledUri.fsPath}`,
   };
 }
 
@@ -1450,53 +1453,13 @@ function hasProblemDescendantForViewMode(
  * @returns {string[]} Smoke-test language keys.
  */
 function getSmokeTestLanguageKeys(resolvedRoot, supportedLanguageKeys) {
-  if (!resolvedRoot) {
+  if (!resolvedRoot || !(supportedLanguageKeys instanceof Set)) {
     return [];
   }
 
-  const runScriptPath = path.join(realpathSafe(resolvedRoot), "run.sh");
-
-  try {
-    const runScriptText = fs.readFileSync(runScriptPath, "utf8");
-    const lines = runScriptText.split(/\r?\n/);
-    const smokeLanguageKeys = [];
-    let inCatalogBlock = false;
-
-    for (const line of lines) {
-      if (!inCatalogBlock && /^get_language_catalog\(\)/.test(line)) {
-        inCatalogBlock = true;
-        continue;
-      }
-
-      if (inCatalogBlock && /^EOF$/.test(line.trim())) {
-        break;
-      }
-
-      if (!inCatalogBlock || !line.includes("|")) {
-        continue;
-      }
-
-      const languageKey = line.split("|")[0].trim().toLowerCase();
-
-      if (
-        languageKey
-        && languageKey !== "arm64asm"
-        && supportedLanguageKeys.has(languageKey)
-      ) {
-        smokeLanguageKeys.push(languageKey);
-      }
-    }
-
-    if (smokeLanguageKeys.length > 0) {
-      return smokeLanguageKeys;
-    }
-  } catch (_) {
-    // Fall back to the supported language list when run.sh cannot be parsed.
-  }
-
-  return [...supportedLanguageKeys]
-    .filter((languageKey) => languageKey !== "arm64asm")
-    .sort((left, right) => left.localeCompare(right));
+  return getDefaultSmokeLanguageKeys().filter((languageKey) =>
+    supportedLanguageKeys.has(languageKey)
+  );
 }
 
 /**
@@ -3139,6 +3102,7 @@ function registerWorkspaceAlgorithmsRunView() {
     const referenceFilePath = isPresentLanguageRow
       ? item?.openTargetUri?.fsPath || null
       : item?.filePath || null;
+    const languageDisplayLabel = getLanguageDisplayLabel(languageKey);
 
     const includeDirectoryPath = path.join(algorithmPath, `${languageKey}_include`);
     const requiredExtension = (referenceFilePath
@@ -3159,7 +3123,7 @@ function registerWorkspaceAlgorithmsRunView() {
 
     if (!enteredExtension || enteredExtension !== requiredExtension) {
       vscodeApi.window.showWarningMessage(
-        `Include file extension must be ${requiredExtension} for ${languageKey}.`
+        `Include file extension must be ${requiredExtension} for ${languageDisplayLabel}.`
       );
       return { ok: false, status: "blocked", reason: "include-extension-mismatch" };
     }
@@ -3179,7 +3143,7 @@ function registerWorkspaceAlgorithmsRunView() {
 
     if (normalizedLanguage !== languageKey) {
       vscodeApi.window.showWarningMessage(
-        `Include file extension must map to language ${languageKey}.`
+        `Include file extension must map to language ${languageDisplayLabel}.`
       );
       return { ok: false, status: "blocked", reason: "include-language-mismatch" };
     }
@@ -3389,6 +3353,7 @@ function registerWorkspaceAlgorithmsRunView() {
 // Public API for the workspace algorithms run view.
 module.exports = {
   _internal: {
+    createLanguageSummaryTreeNode,
     WorkspaceStatusTreeDataProvider,
   },
   registerWorkspaceAlgorithmsRunView,

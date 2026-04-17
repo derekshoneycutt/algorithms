@@ -16,7 +16,11 @@
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
     "build": "webpack",
-    "buildextension": "npm --prefix extension run build:vsix"
+    "buildextension": "npm --prefix extension run build:vsix",
+    "langs:validate": "node scripts/langs/validate-languages.js",
+    "langs:generate": "node scripts/langs/generate-languages.js",
+    "langs:test": "node scripts/langs/test-langs-tooling.js",
+    "langsupdate": "npm run langs:validate && npm run langs:generate"
   },
   "devDependencies": {
     "@babel/cli": "^7.28.6",
@@ -25,6 +29,8 @@
     "@babel/preset-react": "^7.28.5",
     "@fontsource/roboto": "^5.2.10",
     "@vscode/vsce": "^3.8.0",
+    "ajv": "^8.18.0",
+    "ajv-formats": "^3.0.1",
     "autoprefixer": "^10.4.27",
     "babel-loader": "^10.1.1",
     "cheerio": "^1.2.0",

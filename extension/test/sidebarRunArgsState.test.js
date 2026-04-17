@@ -1,5 +1,7 @@
 const assert = require("assert");
+const { getLanguageDisplayLabel } = require("../src/runtime/languageMetadata");
 const {
+  getSidebarSmokeControlsState,
   getEffectiveSidebarCleanDefaults,
   getEffectiveSidebarRunArgs,
   getEffectiveSidebarRunChecks,
@@ -185,6 +187,55 @@ function testGetEffectiveSidebarSmokeArgs() {
 }
 
 /**
+ * Verifies arm64asm is visible but disabled by default on non-supported hosts.
+ *
+ * @returns {void}
+ */
+function testSmokeControlsArm64asmHostGating() {
+  resetSidebarState();
+  const state = getSidebarSmokeControlsState();
+  const arm64asm = state.languages.find((language) => language.key === "arm64asm");
+
+  assert.ok(arm64asm, "arm64asm should be present in smoke controls");
+
+  if (process.platform !== "darwin" || process.arch !== "arm64") {
+    assert.strictEqual(arm64asm.enabled, false);
+    assert.strictEqual(arm64asm.disabled, true);
+  }
+}
+
+/**
+ * Verifies select-all keeps capability-disabled languages unchecked.
+ *
+ * @returns {void}
+ */
+function testSelectAllRespectsCapabilityGating() {
+  resetSidebarState();
+  setSidebarSmokeAllLanguagesEnabled(true);
+
+  const state = getSidebarSmokeControlsState();
+  const disabledSelections = state.languages.filter(
+    (language) => language.disabled && language.enabled
+  );
+
+  assert.strictEqual(disabledSelections.length, 0);
+}
+
+/**
+ * Verifies smoke language labels match the shared language subsystem labels.
+ *
+ * @returns {void}
+ */
+function testSmokeLabelsMatchLanguageSubsystem() {
+  resetSidebarState();
+  const state = getSidebarSmokeControlsState();
+
+  for (const language of state.languages) {
+    assert.strictEqual(language.label, getLanguageDisplayLabel(language.key));
+  }
+}
+
+/**
  * Runs all sidebarRunArgsState tests.
  *
  * @returns {void}
@@ -199,6 +250,9 @@ function runTests() {
   testGetEffectiveSidebarCleanDefaults();
   testGetEffectiveSidebarSmokeArgsRejectsNoLanguages();
   testGetEffectiveSidebarSmokeArgs();
+  testSmokeControlsArm64asmHostGating();
+  testSelectAllRespectsCapabilityGating();
+  testSmokeLabelsMatchLanguageSubsystem();
   resetSidebarState();
 }
 

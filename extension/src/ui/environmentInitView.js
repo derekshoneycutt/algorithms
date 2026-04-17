@@ -19,6 +19,7 @@ const {
   serializeForScript,
 } = require("./webviewHostUtils");
 const {
+  getLanguageDisplayLabel,
   getSupportedLanguageKeys,
   LANGUAGE_ICON_FILE_BY_KEY,
 } = require("../runtime/languageMetadata");
@@ -286,12 +287,15 @@ function parseInitDefaults(initScriptText, resolvedRootPath) {
     : [];
   const supportedLanguageKeysText =
     extractShellAssignment(initScriptText, "supportedLanguageKeys") || "";
-  const parsedSupportedLanguageKeys = supportedLanguageKeysText
+  const looksLikeLiteralLanguageList =
+    supportedLanguageKeysText.length > 0
+    && !/[\$\(\)\|\'\"`]/.test(supportedLanguageKeysText);
+  const parsedSupportedLanguageKeys = looksLikeLiteralLanguageList
     ? supportedLanguageKeysText
-        .split(/\s+/)
-        .map((languageKey) => languageKey.trim())
-        .filter(Boolean)
-        .sort((left, right) => left.localeCompare(right))
+      .split(/\s+/)
+      .map((languageKey) => languageKey.trim())
+      .filter(Boolean)
+      .sort((left, right) => left.localeCompare(right))
     : fallbackLanguageKeys;
 
   return {
@@ -346,40 +350,6 @@ function parseRouteMap(mapText) {
   }
 
   return routeMap;
-}
-
-/**
- * Returns a human-friendly label for one language key.
- *
- * @param {string} languageKey Canonical language key.
- * @returns {string} Display label.
- */
-function formatLanguageLabel(languageKey) {
-  const rawKey = String(languageKey || "");
-  const labelOverrides = {
-    arm64asm: "ARM64 ASM",
-    asm: "ASM",
-    cpp: "C++",
-    csharp: "C#",
-    fsharp: "F#",
-    gcc13Directory: "GCC13 Directory",
-    gxx13Name: "GXX13 Name",
-    llvmir: "LLVM IR",
-    mmixal: "MMIXAL",
-    modula3: "Modula-3",
-    objectivec: "Objective-C",
-    visualbasic: "Visual Basic",
-  };
-
-  if (labelOverrides[rawKey]) {
-    return labelOverrides[rawKey];
-  }
-
-  if (rawKey.length <= 3) {
-    return rawKey.toUpperCase();
-  }
-
-  return rawKey.charAt(0).toUpperCase() + rawKey.slice(1);
 }
 
 /**
@@ -618,7 +588,7 @@ function buildEnvironmentStateSnapshot(provider, webview) {
 
     return {
       key: languageKey,
-      label: formatLanguageLabel(languageKey),
+      label: getLanguageDisplayLabel(languageKey),
       iconUri:
         iconMetadata.iconUriByLanguageKey.get(languageKey)
         || iconMetadata.fallbackIconUri,
@@ -1078,7 +1048,7 @@ class EnvironmentInitViewProvider {
 
     this._routingStatusByLanguageKey.set(languageKey, {
       kind: "running",
-      text: `Saving ${formatLanguageLabel(languageKey)} routing...`,
+      text: `Saving ${getLanguageDisplayLabel(languageKey)} routing...`,
     });
     this.postStateUpdate();
 
@@ -1105,13 +1075,13 @@ class EnvironmentInitViewProvider {
         kind: result.exitCode === 0 ? "ok" : "error",
         text:
           result.exitCode === 0
-            ? `${formatLanguageLabel(languageKey)} routing saved.`
-            : filterCheckEnvOutput(result.combinedOutput) || `${formatLanguageLabel(languageKey)} routing save failed.`,
+            ? `${getLanguageDisplayLabel(languageKey)} routing saved.`
+            : filterCheckEnvOutput(result.combinedOutput) || `${getLanguageDisplayLabel(languageKey)} routing save failed.`,
       });
     } catch (error) {
       this._routingStatusByLanguageKey.set(languageKey, {
         kind: "error",
-        text: `${formatLanguageLabel(languageKey)} routing save failed: ${error.message}`,
+        text: `${getLanguageDisplayLabel(languageKey)} routing save failed: ${error.message}`,
       });
     }
 

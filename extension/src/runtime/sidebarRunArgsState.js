@@ -1,3 +1,6 @@
+const { GENERATED_LANGUAGE_DATA } = require("./generated/languages.generated");
+const { getLanguageDisplayLabel } = require("./languageMetadata");
+
 // Shared in-memory state for optional sidebar run arguments.
 
 let sidebarRunArgsEnabled = false;
@@ -14,73 +17,135 @@ let sidebarSmokeTimeout = "8m";
 let sidebarSmokeSlowTimeout = "20m";
 
 /**
- * Supported smoke-test languages (arm64asm excluded to mirror smoke script behavior).
+ * Returns schema-style platform token for current Node platform.
+ *
+ * @returns {string} Platform token.
+ */
+function getCurrentPlatformToken() {
+  if (process.platform === "darwin") {
+    return "Darwin";
+  }
+
+  if (process.platform === "linux") {
+    return "Linux";
+  }
+
+  if (process.platform === "freebsd") {
+    return "FreeBSD";
+  }
+
+  if (process.platform === "win32") {
+    return "MINGW64_NT";
+  }
+
+  return "*";
+}
+
+/**
+ * Returns schema-style architecture token for current Node architecture.
+ *
+ * @returns {string} Architecture token.
+ */
+function getCurrentArchToken() {
+  if (process.arch === "arm64") {
+    return "arm64";
+  }
+
+  if (process.arch === "x64") {
+    return "x86_64";
+  }
+
+  return process.arch;
+}
+
+/**
+ * Checks whether one language is runnable in the current platform/arch.
+ *
+ * @param {{constraints?: {canRun?: {platform?: string[], arch?: string[]}[]}}} language Language metadata record.
+ * @returns {boolean} True when at least one canRun rule matches current platform and arch.
+ */
+function isLanguageRunnableOnCurrentHost(language) {
+  const canRunRules = Array.isArray(language?.constraints?.canRun)
+    ? language.constraints.canRun
+    : [];
+
+  if (canRunRules.length === 0) {
+    return true;
+  }
+
+  const platformToken = getCurrentPlatformToken();
+  const archToken = getCurrentArchToken();
+
+  for (const rule of canRunRules) {
+    const platforms = Array.isArray(rule?.platform) ? rule.platform : ["*"];
+    const archValues = Array.isArray(rule?.arch) ? rule.arch : ["*"];
+
+    const platformMatch = platforms.includes("*") || platforms.includes(platformToken);
+    const archMatch = archValues.includes("*") || archValues.includes(archToken);
+
+    if (platformMatch && archMatch) {
+      return true;
+    }
+  }
+
+  return false;
+}
+
+/**
+ * Supported smoke-test languages from generated metadata.
  *
  * @type {string[]}
  */
-const SMOKE_LANGUAGE_KEYS = [
-  "ada",
-  "asm",
-  "ballerina",
-  "c",
-  "clojure",
-  "cobol",
-  "cpp",
-  "csharp",
-  "d",
-  "dart",
-  "eiffel",
-  "elixir",
-  "erlang",
-  "factor",
-  "forth",
-  "fortran",
-  "freebasic",
-  "fsharp",
-  "gleam",
-  "go",
-  "haskell",
-  "haxe",
-  "icon",
-  "idris",
-  "java",
-  "javascript",
-  "julia",
-  "kit",
-  "kotlin",
-  "llvmir",
-  "lua",
-  "mercury",
-  "mmixal",
-  "modula3",
-  "mojo",
-  "nasm",
-  "nim",
-  "oberon",
-  "objectivec",
-  "ocaml",
-  "octave",
-  "pascal",
-  "perl",
-  "php",
-  "prolog",
-  "python",
-  "r",
-  "racket",
-  "ruby",
-  "rust",
-  "scala",
-  "scheme",
-  "simula",
-  "smalltalk",
-  "swift",
-  "tcl",
-  "typescript",
-  "v",
-  "visualbasic",
-  "wat",
-  "zig",
-];
+const SMOKE_LANGUAGE_KEYS = Array.isArray(GENERATED_LANGUAGE_DATA?.languages)
+  ? GENERATED_LANGUAGE_DATA.languages
+    .filter((language) => language?.smoke?.visible !== false)
+    .map((language) => String(language.key || "").trim().toLowerCase())
+    .filter(Boolean)
+  : [];
+
+/**
+ * Smoke default-enabled state keyed by language id.
+ *
+ * @type {Map<string, boolean>}
+ */
+const SMOKE_LANGUAGE_DEFAULT_ENABLED_BY_KEY = new Map(
+  (Array.isArray(GENERATED_LANGUAGE_DATA?.languages)
+    ? GENERATED_LANGUAGE_DATA.languages
+    : []
+  )
+    .map((language) => [
+      String(language.key || "").trim().toLowerCase(),
+      Boolean(language?.smoke?.defaultEnabled),
+    ])
+);
+
+/**
+ * Smoke capability on current host keyed by language id.
+ *
+ * @type {Map<string, boolean>}
+ */
+const SMOKE_LANGUAGE_RUNNABLE_BY_KEY = new Map(
+  (Array.isArray(GENERATED_LANGUAGE_DATA?.languages)
+    ? GENERATED_LANGUAGE_DATA.languages
+    : []
+  )
+    .map((language) => [
+      String(language.key || "").trim().toLowerCase(),
+      isLanguageRunnableOnCurrentHost(language),
+    ])
+);
+
+/**
+ * Smoke display labels keyed by language id.
+ *
+ * @type {Map<string, string>}
+ */
+const SMOKE_LANGUAGE_LABEL_BY_KEY = new Map(
+  SMOKE_LANGUAGE_KEYS.map((languageKey) => [
+    languageKey,
+    getLanguageDisplayLabel(languageKey),
+  ])
+);
 
 /**
  * Selected smoke-test languages keyed by language id.
@@ -88,7 +153,11 @@ const SMOKE_LANGUAGE_KEYS = [
  * @type {Map<string, boolean>}
  */
 const sidebarSmokeLanguageEnabledByKey = new Map(
-  SMOKE_LANGUAGE_KEYS.map((languageKey) => [languageKey, true])
+  SMOKE_LANGUAGE_KEYS.map((languageKey) => {
+    const defaultEnabled = SMOKE_LANGUAGE_DEFAULT_ENABLED_BY_KEY.get(languageKey) === true;
+    const runnable = SMOKE_LANGUAGE_RUNNABLE_BY_KEY.get(languageKey) !== false;
+    return [languageKey, defaultEnabled && runnable];
+  })
 );
 
 /**
@@ -250,12 +319,20 @@ function setSidebarCleanArchivesEnabled(enabled) {
 /**
  * Returns the current sidebar smoke-controls state.
  *
- * @returns {{markdownEnabled: boolean, markdownPath: string, timeout: string, slowTimeout: string, languages: {key: string, enabled: boolean}[]}} Current state snapshot.
+ * @returns {{markdownEnabled: boolean, markdownPath: string, timeout: string, slowTimeout: string, languages: {key: string, label: string, enabled: boolean, disabled: boolean, disabledReason: string}[]}} Current state snapshot.
  */
 function getSidebarSmokeControlsState() {
   const languages = SMOKE_LANGUAGE_KEYS.map((languageKey) => ({
     key: languageKey,
+    label:
+      SMOKE_LANGUAGE_LABEL_BY_KEY.get(languageKey)
+      || languageKey,
     enabled: sidebarSmokeLanguageEnabledByKey.get(languageKey) !== false,
+    disabled: SMOKE_LANGUAGE_RUNNABLE_BY_KEY.get(languageKey) === false,
+    disabledReason:
+      SMOKE_LANGUAGE_RUNNABLE_BY_KEY.get(languageKey) === false
+        ? "Not runnable on this platform/architecture."
+        : "",
   }));
 
   return {
@@ -321,6 +398,11 @@ function setSidebarSmokeLanguageEnabled(languageKey, enabled) {
     return;
   }
 
+  if (SMOKE_LANGUAGE_RUNNABLE_BY_KEY.get(normalizedLanguageKey) === false) {
+    sidebarSmokeLanguageEnabledByKey.set(normalizedLanguageKey, false);
+    return;
+  }
+
   sidebarSmokeLanguageEnabledByKey.set(normalizedLanguageKey, Boolean(enabled));
 }
 
@@ -332,7 +414,8 @@ function setSidebarSmokeLanguageEnabled(languageKey, enabled) {
  */
 function setSidebarSmokeAllLanguagesEnabled(enabled) {
   for (const languageKey of SMOKE_LANGUAGE_KEYS) {
-    sidebarSmokeLanguageEnabledByKey.set(languageKey, Boolean(enabled));
+    const runnable = SMOKE_LANGUAGE_RUNNABLE_BY_KEY.get(languageKey) !== false;
+    sidebarSmokeLanguageEnabledByKey.set(languageKey, runnable ? Boolean(enabled) : false);
   }
 }
 

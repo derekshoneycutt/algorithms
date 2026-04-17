@@ -79,14 +79,17 @@ function buildSmokeControlsErrorHtml(webview, errorMessage) {
 /**
  * Builds status metadata for smoke-controls language selection.
  *
- * @param {{languages: {key: string, enabled: boolean}[]}} smokeControlsState Current smoke-controls state.
+ * @param {{languages: {key: string, label: string, enabled: boolean, disabled: boolean}[]}} smokeControlsState Current smoke-controls state.
  * @returns {{statusText: string, statusClassName: string}} Status display metadata.
  */
 function buildSmokeControlsStatus(smokeControlsState) {
+  const selectableCount = smokeControlsState.languages.filter(
+    (language) => !language.disabled
+  ).length;
   const selectedCount = smokeControlsState.languages.filter(
     (language) => language.enabled
   ).length;
-  const allSelected = selectedCount === smokeControlsState.languages.length;
+  const allSelected = selectableCount > 0 && selectedCount === selectableCount;
 
   if (selectedCount === 0) {
     return {
@@ -140,7 +143,7 @@ function buildReportGenerationStatus(smokeControlsState) {
 /**
  * Returns the render snapshot used by the smoke-controls UI.
  *
- * @returns {{markdownEnabled: boolean, markdownPath: string, timeout: string, slowTimeout: string, languages: {key: string, enabled: boolean}[], reportStatusText: string, reportStatusClassName: string, smokeStatusText: string, smokeStatusClassName: string}} Current UI state snapshot.
+ * @returns {{markdownEnabled: boolean, markdownPath: string, timeout: string, slowTimeout: string, languages: {key: string, label: string, enabled: boolean, disabled: boolean, disabledReason: string}[], reportStatusText: string, reportStatusClassName: string, smokeStatusText: string, smokeStatusClassName: string}} Current UI state snapshot.
  */
 function getSmokeControlsSnapshot() {
   const smokeControlsState = getSidebarSmokeControlsState();
@@ -179,8 +182,10 @@ function buildLanguagesGridHtml(stateSnapshot, languageIconUris) {
         <img class="languageIcon" src="${escapeHtml(iconUri)}" alt="" aria-hidden="true" />
         <input id="smokeLang_${language.key}" type="checkbox" data-smoke-lang="${language.key}" ${
           language.enabled ? "checked" : ""
+        } ${
+          language.disabled ? "disabled" : ""
         } />
-        <span>${escapeHtml(language.key)}</span>
+        <span title="${escapeHtml(language.disabledReason || "")}">${escapeHtml(language.label || language.key)}</span>
       </label>`;
     })
     .join("");

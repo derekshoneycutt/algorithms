@@ -1,5 +1,6 @@
 const assert = require("assert");
 const Module = require("module");
+const { getLanguageDisplayLabel } = require("../src/runtime/languageMetadata");
 
 /**
  * Loads algorithmsRunView internals with a minimal vscode mock.
@@ -12,6 +13,21 @@ function loadAlgorithmsRunViewInternals() {
   Module._load = function patchedModuleLoad(request, parent, isMain) {
     if (request === "vscode") {
       return {
+        Uri: {
+          file(filePath) {
+            const normalizedPath = String(filePath || "");
+
+            return {
+              fsPath: normalizedPath,
+              with(patch) {
+                return {
+                  fsPath: normalizedPath,
+                  fragment: String(patch?.fragment || ""),
+                };
+              },
+            };
+          },
+        },
         EventEmitter: class EventEmitter {
           constructor() {
             this.event = () => {
@@ -32,11 +48,13 @@ function loadAlgorithmsRunViewInternals() {
   try {
     const {
       _internal: {
+        createLanguageSummaryTreeNode,
         WorkspaceStatusTreeDataProvider,
       },
     } = require("../src/ui/algorithmsRunView");
 
     return {
+      createLanguageSummaryTreeNode,
       WorkspaceStatusTreeDataProvider,
     };
   } finally {
@@ -45,6 +63,7 @@ function loadAlgorithmsRunViewInternals() {
 }
 
 const {
+  createLanguageSummaryTreeNode,
   WorkspaceStatusTreeDataProvider,
 } = loadAlgorithmsRunViewInternals();
 
@@ -189,6 +208,29 @@ function testSmokeContextAndClearResultsTransitions() {
 }
 
 /**
+ * Verifies language summary rows use shared display labels from metadata.
+ *
+ * @returns {void}
+ */
+function testLanguageSummaryNodeUsesSubsystemDisplayLabel() {
+  const expectedLabel = getLanguageDisplayLabel("cpp");
+  const suggestedUntitledUri = { fsPath: "/tmp/suggested/algorithm.cpp" };
+  const node = createLanguageSummaryTreeNode(
+    "cpp",
+    0,
+    "/tmp/algorithm",
+    null,
+    false,
+    false,
+    false,
+    suggestedUntitledUri
+  );
+
+  assert.strictEqual(node.label, expectedLabel);
+  assert.ok(String(node.tooltip).startsWith(`${expectedLabel}:`));
+}
+
+/**
  * Runs all algorithms run-view smoke lifecycle regression tests.
  *
  * @returns {void}
@@ -198,6 +240,7 @@ function runTests() {
   testFailureTransitionAffectsOnlyActiveEntries();
   testLockedFailedStatusIsNotOverwritten();
   testSmokeContextAndClearResultsTransitions();
+  testLanguageSummaryNodeUsesSubsystemDisplayLabel();
 }
 
 module.exports = {
