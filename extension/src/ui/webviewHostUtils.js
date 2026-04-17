@@ -91,6 +91,24 @@ function renderTemplate(template, replacements) {
 }
 
 /**
+ * Returns the canonical source code for escapeHtml.
+ *
+ * @returns {string} Function source text.
+ */
+function getEscapeHtmlSource() {
+  return String(escapeHtml);
+}
+
+/**
+ * Returns the canonical source code for renderTemplate.
+ *
+ * @returns {string} Function source text.
+ */
+function getRenderTemplateSource() {
+  return String(renderTemplate);
+}
+
+/**
  * Serializes JSON for safe inline-script embedding.
  *
  * @param {unknown} value JSON-serializable value.
@@ -343,6 +361,96 @@ function createSidebarWebviewLifecycle(options) {
 }
 
 /**
+ * Creates a reusable template-backed sidebar provider core.
+ *
+ * @param {{vscodeApi: typeof import("vscode"), extensionUri: import("vscode").Uri, mediaPathSegments: string[], templatePathSegments: string[], templateOwnerName: string, requiredTemplateNames: string[], buildTemplateMap: (templateByName: Record<string, string>) => Record<string, string>, assetFileNameByKey?: Record<string, string>, localResourceRoots: import("vscode").Uri[]|((core: {mediaBaseUri: import("vscode").Uri, templateBaseUri: import("vscode").Uri}) => import("vscode").Uri[]), buildHtml: (webview: import("vscode").Webview, context: {templates: Record<string, string>, assetUris: Record<string, string>}) => string, buildErrorHtml?: (webview: import("vscode").Webview, error: unknown) => string, handleMessage?: (message: unknown) => void, handleDispose?: (webviewView: import("vscode").WebviewView) => void}} options Provider core options.
+ * @returns {{mediaBaseUri: import("vscode").Uri, templateBaseUri: import("vscode").Uri, getTemplate: (templateFileName: string) => string, getTemplates: () => Record<string, string>, getAssetUris: (webview: import("vscode").Webview) => Record<string, string>, lifecycle: {resolveWebviewView: (webviewView: import("vscode").WebviewView) => void, refresh: () => boolean, getActiveWebviewView: () => import("vscode").WebviewView|null}}} Provider core.
+ */
+function createTemplateWebviewProvider(options) {
+  const mediaBaseUri = options.vscodeApi.Uri.joinPath(
+    options.extensionUri,
+    ...options.mediaPathSegments
+  );
+  const templateBaseUri = options.vscodeApi.Uri.joinPath(
+    options.extensionUri,
+    ...options.templatePathSegments
+  );
+  const loadTemplate = makeTemplateLoader(templateBaseUri.fsPath);
+
+  /**
+   * Loads one template file from the provider template root.
+   *
+   * @param {string} templateFileName Template file name.
+   * @returns {string} Template contents.
+   */
+  function getTemplate(templateFileName) {
+    return loadTemplate(templateFileName, options.templateOwnerName);
+  }
+
+  /**
+   * Resolves all required templates into the provider template map.
+   *
+   * @returns {Record<string, string>} Provider template map.
+   */
+  function getTemplates() {
+    const templateByName = Object.fromEntries(
+      options.requiredTemplateNames.map((templateFileName) => {
+        return [templateFileName, getTemplate(templateFileName)];
+      })
+    );
+
+    return options.buildTemplateMap(templateByName);
+  }
+
+  /**
+   * Resolves webview-safe asset URIs keyed by asset role.
+   *
+   * @param {import("vscode").Webview} webview Webview instance.
+   * @returns {Record<string, string>} Asset URI map.
+   */
+  function getAssetUris(webview) {
+    const assetFileNameByKey = options.assetFileNameByKey || {};
+
+    return Object.fromEntries(
+      Object.entries(assetFileNameByKey).map(([assetKey, assetFileName]) => {
+        const assetUri = webview.asWebviewUri(
+          options.vscodeApi.Uri.joinPath(mediaBaseUri, assetFileName)
+        ).toString();
+
+        return [assetKey, assetUri];
+      })
+    );
+  }
+
+  const localResourceRoots =
+    typeof options.localResourceRoots === "function"
+      ? options.localResourceRoots({ mediaBaseUri, templateBaseUri })
+      : options.localResourceRoots;
+
+  const lifecycle = createSidebarWebviewLifecycle({
+    localResourceRoots,
+    buildHtml: (webview) => {
+      return options.buildHtml(webview, {
+        templates: getTemplates(),
+        assetUris: getAssetUris(webview),
+      });
+    },
+    buildErrorHtml: options.buildErrorHtml,
+    handleMessage: options.handleMessage,
+    handleDispose: options.handleDispose,
+  });
+
+  return {
+    mediaBaseUri,
+    templateBaseUri,
+    getTemplate,
+    getTemplates,
+    getAssetUris,
+    lifecycle,
+  };
+}
+
+/**
  * Builds a CSP-safe fallback error document without inline styles.
  *
  * @param {import("vscode").Webview} webview Webview instance.
@@ -373,8 +481,11 @@ function buildWebviewErrorHtmlDocument(webview, errorMessage) {
 module.exports = {
   buildLanguageIconUris,
   buildWebviewErrorHtmlDocument,
+  createTemplateWebviewProvider,
   createSidebarWebviewLifecycle,
   escapeHtml,
+  getEscapeHtmlSource,
+  getRenderTemplateSource,
   getSectionIconSvg,
   makeTemplateLoader,
   readTextFileSafe,

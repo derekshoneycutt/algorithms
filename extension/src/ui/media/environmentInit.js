@@ -33,23 +33,6 @@ const requiredTemplateNames = [
   "languageRow",
 ];
 
-// Browser-side copy of escapeHtml from webviewHostUtils.js.
-// These two implementations must stay in sync — any fix here must be applied there too.
-/**
- * Escapes user-provided text for safe HTML interpolation in the webview client.
- *
- * @param {string} text Raw text value.
- * @returns {string} Escaped HTML-safe text.
- */
-function escapeHtmlClient(text) {
-  return String(text || "")
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/\"/g, "&quot;")
-    .replace(/'/g, "&#39;");
-}
-
 /**
  * Renders a status badge element, or an empty string if there is no text.
  *
@@ -65,26 +48,7 @@ function renderStatus(statusKind, statusText) {
     return "";
   }
 
-  return '<div class="status ' + escapeHtmlClient(resolvedKind) + '">' + escapeHtmlClient(resolvedText) + '</div>';
-}
-
-// Browser-side copy of renderTemplate from webviewHostUtils.js.
-// These two implementations must stay in sync — any fix here must be applied there too.
-/**
- * Renders one tokenized HTML template with replacement values in the webview client.
- *
- * @param {string} template Raw template source containing {{key}} placeholders.
- * @param {Record<string, string>} replacements Placeholder replacement values.
- * @returns {string} Rendered HTML with all known placeholders substituted.
- */
-function renderTemplateClient(template, replacements) {
-  return String(template || "").replace(/\{\{([a-zA-Z0-9_]+)\}\}/g, (_, key) => {
-    if (Object.prototype.hasOwnProperty.call(replacements, key)) {
-      return String(replacements[key]);
-    }
-
-    return "";
-  });
+  return '<div class="status ' + window.escapeHtml(resolvedKind) + '">' + window.escapeHtml(resolvedText) + '</div>';
 }
 
 /**
@@ -128,10 +92,10 @@ function buildVariableCardsHtml() {
   const variableCardTemplate = getTemplateSource("variableCard");
 
   return state.variables.map((variable) => {
-    return renderTemplateClient(variableCardTemplate, {
-      variableLabel: escapeHtmlClient(variable.label),
-      variableKey: escapeHtmlClient(variable.key),
-      variableValue: escapeHtmlClient(variable.value),
+    return window.renderTemplate(variableCardTemplate, {
+      variableLabel: window.escapeHtml(variable.label),
+      variableKey: window.escapeHtml(variable.key),
+      variableValue: window.escapeHtml(variable.value),
       variableStatus: renderStatus(variable.statusKind, variable.statusText),
     });
   }).join("");
@@ -144,7 +108,7 @@ function buildVariableCardsHtml() {
  * @returns {string} Indicator span HTML.
  */
 function buildIndicatorHtml(label) {
-  return '<span class="indicator">' + escapeHtmlClient(label) + '</span>';
+  return '<span class="indicator">' + window.escapeHtml(label) + '</span>';
 }
 
 /**
@@ -162,17 +126,17 @@ function buildLanguageRowsHtml() {
       language.sshEnabled ? buildIndicatorHtml('ssh') : ''
     ].join('');
 
-    return renderTemplateClient(languageRowTemplate, {
+    return window.renderTemplate(languageRowTemplate, {
       conflictClass,
-      languageIconUri: escapeHtmlClient(language.iconUri),
-      languageLabel: escapeHtmlClient(language.label),
+      languageIconUri: window.escapeHtml(language.iconUri),
+      languageLabel: window.escapeHtml(language.label),
       languageIndicators: indicators,
-      languageKey: escapeHtmlClient(language.key),
+      languageKey: window.escapeHtml(language.key),
       dockerChecked: language.dockerEnabled ? 'checked' : '',
-      dockerValue: escapeHtmlClient(language.dockerValue),
+      dockerValue: window.escapeHtml(language.dockerValue),
       dockerDisabledAttr: language.dockerEnabled ? '' : 'disabled',
       sshChecked: language.sshEnabled ? 'checked' : '',
-      sshValue: escapeHtmlClient(language.sshValue),
+      sshValue: window.escapeHtml(language.sshValue),
       sshDisabledAttr: language.sshEnabled ? '' : 'disabled',
       languageStatus: renderStatus(language.statusKind, language.statusText),
     });
@@ -195,45 +159,45 @@ function render() {
 
   const sectionHeaders = state.sectionHeaders || {};
 
-  const profileSectionHtml = renderTemplateClient(getTemplateSource('profileSection'), {
+  const profileSectionHtml = window.renderTemplate(getTemplateSource('profileSection'), {
     profileHeader: String(sectionHeaders.profile || ''),
-    profilePath: escapeHtmlClient(state.profilePath),
-    profilePlaceholder: escapeHtmlClient(state.profilePlaceholder),
-    effectiveProfilePath: escapeHtmlClient(state.effectiveProfilePath || state.profilePlaceholder),
+    profilePath: window.escapeHtml(state.profilePath),
+    profilePlaceholder: window.escapeHtml(state.profilePlaceholder),
+    effectiveProfilePath: window.escapeHtml(state.effectiveProfilePath || state.profilePlaceholder),
   });
-  const checkEnvSectionHtml = renderTemplateClient(getTemplateSource('checkEnvSection'), {
+  const checkEnvSectionHtml = window.renderTemplate(getTemplateSource('checkEnvSection'), {
     checkEnvHeader: String(sectionHeaders.checkEnv || ''),
     checkEnvStatus: renderStatus(state.checkEnv.kind, state.checkEnv.text),
-    checkEnvFilteredOutput: escapeHtmlClient(state.checkEnv.filteredOutput || 'No check-environment output yet.'),
-    checkEnvRawOutput: escapeHtmlClient(state.checkEnv.rawOutput || 'No raw output yet.'),
+    checkEnvFilteredOutput: window.escapeHtml(state.checkEnv.filteredOutput || 'No check-environment output yet.'),
+    checkEnvRawOutput: window.escapeHtml(state.checkEnv.rawOutput || 'No raw output yet.'),
   });
-  const copyIconsSectionHtml = renderTemplateClient(getTemplateSource('copyIconsSection'), {
+  const copyIconsSectionHtml = window.renderTemplate(getTemplateSource('copyIconsSection'), {
     copyIconsHeader: String(sectionHeaders.copyIcons || ''),
-    copyIconsPath: escapeHtmlClient(state.copyIconsPath),
-    copyIconsPlaceholder: escapeHtmlClient(state.copyIconsPlaceholder),
+    copyIconsPath: window.escapeHtml(state.copyIconsPath),
+    copyIconsPlaceholder: window.escapeHtml(state.copyIconsPlaceholder),
     copyIconsStatus: renderStatus(state.copyIconsResult.kind, state.copyIconsResult.text),
   });
-  const variablesSectionHtml = renderTemplateClient(getTemplateSource('variablesSection'), {
+  const variablesSectionHtml = window.renderTemplate(getTemplateSource('variablesSection'), {
     variablesHeader: String(sectionHeaders.variables || ''),
     variableCardsHtml: buildVariableCardsHtml(),
   });
-  const batchSectionHtml = renderTemplateClient(getTemplateSource('batchSection'), {
+  const batchSectionHtml = window.renderTemplate(getTemplateSource('batchSection'), {
     batchHeader: String(sectionHeaders.batch || ''),
     batchDockerChecked: state.batch.dockerEnabled ? 'checked' : '',
-    batchDockerValue: escapeHtmlClient(state.batch.dockerValue),
+    batchDockerValue: window.escapeHtml(state.batch.dockerValue),
     batchDockerDisabledAttr: state.batch.dockerEnabled ? '' : 'disabled',
     batchSshChecked: state.batch.sshEnabled ? 'checked' : '',
-    batchSshValue: escapeHtmlClient(state.batch.sshValue),
+    batchSshValue: window.escapeHtml(state.batch.sshValue),
     batchSshDisabledAttr: state.batch.sshEnabled ? '' : 'disabled',
     batchStatus: renderStatus(state.batch.statusKind, state.batch.statusText),
   });
-  const routingSectionHtml = renderTemplateClient(getTemplateSource('routingSection'), {
+  const routingSectionHtml = window.renderTemplate(getTemplateSource('routingSection'), {
     routingHeader: String(sectionHeaders.routing || ''),
     batchSection: batchSectionHtml,
     languageRowsHtml: buildLanguageRowsHtml(),
   });
 
-  app.innerHTML = renderTemplateClient(getTemplateSource('panel'), {
+  app.innerHTML = window.renderTemplate(getTemplateSource('panel'), {
     profileSection: profileSectionHtml,
     checkEnvSection: checkEnvSectionHtml,
     copyIconsSection: copyIconsSectionHtml,

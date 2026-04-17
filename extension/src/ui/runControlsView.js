@@ -2,9 +2,9 @@ const vscode = require("vscode");
 const { VIEW_IDS } = require("../runtime/viewConstants");
 const {
   buildWebviewErrorHtmlDocument,
+  createTemplateWebviewProvider,
   createSidebarWebviewLifecycle,
   escapeHtml,
-  makeTemplateLoader,
   renderSectionHeader,
   renderTemplate,
   serializeForScript,
@@ -380,28 +380,42 @@ class SidebarRunControlsViewProvider {
    * @param {import("vscode").Uri} extensionUri Extension installation URI.
    */
   constructor(extensionUri) {
-    this._mediaRootUri = vscode.Uri.joinPath(
+    this._templateProvider = createTemplateWebviewProvider({
+      vscodeApi: vscode,
       extensionUri,
-      ...RUN_CONTROLS_MEDIA_PATH_SEGMENTS
-    );
-    this._templateRootUri = vscode.Uri.joinPath(
-      extensionUri,
-      ...RUN_CONTROLS_TEMPLATE_PATH_SEGMENTS
-    );
-    this._loadTemplate = makeTemplateLoader(this._templateRootUri.fsPath);
-    this._lifecycle = createSidebarWebviewLifecycle({
-      localResourceRoots: [this._mediaRootUri],
-      buildHtml: (webview) => {
-        const assets = this.getAssetUris(webview);
-        const templates = this.getTemplates();
-
+      mediaPathSegments: RUN_CONTROLS_MEDIA_PATH_SEGMENTS,
+      templatePathSegments: RUN_CONTROLS_TEMPLATE_PATH_SEGMENTS,
+      templateOwnerName: "Run Controls",
+      requiredTemplateNames: RUN_CONTROLS_REQUIRED_TEMPLATE_NAMES,
+      buildTemplateMap: (templateByName) => {
+        return {
+          shell: templateByName[RUN_CONTROLS_SHELL_TEMPLATE_FILE_NAME],
+          commandArguments:
+            templateByName[RUN_CONTROLS_COMMAND_ARGUMENTS_TEMPLATE_FILE_NAME],
+          runChecks: templateByName[RUN_CONTROLS_RUN_CHECKS_TEMPLATE_FILE_NAME],
+          sourceProfile:
+            templateByName[RUN_CONTROLS_SOURCE_PROFILE_TEMPLATE_FILE_NAME],
+          cleanOptions:
+            templateByName[RUN_CONTROLS_CLEAN_OPTIONS_TEMPLATE_FILE_NAME],
+        };
+      },
+      assetFileNameByKey: {
+        sharedStylesheetUri: RUN_CONTROLS_SHARED_CSS_FILE_NAME,
+        stylesheetUri: RUN_CONTROLS_CSS_FILE_NAME,
+        clientUtilsScriptUri: RUN_CONTROLS_WEBVIEW_CLIENT_UTILS_JS_FILE_NAME,
+        scriptUri: RUN_CONTROLS_JS_FILE_NAME,
+      },
+      localResourceRoots: ({ mediaBaseUri }) => {
+        return [mediaBaseUri];
+      },
+      buildHtml: (webview, context) => {
         return buildRunControlsHtml(
           webview,
-          assets.sharedStylesheetUri,
-          assets.stylesheetUri,
-          assets.clientUtilsScriptUri,
-          assets.scriptUri,
-          templates
+          context.assetUris.sharedStylesheetUri,
+          context.assetUris.stylesheetUri,
+          context.assetUris.clientUtilsScriptUri,
+          context.assetUris.scriptUri,
+          context.templates
         );
       },
       buildErrorHtml: (webview, error) => {
@@ -414,6 +428,7 @@ class SidebarRunControlsViewProvider {
         this.handleMessage(message);
       },
     });
+    this._lifecycle = this._templateProvider.lifecycle;
   }
 
   /**
@@ -423,7 +438,7 @@ class SidebarRunControlsViewProvider {
    * @returns {string} Template contents.
    */
   getTemplate(templateFileName) {
-    return this._loadTemplate(templateFileName, "Run Controls");
+    return this._templateProvider.getTemplate(templateFileName);
   }
 
   /**
@@ -432,22 +447,7 @@ class SidebarRunControlsViewProvider {
    * @returns {{shell: string, commandArguments: string, runChecks: string, sourceProfile: string, cleanOptions: string}} Template map.
    */
   getTemplates() {
-    const templateByName = Object.fromEntries(
-      RUN_CONTROLS_REQUIRED_TEMPLATE_NAMES.map((templateFileName) => {
-        return [templateFileName, this.getTemplate(templateFileName)];
-      })
-    );
-
-    return {
-      shell: templateByName[RUN_CONTROLS_SHELL_TEMPLATE_FILE_NAME],
-      commandArguments:
-        templateByName[RUN_CONTROLS_COMMAND_ARGUMENTS_TEMPLATE_FILE_NAME],
-      runChecks: templateByName[RUN_CONTROLS_RUN_CHECKS_TEMPLATE_FILE_NAME],
-      sourceProfile:
-        templateByName[RUN_CONTROLS_SOURCE_PROFILE_TEMPLATE_FILE_NAME],
-      cleanOptions:
-        templateByName[RUN_CONTROLS_CLEAN_OPTIONS_TEMPLATE_FILE_NAME],
-    };
+    return this._templateProvider.getTemplates();
   }
 
   /**
@@ -457,28 +457,7 @@ class SidebarRunControlsViewProvider {
    * @returns {{sharedStylesheetUri: string, stylesheetUri: string, clientUtilsScriptUri: string, scriptUri: string}} Resource URI map.
    */
   getAssetUris(webview) {
-    const sharedStylesheetUri = webview.asWebviewUri(
-      vscode.Uri.joinPath(this._mediaRootUri, RUN_CONTROLS_SHARED_CSS_FILE_NAME)
-    ).toString();
-    const stylesheetUri = webview.asWebviewUri(
-      vscode.Uri.joinPath(this._mediaRootUri, RUN_CONTROLS_CSS_FILE_NAME)
-    ).toString();
-    const clientUtilsScriptUri = webview.asWebviewUri(
-      vscode.Uri.joinPath(
-        this._mediaRootUri,
-        RUN_CONTROLS_WEBVIEW_CLIENT_UTILS_JS_FILE_NAME
-      )
-    ).toString();
-    const scriptUri = webview.asWebviewUri(
-      vscode.Uri.joinPath(this._mediaRootUri, RUN_CONTROLS_JS_FILE_NAME)
-    ).toString();
-
-    return {
-      sharedStylesheetUri,
-      stylesheetUri,
-      clientUtilsScriptUri,
-      scriptUri,
-    };
+    return this._templateProvider.getAssetUris(webview);
   }
 
   /**

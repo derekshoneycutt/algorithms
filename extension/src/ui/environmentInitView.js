@@ -1,18 +1,10 @@
-const fs = require("fs");
-const os = require("os");
-const path = require("path");
-const { spawn } = require("child_process");
 const vscode = require("vscode");
 const { VIEW_IDS } = require("../runtime/viewConstants");
 const {
-  realpathSafe,
-  resolveEligibilityState,
-} = require("../runtime/pathResolver");
-const {
   buildLanguageIconUris,
   buildWebviewErrorHtmlDocument,
+  createTemplateWebviewProvider,
   createSidebarWebviewLifecycle,
-  makeTemplateLoader,
   readTextFileSafe,
   renderSectionHeader,
   renderTemplate,
@@ -20,14 +12,26 @@ const {
 } = require("./webviewHostUtils");
 const {
   getLanguageDisplayLabel,
-  getSupportedLanguageKeys,
   LANGUAGE_ICON_FILE_BY_KEY,
 } = require("../runtime/languageMetadata");
+const {
+  expandHomePath,
+  resolveEnvironmentRootInfo,
+  getProfilePlaceholderForPlatform,
+  getDefaultProfilePathForPlatform,
+  extractManagedExportValue,
+  parseInitDefaults,
+  buildProfileArgs,
+  filterCheckEnvOutput,
+  runInitScriptCommand,
+  buildMergedEnvironmentConfig,
+} = require("./shellProfileUtils");
 
 const ENVIRONMENT_MEDIA_PATH_SEGMENTS = ["src", "ui", "media"];
 const ENVIRONMENT_SHARED_CSS_FILE_NAME = "panelShared.css";
 const ENVIRONMENT_INIT_CSS_FILE_NAME = "environmentInit.css";
 const ENVIRONMENT_INIT_JS_FILE_NAME = "environmentInit.js";
+const ENVIRONMENT_SHARED_UTILS_JS_FILE_NAME = "webviewSharedUtils.js";
 const ENVIRONMENT_TEMPLATE_PATH_SEGMENTS = ["src", "ui", "templates"];
 const ENVIRONMENT_SHELL_TEMPLATE_FILE_NAME = "environment-shell.html";
 const ENVIRONMENT_PANEL_TEMPLATE_FILE_NAME = "environment-panel.html";
@@ -63,12 +67,6 @@ const ENVIRONMENT_REQUIRED_TEMPLATE_NAMES = [
 const LANGUAGE_ICON_PATH_SEGMENT = "icons/languages";
 // Relative fallback icon path used when a language icon is missing.
 const FALLBACK_ICON_PATH_SEGMENT = "icons/play-sidebar.svg";
-// init.sh export block marker start.
-const PROFILE_BLOCK_START = "# >>> DEREKALGOS INIT >>>";
-// init.sh export block marker end.
-const PROFILE_BLOCK_END = "# <<< DEREKALGOS INIT <<<";
-
-// Language-to-icon mapping aligned to other extension panels.
 // Variable save controls displayed in the Environment pane.
 const CORE_VARIABLE_DEFINITIONS = [
   {
@@ -102,405 +100,6 @@ const CORE_VARIABLE_DEFINITIONS = [
     profileExportName: "DEREKALGOS_GXX13NAME",
   },
 ];
-
-/**
- * Expands a leading home marker in a profile path.
- *
- * @param {string} profilePath Candidate profile path.
- * @returns {string} Expanded profile path.
- */
-function expandHomePath(profilePath) {
-  const rawValue = String(profilePath || "").trim();
-
-  if (!rawValue) {
-    return "";
-  }
-
-  if (rawValue === "~") {
-    return os.homedir();
-  }
-
-  if (rawValue.startsWith("~/")) {
-    return path.join(os.homedir(), rawValue.slice(2));
-  }
-
-  return rawValue;
-}
-
-/**
- * Returns workspace folders from VS Code API.
- *
- * @returns {import("vscode").WorkspaceFolder[]} Open workspace folders.
- */
-function getWorkspaceFolders() {
-  return vscode.workspace.workspaceFolders || [];
-}
-
-/**
- * Resolves the active supported repository root and init.sh path.
- *
- * @returns {{resolvedRootPath: string|null, initScriptPath: string|null}} Root resolution metadata.
- */
-function resolveEnvironmentRootInfo() {
-  const eligibilityState = resolveEligibilityState(getWorkspaceFolders());
-  const resolvedRootPath = eligibilityState?.selected?.resolvedRoot || null;
-
-  if (!resolvedRootPath) {
-    return {
-      resolvedRootPath: null,
-      initScriptPath: null,
-    };
-  }
-
-  const canonicalRootPath = realpathSafe(resolvedRootPath);
-  const initScriptPath = path.join(canonicalRootPath, "init.sh");
-
-  try {
-    if (!fs.statSync(initScriptPath).isFile()) {
-      return {
-        resolvedRootPath: null,
-        initScriptPath: null,
-      };
-    }
-  } catch (_) {
-    return {
-      resolvedRootPath: null,
-      initScriptPath: null,
-    };
-  }
-
-  return {
-    resolvedRootPath: canonicalRootPath,
-    initScriptPath,
-  };
-}
-
-/**
- * Returns the platform-specific placeholder profile path.
- *
- * @returns {string} Placeholder profile path.
- */
-function getProfilePlaceholderForPlatform() {
-  if (process.platform === "freebsd") {
-    return "~/.profile";
-  }
-
-  if (process.platform === "darwin") {
-    return "~/.zprofile";
-  }
-
-  return "~/.bash_profile";
-}
-
-/**
- * Returns the platform-specific default profile path used for state hydration.
- *
- * @returns {string} Default profile path.
- */
-function getDefaultProfilePathForPlatform() {
-  return expandHomePath(getProfilePlaceholderForPlatform());
-}
-
-/**
- * Extracts one shell assignment value from init.sh.
- *
- * @param {string} scriptText init.sh text.
- * @param {string} variableName Assignment variable name.
- * @returns {string|null} Extracted assignment value or null.
- */
-function extractShellAssignment(scriptText, variableName) {
-  const assignmentPattern = new RegExp(`^${variableName}=(.*)$`, "m");
-  const match = String(scriptText || "").match(assignmentPattern);
-
-  if (!match) {
-    return null;
-  }
-
-  const rawValue = String(match[1] || "").trim();
-
-  if (
-    rawValue.startsWith('"')
-    && rawValue.endsWith('"')
-    && rawValue.length >= 2
-  ) {
-    return rawValue.slice(1, -1);
-  }
-
-  return rawValue;
-}
-
-/**
- * Extracts one managed export value from a profile file.
- *
- * @param {string} profileText Profile file text.
- * @param {string} exportName Export variable name.
- * @returns {{present: boolean, value: string}} Export presence and value.
- */
-function extractManagedExportValue(profileText, exportName) {
-  const text = String(profileText || "");
-  const blockStartIndex = text.indexOf(PROFILE_BLOCK_START);
-  const blockEndIndex = text.indexOf(PROFILE_BLOCK_END);
-  const scopedText =
-    blockStartIndex >= 0 && blockEndIndex > blockStartIndex
-      ? text.slice(blockStartIndex, blockEndIndex)
-      : text;
-  const exportPattern = new RegExp(`^export ${exportName}=(.*)$`, "m");
-  const match = scopedText.match(exportPattern);
-
-  if (!match) {
-    return {
-      present: false,
-      value: "",
-    };
-  }
-
-  let rawValue = String(match[1] || "").trim();
-
-  if (
-    rawValue.startsWith('"')
-    && rawValue.endsWith('"')
-    && rawValue.length >= 2
-  ) {
-    rawValue = rawValue.slice(1, -1);
-  }
-
-  rawValue = rawValue.replace(/\\"/g, '"').replace(/\\\\/g, "\\");
-
-  return {
-    present: true,
-    value: rawValue,
-  };
-}
-
-/**
- * Parses init.sh defaults used by the Environment pane.
- *
- * @param {string} initScriptText init.sh text.
- * @param {string|null} resolvedRootPath Canonical repository root path.
- * @returns {{copyIconsTo: string, timeout: string, eiffel: string, gcc13Directory: string, gcc13Name: string, gxx13Name: string, runOnDocker: string, runOnSsh: string, supportedLanguageKeys: string[]}} Parsed defaults.
- */
-function parseInitDefaults(initScriptText, resolvedRootPath) {
-  const fallbackLanguageKeys = resolvedRootPath
-    ? [...getSupportedLanguageKeys(resolvedRootPath)].sort((left, right) =>
-        left.localeCompare(right)
-      )
-    : [];
-  const supportedLanguageKeysText =
-    extractShellAssignment(initScriptText, "supportedLanguageKeys") || "";
-  const looksLikeLiteralLanguageList =
-    supportedLanguageKeysText.length > 0
-    && !/[\$\(\)\|\'\"`]/.test(supportedLanguageKeysText);
-  const parsedSupportedLanguageKeys = looksLikeLiteralLanguageList
-    ? supportedLanguageKeysText
-      .split(/\s+/)
-      .map((languageKey) => languageKey.trim())
-      .filter(Boolean)
-      .sort((left, right) => left.localeCompare(right))
-    : fallbackLanguageKeys;
-
-  return {
-    copyIconsTo:
-      extractShellAssignment(initScriptText, "copyIconsTo")
-      || "~/.vscode/extensions/icons/",
-    timeout: extractShellAssignment(initScriptText, "useTimeout") || "-k 10s 2m",
-    eiffel: extractShellAssignment(initScriptText, "useEiffel") || "eiffelstudio",
-    gcc13Directory:
-      extractShellAssignment(initScriptText, "useGcc13") || "/usr/bin/",
-    gcc13Name:
-      extractShellAssignment(initScriptText, "useGcc13Name") || "gcc-13",
-    gxx13Name:
-      extractShellAssignment(initScriptText, "useGxx13Name") || "g++-13",
-    runOnDocker: extractShellAssignment(initScriptText, "useRunOnDocker") || "",
-    runOnSsh: extractShellAssignment(initScriptText, "useRunOnSsh") || "",
-    supportedLanguageKeys: parsedSupportedLanguageKeys,
-  };
-}
-
-/**
- * Parses a whitespace-delimited init.sh route map into a Map.
- *
- * @param {string} mapText Raw route map text.
- * @returns {Map<string, string>} Parsed route map.
- */
-function parseRouteMap(mapText) {
-  const routeMap = new Map();
-  const rawText = String(mapText || "").trim();
-
-  if (!rawText) {
-    return routeMap;
-  }
-
-  const tokens = rawText.split(/\s+/);
-
-  for (const token of tokens) {
-    const separatorIndex = token.indexOf("=");
-
-    if (separatorIndex <= 0) {
-      continue;
-    }
-
-    const languageKey = token.slice(0, separatorIndex).trim().toLowerCase();
-    const value = token.slice(separatorIndex + 1).trim();
-
-    if (!languageKey || !value) {
-      continue;
-    }
-
-    routeMap.set(languageKey, value);
-  }
-
-  return routeMap;
-}
-
-/**
- * Returns command arguments for an optional profile override.
- *
- * @param {string} profilePath Draft profile path.
- * @returns {string[]} Optional init.sh profile args.
- */
-function buildProfileArgs(profilePath) {
-  const trimmedPath = String(profilePath || "").trim();
-
-  if (!trimmedPath) {
-    return [];
-  }
-
-  return [`--update-profile=${trimmedPath}`];
-}
-
-/**
- * Filters check-env output down to error-like lines or useful trailing lines.
- *
- * @param {string} combinedOutput Combined stdout/stderr output.
- * @returns {string} Filtered output text.
- */
-function filterCheckEnvOutput(combinedOutput) {
-  const lines = String(combinedOutput || "")
-    .split(/\r?\n/)
-    .map((line) => line.trimEnd())
-    .filter((line) => line.trim().length > 0);
-  const errorLikeLines = lines.filter((line) =>
-    /(error|invalid|failed|missing|unsupported)/i.test(line)
-  );
-
-  if (errorLikeLines.length > 0) {
-    return errorLikeLines.join("\n");
-  }
-
-  return lines.slice(-40).join("\n");
-}
-
-/**
- * Runs init.sh non-interactively and captures output.
- *
- * @param {string} resolvedRootPath Canonical repository root path.
- * @param {string} initScriptPath Canonical init.sh path.
- * @param {string[]} args init.sh arguments.
- * @returns {Promise<{exitCode: number|null, stdout: string, stderr: string, combinedOutput: string}>} Command result.
- */
-function runInitScriptCommand(resolvedRootPath, initScriptPath, args) {
-  return new Promise((resolve, reject) => {
-    const childProcess = spawn("sh", [initScriptPath, ...args], {
-      cwd: resolvedRootPath,
-      env: process.env,
-    });
-    let stdout = "";
-    let stderr = "";
-
-    childProcess.stdout.setEncoding("utf8");
-    childProcess.stderr.setEncoding("utf8");
-
-    childProcess.stdout.on("data", (chunk) => {
-      stdout += chunk;
-    });
-
-    childProcess.stderr.on("data", (chunk) => {
-      stderr += chunk;
-    });
-
-    childProcess.on("error", (error) => {
-      reject(error);
-    });
-
-    childProcess.on("close", (exitCode) => {
-      resolve({
-        exitCode: typeof exitCode === "number" ? exitCode : null,
-        stdout,
-        stderr,
-        combinedOutput: [stdout, stderr].filter(Boolean).join("\n").trim(),
-      });
-    });
-  });
-}
-
-/**
- * Builds the merged Environment pane configuration from init defaults and profile exports.
- *
- * @param {string} initScriptText init.sh text.
- * @param {string} profileText Effective profile text.
- * @param {string|null} resolvedRootPath Canonical repository root path.
- * @returns {{defaults: object, values: object, routeMaps: {docker: Map<string, string>, ssh: Map<string, string>}}} Merged config.
- */
-function buildMergedEnvironmentConfig(initScriptText, profileText, resolvedRootPath) {
-  const defaults = parseInitDefaults(initScriptText, resolvedRootPath);
-  const timeoutExport = extractManagedExportValue(
-    profileText,
-    "DEREKALGOS_TIMEOUT"
-  );
-  const eiffelExport = extractManagedExportValue(
-    profileText,
-    "DEREKALGOS_EIFFEL"
-  );
-  const gcc13Export = extractManagedExportValue(
-    profileText,
-    "DEREKALGOS_GCC13"
-  );
-  const gcc13NameExport = extractManagedExportValue(
-    profileText,
-    "DEREKALGOS_GCC13NAME"
-  );
-  const gxx13NameExport = extractManagedExportValue(
-    profileText,
-    "DEREKALGOS_GXX13NAME"
-  );
-  const runOnDockerExport = extractManagedExportValue(
-    profileText,
-    "DEREKALGOS_RUNONDOCKER"
-  );
-  const runOnSshExport = extractManagedExportValue(
-    profileText,
-    "DEREKALGOS_RUNONSSH"
-  );
-  const dockerMapText = runOnDockerExport.present
-    ? runOnDockerExport.value
-    : defaults.runOnDocker;
-  const sshMapText = runOnSshExport.present
-    ? runOnSshExport.value
-    : defaults.runOnSsh;
-
-  return {
-    defaults,
-    values: {
-      timeout: timeoutExport.present ? timeoutExport.value : defaults.timeout,
-      eiffel: eiffelExport.present ? eiffelExport.value : defaults.eiffel,
-      gcc13Directory: gcc13Export.present
-        ? gcc13Export.value
-        : defaults.gcc13Directory,
-      gcc13Name: gcc13NameExport.present
-        ? gcc13NameExport.value
-        : defaults.gcc13Name,
-      gxx13Name: gxx13NameExport.present
-        ? gxx13NameExport.value
-        : defaults.gxx13Name,
-      dockerMapText,
-      sshMapText,
-    },
-    routeMaps: {
-      docker: parseRouteMap(dockerMapText),
-      ssh: parseRouteMap(sshMapText),
-    },
-  };
-}
 
 /**
  * Builds static section header markup for the Environment pane.
@@ -538,7 +137,7 @@ function buildEnvironmentSectionHeaders() {
  * @returns {{profilePath: string, profilePlaceholder: string, effectiveProfilePath: string, copyIconsPath: string, copyIconsPlaceholder: string, sectionHeaders: {profile: string, checkEnv: string, copyIcons: string, variables: string, batch: string, routing: string}, checkEnv: object, copyIconsResult: object, variables: object[], batch: object, languages: object[]}} Current state snapshot.
  */
 function buildEnvironmentStateSnapshot(provider, webview) {
-  const rootInfo = resolveEnvironmentRootInfo();
+  const rootInfo = resolveEnvironmentRootInfo(vscode);
   const profilePlaceholder = getProfilePlaceholderForPlatform();
   const draftProfilePath = String(provider._profilePath || "");
   const effectiveProfilePath = draftProfilePath
@@ -647,12 +246,16 @@ function buildEnvironmentHtml(webview, provider) {
   const scriptUri = webview.asWebviewUri(
     vscode.Uri.joinPath(provider._mediaBaseUri, ENVIRONMENT_INIT_JS_FILE_NAME)
   ).toString();
+  const sharedUtilsScriptUri = webview.asWebviewUri(
+    vscode.Uri.joinPath(provider._mediaBaseUri, ENVIRONMENT_SHARED_UTILS_JS_FILE_NAME)
+  ).toString();
 
   return renderTemplate(templates.shell, {
     cspSource,
     sharedStylesheetUri,
     stylesheetUri,
     scriptUri,
+    sharedUtilsScriptUri,
     serializedState,
     serializedTemplates,
   });
@@ -702,14 +305,6 @@ class EnvironmentInitViewProvider {
     };
     this._variableStatusByKey = new Map();
     this._routingStatusByLanguageKey = new Map();
-    this._mediaBaseUri = vscode.Uri.joinPath(
-      extensionUri,
-      ...ENVIRONMENT_MEDIA_PATH_SEGMENTS
-    );
-    this._templateBaseUri = vscode.Uri.joinPath(
-      extensionUri,
-      ...ENVIRONMENT_TEMPLATE_PATH_SEGMENTS
-    );
     this._languageIconBaseUri = vscode.Uri.joinPath(
       extensionUri,
       ...LANGUAGE_ICON_PATH_SEGMENT.split("/")
@@ -719,14 +314,44 @@ class EnvironmentInitViewProvider {
       extensionUri,
       ...FALLBACK_ICON_PATH_SEGMENT.split("/")
     );
-    this._loadTemplate = makeTemplateLoader(this._templateBaseUri.fsPath);
-    this._lifecycle = createSidebarWebviewLifecycle({
-      localResourceRoots: [
-        this._languageIconBaseUri,
-        this._iconRootUri,
-        this._mediaBaseUri,
-        this._templateBaseUri,
-      ],
+    this._templateProvider = createTemplateWebviewProvider({
+      vscodeApi: vscode,
+      extensionUri,
+      mediaPathSegments: ENVIRONMENT_MEDIA_PATH_SEGMENTS,
+      templatePathSegments: ENVIRONMENT_TEMPLATE_PATH_SEGMENTS,
+      templateOwnerName: "Environment",
+      requiredTemplateNames: ENVIRONMENT_REQUIRED_TEMPLATE_NAMES,
+      buildTemplateMap: (templateByName) => {
+        return {
+          shell: templateByName[ENVIRONMENT_SHELL_TEMPLATE_FILE_NAME],
+          panel: templateByName[ENVIRONMENT_PANEL_TEMPLATE_FILE_NAME],
+          profileSection:
+            templateByName[ENVIRONMENT_PROFILE_SECTION_TEMPLATE_FILE_NAME],
+          checkEnvSection:
+            templateByName[ENVIRONMENT_CHECK_ENV_SECTION_TEMPLATE_FILE_NAME],
+          copyIconsSection:
+            templateByName[ENVIRONMENT_COPY_ICONS_SECTION_TEMPLATE_FILE_NAME],
+          variablesSection:
+            templateByName[ENVIRONMENT_VARIABLES_SECTION_TEMPLATE_FILE_NAME],
+          routingSection:
+            templateByName[ENVIRONMENT_ROUTING_SECTION_TEMPLATE_FILE_NAME],
+          batchSection:
+            templateByName[ENVIRONMENT_BATCH_SECTION_TEMPLATE_FILE_NAME],
+          variableCard:
+            templateByName[ENVIRONMENT_VARIABLE_CARD_TEMPLATE_FILE_NAME],
+          languageRow:
+            templateByName[ENVIRONMENT_LANGUAGE_ROW_TEMPLATE_FILE_NAME],
+        };
+      },
+      assetFileNameByKey: {},
+      localResourceRoots: ({ mediaBaseUri, templateBaseUri }) => {
+        return [
+          this._languageIconBaseUri,
+          this._iconRootUri,
+          mediaBaseUri,
+          templateBaseUri,
+        ];
+      },
       buildHtml: (webview) => {
         return buildEnvironmentHtml(webview, this);
       },
@@ -740,6 +365,9 @@ class EnvironmentInitViewProvider {
         this.handleMessage(message);
       },
     });
+    this._mediaBaseUri = this._templateProvider.mediaBaseUri;
+    this._templateBaseUri = this._templateProvider.templateBaseUri;
+    this._lifecycle = this._templateProvider.lifecycle;
   }
 
   /**
@@ -749,7 +377,7 @@ class EnvironmentInitViewProvider {
    * @returns {string} Template contents.
    */
   getTemplate(templateFileName) {
-    return this._loadTemplate(templateFileName, "Environment");
+    return this._templateProvider.getTemplate(templateFileName);
   }
 
   /**
@@ -758,32 +386,7 @@ class EnvironmentInitViewProvider {
    * @returns {{shell: string, panel: string, profileSection: string, checkEnvSection: string, copyIconsSection: string, variablesSection: string, routingSection: string, batchSection: string, variableCard: string, languageRow: string}} Template map.
    */
   getTemplates() {
-    const templateByName = Object.fromEntries(
-      ENVIRONMENT_REQUIRED_TEMPLATE_NAMES.map((templateFileName) => {
-        return [templateFileName, this.getTemplate(templateFileName)];
-      })
-    );
-
-    return {
-      shell: templateByName[ENVIRONMENT_SHELL_TEMPLATE_FILE_NAME],
-      panel: templateByName[ENVIRONMENT_PANEL_TEMPLATE_FILE_NAME],
-      profileSection:
-        templateByName[ENVIRONMENT_PROFILE_SECTION_TEMPLATE_FILE_NAME],
-      checkEnvSection:
-        templateByName[ENVIRONMENT_CHECK_ENV_SECTION_TEMPLATE_FILE_NAME],
-      copyIconsSection:
-        templateByName[ENVIRONMENT_COPY_ICONS_SECTION_TEMPLATE_FILE_NAME],
-      variablesSection:
-        templateByName[ENVIRONMENT_VARIABLES_SECTION_TEMPLATE_FILE_NAME],
-      routingSection:
-        templateByName[ENVIRONMENT_ROUTING_SECTION_TEMPLATE_FILE_NAME],
-      batchSection:
-        templateByName[ENVIRONMENT_BATCH_SECTION_TEMPLATE_FILE_NAME],
-      variableCard:
-        templateByName[ENVIRONMENT_VARIABLE_CARD_TEMPLATE_FILE_NAME],
-      languageRow:
-        templateByName[ENVIRONMENT_LANGUAGE_ROW_TEMPLATE_FILE_NAME],
-    };
+    return this._templateProvider.getTemplates();
   }
 
   /**
@@ -842,7 +445,7 @@ class EnvironmentInitViewProvider {
    * @returns {Promise<void>} Completion result.
    */
   async runCheckEnv() {
-    const rootInfo = resolveEnvironmentRootInfo();
+    const rootInfo = resolveEnvironmentRootInfo(vscode);
 
     if (!rootInfo.resolvedRootPath || !rootInfo.initScriptPath) {
       this._checkEnvResult = {
@@ -903,7 +506,7 @@ class EnvironmentInitViewProvider {
    * @returns {Promise<void>} Completion result.
    */
   async runCopyIcons() {
-    const rootInfo = resolveEnvironmentRootInfo();
+    const rootInfo = resolveEnvironmentRootInfo(vscode);
 
     if (!rootInfo.resolvedRootPath || !rootInfo.initScriptPath) {
       this._copyIconsResult = {
@@ -964,7 +567,7 @@ class EnvironmentInitViewProvider {
    * @returns {Promise<void>} Completion result.
    */
   async saveVariable(variableKey, value) {
-    const rootInfo = resolveEnvironmentRootInfo();
+    const rootInfo = resolveEnvironmentRootInfo(vscode);
     const definition = CORE_VARIABLE_DEFINITIONS.find(
       (item) => item.key === variableKey
     );
@@ -1021,7 +624,7 @@ class EnvironmentInitViewProvider {
    * @returns {Promise<void>} Completion result.
    */
   async saveLanguageRouting(message) {
-    const rootInfo = resolveEnvironmentRootInfo();
+    const rootInfo = resolveEnvironmentRootInfo(vscode);
     const languageKey = String(message?.languageKey || "").trim().toLowerCase();
     const dockerEnabled = Boolean(message?.dockerEnabled);
     const dockerValue = String(message?.dockerValue || "").trim();
@@ -1094,7 +697,7 @@ class EnvironmentInitViewProvider {
    * @returns {Promise<void>} Completion result.
    */
   async saveBatchRouting() {
-    const rootInfo = resolveEnvironmentRootInfo();
+    const rootInfo = resolveEnvironmentRootInfo(vscode);
     const initScriptText = rootInfo.initScriptPath
       ? readTextFileSafe(rootInfo.initScriptPath)
       : "";

@@ -14,6 +14,7 @@ const { runTests: runSmokeStatusStateTests } = require("./smokeStatusState.test"
 const { runTests: runWebviewHostUtilsTests } = require("./webviewHostUtils.test");
 const { runTests: runWebviewClientUtilsTests } = require("./webviewClientUtils.test");
 const { runTests: runUiWorkspaceFsUtilsTests } = require("./uiWorkspaceFsUtils.test");
+const { runTests: runShellProfileUtilsTests } = require("./shellProfileUtils.test");
 
 /**
  * Creates a mock VS Code API terminal surface for runner tests.
@@ -248,6 +249,10 @@ async function main() {
   const uiWorkspaceFsUtilsResult = runUiWorkspaceFsUtilsTests();
   if (uiWorkspaceFsUtilsResult instanceof Promise) {
     await uiWorkspaceFsUtilsResult;
+  }
+  const shellProfileUtilsResult = runShellProfileUtilsTests();
+  if (shellProfileUtilsResult instanceof Promise) {
+    await shellProfileUtilsResult;
   }
   console.log("extension tests passed");
 }

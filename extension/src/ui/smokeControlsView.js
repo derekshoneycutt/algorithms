@@ -3,9 +3,9 @@ const { VIEW_IDS } = require("../runtime/viewConstants");
 const {
   buildLanguageIconUris,
   buildWebviewErrorHtmlDocument,
+  createTemplateWebviewProvider,
   createSidebarWebviewLifecycle,
   escapeHtml,
-  makeTemplateLoader,
   renderSectionHeader,
   renderTemplate,
   serializeForScript,
@@ -310,14 +310,6 @@ class SidebarSmokeControlsViewProvider {
    * Creates a smoke-controls view provider.
    */
   constructor(extensionUri) {
-    this._mediaBaseUri = vscode.Uri.joinPath(
-      extensionUri,
-      ...SMOKE_CONTROLS_MEDIA_PATH_SEGMENTS
-    );
-    this._templateBaseUri = vscode.Uri.joinPath(
-      extensionUri,
-      ...SMOKE_CONTROLS_TEMPLATE_PATH_SEGMENTS
-    );
     this._languageIconBaseUri = vscode.Uri.joinPath(
       extensionUri,
       ...LANGUAGE_ICON_PATH_SEGMENT.split("/")
@@ -327,17 +319,37 @@ class SidebarSmokeControlsViewProvider {
       extensionUri,
       ...FALLBACK_ICON_PATH_SEGMENT.split("/")
     );
-    this._loadTemplate = makeTemplateLoader(this._templateBaseUri.fsPath);
-    this._lifecycle = createSidebarWebviewLifecycle({
-      localResourceRoots: [
-        this._languageIconBaseUri,
-        this._iconRootUri,
-        this._mediaBaseUri,
-        this._templateBaseUri,
-      ],
-      buildHtml: (webview) => {
-        const templates = this.getTemplates();
-        const assetUris = this.getAssetUris(webview);
+    this._templateProvider = createTemplateWebviewProvider({
+      vscodeApi: vscode,
+      extensionUri,
+      mediaPathSegments: SMOKE_CONTROLS_MEDIA_PATH_SEGMENTS,
+      templatePathSegments: SMOKE_CONTROLS_TEMPLATE_PATH_SEGMENTS,
+      templateOwnerName: "Smoke Controls",
+      requiredTemplateNames: SMOKE_CONTROLS_REQUIRED_TEMPLATE_NAMES,
+      buildTemplateMap: (templateByName) => {
+        return {
+          shell: templateByName[SMOKE_CONTROLS_SHELL_TEMPLATE_FILE_NAME],
+          reportGeneration:
+            templateByName[SMOKE_CONTROLS_REPORT_GENERATION_TEMPLATE_FILE_NAME],
+          timeouts: templateByName[SMOKE_CONTROLS_TIMEOUTS_TEMPLATE_FILE_NAME],
+          languages: templateByName[SMOKE_CONTROLS_LANGUAGES_TEMPLATE_FILE_NAME],
+        };
+      },
+      assetFileNameByKey: {
+        sharedStylesheetUri: SMOKE_CONTROLS_SHARED_CSS_FILE_NAME,
+        stylesheetUri: SMOKE_CONTROLS_CSS_FILE_NAME,
+        clientUtilsScriptUri: SMOKE_CONTROLS_WEBVIEW_CLIENT_UTILS_JS_FILE_NAME,
+        scriptUri: SMOKE_CONTROLS_JS_FILE_NAME,
+      },
+      localResourceRoots: ({ mediaBaseUri, templateBaseUri }) => {
+        return [
+          this._languageIconBaseUri,
+          this._iconRootUri,
+          mediaBaseUri,
+          templateBaseUri,
+        ];
+      },
+      buildHtml: (webview, context) => {
         const languageIconUris = buildLanguageIconUris(
           webview,
           vscode,
@@ -348,11 +360,11 @@ class SidebarSmokeControlsViewProvider {
 
         return buildSmokeControlsHtml(
           webview,
-          assetUris.sharedStylesheetUri,
-          assetUris.stylesheetUri,
-          assetUris.clientUtilsScriptUri,
-          assetUris.scriptUri,
-          templates,
+          context.assetUris.sharedStylesheetUri,
+          context.assetUris.stylesheetUri,
+          context.assetUris.clientUtilsScriptUri,
+          context.assetUris.scriptUri,
+          context.templates,
           languageIconUris
         );
       },
@@ -366,6 +378,9 @@ class SidebarSmokeControlsViewProvider {
         this.handleMessage(message);
       },
     });
+    this._mediaBaseUri = this._templateProvider.mediaBaseUri;
+    this._templateBaseUri = this._templateProvider.templateBaseUri;
+    this._lifecycle = this._templateProvider.lifecycle;
   }
 
   /**
@@ -375,7 +390,7 @@ class SidebarSmokeControlsViewProvider {
    * @returns {string} Template contents.
    */
   getTemplate(templateFileName) {
-    return this._loadTemplate(templateFileName, "Smoke Controls");
+    return this._templateProvider.getTemplate(templateFileName);
   }
 
   /**
@@ -384,19 +399,7 @@ class SidebarSmokeControlsViewProvider {
    * @returns {{shell: string, reportGeneration: string, timeouts: string, languages: string}} Template map.
    */
   getTemplates() {
-    const templateByName = Object.fromEntries(
-      SMOKE_CONTROLS_REQUIRED_TEMPLATE_NAMES.map((templateFileName) => {
-        return [templateFileName, this.getTemplate(templateFileName)];
-      })
-    );
-
-    return {
-      shell: templateByName[SMOKE_CONTROLS_SHELL_TEMPLATE_FILE_NAME],
-      reportGeneration:
-        templateByName[SMOKE_CONTROLS_REPORT_GENERATION_TEMPLATE_FILE_NAME],
-      timeouts: templateByName[SMOKE_CONTROLS_TIMEOUTS_TEMPLATE_FILE_NAME],
-      languages: templateByName[SMOKE_CONTROLS_LANGUAGES_TEMPLATE_FILE_NAME],
-    };
+    return this._templateProvider.getTemplates();
   }
 
   /**
@@ -406,31 +409,7 @@ class SidebarSmokeControlsViewProvider {
    * @returns {{sharedStylesheetUri: string, stylesheetUri: string, clientUtilsScriptUri: string, scriptUri: string}} Resource URI map.
    */
   getAssetUris(webview) {
-    const sharedStylesheetUri = webview.asWebviewUri(
-      vscode.Uri.joinPath(
-        this._mediaBaseUri,
-        SMOKE_CONTROLS_SHARED_CSS_FILE_NAME
-      )
-    ).toString();
-    const stylesheetUri = webview.asWebviewUri(
-      vscode.Uri.joinPath(this._mediaBaseUri, SMOKE_CONTROLS_CSS_FILE_NAME)
-    ).toString();
-    const clientUtilsScriptUri = webview.asWebviewUri(
-      vscode.Uri.joinPath(
-        this._mediaBaseUri,
-        SMOKE_CONTROLS_WEBVIEW_CLIENT_UTILS_JS_FILE_NAME
-      )
-    ).toString();
-    const scriptUri = webview.asWebviewUri(
-      vscode.Uri.joinPath(this._mediaBaseUri, SMOKE_CONTROLS_JS_FILE_NAME)
-    ).toString();
-
-    return {
-      sharedStylesheetUri,
-      stylesheetUri,
-      clientUtilsScriptUri,
-      scriptUri,
-    };
+    return this._templateProvider.getAssetUris(webview);
   }
 
   /**

@@ -6,6 +6,8 @@ const {
   buildWebviewErrorHtmlDocument,
   createSidebarWebviewLifecycle,
   escapeHtml,
+  getEscapeHtmlSource,
+  getRenderTemplateSource,
   makeTemplateLoader,
   renderWebviewHtmlWithFallback,
   renderSectionHeader,
@@ -69,6 +71,19 @@ function testRenderTemplate() {
   });
 
   assert.strictEqual(rendered, "Hello world ");
+}
+
+/**
+ * Verifies helper source accessors return callable function source text.
+ *
+ * @returns {void}
+ */
+function testTemplateHelperSourceAccessors() {
+  const escapeSource = getEscapeHtmlSource();
+  const renderSource = getRenderTemplateSource();
+
+  assert.ok(escapeSource.includes("function escapeHtml"));
+  assert.ok(renderSource.includes("function renderTemplate"));
 }
 
 /**
@@ -442,6 +457,7 @@ function testSerializeForScript() {
 function runTests() {
   testEscapeHtml();
   testRenderTemplate();
+  testTemplateHelperSourceAccessors();
   testRenderSectionHeader();
   testMakeTemplateLoaderCachesText();
   testMakeTemplateLoaderThrowsForMissingTemplate();
