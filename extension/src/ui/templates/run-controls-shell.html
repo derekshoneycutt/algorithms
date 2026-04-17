@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta
+      http-equiv="Content-Security-Policy"
+      content="default-src 'none'; base-uri 'none'; object-src 'none'; frame-ancestors 'none'; style-src {{cspSource}}; script-src {{cspSource}};"
+    />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <link rel="stylesheet" href="{{sharedStylesheetUri}}" />
+    <link rel="stylesheet" href="{{stylesheetUri}}" />
+  </head>
+  <body>
+    <div class="panel">
+      <p class="panelDescription">Controls parameters for all code runs.</p>
+      {{commandArgumentsSection}}
+      {{runChecksSection}}
+      {{sourceProfileSection}}
+      {{cleanOptionsSection}}
+    </div>
+    <script id="runControlsInitialState" type="application/json">{{serializedState}}</script>
+    <script src="{{clientUtilsScriptUri}}"></script>
+    <script src="{{scriptUri}}"></script>
+  </body>
+</html>

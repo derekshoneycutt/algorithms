@@ -1,0 +1,112 @@
+
+.inputRow {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
+  gap: 6px;
+}
+
+.toggleRow {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  white-space: nowrap;
+}
+
+.argsInput {
+  width: 100%;
+  box-sizing: border-box;
+  border: 1px solid var(--vscode-input-border);
+  border-radius: 4px;
+  background: var(--vscode-input-background);
+  color: var(--vscode-input-foreground);
+  padding: 4px 6px;
+  min-height: 24px;
+  font: inherit;
+}
+
+.inputWithClear {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.inputWithClear .argsInput {
+  padding-right: 22px;
+}
+
+.argsInput:disabled {
+  opacity: 0.65;
+}
+
+.status {
+  min-height: 14px;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  font-size: 11px;
+  line-height: 1.3;
+}
+
+.runChecksRow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.runChecksOption {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 11px;
+  color: var(--vscode-foreground);
+}
+
+.runChecksSelect {
+  min-height: 24px;
+  border: 1px solid var(--vscode-input-border);
+  border-radius: 4px;
+  background: var(--vscode-dropdown-background);
+  color: var(--vscode-dropdown-foreground);
+  padding: 1px 4px;
+  font-size: 11px;
+}
+
+.runChecksSelect:disabled {
+  opacity: 0.65;
+}
+
+.cleanOptionsRow {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+}
+
+.clearInlineButton {
+  position: absolute;
+  right: 3px;
+  width: 16px;
+  height: 16px;
+  border: none;
+  border-radius: 50%;
+  background: transparent;
+  color: var(--vscode-descriptionForeground);
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  line-height: 1;
+  padding: 0;
+}
+
+.clearInlineButton:hover {
+  background: var(--vscode-toolbar-hoverBackground);
+  color: var(--vscode-foreground);
+}
+
+.clearInlineButton.hidden {
+  display: none;
+}

@@ -3,6 +3,8 @@ const TERMINAL_NAME = "Algorithms Runner";
 
 // Cached terminal reference so repeated runs can reuse the same owned terminal.
 let extensionOwnedTerminal = null;
+// Subscription used to clear cached terminal when VS Code closes it.
+let terminalCloseSubscription = null;
 
 /**
  * Runner lifecycle result shape.
@@ -78,6 +80,32 @@ function logLifecycle(logger, payload) {
 }
 
 /**
+ * Registers one terminal-close listener to clear stale cached terminal handles.
+ *
+ * @param {object} vscodeApi VS Code API object.
+ * @returns {void}
+ */
+function ensureTerminalCloseListener(vscodeApi) {
+  if (terminalCloseSubscription) {
+    return;
+  }
+
+  if (
+    !vscodeApi
+    || !vscodeApi.window
+    || typeof vscodeApi.window.onDidCloseTerminal !== "function"
+  ) {
+    return;
+  }
+
+  terminalCloseSubscription = vscodeApi.window.onDidCloseTerminal((closedTerminal) => {
+    if (closedTerminal === extensionOwnedTerminal) {
+      extensionOwnedTerminal = null;
+    }
+  });
+}
+
+/**
  * Returns an extension-owned terminal and never adopts external terminals.
  *
  * @param {{vscodeApi: object, reuseTerminal?: boolean}} options Terminal acquisition options.
@@ -94,6 +122,8 @@ function getOwnedTerminal(options) {
       reason: "vscode-api-unavailable",
     };
   }
+
+  ensureTerminalCloseListener(vscodeApi);
 
   if (reuseTerminal && extensionOwnedTerminal) {
     return {
@@ -129,8 +159,8 @@ function getOwnedTerminal(options) {
 /**
  * Starts a run invocation in the extension-owned terminal.
  *
- * Input `build` should come from FEAT-204 argumentBuilder and preserve FEAT-203
- * canonical path artifacts.
+ * Input `build` should come from argumentBuilder
+ * and preserve canonical path artifacts.
  *
  * @param {{build: {ok: boolean, reason: string|null, commandParts: string[]|null, displayCommand: string|null, cwd: string|null, commandFamily: string|null}, reuseTerminal?: boolean, vscodeApi?: object, logger?: (message: string) => void, now?: () => number}} options Runner options.
  * @returns {RunLifecycleResult} Lifecycle result with `started` or `blocked` state.
@@ -223,10 +253,55 @@ function runCommand(options) {
 
   const terminal = terminalResult.terminal;
   const cdPrefix = `cd ${quoteShellToken(build.cwd)} && `;
-  const shellText = `${cdPrefix}${build.displayCommand}`;
+  const commandText = renderShellCommand(build.commandParts);
+  const shellText = `${cdPrefix}${commandText}`;
 
-  terminal.show();
-  terminal.sendText(shellText, true);
+  try {
+    terminal.show();
+    terminal.sendText(shellText, true);
+  } catch (_) {
+    if (terminal === extensionOwnedTerminal) {
+      extensionOwnedTerminal = null;
+    }
+
+    const retryTerminalResult = getOwnedTerminal({
+      vscodeApi,
+      reuseTerminal: options.reuseTerminal,
+    });
+
+    if (!retryTerminalResult.ok || !retryTerminalResult.terminal) {
+      const blocked = {
+        ok: false,
+        status: "blocked",
+        reason: retryTerminalResult.reason || "terminal-send-failed",
+        commandFamily: build.commandFamily,
+        scriptPath: build.commandParts[0] || null,
+        cwd: build.cwd,
+        displayCommand: build.displayCommand,
+        timestamp: now(),
+      };
+      logLifecycle(logger, blocked);
+      return blocked;
+    }
+
+    try {
+      retryTerminalResult.terminal.show();
+      retryTerminalResult.terminal.sendText(shellText, true);
+    } catch (_) {
+      const blocked = {
+        ok: false,
+        status: "blocked",
+        reason: "terminal-send-failed",
+        commandFamily: build.commandFamily,
+        scriptPath: build.commandParts[0] || null,
+        cwd: build.cwd,
+        displayCommand: build.displayCommand,
+        timestamp: now(),
+      };
+      logLifecycle(logger, blocked);
+      return blocked;
+    }
+  }
 
   const started = {
     ok: true,
@@ -308,5 +383,6 @@ module.exports = {
     getOwnedTerminal,
     quoteShellToken,
     logLifecycle,
+    ensureTerminalCloseListener,
   },
 };

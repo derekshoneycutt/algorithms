@@ -17,6 +17,7 @@ build/
 erl_crash.dump
 
 /node_modules
+node_modules/
 
 # Local per-directory language flags used by run.sh
 **/.flag-lang

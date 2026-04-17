@@ -70,7 +70,7 @@ function normalizeArgs(args) {
  * Builds deterministic internal and display command forms for runner execution.
  *
  * Internal execution always uses absolute script path. Display form uses
- * FEAT-203-derived display script path when available, with absolute fallback.
+ * Display script path when available, with absolute fallback.
  *
  * @param {BuildRunCommandInput} input Command assembly input.
  * @returns {CommandBuildResult} Deterministic command assembly output.

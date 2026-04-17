@@ -154,7 +154,7 @@ have a basic environment to code in. To see this list, go to the Extensions tab
 and search for `@recommended`. You can select which to install from this list.
 
 There is also a custom VS Code extension built just for this project that makes it easy
-to manage and navigate. You can run `./init.sh --no-prompt --build-vscode-extension`
+to manage and navigate. You can run `npm run buildextension`
 from the git repository root directory, and this extension will be built into
 `extension/dist/algorithms-runner-extension-0.0.1.vsix` for example.
 
@@ -166,7 +166,7 @@ The entire build environment setup can be viewed in the
 a system going from scratch instead of just using a reproducible docker.
 
 ```sh
-./init.sh --no-prompt --build-docker
+./init.sh --no-prompt --no-icons --skip-environment --build-docker
 ```
 
 The docker built from this is quite sizable, as should probably be expected from

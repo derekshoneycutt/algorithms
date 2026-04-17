@@ -8,6 +8,7 @@
     "onStartupFinished"
   ],
   "engines": {
+    "node": ">=18",
     "vscode": "^1.90.0"
   },
   "main": "./src/extension.js",
@@ -592,8 +593,12 @@
     }
   },
   "scripts": {
-    "lint": "echo \"No lint configured\"",
-    "test": "echo \"No tests configured\"",
+    "lint": "eslint src test --ext .js",
+    "test": "node test/runScriptRunner.test.js",
+    "validate": "npm run lint && npm test",
     "build:vsix": "mkdir -p dist && vsce package --allow-missing-repository --out ./dist/ && echo \"\\n--- VSIX built successfully ---\" && echo \"File: $(ls -1t dist/*.vsix | head -1)\" && echo \"Install: code --install-extension <vsix-path>\""
+  },
+  "devDependencies": {
+    "eslint": "^9.36.0"
   }
 }

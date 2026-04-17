@@ -1,0 +1,290 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://derekalgos.local/schemas/languages.schema.json",
+  "title": "DerekAlgos Language Catalog",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "catalogVersion",
+    "defaults",
+    "contracts",
+    "languages"
+  ],
+  "properties": {
+    "schemaVersion": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "catalogVersion": {
+      "type": "string",
+      "minLength": 1
+    },
+    "defaults": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "smokeEnabled"
+      ],
+      "properties": {
+        "smokeEnabled": {
+          "type": "boolean"
+        }
+      }
+    },
+    "contracts": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "managedProfileMarkers",
+        "managedProfileExports",
+        "routeFormats"
+      ],
+      "properties": {
+        "managedProfileMarkers": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "start",
+            "end"
+          ],
+          "properties": {
+            "start": {
+              "type": "string",
+              "minLength": 1
+            },
+            "end": {
+              "type": "string",
+              "minLength": 1
+            }
+          }
+        },
+        "managedProfileExports": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "pattern": "^DEREKALGOS_[A-Z0-9_]+$"
+          }
+        },
+        "routeFormats": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "docker",
+            "ssh"
+          ],
+          "properties": {
+            "docker": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "mapEntryPattern"
+              ],
+              "properties": {
+                "mapEntryPattern": {
+                  "type": "string",
+                  "minLength": 1
+                }
+              }
+            },
+            "ssh": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "legacy",
+                "explicit"
+              ],
+              "properties": {
+                "legacy": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": [
+                    "fieldCount",
+                    "separator"
+                  ],
+                  "properties": {
+                    "fieldCount": {
+                      "type": "integer",
+                      "const": 3
+                    },
+                    "separator": {
+                      "type": "string",
+                      "const": "|"
+                    }
+                  }
+                },
+                "explicit": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": [
+                    "fieldCount",
+                    "separator"
+                  ],
+                  "properties": {
+                    "fieldCount": {
+                      "type": "integer",
+                      "const": 5
+                    },
+                    "separator": {
+                      "type": "string",
+                      "const": "|"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "languages": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "key",
+          "extension",
+          "displayLabel",
+          "icon",
+          "sampleOutputTemplate",
+          "smoke",
+          "constraints",
+          "aliases"
+        ],
+        "properties": {
+          "key": {
+            "type": "string",
+            "pattern": "^[a-z][a-z0-9]*$"
+          },
+          "extension": {
+            "type": "string",
+            "pattern": "^[A-Za-z0-9]+$"
+          },
+          "displayLabel": {
+            "type": "string",
+            "minLength": 1
+          },
+          "icon": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "fileName"
+            ],
+            "properties": {
+              "fileName": {
+                "type": "string",
+                "pattern": "^[A-Za-z0-9._-]+$"
+              }
+            }
+          },
+          "sampleOutputTemplate": {
+            "type": "string",
+            "minLength": 1
+          },
+          "smoke": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "defaultEnabled",
+              "visible"
+            ],
+            "properties": {
+              "defaultEnabled": {
+                "type": "boolean"
+              },
+              "visible": {
+                "type": "boolean"
+              },
+              "reasonIfDisabledByDefault": {
+                "type": "string"
+              }
+            }
+          },
+          "constraints": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "canRun"
+            ],
+            "properties": {
+              "canRun": {
+                "type": "array",
+                "minItems": 1,
+                "items": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": [
+                    "platform",
+                    "arch"
+                  ],
+                  "properties": {
+                    "platform": {
+                      "type": "array",
+                      "minItems": 1,
+                      "items": {
+                        "type": "string",
+                        "enum": [
+                          "Darwin",
+                          "Linux",
+                          "FreeBSD",
+                          "MINGW64_NT",
+                          "*"
+                        ]
+                      }
+                    },
+                    "arch": {
+                      "type": "array",
+                      "minItems": 1,
+                      "items": {
+                        "type": "string",
+                        "enum": [
+                          "arm64",
+                          "x86_64",
+                          "amd64",
+                          "*"
+                        ]
+                      }
+                    },
+                    "note": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "aliases": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "languageIds",
+              "fileExtensions"
+            ],
+            "properties": {
+              "languageIds": {
+                "type": "array",
+                "uniqueItems": true,
+                "items": {
+                  "type": "string",
+                  "minLength": 1
+                }
+              },
+              "fileExtensions": {
+                "type": "array",
+                "uniqueItems": true,
+                "items": {
+                  "type": "string",
+                  "pattern": "^\\.[A-Za-z0-9]+$"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}

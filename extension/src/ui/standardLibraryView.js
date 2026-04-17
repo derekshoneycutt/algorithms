@@ -1,40 +1,23 @@
 const fs = require("fs");
 const path = require("path");
 const vscode = require("vscode");
-const { resolveEligibilityState } = require("../runtime/pathResolver");
+const { VIEW_IDS } = require("../runtime/viewConstants");
+const {
+  realpathSafe,
+  resolveEligibilityState,
+} = require("../runtime/pathResolver");
+const {
+  deleteWithTrashFallback,
+  getWorkspaceFolders,
+  isPathWithinRoot,
+} = require("./uiWorkspaceFsUtils");
 const {
   getSupportedLanguageKeys,
   normalizeExtensionToLanguageKey,
-} = require("../validation/inputValidation");
+} = require("../runtime/languageMetadata");
 
-// Stable view identifier contributed in package.json.
-const STANDARD_LIBRARY_VIEW_ID = "algosWorkspaceStandardLibraryView";
 const DELETE_CONFIRM_ACTION = "Delete";
 const CREATE_ANYWAY_ACTION = "Create Anyway";
-
-/**
- * Resolves a canonical path and falls back to absolute normalization if needed.
- *
- * @param {string} targetPath Input path to normalize.
- * @returns {string} Canonical or normalized absolute path.
- */
-function realpathSafe(targetPath) {
-  try {
-    return fs.realpathSync(targetPath);
-  } catch (_) {
-    return path.resolve(targetPath);
-  }
-}
-
-/**
- * Returns workspace folders from VS Code API.
- *
- * @param {typeof vscode} vscodeApi VS Code API object.
- * @returns {import("vscode").WorkspaceFolder[]} Open workspace folders.
- */
-function getWorkspaceFolders(vscodeApi) {
-  return vscodeApi.workspace.workspaceFolders || [];
-}
 
 /**
  * Checks whether a filesystem path exists and is a directory.
@@ -137,29 +120,6 @@ function isSupportedStandardLibraryFile(filePath, supportedLanguageKeys) {
   }
 
   return supportedLanguageKeys.has(normalizedLanguageKey);
-}
-
-/**
- * Checks whether a path stays within the given root directory.
- *
- * @param {string} rootPath Canonical root directory path.
- * @param {string} candidatePath Candidate path to validate.
- * @returns {boolean} True when candidatePath is inside rootPath.
- */
-function isPathWithinRoot(rootPath, candidatePath) {
-  const canonicalRootPath = realpathSafe(rootPath);
-  const normalizedCandidatePath = path.resolve(candidatePath);
-  const relativePath = path.relative(canonicalRootPath, normalizedCandidatePath);
-
-  if (!relativePath) {
-    return true;
-  }
-
-  if (relativePath === ".") {
-    return true;
-  }
-
-  return !relativePath.startsWith("..") && !path.isAbsolute(relativePath);
 }
 
 /**
@@ -334,36 +294,6 @@ async function confirmDelete(vscodeApi, targetPath) {
   );
 
   return selection === DELETE_CONFIRM_ACTION;
-}
-
-/**
- * Deletes one target URI by trying OS trash first and falling back to direct delete.
- *
- * @param {typeof vscode} vscodeApi VS Code API object.
- * @param {import("vscode").Uri} targetUri Target URI to delete.
- * @param {boolean} recursive Whether deletion should recurse for directories.
- * @returns {Promise<{usedTrash: boolean}>} Delete result metadata.
- */
-async function deleteWithTrashFallback(vscodeApi, targetUri, recursive) {
-  try {
-    await vscodeApi.workspace.fs.delete(targetUri, {
-      recursive,
-      useTrash: true,
-    });
-
-    return {
-      usedTrash: true,
-    };
-  } catch (_) {
-    await vscodeApi.workspace.fs.delete(targetUri, {
-      recursive,
-      useTrash: false,
-    });
-
-    return {
-      usedTrash: false,
-    };
-  }
 }
 
 /**
@@ -606,7 +536,7 @@ class StandardLibraryTreeDataProvider {
  */
 function registerStandardLibraryView(vscodeApi = vscode) {
   const provider = new StandardLibraryTreeDataProvider(vscodeApi);
-  const view = vscodeApi.window.createTreeView(STANDARD_LIBRARY_VIEW_ID, {
+  const view = vscodeApi.window.createTreeView(VIEW_IDS.STANDARD_LIBRARY, {
     treeDataProvider: provider,
     showCollapseAll: false,
   });

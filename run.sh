@@ -15,6 +15,15 @@ load_required_shlib_modules "run.sh" "$scriptDir" \
   help-catalogs.sh \
   run-relay.sh \
   run-language-loader.sh || exit 78
+generatedLanguagesScript="$scriptDir/shlib/generated/languages.generated.sh"
+[ -f "$generatedLanguagesScript" ] || {
+  echo "ERROR: missing generated language catalog: $generatedLanguagesScript" >&2
+  exit 78
+}
+. "$generatedLanguagesScript" || {
+  echo "ERROR: unable to source generated language catalog: $generatedLanguagesScript" >&2
+  exit 78
+}
 load_run_language_modules "$scriptDir" || exit 78
 
 init_terminal_style_sequences
@@ -220,75 +229,12 @@ print_option_catalog() {
 # One source of truth for language catalog:
 #   language|extension|test-file-template
 get_language_catalog() {
-  cat <<'EOF'
-ada|adb|./output/$fileNameWithoutExt
-arm64asm|s|./output/$fileNameWithoutExt
-asm|asm|./output/$fileNameWithoutExt
-ballerina|bal|./output/$fileNameWithoutExt.jar
-c|c|./output/$fileNameWithoutExt
-clojure|clj|./output/target/uberjar/$fileNameWithoutExt-1.0.0-standalone.jar
-cobol|cob|./output/$fileNameWithoutExt
-cpp|cpp|./output/$fileNameWithoutExt
-csharp|cs|./output/bin/Debug/net10.0/$fileNameWithoutExt
-d|d|./output/$fileNameWithoutExt
-dart|dart|./output/$fileNameWithoutExt
-eiffel|e|./output/EIFGENs/$fileNameWithoutExt/F_code/$fileNameWithoutExt
-elixir|exs|./$fileName
-erlang|erl|./output/$fileNameWithoutExt.beam
-factor|factor|./$fileName
-forth|fth|./$fileName
-fortran|f90|./output/$fileNameWithoutExt
-freebasic|bas|./output/$fileNameWithoutExt
-fsharp|fs|./output/bin/Debug/net10.0/$fileNameWithoutExt
-gleam|gleam|./output/build/dev/erlang/$fileNameWithoutExt/ebin/$fileNameWithoutExt.beam
-go|go|./output/$fileNameWithoutExt
-haskell|hs|./output/$fileNameWithoutExt
-haxe|hx|./$fileName
-icon|icn|./output/$fileNameWithoutExt
-idris|idr|./output/build/exec/$fileNameWithoutExt
-java|java|./output/$fileNameWithoutExt.jar
-javascript|js|./output/$fileName
-julia|jl|./$fileName
-kit|kit|./$fileName
-kotlin|kt|./output/$fileNameWithoutExt.jar
-llvmir|ll|./output/$fileNameWithoutExt
-lua|lua|./output/$fileNameWithoutExt.luac
-mercury|moo|./output/$fileNameWithoutExt
-mmixal|mms|./output/$fileNameWithoutExt.mmo
-modula3|m3|./output/AMD64_LINUX/prog
-mojo|mojo|./output/$fileName
-nasm|nasm|./output/$fileNameWithoutExt
-nim|nim|./output/$fileNameWithoutExt
-oberon|Mod|./output/$fileNameWithoutExt
-objectivec|m|./output/$fileNameWithoutExt
-ocaml|ml|./output/$fileNameWithoutExt
-octave|mat|./output/${fileNameWithoutExt}shaved.m
-pascal|pas|./output/$fileNameWithoutExt
-perl|plx|./output/$fileName
-php|php|./output/$fileName
-prolog|pl|./output/$fileNameWithoutExt
-python|py|./output/$fileName
-r|r|./output/$fileName
-racket|rkt|./output/$fileNameWithoutExt
-ruby|rb|./output/$fileName
-rust|rs|./output/$fileNameWithoutExt
-scala|scala|./output/$fileName
-scheme|scm|./$fileName
-simula|sim|./output/$fileNameWithoutExt
-smalltalk|st|./$fileName
-swift|swift|./output/$fileNameWithoutExt
-tcl|tcl|./$fileName
-typescript|ts|./output/$fileNameWithoutExt.js
-v|v|./output/$fileNameWithoutExt
-visualbasic|vb|./output/bin/Debug/net10.0/$fileNameWithoutExt
-wat|wat|./output/$fileNameWithoutExt.wasm
-zig|zig|./output/$fileNameWithoutExt
-EOF
+  get_generated_language_catalog
 }
 
 # Shared language key list used by list/flag helpers.
 get_supported_language_keys() {
-  get_language_catalog | awk -F'|' '{print $1}'
+  get_generated_supported_language_keys
 }
 
 # Return 0 when one language key is supported.

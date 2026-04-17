@@ -1,0 +1,23 @@
+<section class="section">
+  {{timeoutsHeader}}
+  <div class="smokeTimeoutRow">
+    <label class="smokeTimeoutField" for="smokeTimeout">
+      <span>Timeout</span>
+      <input id="smokeTimeout" class="argsInput" type="text" placeholder="8m" value="{{smokeTimeoutValue}}" />
+    </label>
+    <label class="smokeTimeoutField" for="smokeSlowTimeout">
+      <span>Slow Timeout</span>
+      <input
+        id="smokeSlowTimeout"
+        class="argsInput"
+        type="text"
+        placeholder="20m"
+        value="{{smokeSlowTimeoutValue}}"
+      />
+    </label>
+  </div>
+  <span class="helperText"
+    >Defaults use timeout. Known long-running languages use slow-timeout so smoke processing completes
+    correctly.</span
+  >
+</section>

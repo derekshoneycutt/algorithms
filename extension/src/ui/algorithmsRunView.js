@@ -2,12 +2,28 @@ const fs = require("fs");
 const path = require("path");
 const { spawn } = require("child_process");
 const vscode = require("vscode");
-const { resolveEligibilityState } = require("../runtime/pathResolver");
+const { VIEW_IDS } = require("../runtime/viewConstants");
+const {
+  realpathSafe,
+  resolveEligibilityState,
+} = require("../runtime/pathResolver");
+const {
+  deleteWithTrashFallback,
+  getWorkspaceFolders,
+  isPathWithinRoot,
+} = require("./uiWorkspaceFsUtils");
 const { getEffectiveSidebarSmokeArgs } = require("../runtime/sidebarRunArgsState");
 const {
+  getDefaultSmokeLanguageKeys,
+  getLanguageDisplayLabel,
+  LANGUAGE_ICON_SAMPLE_EXTENSIONS,
   getSupportedLanguageKeys,
   normalizeExtensionToLanguageKey,
-} = require("../validation/inputValidation");
+} = require("../runtime/languageMetadata");
+const {
+  applyRemainingSmokeStatus,
+  buildSmokeStatusSummary,
+} = require("../runtime/smokeStatusState");
 
 const LANGUAGE_ICON_DIRECTORY_SEGMENT = ".algos-language-icons";
 const LANGUAGE_PRESENT_URI_FRAGMENT = "algos-language-present";
@@ -18,6 +34,7 @@ const SMOKE_QUEUED_URI_FRAGMENT = "algos-smoke-queued";
 const SMOKE_RUNNING_URI_FRAGMENT = "algos-smoke-running";
 const SMOKE_PASSED_URI_FRAGMENT = "algos-smoke-passed";
 const SMOKE_FAILED_URI_FRAGMENT = "algos-smoke-failed";
+const SMOKE_STOPPED_URI_FRAGMENT = "algos-smoke-stopped";
 const SMOKE_TEST_OUTPUT_CHANNEL_NAME = "Algorithms Smoke Test";
 
 const SMOKE_STATUS_LABELS = {
@@ -25,71 +42,7 @@ const SMOKE_STATUS_LABELS = {
   running: "Running",
   passed: "Passed",
   failed: "Failed",
-};
-
-const LANGUAGE_ICON_SAMPLE_EXTENSIONS = {
-  ada: "adb",
-  arm64asm: "s",
-  asm: "asm",
-  ballerina: "bal",
-  c: "c",
-  clojure: "clj",
-  cobol: "cob",
-  cpp: "cpp",
-  csharp: "cs",
-  d: "d",
-  dart: "dart",
-  eiffel: "e",
-  elixir: "exs",
-  erlang: "erl",
-  factor: "factor",
-  forth: "fth",
-  fortran: "f90",
-  freebasic: "bas",
-  fsharp: "fs",
-  gleam: "gleam",
-  go: "go",
-  haskell: "hs",
-  haxe: "hx",
-  icon: "icn",
-  idris: "idr",
-  java: "java",
-  javascript: "js",
-  julia: "jl",
-  kit: "kit",
-  kotlin: "kt",
-  llvmir: "ll",
-  lua: "lua",
-  mercury: "moo",
-  mmixal: "mms",
-  modula3: "m3",
-  mojo: "mojo",
-  nasm: "nasm",
-  nim: "nim",
-  oberon: "mod",
-  objectivec: "m",
-  ocaml: "ml",
-  octave: "mat",
-  pascal: "pas",
-  perl: "plx",
-  php: "php",
-  prolog: "pl",
-  python: "py",
-  r: "r",
-  racket: "rkt",
-  ruby: "rb",
-  rust: "rs",
-  scala: "scala",
-  scheme: "scm",
-  simula: "sim",
-  smalltalk: "st",
-  swift: "swift",
-  tcl: "tcl",
-  typescript: "ts",
-  v: "v",
-  visualbasic: "vb",
-  wat: "wat",
-  zig: "zig",
+  stopped: "Stopped",
 };
 
 /**
@@ -105,29 +58,6 @@ function createEmptyWorkspaceState() {
     selected: null,
     evaluations: [],
   };
-}
-
-/**
- * Returns workspace folders from VS Code API.
- *
- * @returns {import("vscode").WorkspaceFolder[]} Open workspace folders.
- */
-function getWorkspaceFolders() {
-  return vscode.workspace.workspaceFolders || [];
-}
-
-/**
- * Resolves a canonical path and falls back to absolute normalization if needed.
- *
- * @param {string} targetPath Path to normalize.
- * @returns {string} Canonical or normalized path.
- */
-function realpathSafe(targetPath) {
-  try {
-    return fs.realpathSync(targetPath);
-  } catch (_) {
-    return path.resolve(targetPath);
-  }
 }
 
 /**
@@ -270,25 +200,6 @@ function resolveSrcRootPath(resolvedRoot) {
   }
 
   return null;
-}
-
-/**
- * Checks whether one candidate path is inside a root directory.
- *
- * @param {string} rootPath Root directory path.
- * @param {string} candidatePath Candidate path.
- * @returns {boolean} True when candidate path is inside root.
- */
-function isPathWithinRoot(rootPath, candidatePath) {
-  const canonicalRootPath = realpathSafe(rootPath);
-  const normalizedCandidatePath = path.resolve(candidatePath);
-  const relativePath = path.relative(canonicalRootPath, normalizedCandidatePath);
-
-  if (!relativePath || relativePath === ".") {
-    return true;
-  }
-
-  return !relativePath.startsWith("..") && !path.isAbsolute(relativePath);
 }
 
 /**
@@ -776,6 +687,7 @@ function createLanguageSummaryTreeNode(
   isFlagged,
   suggestedUntitledUri
 ) {
+  const displayLabel = getLanguageDisplayLabel(languageKey);
   const sampleExtension = LANGUAGE_ICON_SAMPLE_EXTENSIONS[languageKey] || "txt";
   const sampleFileName = `${languageKey}.${sampleExtension}`;
   const openTargetUri = openTargetPath ? vscode.Uri.file(openTargetPath) : null;
@@ -793,7 +705,7 @@ function createLanguageSummaryTreeNode(
     : absentSampleUri.with({ fragment: LANGUAGE_ABSENT_URI_FRAGMENT });
 
   return {
-    label: languageKey,
+    label: displayLabel,
     languageKey,
     algorithmPath,
     filePath: algorithmPath,
@@ -816,8 +728,8 @@ function createLanguageSummaryTreeNode(
       : "algos.languageMissingUnflagged",
     tooltip:
       fileCount > 0 && openTargetPath
-        ? `${languageKey}: present (${fileCount})\nOpens: ${openTargetPath}`
-        : `${languageKey}: not present (${fileCount})\nCreate: ${suggestedUntitledUri.fsPath}`,
+        ? `${displayLabel}: present (${fileCount})\nOpens: ${openTargetPath}`
+        : `${displayLabel}: not present (${fileCount})\nCreate: ${suggestedUntitledUri.fsPath}`,
   };
 }
 
@@ -1541,53 +1453,13 @@ function hasProblemDescendantForViewMode(
  * @returns {string[]} Smoke-test language keys.
  */
 function getSmokeTestLanguageKeys(resolvedRoot, supportedLanguageKeys) {
-  if (!resolvedRoot) {
+  if (!resolvedRoot || !(supportedLanguageKeys instanceof Set)) {
     return [];
   }
 
-  const runScriptPath = path.join(realpathSafe(resolvedRoot), "run.sh");
-
-  try {
-    const runScriptText = fs.readFileSync(runScriptPath, "utf8");
-    const lines = runScriptText.split(/\r?\n/);
-    const smokeLanguageKeys = [];
-    let inCatalogBlock = false;
-
-    for (const line of lines) {
-      if (!inCatalogBlock && /^get_language_catalog\(\)/.test(line)) {
-        inCatalogBlock = true;
-        continue;
-      }
-
-      if (inCatalogBlock && /^EOF$/.test(line.trim())) {
-        break;
-      }
-
-      if (!inCatalogBlock || !line.includes("|")) {
-        continue;
-      }
-
-      const languageKey = line.split("|")[0].trim().toLowerCase();
-
-      if (
-        languageKey
-        && languageKey !== "arm64asm"
-        && supportedLanguageKeys.has(languageKey)
-      ) {
-        smokeLanguageKeys.push(languageKey);
-      }
-    }
-
-    if (smokeLanguageKeys.length > 0) {
-      return smokeLanguageKeys;
-    }
-  } catch (_) {
-    // Fall back to the supported language list when run.sh cannot be parsed.
-  }
-
-  return [...supportedLanguageKeys]
-    .filter((languageKey) => languageKey !== "arm64asm")
-    .sort((left, right) => left.localeCompare(right));
+  return getDefaultSmokeLanguageKeys().filter((languageKey) =>
+    supportedLanguageKeys.has(languageKey)
+  );
 }
 
 /**
@@ -1625,7 +1497,7 @@ function parseSmokeStatusLine(line) {
 /**
  * Returns the URI fragment used for one smoke status.
  *
- * @param {"queued"|"running"|"passed"|"failed"|null|undefined} smokeStatus Smoke status value.
+ * @param {"queued"|"running"|"passed"|"failed"|"stopped"|null|undefined} smokeStatus Smoke status value.
  * @returns {string|null} Decoration fragment.
  */
 function getSmokeStatusFragment(smokeStatus) {
@@ -1645,13 +1517,17 @@ function getSmokeStatusFragment(smokeStatus) {
     return SMOKE_FAILED_URI_FRAGMENT;
   }
 
+  if (smokeStatus === "stopped") {
+    return SMOKE_STOPPED_URI_FRAGMENT;
+  }
+
   return null;
 }
 
 /**
  * Returns the user-facing label for one smoke status.
  *
- * @param {"queued"|"running"|"passed"|"failed"|null|undefined} smokeStatus Smoke status value.
+ * @param {"queued"|"running"|"passed"|"failed"|"stopped"|null|undefined} smokeStatus Smoke status value.
  * @returns {string} User-facing status label.
  */
 function getSmokeStatusLabel(smokeStatus) {
@@ -1853,7 +1729,7 @@ class WorkspaceStatusTreeDataProvider {
    *
    * @param {string} algorithmPath Algorithm directory path.
    * @param {string} languageKey Canonical language key.
-   * @param {"queued"|"running"|"passed"|"failed"} smokeStatus Smoke status value.
+  * @param {"queued"|"running"|"passed"|"failed"|"stopped"} smokeStatus Smoke status value.
    * @returns {void}
    */
   setSmokeLanguageStatus(algorithmPath, languageKey, smokeStatus) {
@@ -1893,20 +1769,27 @@ class WorkspaceStatusTreeDataProvider {
       return;
     }
 
-    for (const [languageKey, entry] of smokeState.entries()) {
-      if (entry.locked) {
-        continue;
-      }
+    if (applyRemainingSmokeStatus(smokeState, "failed")) {
+      this.refresh();
+    }
+  }
 
-      if (entry.status === "queued" || entry.status === "running") {
-        smokeState.set(languageKey, {
-          status: "failed",
-          locked: false,
-        });
-      }
+  /**
+   * Marks queued or running smoke entries as stopped after manual cancellation.
+   *
+   * @param {string} algorithmPath Algorithm directory path.
+   * @returns {void}
+   */
+  markRemainingSmokeStatusesStopped(algorithmPath) {
+    const smokeState = this._smokeStateByAlgorithmPath.get(algorithmPath);
+
+    if (!smokeState) {
+      return;
     }
 
-    this.refresh();
+    if (applyRemainingSmokeStatus(smokeState, "stopped")) {
+      this.refresh();
+    }
   }
 
   /**
@@ -1914,7 +1797,7 @@ class WorkspaceStatusTreeDataProvider {
    *
    * @param {string|null|undefined} algorithmPath Algorithm directory path.
    * @param {string|null|undefined} languageKey Canonical language key.
-   * @returns {{status: "queued"|"running"|"passed"|"failed", locked: boolean}|null} Smoke-state entry.
+  * @returns {{status: "queued"|"running"|"passed"|"failed"|"stopped", locked: boolean}|null} Smoke-state entry.
    */
   getSmokeLanguageState(algorithmPath, languageKey) {
     if (!algorithmPath || !languageKey) {
@@ -1934,7 +1817,7 @@ class WorkspaceStatusTreeDataProvider {
    * Returns the smoke status currently applied to one tree element.
    *
    * @param {{algorithmPath?: string, languageKey?: string, isDirectory?: boolean}|undefined} element Tree element.
-   * @returns {"queued"|"running"|"passed"|"failed"|null} Smoke status for the element.
+  * @returns {"queued"|"running"|"passed"|"failed"|"stopped"|null} Smoke status for the element.
    */
   getSmokeStatusForElement(element) {
     if (!element || element.isDirectory) {
@@ -1997,26 +1880,12 @@ class WorkspaceStatusTreeDataProvider {
    * Returns a smoke status summary for one algorithm directory.
    *
    * @param {string} algorithmPath Algorithm directory path.
-   * @returns {{queued: number, running: number, passed: number, failed: number}} Smoke-status counts.
+   * @returns {{queued: number, running: number, passed: number, failed: number, stopped: number}} Smoke-status counts.
    */
   getSmokeStatusSummary(algorithmPath) {
-    const summary = {
-      queued: 0,
-      running: 0,
-      passed: 0,
-      failed: 0,
-    };
     const smokeState = this._smokeStateByAlgorithmPath.get(algorithmPath);
 
-    if (!smokeState) {
-      return summary;
-    }
-
-    for (const entry of smokeState.values()) {
-      summary[entry.status] += 1;
-    }
-
-    return summary;
+    return buildSmokeStatusSummary(smokeState);
   }
 
   /**
@@ -2290,6 +2159,7 @@ function registerWorkspaceAlgorithmsRunView() {
   );
   const smokeProcessByAlgorithmPath = new Map();
   const smokeRunTokenByAlgorithmPath = new Map();
+  const stoppedSmokeRunTokenByAlgorithmPath = new Map();
   const languageStatusDecorationProvider = {
     provideFileDecoration(uri) {
       if (
@@ -2301,6 +2171,7 @@ function registerWorkspaceAlgorithmsRunView() {
         && uri.fragment !== SMOKE_RUNNING_URI_FRAGMENT
         && uri.fragment !== SMOKE_PASSED_URI_FRAGMENT
         && uri.fragment !== SMOKE_FAILED_URI_FRAGMENT
+        && uri.fragment !== SMOKE_STOPPED_URI_FRAGMENT
       ) {
         return undefined;
       }
@@ -2337,6 +2208,14 @@ function registerWorkspaceAlgorithmsRunView() {
         };
       }
 
+      if (uri.fragment === SMOKE_STOPPED_URI_FRAGMENT) {
+        return {
+          badge: "!",
+          color: new vscode.ThemeColor("testing.iconQueued"),
+          tooltip: "Smoke test stopped",
+        };
+      }
+
       if (uri.fragment === LANGUAGE_FLAGGED_URI_FRAGMENT) {
         return {
           badge: "●",
@@ -2369,7 +2248,7 @@ function registerWorkspaceAlgorithmsRunView() {
     languageStatusDecorationProvider
   );
 
-  const view = vscode.window.createTreeView("algosWorkspaceAlgorithmsRunView", {
+  const view = vscode.window.createTreeView(VIEW_IDS.ALGORITHMS_RUN, {
     treeDataProvider: provider,
     showCollapseAll: false,
   });
@@ -2380,7 +2259,7 @@ function registerWorkspaceAlgorithmsRunView() {
    * @returns {Thenable<void>} Completion result.
    */
   function refreshWorkspaceViewState() {
-    const sidebarState = resolveSidebarWorkspaceState(getWorkspaceFolders());
+    const sidebarState = resolveSidebarWorkspaceState(getWorkspaceFolders(vscode));
     provider.setSidebarState(sidebarState.statusState, sidebarState.displayRootPath);
     provider.refresh();
 
@@ -2401,11 +2280,32 @@ function registerWorkspaceAlgorithmsRunView() {
    * @param {string} algorithmPath Algorithm directory path.
    * @returns {void}
    */
-  function stopActiveSmokeProcess(algorithmPath) {
+  function stopActiveSmokeProcess(
+    algorithmPath,
+    options = {
+      markStopped: false,
+      invalidateRunToken: true,
+    }
+  ) {
     const activeProcess = smokeProcessByAlgorithmPath.get(algorithmPath);
 
     if (!activeProcess) {
-      return;
+      return false;
+    }
+
+    const markStopped = options.markStopped === true;
+    const invalidateRunToken = options.invalidateRunToken !== false;
+    const activeRunToken = smokeRunTokenByAlgorithmPath.get(algorithmPath) || 0;
+
+    if (markStopped) {
+      stoppedSmokeRunTokenByAlgorithmPath.set(algorithmPath, activeRunToken);
+      provider.markRemainingSmokeStatusesStopped(algorithmPath);
+    } else {
+      stoppedSmokeRunTokenByAlgorithmPath.delete(algorithmPath);
+    }
+
+    if (invalidateRunToken) {
+      smokeRunTokenByAlgorithmPath.set(algorithmPath, activeRunToken + 1);
     }
 
     smokeProcessByAlgorithmPath.delete(algorithmPath);
@@ -2416,6 +2316,19 @@ function registerWorkspaceAlgorithmsRunView() {
     } catch (_) {
       // Ignore process termination errors during replacement/disposal.
     }
+
+    return true;
+  }
+
+  /**
+   * Returns whether one smoke-test callback belongs to a manually stopped run.
+   *
+   * @param {string} algorithmPath Algorithm directory path.
+   * @param {number} runToken Smoke run token.
+   * @returns {boolean} True when the callback belongs to a stopped run token.
+   */
+  function isStoppedSmokeRun(algorithmPath, runToken) {
+    return stoppedSmokeRunTokenByAlgorithmPath.get(algorithmPath) === runToken;
   }
 
   /**
@@ -2565,6 +2478,7 @@ function registerWorkspaceAlgorithmsRunView() {
     }
 
     stopActiveSmokeProcess(algorithmPath);
+    stoppedSmokeRunTokenByAlgorithmPath.delete(algorithmPath);
 
     const runToken = (smokeRunTokenByAlgorithmPath.get(algorithmPath) || 0) + 1;
     smokeRunTokenByAlgorithmPath.set(algorithmPath, runToken);
@@ -2638,6 +2552,11 @@ function registerWorkspaceAlgorithmsRunView() {
     });
 
     smokeProcess.on("error", (error) => {
+      if (isStoppedSmokeRun(algorithmPath, runToken)) {
+        stoppedSmokeRunTokenByAlgorithmPath.delete(algorithmPath);
+        return;
+      }
+
       if (!isCurrentSmokeRun(algorithmPath, runToken)) {
         return;
       }
@@ -2652,6 +2571,11 @@ function registerWorkspaceAlgorithmsRunView() {
     });
 
     smokeProcess.on("close", (code, signal) => {
+      if (isStoppedSmokeRun(algorithmPath, runToken)) {
+        stoppedSmokeRunTokenByAlgorithmPath.delete(algorithmPath);
+        return;
+      }
+
       if (!isCurrentSmokeRun(algorithmPath, runToken)) {
         return;
       }
@@ -2661,7 +2585,7 @@ function registerWorkspaceAlgorithmsRunView() {
       provider.markRemainingSmokeStatusesFailed(algorithmPath);
 
       const summary = provider.getSmokeStatusSummary(algorithmPath);
-      const summaryLine = `Smoke summary for ${path.basename(algorithmPath)}: queued=${summary.queued} running=${summary.running} passed=${summary.passed} failed=${summary.failed}`;
+      const summaryLine = `Smoke summary for ${path.basename(algorithmPath)}: queued=${summary.queued} running=${summary.running} passed=${summary.passed} failed=${summary.failed} stopped=${summary.stopped}`;
 
       if (signal) {
         smokeOutputChannel.appendLine(`Smoke process terminated by signal: ${signal}`);
@@ -2737,7 +2661,10 @@ function registerWorkspaceAlgorithmsRunView() {
       };
     }
 
-    stopActiveSmokeProcess(algorithmPath);
+    stopActiveSmokeProcess(algorithmPath, {
+      markStopped: true,
+      invalidateRunToken: true,
+    });
     vscodeApi.window.showInformationMessage(
       `Stop requested for smoke test: ${path.basename(algorithmPath)}.`
     );
@@ -2981,29 +2908,6 @@ function registerWorkspaceAlgorithmsRunView() {
   }
 
   /**
-   * Deletes one URI by trying OS trash first, then falling back to direct delete.
-   *
-   * @param {import("vscode").Uri} targetUri Target URI.
-   * @param {boolean} recursive Whether deletion should recurse.
-   * @returns {Promise<boolean>} True when target was moved to trash.
-   */
-  async function deleteWithTrashFallback(targetUri, recursive) {
-    try {
-      await vscode.workspace.fs.delete(targetUri, {
-        recursive,
-        useTrash: true,
-      });
-      return true;
-    } catch (_) {
-      await vscode.workspace.fs.delete(targetUri, {
-        recursive,
-        useTrash: false,
-      });
-      return false;
-    }
-  }
-
-  /**
    * Creates a new folder directly under src root.
    *
    * @param {import("vscode")} vscodeApi VS Code API object.
@@ -3198,6 +3102,7 @@ function registerWorkspaceAlgorithmsRunView() {
     const referenceFilePath = isPresentLanguageRow
       ? item?.openTargetUri?.fsPath || null
       : item?.filePath || null;
+    const languageDisplayLabel = getLanguageDisplayLabel(languageKey);
 
     const includeDirectoryPath = path.join(algorithmPath, `${languageKey}_include`);
     const requiredExtension = (referenceFilePath
@@ -3218,7 +3123,7 @@ function registerWorkspaceAlgorithmsRunView() {
 
     if (!enteredExtension || enteredExtension !== requiredExtension) {
       vscodeApi.window.showWarningMessage(
-        `Include file extension must be ${requiredExtension} for ${languageKey}.`
+        `Include file extension must be ${requiredExtension} for ${languageDisplayLabel}.`
       );
       return { ok: false, status: "blocked", reason: "include-extension-mismatch" };
     }
@@ -3238,7 +3143,7 @@ function registerWorkspaceAlgorithmsRunView() {
 
     if (normalizedLanguage !== languageKey) {
       vscodeApi.window.showWarningMessage(
-        `Include file extension must map to language ${languageKey}.`
+        `Include file extension must map to language ${languageDisplayLabel}.`
       );
       return { ok: false, status: "blocked", reason: "include-language-mismatch" };
     }
@@ -3365,11 +3270,12 @@ function registerWorkspaceAlgorithmsRunView() {
     const usedTrashResults = [];
 
     for (const target of normalizedTargets) {
-      const usedTrash = await deleteWithTrashFallback(
+      const deleteResult = await deleteWithTrashFallback(
+        vscode,
         vscode.Uri.file(target.filePath),
         target.recursive
       );
-      usedTrashResults.push(usedTrash);
+      usedTrashResults.push(deleteResult.usedTrash);
     }
 
     provider.refresh();
@@ -3446,5 +3352,9 @@ function registerWorkspaceAlgorithmsRunView() {
 
 // Public API for the workspace algorithms run view.
 module.exports = {
+  _internal: {
+    createLanguageSummaryTreeNode,
+    WorkspaceStatusTreeDataProvider,
+  },
   registerWorkspaceAlgorithmsRunView,
 };

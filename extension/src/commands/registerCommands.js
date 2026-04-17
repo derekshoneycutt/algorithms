@@ -1,14 +1,14 @@
-// Non-Play launcher menu actions for FEAT-207 quick-pick flow.
+// Non-Play launcher menu actions for quick-pick flow.
 const { RUN_MENU_ITEMS } = require("../ui/quickPickFlows");
 
 /**
- * Builds a placeholder message for non-Play commands pending FEAT-208+.
+ * Builds a placeholder message for non-Play commands.
  *
  * @param {string} commandId Command identifier.
  * @returns {string} User-facing placeholder guidance.
  */
 function buildNotImplementedMessage(commandId) {
-  return `${commandId} is not implemented yet. Planned in FEAT-208 through FEAT-211.`;
+  return `${commandId} is not implemented yet.`;
 }
 
 /**
@@ -57,44 +57,32 @@ function registerRunMenuCommand(deps) {
 function registerSidebarModeCommands(deps) {
   const showFileView = deps.vscodeApi.commands.registerCommand(
     "algos.sidebarShowFileView",
-    async () => {
-      await deps.showSidebarFileView();
-    }
+    deps.showSidebarFileView
   );
 
   const showLanguageView = deps.vscodeApi.commands.registerCommand(
     "algos.sidebarShowLanguageView",
-    async () => {
-      await deps.showSidebarLanguageView();
-    }
+    deps.showSidebarLanguageView
   );
 
   const showAllFilter = deps.vscodeApi.commands.registerCommand(
     "algos.sidebarShowAllFilter",
-    async () => {
-      await deps.showSidebarAllFilter();
-    }
+    deps.showSidebarAllFilter
   );
 
   const showProblemsFilter = deps.vscodeApi.commands.registerCommand(
     "algos.sidebarShowProblemsFilter",
-    async () => {
-      await deps.showSidebarProblemsFilter();
-    }
+    deps.showSidebarProblemsFilter
   );
 
   const refreshSidebarView = deps.vscodeApi.commands.registerCommand(
     "algos.sidebar.refresh",
-    async () => {
-      await deps.refreshSidebarView();
-    }
+    deps.refreshSidebarView
   );
 
   const createLanguageFilePlaceholder = deps.vscodeApi.commands.registerCommand(
     "algos.createLanguageFilePlaceholder",
-    async (item) => {
-      await deps.createLanguageFilePlaceholder(item);
-    }
+    deps.createLanguageFilePlaceholder
   );
 
   return [
@@ -161,6 +149,30 @@ function deriveImplementedRunMenuCommandIds(guardedCommandDefs) {
       .map((commandDef) => commandDef.commandId)
       .filter((commandId) => runMenuCommandIds.has(commandId))
   );
+}
+
+/**
+ * Adapts an item-only handler to guarded command handler shape.
+ *
+ * @param {(item?: unknown) => Promise<void>} itemHandler Item-only command handler.
+ * @returns {(vscodeApi: import("vscode"), eligibilityState: object, item?: unknown) => Promise<void>} Guarded command handler.
+ */
+function adaptItemOnlyHandler(itemHandler) {
+  return async (_vscodeApi, _eligibilityState, item) => {
+    await itemHandler(item);
+  };
+}
+
+/**
+ * Adapts a no-argument handler to guarded command handler shape.
+ *
+ * @param {() => Promise<void>} noArgHandler No-argument command handler.
+ * @returns {(vscodeApi: import("vscode"), eligibilityState: object) => Promise<void>} Guarded command handler.
+ */
+function adaptNoArgHandler(noArgHandler) {
+  return async () => {
+    await noArgHandler();
+  };
 }
 
 /**
@@ -299,63 +311,43 @@ function registerCommands(deps) {
     },
     {
       commandId: "algos.algorithmsCreateFolderAtSrcRoot",
-      handler: async (vscodeApi, eligibilityState) => {
-        await deps.algorithmsCreateFolderAtSrcRoot(vscodeApi, eligibilityState);
-      },
+      handler: deps.algorithmsCreateFolderAtSrcRoot,
     },
     {
       commandId: "algos.algorithmsCreateFolder",
-      handler: async (vscodeApi, eligibilityState, item) => {
-        await deps.algorithmsCreateFolder(vscodeApi, eligibilityState, item);
-      },
+      handler: deps.algorithmsCreateFolder,
     },
     {
       commandId: "algos.algorithmsCreateFile",
-      handler: async (vscodeApi, eligibilityState, item) => {
-        await deps.algorithmsCreateFile(vscodeApi, eligibilityState, item);
-      },
+      handler: deps.algorithmsCreateFile,
     },
     {
       commandId: "algos.algorithmsAddIncludeFile",
-      handler: async (vscodeApi, eligibilityState, item) => {
-        await deps.algorithmsAddIncludeFile(vscodeApi, eligibilityState, item);
-      },
+      handler: deps.algorithmsAddIncludeFile,
     },
     {
       commandId: "algos.algorithmsDeleteItem",
-      handler: async (vscodeApi, eligibilityState, item) => {
-        await deps.algorithmsDeleteItem(vscodeApi, eligibilityState, item);
-      },
+      handler: deps.algorithmsDeleteItem,
     },
     {
       commandId: "algos.standardLibraryCreateFile",
-      handler: async (_vscodeApi, _eligibilityState, item) => {
-        await deps.standardLibraryCreateFile(item);
-      },
+      handler: adaptItemOnlyHandler(deps.standardLibraryCreateFile),
     },
     {
       commandId: "algos.standardLibraryCreateFileAtRoot",
-      handler: async () => {
-        await deps.standardLibraryCreateFileAtRoot();
-      },
+      handler: adaptNoArgHandler(deps.standardLibraryCreateFileAtRoot),
     },
     {
       commandId: "algos.standardLibraryCreateFolder",
-      handler: async (_vscodeApi, _eligibilityState, item) => {
-        await deps.standardLibraryCreateFolder(item);
-      },
+      handler: adaptItemOnlyHandler(deps.standardLibraryCreateFolder),
     },
     {
       commandId: "algos.standardLibraryCreateFolderAtRoot",
-      handler: async () => {
-        await deps.standardLibraryCreateFolderAtRoot();
-      },
+      handler: adaptNoArgHandler(deps.standardLibraryCreateFolderAtRoot),
     },
     {
       commandId: "algos.standardLibraryDelete",
-      handler: async (_vscodeApi, _eligibilityState, item) => {
-        await deps.standardLibraryDelete(item);
-      },
+      handler: adaptItemOnlyHandler(deps.standardLibraryDelete),
     },
   ];
   const implementedMenuCommandIds = deriveImplementedRunMenuCommandIds(
