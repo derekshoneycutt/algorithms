@@ -21,7 +21,16 @@ const {
   normalizeExtensionToLanguageKey,
 } = require("../runtime/languageMetadata");
 const {
-  applyRemainingSmokeStatus,
+  actionCreators,
+  extensionStateStore,
+  selectHasSmokeResultsForAlgorithm,
+  selectIsSmokeProcessRunningForAlgorithm,
+  selectSidebarFilterMode,
+  selectSidebarViewMode,
+  selectSmokeLanguageState,
+  selectSmokeStateForAlgorithm,
+} = require("../runtime/extensionStateStore");
+const {
   buildSmokeStatusSummary,
 } = require("../runtime/smokeStatusState");
 
@@ -1548,10 +1557,6 @@ class WorkspaceStatusTreeDataProvider {
     this._displayRootPath = null;
     this._resolvedRootPath = null;
     this._supportedLanguageKeys = new Set();
-    this._viewMode = "files";
-    this._filterMode = "all";
-    this._smokeStateByAlgorithmPath = new Map();
-    this._runningSmokeAlgorithmPaths = new Set();
   }
 
   /**
@@ -1577,7 +1582,7 @@ class WorkspaceStatusTreeDataProvider {
    * @returns {void}
    */
   setViewMode(viewMode) {
-    this._viewMode = viewMode === "language" ? "language" : "files";
+    extensionStateStore.dispatch(actionCreators.setSidebarViewMode(viewMode));
   }
 
   /**
@@ -1587,7 +1592,7 @@ class WorkspaceStatusTreeDataProvider {
    * @returns {void}
    */
   setFilterMode(filterMode) {
-    this._filterMode = filterMode === "problems" ? "problems" : "all";
+    extensionStateStore.dispatch(actionCreators.setSidebarFilterMode(filterMode));
   }
 
   /**
@@ -1607,8 +1612,15 @@ class WorkspaceStatusTreeDataProvider {
    * @returns {void}
    */
   replaceSmokeStateForAlgorithm(algorithmPath, smokeState) {
-    this._smokeStateByAlgorithmPath.set(algorithmPath, new Map(smokeState));
-    this.refresh();
+    const previousState = extensionStateStore.getState();
+
+    extensionStateStore.dispatch(
+      actionCreators.replaceSmokeStateForAlgorithm(algorithmPath, smokeState)
+    );
+
+    if (extensionStateStore.getState() !== previousState) {
+      this.refresh();
+    }
   }
 
   /**
@@ -1623,16 +1635,13 @@ class WorkspaceStatusTreeDataProvider {
       return;
     }
 
-    const currentlyRunning = this._runningSmokeAlgorithmPaths.has(algorithmPath);
+    const previousState = extensionStateStore.getState();
 
-    if (isRunning && !currentlyRunning) {
-      this._runningSmokeAlgorithmPaths.add(algorithmPath);
-      this.refresh();
-      return;
-    }
+    extensionStateStore.dispatch(
+      actionCreators.setSmokeProcessRunning(algorithmPath, isRunning)
+    );
 
-    if (!isRunning && currentlyRunning) {
-      this._runningSmokeAlgorithmPaths.delete(algorithmPath);
+    if (extensionStateStore.getState() !== previousState) {
       this.refresh();
     }
   }
@@ -1644,9 +1653,7 @@ class WorkspaceStatusTreeDataProvider {
    * @returns {boolean} True when the algorithm has a running smoke process.
    */
   isSmokeProcessRunningForAlgorithm(algorithmPath) {
-    return Boolean(
-      algorithmPath && this._runningSmokeAlgorithmPaths.has(algorithmPath)
-    );
+    return selectIsSmokeProcessRunningForAlgorithm(algorithmPath);
   }
 
   /**
@@ -1656,12 +1663,7 @@ class WorkspaceStatusTreeDataProvider {
    * @returns {boolean} True when smoke-state entries exist.
    */
   hasSmokeResultsForAlgorithm(algorithmPath) {
-    if (!algorithmPath) {
-      return false;
-    }
-
-    const smokeState = this._smokeStateByAlgorithmPath.get(algorithmPath);
-    return Boolean(smokeState && smokeState.size > 0);
+    return selectHasSmokeResultsForAlgorithm(algorithmPath);
   }
 
   /**
@@ -1675,13 +1677,22 @@ class WorkspaceStatusTreeDataProvider {
       return false;
     }
 
-    const didDelete = this._smokeStateByAlgorithmPath.delete(algorithmPath);
+    const didDelete = this.hasSmokeResultsForAlgorithm(algorithmPath);
 
-    if (didDelete) {
+    if (!didDelete) {
+      return false;
+    }
+
+    const previousState = extensionStateStore.getState();
+    extensionStateStore.dispatch(
+      actionCreators.clearSmokeResultsForAlgorithm(algorithmPath)
+    );
+
+    if (extensionStateStore.getState() !== previousState) {
       this.refresh();
     }
 
-    return didDelete;
+    return true;
   }
 
   /**
@@ -1737,23 +1748,15 @@ class WorkspaceStatusTreeDataProvider {
       return;
     }
 
-    const smokeState = this._smokeStateByAlgorithmPath.get(algorithmPath);
+    const previousState = extensionStateStore.getState();
 
-    if (!smokeState || !smokeState.has(languageKey)) {
-      return;
+    extensionStateStore.dispatch(
+      actionCreators.setSmokeLanguageStatus(algorithmPath, languageKey, smokeStatus)
+    );
+
+    if (extensionStateStore.getState() !== previousState) {
+      this.refresh();
     }
-
-    const previousEntry = smokeState.get(languageKey);
-
-    if (previousEntry.locked && previousEntry.status === "failed") {
-      return;
-    }
-
-    smokeState.set(languageKey, {
-      status: smokeStatus,
-      locked: false,
-    });
-    this.refresh();
   }
 
   /**
@@ -1763,13 +1766,13 @@ class WorkspaceStatusTreeDataProvider {
    * @returns {void}
    */
   markRemainingSmokeStatusesFailed(algorithmPath) {
-    const smokeState = this._smokeStateByAlgorithmPath.get(algorithmPath);
+    const previousState = extensionStateStore.getState();
 
-    if (!smokeState) {
-      return;
-    }
+    extensionStateStore.dispatch(
+      actionCreators.applyRemainingSmokeStatus(algorithmPath, "failed")
+    );
 
-    if (applyRemainingSmokeStatus(smokeState, "failed")) {
+    if (extensionStateStore.getState() !== previousState) {
       this.refresh();
     }
   }
@@ -1781,13 +1784,13 @@ class WorkspaceStatusTreeDataProvider {
    * @returns {void}
    */
   markRemainingSmokeStatusesStopped(algorithmPath) {
-    const smokeState = this._smokeStateByAlgorithmPath.get(algorithmPath);
+    const previousState = extensionStateStore.getState();
 
-    if (!smokeState) {
-      return;
-    }
+    extensionStateStore.dispatch(
+      actionCreators.applyRemainingSmokeStatus(algorithmPath, "stopped")
+    );
 
-    if (applyRemainingSmokeStatus(smokeState, "stopped")) {
+    if (extensionStateStore.getState() !== previousState) {
       this.refresh();
     }
   }
@@ -1800,17 +1803,7 @@ class WorkspaceStatusTreeDataProvider {
   * @returns {{status: "queued"|"running"|"passed"|"failed"|"stopped", locked: boolean}|null} Smoke-state entry.
    */
   getSmokeLanguageState(algorithmPath, languageKey) {
-    if (!algorithmPath || !languageKey) {
-      return null;
-    }
-
-    const smokeState = this._smokeStateByAlgorithmPath.get(algorithmPath);
-
-    if (!smokeState || !smokeState.has(languageKey)) {
-      return null;
-    }
-
-    return smokeState.get(languageKey);
+    return selectSmokeLanguageState(algorithmPath, languageKey);
   }
 
   /**
@@ -1883,7 +1876,7 @@ class WorkspaceStatusTreeDataProvider {
    * @returns {{queued: number, running: number, passed: number, failed: number, stopped: number}} Smoke-status counts.
    */
   getSmokeStatusSummary(algorithmPath) {
-    const smokeState = this._smokeStateByAlgorithmPath.get(algorithmPath);
+    const smokeState = selectSmokeStateForAlgorithm(algorithmPath);
 
     return buildSmokeStatusSummary(smokeState);
   }
@@ -1895,7 +1888,10 @@ class WorkspaceStatusTreeDataProvider {
    * @returns {Array<{filePath?: string, isDirectory?: boolean, isLanguageSummary?: boolean, isFlagged?: boolean, hasFiles?: boolean, isRunnableFile?: boolean}>} Filtered child rows.
    */
   filterVisibleChildren(children) {
-    if (this._filterMode !== "problems") {
+    const filterMode = selectSidebarFilterMode();
+    const viewMode = selectSidebarViewMode();
+
+    if (filterMode !== "problems") {
       return children;
     }
 
@@ -1903,13 +1899,13 @@ class WorkspaceStatusTreeDataProvider {
       if (child.isDirectory) {
         return hasProblemDescendantForViewMode(
           child.filePath,
-          this._viewMode,
+          viewMode,
           this._resolvedRootPath,
           this._supportedLanguageKeys
         );
       }
 
-      return isProblemNodeForViewMode(child, this._viewMode);
+      return isProblemNodeForViewMode(child, viewMode);
     });
   }
 
@@ -2004,11 +2000,13 @@ class WorkspaceStatusTreeDataProvider {
    * @returns {Thenable<import("vscode").TreeItem[]>} Tree items.
    */
   getChildren(element) {
+    const viewMode = selectSidebarViewMode();
+
     if (!this._displayRootPath) {
       return Promise.resolve([]);
     }
 
-    if (this._viewMode === "language") {
+    if (viewMode === "language") {
       if (!element) {
         if (isAlgorithmDirectoryPath(this._displayRootPath, this._resolvedRootPath)) {
           return Promise.resolve(
@@ -2759,7 +2757,7 @@ function registerWorkspaceAlgorithmsRunView() {
     return vscode.commands.executeCommand(
       "setContext",
       "algos.sidebarViewMode",
-      nextViewMode
+      selectSidebarViewMode()
     );
   }
 
@@ -2777,7 +2775,7 @@ function registerWorkspaceAlgorithmsRunView() {
     return vscode.commands.executeCommand(
       "setContext",
       "algos.sidebarFilterMode",
-      nextFilterMode
+      selectSidebarFilterMode()
     );
   }
 

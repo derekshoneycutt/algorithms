@@ -3,25 +3,20 @@ const { VIEW_IDS } = require("../runtime/viewConstants");
 const {
   buildWebviewErrorHtmlDocument,
   createTemplateWebviewProvider,
-  createSidebarWebviewLifecycle,
   escapeHtml,
   renderSectionHeader,
   renderTemplate,
   serializeForScript,
 } = require("./webviewHostUtils");
 const {
-  getSidebarRunArgsState,
-  setSidebarRunArgsEnabled,
-  setSidebarRunArgsText,
-  getSidebarSourceProfileState,
-  setSidebarSourceProfileEnabled,
-  setSidebarSourceProfileText,
-  getSidebarRunChecksState,
-  setSidebarRunChecksMode,
-  setSidebarRunChecksRoute,
-  getSidebarCleanOptionsState,
-  setSidebarCleanStdlibEnabled,
-  setSidebarCleanArchivesEnabled,
+  actionCreators,
+  extensionStateStore,
+  selectSidebarCleanOptionsState,
+  selectSidebarRunArgsState,
+  selectSidebarRunChecksState,
+  selectSidebarSourceProfileState,
+} = require("../runtime/extensionStateStore");
+const {
   parseSidebarRunArgsText,
 } = require("../runtime/sidebarRunArgsState");
 
@@ -191,13 +186,13 @@ function buildCleanOptionsStatus(cleanOptionsState) {
  * @returns {{enabled: boolean, text: string, statusText: string, statusClassName: string, sourceProfileEnabled: boolean, sourceProfileText: string, sourceProfileStatusText: string, sourceProfileStatusClassName: string, runChecksMode: "none"|"check-only"|"compile-only", runChecksRoute: "native"|"docker"|"ssh", runChecksStatusText: string, runChecksStatusClassName: string, cleanStdlib: boolean, cleanArchives: boolean, cleanOptionsStatusText: string, cleanOptionsStatusClassName: string}} Current UI state snapshot.
  */
 function getRunControlsSnapshot() {
-  const runArgsState = getSidebarRunArgsState();
+  const runArgsState = selectSidebarRunArgsState();
   const runArgsStatus = buildRunArgsStatus(runArgsState);
-  const sourceProfileState = getSidebarSourceProfileState();
+  const sourceProfileState = selectSidebarSourceProfileState();
   const sourceProfileStatus = buildSourceProfileStatus(sourceProfileState);
-  const runChecksState = getSidebarRunChecksState();
+  const runChecksState = selectSidebarRunChecksState();
   const runChecksStatus = buildRunChecksStatus(runChecksState);
-  const cleanOptionsState = getSidebarCleanOptionsState();
+  const cleanOptionsState = selectSidebarCleanOptionsState();
   const cleanOptionsStatus = buildCleanOptionsStatus(cleanOptionsState);
 
   return {
@@ -472,35 +467,53 @@ class SidebarRunControlsViewProvider {
 
     this._messageHandlers = {
       setEnabled: (message) => {
-        setSidebarRunArgsEnabled(Boolean(message.enabled));
+        extensionStateStore.dispatch(
+          actionCreators.setSidebarRunArgsEnabled(Boolean(message.enabled))
+        );
         this.postStateUpdate();
       },
       setText: (message) => {
-        setSidebarRunArgsText(String(message.text || ""));
+        extensionStateStore.dispatch(
+          actionCreators.setSidebarRunArgsText(String(message.text || ""))
+        );
         this.postStateUpdate();
       },
       setSourceProfileEnabled: (message) => {
-        setSidebarSourceProfileEnabled(Boolean(message.enabled));
+        extensionStateStore.dispatch(
+          actionCreators.setSidebarSourceProfileEnabled(Boolean(message.enabled))
+        );
         this.postStateUpdate();
       },
       setSourceProfileText: (message) => {
-        setSidebarSourceProfileText(String(message.text || ""));
+        extensionStateStore.dispatch(
+          actionCreators.setSidebarSourceProfileText(String(message.text || ""))
+        );
         this.postStateUpdate();
       },
       setRunChecksMode: (message) => {
-        setSidebarRunChecksMode(String(message.mode || "none"));
+        extensionStateStore.dispatch(
+          actionCreators.setSidebarRunChecksMode(String(message.mode || "none"))
+        );
         this.postStateUpdate();
       },
       setRunChecksRoute: (message) => {
-        setSidebarRunChecksRoute(String(message.route || "native"));
+        extensionStateStore.dispatch(
+          actionCreators.setSidebarRunChecksRoute(
+            String(message.route || "native")
+          )
+        );
         this.postStateUpdate();
       },
       setCleanStdlibEnabled: (message) => {
-        setSidebarCleanStdlibEnabled(Boolean(message.enabled));
+        extensionStateStore.dispatch(
+          actionCreators.setSidebarCleanStdlibEnabled(Boolean(message.enabled))
+        );
         this.postStateUpdate();
       },
       setCleanArchivesEnabled: (message) => {
-        setSidebarCleanArchivesEnabled(Boolean(message.enabled));
+        extensionStateStore.dispatch(
+          actionCreators.setSidebarCleanArchivesEnabled(Boolean(message.enabled))
+        );
         this.postStateUpdate();
       },
     };

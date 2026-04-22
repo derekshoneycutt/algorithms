@@ -54,6 +54,17 @@
         "oberon": "../../icons/oberon",
         "smalltalk": "../../icons/smalltalk"
     },
+    "material-icon-theme.folders.associations": {
+        "shlib": "command",
+        "run-languages": "I18n",
+        "runtime": "core",
+        "stdlib": "lib",
+        "strings": "syntax",
+        "sys": "core",
+        "datetime": "temp",
+        "numeric": "functions",
+        "random": "batch"
+    },
     "dotnet.automaticallyCreateSolutionInWorkspace": false,
     "FSharp.showExplorerOnStartup": false,
     "files.exclude": {

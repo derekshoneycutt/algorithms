@@ -54,9 +54,14 @@ const {
 const {
   registerEnvironmentInitView,
 } = require("./ui/environmentInitView");
+const {
+  actionCreators,
+  extensionStateStore,
+  selectCachedPreflightState,
+  selectSidebarViewMode,
+  selectSidebarFilterMode,
+} = require("./runtime/extensionStateStore");
 
-// Cached preflight snapshot used by visibility event handlers.
-let cachedPreflightState = null;
 // Debounce delay for document lifecycle-driven preflight updates.
 const DOCUMENT_PRECHECK_DEBOUNCE_MS = 250;
 // Debounce delay for async canary-backed preflight refreshes.
@@ -232,8 +237,11 @@ async function updateRunActiveFileContext(editor, preflightState) {
  * @returns {object} Stored preflight state.
  */
 function setCachedPreflightState(preflightState) {
-  cachedPreflightState = preflightState;
-  return cachedPreflightState;
+  extensionStateStore.dispatch(
+    actionCreators.setCachedPreflightState(preflightState)
+  );
+
+  return selectCachedPreflightState();
 }
 
 /**
@@ -242,6 +250,8 @@ function setCachedPreflightState(preflightState) {
  * @returns {object} Preflight state snapshot.
  */
 function getCachedPreflightState() {
+  const cachedPreflightState = selectCachedPreflightState();
+
   if (cachedPreflightState) {
     return cachedPreflightState;
   }
@@ -492,13 +502,13 @@ async function activate(context) {
   await vscode.commands.executeCommand(
     "setContext",
     "algos.sidebarViewMode",
-    "files"
+    selectSidebarViewMode()
   );
 
   await vscode.commands.executeCommand(
     "setContext",
     "algos.sidebarFilterMode",
-    "all"
+    selectSidebarFilterMode()
   );
 
   const commandDisposables = registerCommands({

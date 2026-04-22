@@ -1,139 +1,15 @@
-const { GENERATED_LANGUAGE_DATA } = require("./generated/languages.generated");
+const {
+  SMOKE_LANGUAGE_KEYS,
+  SMOKE_LANGUAGE_RUNNABLE_BY_KEY,
+  actionCreators,
+  extensionStateStore,
+  selectSidebarCleanOptionsState,
+  selectSidebarRunArgsState,
+  selectSidebarRunChecksState,
+  selectSidebarSmokeControlsState,
+  selectSidebarSourceProfileState,
+} = require("./extensionStateStore");
 const { getLanguageDisplayLabel } = require("./languageMetadata");
-
-// Shared in-memory state for optional sidebar run arguments.
-
-let sidebarRunArgsEnabled = false;
-let sidebarRunArgsText = "";
-let sidebarSourceProfileEnabled = false;
-let sidebarSourceProfileText = "";
-let sidebarRunChecksMode = "none";
-let sidebarRunChecksRoute = "native";
-let sidebarCleanStdlibEnabled = true;
-let sidebarCleanArchivesEnabled = true;
-let sidebarSmokeMarkdownEnabled = false;
-let sidebarSmokeMarkdownPath = "";
-let sidebarSmokeTimeout = "8m";
-let sidebarSmokeSlowTimeout = "20m";
-
-/**
- * Returns schema-style platform token for current Node platform.
- *
- * @returns {string} Platform token.
- */
-function getCurrentPlatformToken() {
-  if (process.platform === "darwin") {
-    return "Darwin";
-  }
-
-  if (process.platform === "linux") {
-    return "Linux";
-  }
-
-  if (process.platform === "freebsd") {
-    return "FreeBSD";
-  }
-
-  if (process.platform === "win32") {
-    return "MINGW64_NT";
-  }
-
-  return "*";
-}
-
-/**
- * Returns schema-style architecture token for current Node architecture.
- *
- * @returns {string} Architecture token.
- */
-function getCurrentArchToken() {
-  if (process.arch === "arm64") {
-    return "arm64";
-  }
-
-  if (process.arch === "x64") {
-    return "x86_64";
-  }
-
-  return process.arch;
-}
-
-/**
- * Checks whether one language is runnable in the current platform/arch.
- *
- * @param {{constraints?: {canRun?: {platform?: string[], arch?: string[]}[]}}} language Language metadata record.
- * @returns {boolean} True when at least one canRun rule matches current platform and arch.
- */
-function isLanguageRunnableOnCurrentHost(language) {
-  const canRunRules = Array.isArray(language?.constraints?.canRun)
-    ? language.constraints.canRun
-    : [];
-
-  if (canRunRules.length === 0) {
-    return true;
-  }
-
-  const platformToken = getCurrentPlatformToken();
-  const archToken = getCurrentArchToken();
-
-  for (const rule of canRunRules) {
-    const platforms = Array.isArray(rule?.platform) ? rule.platform : ["*"];
-    const archValues = Array.isArray(rule?.arch) ? rule.arch : ["*"];
-
-    const platformMatch = platforms.includes("*") || platforms.includes(platformToken);
-    const archMatch = archValues.includes("*") || archValues.includes(archToken);
-
-    if (platformMatch && archMatch) {
-      return true;
-    }
-  }
-
-  return false;
-}
-
-/**
- * Supported smoke-test languages from generated metadata.
- *
- * @type {string[]}
- */
-const SMOKE_LANGUAGE_KEYS = Array.isArray(GENERATED_LANGUAGE_DATA?.languages)
-  ? GENERATED_LANGUAGE_DATA.languages
-    .filter((language) => language?.smoke?.visible !== false)
-    .map((language) => String(language.key || "").trim().toLowerCase())
-    .filter(Boolean)
-  : [];
-
-/**
- * Smoke default-enabled state keyed by language id.
- *
- * @type {Map<string, boolean>}
- */
-const SMOKE_LANGUAGE_DEFAULT_ENABLED_BY_KEY = new Map(
-  (Array.isArray(GENERATED_LANGUAGE_DATA?.languages)
-    ? GENERATED_LANGUAGE_DATA.languages
-    : []
-  )
-    .map((language) => [
-      String(language.key || "").trim().toLowerCase(),
-      Boolean(language?.smoke?.defaultEnabled),
-    ])
-);
-
-/**
- * Smoke capability on current host keyed by language id.
- *
- * @type {Map<string, boolean>}
- */
-const SMOKE_LANGUAGE_RUNNABLE_BY_KEY = new Map(
-  (Array.isArray(GENERATED_LANGUAGE_DATA?.languages)
-    ? GENERATED_LANGUAGE_DATA.languages
-    : []
-  )
-    .map((language) => [
-      String(language.key || "").trim().toLowerCase(),
-      isLanguageRunnableOnCurrentHost(language),
-    ])
-);
 
 /**
  * Smoke display labels keyed by language id.
@@ -148,31 +24,14 @@ const SMOKE_LANGUAGE_LABEL_BY_KEY = new Map(
 );
 
 /**
- * Selected smoke-test languages keyed by language id.
+ * Dispatches one sidebar state action to the central store.
  *
- * @type {Map<string, boolean>}
+ * @param {{type: string, payload: unknown}} action Store action.
+ * @returns {void}
  */
-const sidebarSmokeLanguageEnabledByKey = new Map(
-  SMOKE_LANGUAGE_KEYS.map((languageKey) => {
-    const defaultEnabled = SMOKE_LANGUAGE_DEFAULT_ENABLED_BY_KEY.get(languageKey) === true;
-    const runnable = SMOKE_LANGUAGE_RUNNABLE_BY_KEY.get(languageKey) !== false;
-    return [languageKey, defaultEnabled && runnable];
-  })
-);
-
-/**
- * Valid run-checks mode values.
- *
- * @type {string[]}
- */
-const RUN_CHECKS_MODES = ["none", "check-only", "compile-only"];
-
-/**
- * Valid check-only route values.
- *
- * @type {string[]}
- */
-const RUN_CHECKS_ROUTES = ["native", "docker", "ssh"];
+function dispatchSidebarAction(action) {
+  extensionStateStore.dispatch(action);
+}
 
 /**
  * Returns the current sidebar run-args state.
@@ -180,10 +39,7 @@ const RUN_CHECKS_ROUTES = ["native", "docker", "ssh"];
  * @returns {{enabled: boolean, text: string}} Current state snapshot.
  */
 function getSidebarRunArgsState() {
-  return {
-    enabled: sidebarRunArgsEnabled,
-    text: sidebarRunArgsText,
-  };
+  return selectSidebarRunArgsState();
 }
 
 /**
@@ -193,7 +49,7 @@ function getSidebarRunArgsState() {
  * @returns {void}
  */
 function setSidebarRunArgsEnabled(enabled) {
-  sidebarRunArgsEnabled = Boolean(enabled);
+  dispatchSidebarAction(actionCreators.setSidebarRunArgsEnabled(enabled));
 }
 
 /**
@@ -203,7 +59,7 @@ function setSidebarRunArgsEnabled(enabled) {
  * @returns {void}
  */
 function setSidebarRunArgsText(text) {
-  sidebarRunArgsText = String(text || "").trim();
+  dispatchSidebarAction(actionCreators.setSidebarRunArgsText(text));
 }
 
 /**
@@ -212,10 +68,7 @@ function setSidebarRunArgsText(text) {
  * @returns {{enabled: boolean, text: string}} Current state snapshot.
  */
 function getSidebarSourceProfileState() {
-  return {
-    enabled: sidebarSourceProfileEnabled,
-    text: sidebarSourceProfileText,
-  };
+  return selectSidebarSourceProfileState();
 }
 
 /**
@@ -225,7 +78,7 @@ function getSidebarSourceProfileState() {
  * @returns {void}
  */
 function setSidebarSourceProfileEnabled(enabled) {
-  sidebarSourceProfileEnabled = Boolean(enabled);
+  dispatchSidebarAction(actionCreators.setSidebarSourceProfileEnabled(enabled));
 }
 
 /**
@@ -235,7 +88,7 @@ function setSidebarSourceProfileEnabled(enabled) {
  * @returns {void}
  */
 function setSidebarSourceProfileText(text) {
-  sidebarSourceProfileText = String(text || "");
+  dispatchSidebarAction(actionCreators.setSidebarSourceProfileText(text));
 }
 
 /**
@@ -244,10 +97,7 @@ function setSidebarSourceProfileText(text) {
  * @returns {{mode: "none"|"check-only"|"compile-only", route: "native"|"docker"|"ssh"}} Current state snapshot.
  */
 function getSidebarRunChecksState() {
-  return {
-    mode: sidebarRunChecksMode,
-    route: sidebarRunChecksRoute,
-  };
+  return selectSidebarRunChecksState();
 }
 
 /**
@@ -257,14 +107,7 @@ function getSidebarRunChecksState() {
  * @returns {void}
  */
 function setSidebarRunChecksMode(mode) {
-  const nextMode = String(mode || "none").trim().toLowerCase();
-
-  if (!RUN_CHECKS_MODES.includes(nextMode)) {
-    sidebarRunChecksMode = "none";
-    return;
-  }
-
-  sidebarRunChecksMode = nextMode;
+  dispatchSidebarAction(actionCreators.setSidebarRunChecksMode(mode));
 }
 
 /**
@@ -274,14 +117,7 @@ function setSidebarRunChecksMode(mode) {
  * @returns {void}
  */
 function setSidebarRunChecksRoute(route) {
-  const nextRoute = String(route || "native").trim().toLowerCase();
-
-  if (!RUN_CHECKS_ROUTES.includes(nextRoute)) {
-    sidebarRunChecksRoute = "native";
-    return;
-  }
-
-  sidebarRunChecksRoute = nextRoute;
+  dispatchSidebarAction(actionCreators.setSidebarRunChecksRoute(route));
 }
 
 /**
@@ -290,10 +126,7 @@ function setSidebarRunChecksRoute(route) {
  * @returns {{cleanStdlib: boolean, cleanArchives: boolean}} Current state snapshot.
  */
 function getSidebarCleanOptionsState() {
-  return {
-    cleanStdlib: sidebarCleanStdlibEnabled,
-    cleanArchives: sidebarCleanArchivesEnabled,
-  };
+  return selectSidebarCleanOptionsState();
 }
 
 /**
@@ -303,7 +136,7 @@ function getSidebarCleanOptionsState() {
  * @returns {void}
  */
 function setSidebarCleanStdlibEnabled(enabled) {
-  sidebarCleanStdlibEnabled = Boolean(enabled);
+  dispatchSidebarAction(actionCreators.setSidebarCleanStdlibEnabled(enabled));
 }
 
 /**
@@ -313,7 +146,7 @@ function setSidebarCleanStdlibEnabled(enabled) {
  * @returns {void}
  */
 function setSidebarCleanArchivesEnabled(enabled) {
-  sidebarCleanArchivesEnabled = Boolean(enabled);
+  dispatchSidebarAction(actionCreators.setSidebarCleanArchivesEnabled(enabled));
 }
 
 /**
@@ -322,12 +155,13 @@ function setSidebarCleanArchivesEnabled(enabled) {
  * @returns {{markdownEnabled: boolean, markdownPath: string, timeout: string, slowTimeout: string, languages: {key: string, label: string, enabled: boolean, disabled: boolean, disabledReason: string}[]}} Current state snapshot.
  */
 function getSidebarSmokeControlsState() {
+  const smokeControlsState = selectSidebarSmokeControlsState();
   const languages = SMOKE_LANGUAGE_KEYS.map((languageKey) => ({
     key: languageKey,
     label:
       SMOKE_LANGUAGE_LABEL_BY_KEY.get(languageKey)
       || languageKey,
-    enabled: sidebarSmokeLanguageEnabledByKey.get(languageKey) !== false,
+    enabled: smokeControlsState.languageEnabledByKey.get(languageKey) !== false,
     disabled: SMOKE_LANGUAGE_RUNNABLE_BY_KEY.get(languageKey) === false,
     disabledReason:
       SMOKE_LANGUAGE_RUNNABLE_BY_KEY.get(languageKey) === false
@@ -336,10 +170,10 @@ function getSidebarSmokeControlsState() {
   }));
 
   return {
-    markdownEnabled: sidebarSmokeMarkdownEnabled,
-    markdownPath: sidebarSmokeMarkdownPath,
-    timeout: sidebarSmokeTimeout,
-    slowTimeout: sidebarSmokeSlowTimeout,
+    markdownEnabled: smokeControlsState.markdownEnabled,
+    markdownPath: smokeControlsState.markdownPath,
+    timeout: smokeControlsState.timeout,
+    slowTimeout: smokeControlsState.slowTimeout,
     languages,
   };
 }
@@ -351,7 +185,7 @@ function getSidebarSmokeControlsState() {
  * @returns {void}
  */
 function setSidebarSmokeMarkdownEnabled(enabled) {
-  sidebarSmokeMarkdownEnabled = Boolean(enabled);
+  dispatchSidebarAction(actionCreators.setSidebarSmokeMarkdownEnabled(enabled));
 }
 
 /**
@@ -361,7 +195,7 @@ function setSidebarSmokeMarkdownEnabled(enabled) {
  * @returns {void}
  */
 function setSidebarSmokeMarkdownPath(pathValue) {
-  sidebarSmokeMarkdownPath = String(pathValue || "");
+  dispatchSidebarAction(actionCreators.setSidebarSmokeMarkdownPath(pathValue));
 }
 
 /**
@@ -371,7 +205,7 @@ function setSidebarSmokeMarkdownPath(pathValue) {
  * @returns {void}
  */
 function setSidebarSmokeTimeout(timeoutValue) {
-  sidebarSmokeTimeout = String(timeoutValue || "").trim();
+  dispatchSidebarAction(actionCreators.setSidebarSmokeTimeout(timeoutValue));
 }
 
 /**
@@ -381,7 +215,7 @@ function setSidebarSmokeTimeout(timeoutValue) {
  * @returns {void}
  */
 function setSidebarSmokeSlowTimeout(timeoutValue) {
-  sidebarSmokeSlowTimeout = String(timeoutValue || "").trim();
+  dispatchSidebarAction(actionCreators.setSidebarSmokeSlowTimeout(timeoutValue));
 }
 
 /**
@@ -392,18 +226,9 @@ function setSidebarSmokeSlowTimeout(timeoutValue) {
  * @returns {void}
  */
 function setSidebarSmokeLanguageEnabled(languageKey, enabled) {
-  const normalizedLanguageKey = String(languageKey || "").trim().toLowerCase();
-
-  if (!sidebarSmokeLanguageEnabledByKey.has(normalizedLanguageKey)) {
-    return;
-  }
-
-  if (SMOKE_LANGUAGE_RUNNABLE_BY_KEY.get(normalizedLanguageKey) === false) {
-    sidebarSmokeLanguageEnabledByKey.set(normalizedLanguageKey, false);
-    return;
-  }
-
-  sidebarSmokeLanguageEnabledByKey.set(normalizedLanguageKey, Boolean(enabled));
+  dispatchSidebarAction(
+    actionCreators.setSidebarSmokeLanguageEnabled(languageKey, enabled)
+  );
 }
 
 /**
@@ -413,10 +238,7 @@ function setSidebarSmokeLanguageEnabled(languageKey, enabled) {
  * @returns {void}
  */
 function setSidebarSmokeAllLanguagesEnabled(enabled) {
-  for (const languageKey of SMOKE_LANGUAGE_KEYS) {
-    const runnable = SMOKE_LANGUAGE_RUNNABLE_BY_KEY.get(languageKey) !== false;
-    sidebarSmokeLanguageEnabledByKey.set(languageKey, runnable ? Boolean(enabled) : false);
-  }
+  dispatchSidebarAction(actionCreators.setSidebarSmokeAllLanguagesEnabled(enabled));
 }
 
 /**
@@ -519,7 +341,9 @@ function parseSidebarRunArgsText(rawText) {
  * @returns {{ok: boolean, enabled: boolean, tokens: string[], reason: string|null}} Effective args result.
  */
 function getEffectiveSidebarRunArgs() {
-  if (!sidebarRunArgsEnabled) {
+  const runArgsState = getSidebarRunArgsState();
+
+  if (!runArgsState.enabled) {
     return {
       ok: true,
       enabled: false,
@@ -528,7 +352,7 @@ function getEffectiveSidebarRunArgs() {
     };
   }
 
-  const parsed = parseSidebarRunArgsText(sidebarRunArgsText);
+  const parsed = parseSidebarRunArgsText(runArgsState.text);
 
   if (!parsed.ok) {
     return {
@@ -558,7 +382,9 @@ function getEffectiveSidebarRunArgs() {
  * @returns {{ok: boolean, enabled: boolean, tokens: string[], reason: string|null}} Effective source-profile result.
  */
 function getEffectiveSidebarSourceProfile() {
-  if (!sidebarSourceProfileEnabled) {
+  const sourceProfileState = getSidebarSourceProfileState();
+
+  if (!sourceProfileState.enabled) {
     return {
       ok: true,
       enabled: false,
@@ -567,7 +393,7 @@ function getEffectiveSidebarSourceProfile() {
     };
   }
 
-  const text = String(sidebarSourceProfileText || "");
+  const text = String(sourceProfileState.text || "");
 
   if (!text.trim()) {
     return {
@@ -592,12 +418,9 @@ function getEffectiveSidebarSourceProfile() {
  * @returns {{ok: boolean, mode: "none"|"check-only"|"compile-only", route: "native"|"docker"|"ssh", tokens: string[], reason: string|null}} Effective run-checks result.
  */
 function getEffectiveSidebarRunChecks() {
-  const mode = RUN_CHECKS_MODES.includes(sidebarRunChecksMode)
-    ? sidebarRunChecksMode
-    : "none";
-  const route = RUN_CHECKS_ROUTES.includes(sidebarRunChecksRoute)
-    ? sidebarRunChecksRoute
-    : "native";
+  const runChecksState = getSidebarRunChecksState();
+  const mode = runChecksState.mode;
+  const route = runChecksState.route;
 
   if (mode === "none") {
     return {
@@ -636,14 +459,15 @@ function getEffectiveSidebarRunChecks() {
  * @returns {{ok: boolean, cleanStdlib: boolean, cleanArchives: boolean, defaultsPair: string, token: string, reason: string|null}} Effective clean-defaults result.
  */
 function getEffectiveSidebarCleanDefaults() {
-  const stdlibDefault = sidebarCleanStdlibEnabled ? "y" : "n";
-  const archiveDefault = sidebarCleanArchivesEnabled ? "y" : "n";
+  const cleanOptionsState = getSidebarCleanOptionsState();
+  const stdlibDefault = cleanOptionsState.cleanStdlib ? "y" : "n";
+  const archiveDefault = cleanOptionsState.cleanArchives ? "y" : "n";
   const defaultsPair = `${stdlibDefault}|${archiveDefault}`;
 
   return {
     ok: true,
-    cleanStdlib: sidebarCleanStdlibEnabled,
-    cleanArchives: sidebarCleanArchivesEnabled,
+    cleanStdlib: cleanOptionsState.cleanStdlib,
+    cleanArchives: cleanOptionsState.cleanArchives,
     defaultsPair,
     token: `--defaults=${defaultsPair}`,
     reason: null,
@@ -661,14 +485,15 @@ function getEffectiveSidebarCleanDefaults() {
  * @returns {{ok: boolean, args: string[], selectedLanguages: string[], allLanguagesSelected: boolean, reason: string|null}} Effective smoke args result.
  */
 function getEffectiveSidebarSmokeArgs() {
+  const smokeControlsState = selectSidebarSmokeControlsState();
   const args = [];
   const selectedLanguages = SMOKE_LANGUAGE_KEYS.filter(
-    (languageKey) => sidebarSmokeLanguageEnabledByKey.get(languageKey) !== false
+    (languageKey) => smokeControlsState.languageEnabledByKey.get(languageKey) !== false
   );
   const allLanguagesSelected = selectedLanguages.length === SMOKE_LANGUAGE_KEYS.length;
 
-  if (sidebarSmokeMarkdownEnabled) {
-    const markdownPath = String(sidebarSmokeMarkdownPath || "").trim();
+  if (smokeControlsState.markdownEnabled) {
+    const markdownPath = String(smokeControlsState.markdownPath || "").trim();
 
     if (markdownPath.length > 0) {
       args.push(`--markdown=${markdownPath}`);
@@ -677,12 +502,12 @@ function getEffectiveSidebarSmokeArgs() {
     }
   }
 
-  if (String(sidebarSmokeTimeout || "").trim().length > 0) {
-    args.push(`--timeout=${String(sidebarSmokeTimeout).trim()}`);
+  if (String(smokeControlsState.timeout || "").trim().length > 0) {
+    args.push(`--timeout=${String(smokeControlsState.timeout).trim()}`);
   }
 
-  if (String(sidebarSmokeSlowTimeout || "").trim().length > 0) {
-    args.push(`--slow-timeout=${String(sidebarSmokeSlowTimeout).trim()}`);
+  if (String(smokeControlsState.slowTimeout || "").trim().length > 0) {
+    args.push(`--slow-timeout=${String(smokeControlsState.slowTimeout).trim()}`);
   }
 
   if (selectedLanguages.length === 0) {
@@ -708,6 +533,7 @@ function getEffectiveSidebarSmokeArgs() {
   };
 }
 
+// Public sidebar run/smoke state API for UI and command handlers.
 module.exports = {
   getSidebarRunArgsState,
   setSidebarRunArgsEnabled,

@@ -4,20 +4,17 @@ const {
   buildLanguageIconUris,
   buildWebviewErrorHtmlDocument,
   createTemplateWebviewProvider,
-  createSidebarWebviewLifecycle,
   escapeHtml,
   renderSectionHeader,
   renderTemplate,
   serializeForScript,
 } = require("./webviewHostUtils");
 const {
+  actionCreators,
+  extensionStateStore,
+} = require("../runtime/extensionStateStore");
+const {
   getSidebarSmokeControlsState,
-  setSidebarSmokeMarkdownEnabled,
-  setSidebarSmokeMarkdownPath,
-  setSidebarSmokeTimeout,
-  setSidebarSmokeSlowTimeout,
-  setSidebarSmokeLanguageEnabled,
-  setSidebarSmokeAllLanguagesEnabled,
 } = require("../runtime/sidebarRunArgsState");
 
 const LANGUAGE_ICON_PATH_SEGMENT = "icons/languages";
@@ -146,6 +143,11 @@ function buildReportGenerationStatus(smokeControlsState) {
  * @returns {{markdownEnabled: boolean, markdownPath: string, timeout: string, slowTimeout: string, languages: {key: string, label: string, enabled: boolean, disabled: boolean, disabledReason: string}[], reportStatusText: string, reportStatusClassName: string, smokeStatusText: string, smokeStatusClassName: string}} Current UI state snapshot.
  */
 function getSmokeControlsSnapshot() {
+  // Intentionally uses getSidebarSmokeControlsState() from the compatibility
+  // wrapper rather than the store's selectSidebarSmokeControlsState() directly.
+  // The wrapper enriches raw store data with display labels and disabled-reason
+  // strings for each language entry — UI-presentation logic that intentionally
+  // lives outside the pure store.
   const smokeControlsState = getSidebarSmokeControlsState();
   const reportStatus = buildReportGenerationStatus(smokeControlsState);
   const smokeControlsStatus = buildSmokeControlsStatus(smokeControlsState);
@@ -424,30 +426,44 @@ class SidebarSmokeControlsViewProvider {
 
     this._messageHandlers = {
       setSmokeMarkdownEnabled: (message) => {
-        setSidebarSmokeMarkdownEnabled(Boolean(message.enabled));
+        extensionStateStore.dispatch(
+          actionCreators.setSidebarSmokeMarkdownEnabled(Boolean(message.enabled))
+        );
         this.postStateUpdate();
       },
       setSmokeMarkdownPath: (message) => {
-        setSidebarSmokeMarkdownPath(String(message.text || ""));
+        extensionStateStore.dispatch(
+          actionCreators.setSidebarSmokeMarkdownPath(String(message.text || ""))
+        );
         this.postStateUpdate();
       },
       setSmokeTimeout: (message) => {
-        setSidebarSmokeTimeout(String(message.text || ""));
+        extensionStateStore.dispatch(
+          actionCreators.setSidebarSmokeTimeout(String(message.text || ""))
+        );
         this.postStateUpdate();
       },
       setSmokeSlowTimeout: (message) => {
-        setSidebarSmokeSlowTimeout(String(message.text || ""));
+        extensionStateStore.dispatch(
+          actionCreators.setSidebarSmokeSlowTimeout(String(message.text || ""))
+        );
         this.postStateUpdate();
       },
       setSmokeLanguageEnabled: (message) => {
-        setSidebarSmokeLanguageEnabled(
-          String(message.languageKey || ""),
-          Boolean(message.enabled)
+        extensionStateStore.dispatch(
+          actionCreators.setSidebarSmokeLanguageEnabled(
+            String(message.languageKey || ""),
+            Boolean(message.enabled)
+          )
         );
         this.postStateUpdate();
       },
       setSmokeAllLanguagesEnabled: (message) => {
-        setSidebarSmokeAllLanguagesEnabled(Boolean(message.enabled));
+        extensionStateStore.dispatch(
+          actionCreators.setSidebarSmokeAllLanguagesEnabled(
+            Boolean(message.enabled)
+          )
+        );
         this.postStateUpdate();
       },
     };
