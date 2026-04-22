@@ -1,14 +1,20 @@
 // Path helpers are used to validate src hierarchy and derive execution context.
 const path = require("path");
-const fs = require("fs");
-// Runtime command assembly and terminal runner used by the Run Active File handler.
-const { buildRunCommand } = require("../runtime/argumentBuilder");
-const { runCommand } = require("../runtime/runScriptRunner");
+const { executeCommand } = require("../runtime/commandline/core/commandLineCore");
+const { createRunCommandAdapter } = require("../runtime/commandline/adapters/runCommandAdapter");
 const {
+  createRuntimeProcessLifecycle,
+} = require("../runtime/runtimeProcessLifecycle");
+const {
+  resolveActiveFileRunContext,
+  resolveCleanContextFromExplorer,
+  resolveLocalCleanContextFromExplorer,
+} = require("../runtime/commandPathContext");
+const {
+  getEffectiveSidebarCleanDefaults,
   getEffectiveSidebarRunArgs,
   getEffectiveSidebarSourceProfile,
   getEffectiveSidebarRunChecks,
-  getEffectiveSidebarCleanDefaults,
 } = require("../runtime/sidebarRunArgsState");
 // Validation and message helpers for active editor and language checks.
 const {
@@ -23,6 +29,7 @@ const {
   buildRuntimeFailureMessage,
   buildSuccessMessage,
 } = require("../ui/notifications");
+const runtimeProcessLifecycle = createRuntimeProcessLifecycle();
 
 /**
  * Shows a validation block message and returns a blocked handler result.
@@ -45,6 +52,19 @@ function blockWithValidation(vscodeApi, validation, commandLabel) {
   };
 }
 
+const runCommandAdapter = createRunCommandAdapter({
+  runtimeProcessLifecycle,
+  executeCommandFn: executeCommand,
+  getEffectiveSidebarRunArgs,
+  getEffectiveSidebarSourceProfile,
+  getEffectiveSidebarRunChecks,
+  blockWithValidation,
+  showNotificationBySeverity,
+  buildBuildFailureMessage,
+  buildRuntimeFailureMessage,
+  buildSuccessMessage,
+});
+
 /**
  * Executes one assembled script command from a resolved algorithm context.
  *
@@ -54,117 +74,11 @@ function blockWithValidation(vscodeApi, validation, commandLabel) {
  * @returns {{ok: boolean, status: string, reason: string|null}} Handler execution summary.
  */
 function executeContextCommand(vscodeApi, contextResolution, execution) {
-  const baseArgs = Array.isArray(execution.args) ? execution.args : [];
-  let runArgsTokens = [];
-  let sourceProfileTokens = [];
-  let runChecksTokens = [];
-
-  if (execution.includeSidebarRunArgs) {
-    const runArgs = getEffectiveSidebarRunArgs();
-
-    if (!runArgs.ok) {
-      const validation = {
-        reason: "invalid-sidebar-run-args",
-        guidance: runArgs.reason || "Custom run args are invalid.",
-        severity: "warning",
-      };
-
-      return blockWithValidation(vscodeApi, validation, execution.commandLabel);
-    }
-
-    runArgsTokens = runArgs.tokens;
-  }
-
-  if (execution.includeSidebarSourceProfile) {
-    const sourceProfile = getEffectiveSidebarSourceProfile();
-
-    if (!sourceProfile.ok) {
-      const validation = {
-        reason: "invalid-sidebar-source-profile",
-        guidance: sourceProfile.reason || "Source profile input is invalid.",
-        severity: "warning",
-      };
-
-      return blockWithValidation(vscodeApi, validation, execution.commandLabel);
-    }
-
-    sourceProfileTokens = sourceProfile.tokens;
-  }
-
-  if (execution.includeSidebarRunChecks) {
-    const runChecks = getEffectiveSidebarRunChecks();
-
-    if (!runChecks.ok) {
-      const validation = {
-        reason: "invalid-sidebar-run-checks",
-        guidance: runChecks.reason || "Run Checks selection is invalid.",
-        severity: "warning",
-      };
-
-      return blockWithValidation(vscodeApi, validation, execution.commandLabel);
-    }
-
-    runChecksTokens = runChecks.tokens;
-  }
-
-  const resolvedArgs = [
-    ...sourceProfileTokens,
-    ...runChecksTokens,
-    ...baseArgs,
-    ...runArgsTokens,
-  ];
-
-  const build = buildRunCommand({
-    scriptPath: contextResolution.scriptPath,
-    displayScriptPath: contextResolution.displayScriptPath,
-    cwd: contextResolution.algorithmDir,
-    commandFamily: execution.commandFamily,
-    args: resolvedArgs,
-  });
-
-  if (!build.ok) {
-    showNotificationBySeverity(
-      vscodeApi,
-      "error",
-      buildBuildFailureMessage(execution.commandLabel, build.reason)
-    );
-    return {
-      ok: false,
-      status: "blocked",
-      reason: build.reason,
-    };
-  }
-
-  const runResult = runCommand({
-    build,
+  return runCommandAdapter.executeContextCommand({
     vscodeApi,
-    reuseTerminal: true,
+    contextResolution,
+    execution,
   });
-
-  if (!runResult.ok) {
-    showNotificationBySeverity(
-      vscodeApi,
-      "error",
-      buildRuntimeFailureMessage(execution.commandLabel, runResult.reason)
-    );
-    return {
-      ok: false,
-      status: runResult.status,
-      reason: runResult.reason,
-    };
-  }
-
-  showNotificationBySeverity(
-    vscodeApi,
-    "info",
-    execution.successMessage || buildSuccessMessage(execution.commandLabel)
-  );
-
-  return {
-    ok: true,
-    status: runResult.status,
-    reason: null,
-  };
 }
 
 /**
@@ -308,296 +222,6 @@ function resolveActiveCompatibleSourceFile(vscodeApi, eligibilityState) {
     severity: "warning",
     filePath,
   };
-}
-
-/**
- * Resolves algorithm execution context from an active file path.
- *
- * Valid active target contract: immediate child file under
- * `src/<category>/<algorithm>/`.
- *
- * @param {string} filePath Absolute path to the active file.
- * @param {{selected?: {resolvedRoot?: string, scriptPath?: string}}|null|undefined} eligibilityState Eligible workspace state.
- * @returns {{ok: boolean, reason: string|null, guidance: string, severity: "warning"|"error", algorithmDir: string|null, filename: string|null, scriptPath: string|null, displayScriptPath: string|null}} Resolution result.
- */
-function resolveActiveFileRunContext(filePath, eligibilityState) {
-  const selected = eligibilityState?.selected;
-  const resolvedRoot = selected?.resolvedRoot;
-  const scriptPath = selected?.scriptPath;
-
-  if (!resolvedRoot || !scriptPath) {
-    return {
-      ok: false,
-      reason: "missing-eligible-root",
-      guidance:
-        "Eligible repository root or run script path is unavailable. Reopen workspace and retry.",
-      severity: "error",
-      algorithmDir: null,
-      filename: null,
-      scriptPath: null,
-      displayScriptPath: null,
-    };
-  }
-
-  const srcRoot = path.join(resolvedRoot, "src");
-  const relativeToSrc = path.relative(srcRoot, filePath);
-
-  if (relativeToSrc.startsWith("..") || path.isAbsolute(relativeToSrc)) {
-    return {
-      ok: false,
-      reason: "not-under-src",
-      guidance:
-        "Active file must be located under src/<category>/<algorithm>/.",
-      severity: "warning",
-      algorithmDir: null,
-      filename: null,
-      scriptPath: null,
-      displayScriptPath: null,
-    };
-  }
-
-  const parts = relativeToSrc.split(path.sep);
-
-  if (parts.length < 3) {
-    return {
-      ok: false,
-      reason: "not-in-algorithm-dir",
-      guidance:
-        "Active file must be an immediate child under src/<category>/<algorithm>/.",
-      severity: "warning",
-      algorithmDir: null,
-      filename: null,
-      scriptPath: null,
-      displayScriptPath: null,
-    };
-  }
-
-  if (parts.length > 3) {
-    return {
-      ok: false,
-      reason: "nested-descendant",
-      guidance:
-        "Nested descendants are not valid run targets. Use a file directly under src/<category>/<algorithm>/.",
-      severity: "warning",
-      algorithmDir: null,
-      filename: null,
-      scriptPath: null,
-      displayScriptPath: null,
-    };
-  }
-
-  const algorithmDir = path.join(srcRoot, parts[0], parts[1]);
-  const filename = parts[2];
-  const relativeScriptPath = path.relative(algorithmDir, scriptPath);
-  const displayScriptPath = relativeScriptPath || scriptPath;
-
-  return {
-    ok: true,
-    reason: null,
-    guidance: "Active file run context resolved.",
-    severity: "warning",
-    algorithmDir,
-    filename,
-    scriptPath,
-    displayScriptPath,
-  };
-}
-
-/**
- * Resolves algorithm-directory context from Explorer selection for cleanup modes.
- *
- * Valid Explorer targets:
- * - `src/<category>/<algorithm>/` directory
- * - immediate child file under `src/<category>/<algorithm>/`
- * - immediate child directory under `src/<category>/<algorithm>/`
- *
- * @param {string} targetPath Absolute selected Explorer path.
- * @param {{selected?: {resolvedRoot?: string, scriptPath?: string}}|null|undefined} eligibilityState Eligible workspace state.
- * @param {{outsideSrcGuidance: string, scopeGuidance: string, nestedGuidance: string, resolvedGuidance: string}} messages Command-specific guidance text.
- * @returns {{ok: boolean, reason: string|null, guidance: string, severity: "info"|"warning"|"error", algorithmDir: string|null, scriptPath: string|null, displayScriptPath: string|null}} Resolution result.
- */
-function resolveAlgorithmScopeFromExplorerTarget(
-  targetPath,
-  eligibilityState,
-  messages
-) {
-  const selected = eligibilityState?.selected;
-  const resolvedRoot = selected?.resolvedRoot;
-  const scriptPath = selected?.scriptPath;
-
-  if (!resolvedRoot || !scriptPath) {
-    return {
-      ok: false,
-      reason: "missing-eligible-root",
-      guidance:
-        "Eligible repository root or run script path is unavailable. Reopen workspace and retry.",
-      severity: "error",
-      algorithmDir: null,
-      scriptPath: null,
-      displayScriptPath: null,
-    };
-  }
-
-  if (!targetPath) {
-    return {
-      ok: false,
-      reason: "missing-selected-path",
-      guidance:
-        "Select an algorithm directory or an immediate child file/directory and try again.",
-      severity: "info",
-      algorithmDir: null,
-      scriptPath: null,
-      displayScriptPath: null,
-    };
-  }
-
-  const srcRoot = path.join(resolvedRoot, "src");
-  const relativeToSrc = path.relative(srcRoot, targetPath);
-
-  if (relativeToSrc.startsWith("..") || path.isAbsolute(relativeToSrc)) {
-    return {
-      ok: false,
-      reason: "not-under-src",
-      guidance: messages.outsideSrcGuidance,
-      severity: "warning",
-      algorithmDir: null,
-      scriptPath: null,
-      displayScriptPath: null,
-    };
-  }
-
-  const parts = relativeToSrc.split(path.sep);
-
-  if (parts.length < 2) {
-    return {
-      ok: false,
-      reason: "not-in-algorithm-scope",
-      guidance: messages.scopeGuidance,
-      severity: "warning",
-      algorithmDir: null,
-      scriptPath: null,
-      displayScriptPath: null,
-    };
-  }
-
-  if (parts.length > 3) {
-    return {
-      ok: false,
-      reason: "nested-descendant",
-      guidance: messages.nestedGuidance,
-      severity: "warning",
-      algorithmDir: null,
-      scriptPath: null,
-      displayScriptPath: null,
-    };
-  }
-
-  let stats = null;
-  try {
-    stats = fs.statSync(targetPath);
-  } catch (_error) {
-    return {
-      ok: false,
-      reason: "missing-selected-path",
-      guidance: "Selected path is unavailable. Refresh Explorer and retry.",
-      severity: "warning",
-      algorithmDir: null,
-      scriptPath: null,
-      displayScriptPath: null,
-    };
-  }
-
-  let algorithmDir = null;
-
-  if (parts.length === 2) {
-    if (!stats.isDirectory()) {
-      return {
-        ok: false,
-        reason: "algorithm-dir-required",
-        guidance: messages.scopeGuidance,
-        severity: "warning",
-        algorithmDir: null,
-        scriptPath: null,
-        displayScriptPath: null,
-      };
-    }
-
-    algorithmDir = targetPath;
-  } else if (parts.length === 3) {
-    if (!stats.isDirectory() && !stats.isFile()) {
-      return {
-        ok: false,
-        reason: "unsupported-target-type",
-        guidance: messages.scopeGuidance,
-        severity: "warning",
-        algorithmDir: null,
-        scriptPath: null,
-        displayScriptPath: null,
-      };
-    }
-
-    algorithmDir = path.join(srcRoot, parts[0], parts[1]);
-  }
-
-  const relativeScriptPath = path.relative(algorithmDir, scriptPath);
-  const displayScriptPath = relativeScriptPath || scriptPath;
-
-  return {
-    ok: true,
-    reason: null,
-    guidance: messages.resolvedGuidance,
-    severity: "warning",
-    algorithmDir,
-    scriptPath,
-    displayScriptPath,
-  };
-}
-
-/**
- * Resolves algorithm execution context for localclean from an Explorer target.
- *
- * Valid Explorer targets:
- * - `src/<category>/<algorithm>/` directory
- * - immediate child file under `src/<category>/<algorithm>/`
- * - immediate child directory under `src/<category>/<algorithm>/`
- *
- * @param {string} targetPath Absolute selected Explorer path.
- * @param {{selected?: {resolvedRoot?: string, scriptPath?: string}}|null|undefined} eligibilityState Eligible workspace state.
- * @returns {{ok: boolean, reason: string|null, guidance: string, severity: "info"|"warning"|"error", algorithmDir: string|null, scriptPath: string|null, displayScriptPath: string|null}} Resolution result.
- */
-function resolveLocalCleanContextFromExplorer(targetPath, eligibilityState) {
-  return resolveAlgorithmScopeFromExplorerTarget(targetPath, eligibilityState, {
-    outsideSrcGuidance:
-      "Local Clean requires a target under src/<category>/<algorithm>/.",
-    scopeGuidance:
-      "Select src/<category>/<algorithm>/ or an immediate child file/directory.",
-    nestedGuidance:
-      "Nested descendants are not valid local clean targets. Select the algorithm directory or an immediate child.",
-    resolvedGuidance: "Local Clean context resolved.",
-  });
-}
-
-/**
- * Resolves algorithm execution context for clean from an Explorer target.
- *
- * Valid Explorer targets:
- * - `src/<category>/<algorithm>/` directory
- * - immediate child file under `src/<category>/<algorithm>/`
- * - immediate child directory under `src/<category>/<algorithm>/`
- *
- * @param {string} targetPath Absolute selected Explorer path.
- * @param {{selected?: {resolvedRoot?: string, scriptPath?: string}}|null|undefined} eligibilityState Eligible workspace state.
- * @returns {{ok: boolean, reason: string|null, guidance: string, severity: "info"|"warning"|"error", algorithmDir: string|null, scriptPath: string|null, displayScriptPath: string|null}} Resolution result.
- */
-function resolveCleanContextFromExplorer(targetPath, eligibilityState) {
-  return resolveAlgorithmScopeFromExplorerTarget(targetPath, eligibilityState, {
-    outsideSrcGuidance: "Clean requires a target under src/<category>/<algorithm>/.",
-    scopeGuidance:
-      "Select src/<category>/<algorithm>/ or an immediate child file/directory.",
-    nestedGuidance:
-      "Nested descendants are not valid clean targets. Select the algorithm directory or an immediate child.",
-    resolvedGuidance: "Clean context resolved.",
-  });
 }
 
 /**

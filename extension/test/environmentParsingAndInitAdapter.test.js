@@ -4,35 +4,43 @@ const assert = require("assert");
 const os = require("os");
 const path = require("path");
 const {
-  expandHomePath,
   getProfilePlaceholderForPlatform,
   getDefaultProfilePathForPlatform,
+  expandHomeFilesystemPath,
+} = require("../src/runtime/workspaceFilesystem");
+const {
   extractShellAssignment,
   extractManagedExportValue,
   parseInitDefaults,
   parseRouteMap,
+  buildMergedEnvironmentConfig,
+} = require("../src/runtime/commandline/core/shellProfileParseCore");
+const {
   buildProfileArgs,
   filterCheckEnvOutput,
   runInitScriptCommand,
-  buildMergedEnvironmentConfig,
-} = require("../src/ui/shellProfileUtils");
+} = require("../src/runtime/commandline/adapters/initCommandAdapter");
 
 /**
- * Runs all shellProfileUtils tests.
+ * Runs environment parsing and init adapter tests.
  *
  * @returns {void}
  */
 function runTests() {
-  // expandHomePath
-  assert.strictEqual(expandHomePath(""), "", "expandHomePath: empty string");
-  assert.strictEqual(expandHomePath(null), "", "expandHomePath: null");
-  assert.strictEqual(expandHomePath("~"), os.homedir(), "expandHomePath: bare tilde");
+  // expandHomeFilesystemPath
+  assert.strictEqual(expandHomeFilesystemPath(""), "", "expandHomeFilesystemPath: empty string");
+  assert.strictEqual(expandHomeFilesystemPath(null), "", "expandHomeFilesystemPath: null");
+  assert.strictEqual(expandHomeFilesystemPath("~"), os.homedir(), "expandHomeFilesystemPath: bare tilde");
   assert.strictEqual(
-    expandHomePath("~/foo/bar"),
+    expandHomeFilesystemPath("~/foo/bar"),
     path.join(os.homedir(), "foo/bar"),
-    "expandHomePath: tilde prefix"
+    "expandHomeFilesystemPath: tilde prefix"
   );
-  assert.strictEqual(expandHomePath("/absolute/path"), "/absolute/path", "expandHomePath: absolute path unchanged");
+  assert.strictEqual(
+    expandHomeFilesystemPath("/absolute/path"),
+    "/absolute/path",
+    "expandHomeFilesystemPath: absolute path unchanged"
+  );
 
   // getProfilePlaceholderForPlatform
   assert.strictEqual(getProfilePlaceholderForPlatform("darwin"), "~/.zprofile", "placeholder: darwin");

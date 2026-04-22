@@ -1,22 +1,11 @@
-// Node filesystem and process helpers for workspace/root eligibility checks.
-const fs = require("fs");
+// Node process helpers for workspace/root eligibility checks.
 const path = require("path");
-const { spawnSync } = require("child_process");
-
-/**
- * Resolves the real absolute path of a file or directory, following symlinks.
- * Returns the resolved absolute path of the input on failure.
- *
- * @param {string} targetPath Input path to normalize.
- * @returns {string} Canonical or normalized absolute path.
- */
-function realpathSafe(targetPath) {
-  try {
-    return fs.realpathSync(targetPath);
-  } catch (_) {
-    return path.resolve(targetPath);
-  }
-}
+const { executeCommand } = require("./commandline/core/commandLineCore");
+const {
+  isDirectoryPath,
+  isFilePath,
+  realpathSafe,
+} = require("./workspaceFilesystem");
 
 // Cache lifetime for run.sh --help-all canary checks.
 const CANARY_CACHE_TTL_MS = 30000;
@@ -44,12 +33,11 @@ const HARD_MARKERS = [
 function markerExists(rootPath, marker) {
   const markerPath = path.join(rootPath, marker.name);
 
-  try {
-    const stat = fs.statSync(markerPath);
-    return marker.type === "directory" ? stat.isDirectory() : stat.isFile();
-  } catch (_) {
-    return false;
+  if (marker.type === "directory") {
+    return isDirectoryPath(markerPath);
   }
+
+  return isFilePath(markerPath);
 }
 
 /**
@@ -199,19 +187,22 @@ function runCanary(rootPath, options = {}) {
   const scriptPath = path.join(rootPath, "run.sh");
 
   try {
-    const result = spawnSync(scriptPath, ["--help-all"], {
+    const result = executeCommand({
+      mode: "spawn-sync",
+      command: scriptPath,
+      args: ["--help-all"],
       cwd: rootPath,
-      encoding: "utf8",
       timeout: 15000,
+      encoding: "utf8",
     });
 
-    if (result.error) {
+    if (!result.ok) {
       const canaryResult = {
         attempted: true,
         command: `${scriptPath} --help-all`,
-        exitCode: null,
+        exitCode: result.exitCode,
         success: false,
-        error: result.error.message,
+        error: result.errorMessage,
       };
 
       setCachedCanaryResult(rootPath, canaryResult);
@@ -221,8 +212,8 @@ function runCanary(rootPath, options = {}) {
     const canaryResult = {
       attempted: true,
       command: `${scriptPath} --help-all`,
-      exitCode: typeof result.status === "number" ? result.status : null,
-      success: result.status === 0,
+      exitCode: result.exitCode,
+      success: result.success,
       error: null,
     };
 
@@ -548,12 +539,8 @@ function resolveExplorerTargetCwd(selectedPath, resolvedRepoRoot) {
   }
 
   if (parts.length === 2) {
-    let isDir = false;
-    try {
-      isDir = fs.statSync(canonicalSelectedPath).isDirectory();
-    } catch (_) {
-      // Treat stat failures as non-directory so selection stays conservative.
-    }
+    const isDir = isDirectoryPath(canonicalSelectedPath);
+
     if (!isDir) {
       return { ok: false, cwd: null, scriptPath: null, displayScriptPath: null, selectionType: null, reason: "not-in-algorithm-dir" };
     }
@@ -564,12 +551,8 @@ function resolveExplorerTargetCwd(selectedPath, resolvedRepoRoot) {
   }
 
   if (parts.length === 3) {
-    let isDir = false;
-    try {
-      isDir = fs.statSync(canonicalSelectedPath).isDirectory();
-    } catch (_) {
-      // Treat stat failures as file-like to preserve immediate-child behavior.
-    }
+    const isDir = isDirectoryPath(canonicalSelectedPath);
+
     const selectionType = isDir ? "immediate-child-dir" : "immediate-child-file";
     const cwd = path.join(srcBase, parts[0], parts[1]);
     const scriptPath = path.join(resolvedRepoRoot, "run.sh");

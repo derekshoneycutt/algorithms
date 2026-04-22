@@ -1,5 +1,9 @@
-const path = require("path");
-const { realpathSafe, resolveEligibilityState } = require("../runtime/pathResolver");
+const { resolveEligibilityState } = require("../runtime/pathResolver");
+const {
+  deleteWithTrashFallback: deleteWithTrashFallbackInternal,
+  isPathWithinRoot: isPathWithinRootInternal,
+  realpathSafe,
+} = require("../runtime/workspaceFilesystem");
 
 /**
  * Returns workspace folders from VS Code API.
@@ -44,15 +48,7 @@ function resolveFirstEligibleRootPath(workspaceFolders) {
  * @returns {boolean} True when candidatePath is inside rootPath.
  */
 function isPathWithinRoot(rootPath, candidatePath) {
-  const canonicalRootPath = realpathSafe(rootPath);
-  const normalizedCandidatePath = path.resolve(candidatePath);
-  const relativePath = path.relative(canonicalRootPath, normalizedCandidatePath);
-
-  if (!relativePath || relativePath === ".") {
-    return true;
-  }
-
-  return !relativePath.startsWith("..") && !path.isAbsolute(relativePath);
+  return isPathWithinRootInternal(rootPath, candidatePath);
 }
 
 /**
@@ -64,25 +60,7 @@ function isPathWithinRoot(rootPath, candidatePath) {
  * @returns {Promise<{usedTrash: boolean}>} Delete result metadata.
  */
 async function deleteWithTrashFallback(vscodeApi, targetUri, recursive) {
-  try {
-    await vscodeApi.workspace.fs.delete(targetUri, {
-      recursive,
-      useTrash: true,
-    });
-
-    return {
-      usedTrash: true,
-    };
-  } catch (_) {
-    await vscodeApi.workspace.fs.delete(targetUri, {
-      recursive,
-      useTrash: false,
-    });
-
-    return {
-      usedTrash: false,
-    };
-  }
+  return deleteWithTrashFallbackInternal(vscodeApi, targetUri, recursive);
 }
 
 module.exports = {

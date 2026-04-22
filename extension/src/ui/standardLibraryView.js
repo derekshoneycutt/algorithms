@@ -1,4 +1,3 @@
-const fs = require("fs");
 const path = require("path");
 const vscode = require("vscode");
 const { VIEW_IDS } = require("../runtime/viewConstants");
@@ -7,7 +6,14 @@ const {
   resolveEligibilityState,
 } = require("../runtime/pathResolver");
 const {
+  createEmptyFilePath,
   deleteWithTrashFallback,
+  ensureDirectoryPath,
+  isDirectoryPath,
+  isFilePath,
+  readDirectoryEntries,
+} = require("../runtime/workspaceFilesystem");
+const {
   getWorkspaceFolders,
   isPathWithinRoot,
 } = require("./uiWorkspaceFsUtils");
@@ -26,11 +32,7 @@ const CREATE_ANYWAY_ACTION = "Create Anyway";
  * @returns {boolean} True when the path exists and is a directory.
  */
 function directoryExists(directoryPath) {
-  try {
-    return fs.statSync(directoryPath).isDirectory();
-  } catch (_) {
-    return false;
-  }
+  return isDirectoryPath(directoryPath, { useCache: false });
 }
 
 /**
@@ -40,11 +42,7 @@ function directoryExists(directoryPath) {
  * @returns {boolean} True when the path exists and is a file.
  */
 function fileExists(filePath) {
-  try {
-    return fs.statSync(filePath).isFile();
-  } catch (_) {
-    return false;
-  }
+  return isFilePath(filePath, { useCache: false });
 }
 
 /**
@@ -363,7 +361,15 @@ function readStandardLibraryChildren(directoryPath, supportedLanguageKeys) {
   }
 
   try {
-    const entries = fs.readdirSync(directoryPath, { withFileTypes: true });
+    const entries = readDirectoryEntries(directoryPath, {
+      withFileTypes: true,
+      useCache: false,
+    });
+
+    if (!Array.isArray(entries)) {
+      return [];
+    }
+
     entries.sort(compareDirectoryEntries);
     const nodes = [];
 
@@ -616,7 +622,7 @@ function registerStandardLibraryView(vscodeApi = vscode) {
       return;
     }
 
-    fs.mkdirSync(pathResolution.targetPath, { recursive: true });
+    ensureDirectoryPath(pathResolution.targetPath, { recursive: true });
     provider.refresh();
     vscodeApi.window.showInformationMessage(
       `Created folder: ${path.relative(operationContext.stdlibRootPath, pathResolution.targetPath) || path.basename(pathResolution.targetPath)}`
@@ -693,7 +699,7 @@ function registerStandardLibraryView(vscodeApi = vscode) {
     }
 
     const parentDirectory = path.dirname(pathResolution.targetPath);
-    fs.mkdirSync(parentDirectory, { recursive: true });
+    ensureDirectoryPath(parentDirectory, { recursive: true });
 
     const isSupportedFile = isSupportedStandardLibraryFile(
       pathResolution.targetPath,
@@ -711,7 +717,10 @@ function registerStandardLibraryView(vscodeApi = vscode) {
       }
     }
 
-    fs.writeFileSync(pathResolution.targetPath, "", { flag: "wx" });
+    createEmptyFilePath(pathResolution.targetPath, {
+      ensureParentDirectory: false,
+      exclusive: true,
+    });
     provider.refresh();
 
     const targetUri = vscodeApi.Uri.file(pathResolution.targetPath);

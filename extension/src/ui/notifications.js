@@ -1,4 +1,4 @@
-const { TERMINAL_NAME } = require("../runtime/runScriptRunner");
+const { TERMINAL_NAME } = require("../runtime/commandline/adapters/runCommandAdapter");
 
 const BUILD_FAILURE_GUIDANCE = {
   "missing-input": "Retry the command. If this persists, reload the window.",

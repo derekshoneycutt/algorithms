@@ -1,12 +1,19 @@
-const fs = require("fs");
 const path = require("path");
-const { spawn } = require("child_process");
 const vscode = require("vscode");
 const { VIEW_IDS } = require("../runtime/viewConstants");
 const {
   realpathSafe,
   resolveEligibilityState,
 } = require("../runtime/pathResolver");
+const {
+  createEmptyFilePath,
+  ensureDirectoryPath,
+  isDirectoryPath: fsIsDirectoryPath,
+  isFilePath,
+  readDirectoryEntries,
+  readTextFilePath,
+  statPath,
+} = require("../runtime/workspaceFilesystem");
 const {
   deleteWithTrashFallback,
   getWorkspaceFolders,
@@ -33,6 +40,9 @@ const {
 const {
   buildSmokeStatusSummary,
 } = require("../runtime/smokeStatusState");
+const {
+  createSmokeProcessLifecycle,
+} = require("../runtime/smokeProcessLifecycle");
 
 const LANGUAGE_ICON_DIRECTORY_SEGMENT = ".algos-language-icons";
 const LANGUAGE_PRESENT_URI_FRAGMENT = "algos-language-present";
@@ -44,7 +54,6 @@ const SMOKE_RUNNING_URI_FRAGMENT = "algos-smoke-running";
 const SMOKE_PASSED_URI_FRAGMENT = "algos-smoke-passed";
 const SMOKE_FAILED_URI_FRAGMENT = "algos-smoke-failed";
 const SMOKE_STOPPED_URI_FRAGMENT = "algos-smoke-stopped";
-const SMOKE_TEST_OUTPUT_CHANNEL_NAME = "Algorithms Smoke Test";
 
 const SMOKE_STATUS_LABELS = {
   queued: "Queued",
@@ -200,12 +209,8 @@ function resolveSrcRootPath(resolvedRoot) {
 
   const srcRootPath = path.join(realpathSafe(resolvedRoot), "src");
 
-  try {
-    if (fs.statSync(srcRootPath).isDirectory()) {
-      return realpathSafe(srcRootPath);
-    }
-  } catch (_) {
-    return null;
+  if (fsIsDirectoryPath(srcRootPath, { useCache: false })) {
+    return realpathSafe(srcRootPath);
   }
 
   return null;
@@ -350,22 +355,25 @@ function hasAllowedSidebarDescendant(directoryPath, resolvedRoot, supportedLangu
     return false;
   }
 
-  try {
-    const entries = fs.readdirSync(directoryPath, { withFileTypes: true });
+  const entries = readDirectoryEntries(directoryPath, {
+    withFileTypes: true,
+    useCache: false,
+  });
 
-    for (const entry of entries) {
-      const entryPath = path.join(directoryPath, entry.name);
-
-      if (entry.isFile() && isAllowedSidebarFile(entryPath, resolvedRoot, supportedLanguageKeys)) {
-        return true;
-      }
-
-      if (entry.isDirectory() && hasAllowedSidebarDescendant(entryPath, resolvedRoot, supportedLanguageKeys)) {
-        return true;
-      }
-    }
-  } catch (_) {
+  if (!Array.isArray(entries)) {
     return false;
+  }
+
+  for (const entry of entries) {
+    const entryPath = path.join(directoryPath, entry.name);
+
+    if (entry.isFile() && isAllowedSidebarFile(entryPath, resolvedRoot, supportedLanguageKeys)) {
+      return true;
+    }
+
+    if (entry.isDirectory() && hasAllowedSidebarDescendant(entryPath, resolvedRoot, supportedLanguageKeys)) {
+      return true;
+    }
   }
 
   return false;
@@ -404,22 +412,18 @@ function readFlaggedLanguageKeysForAlgorithm(algorithmPath) {
   }
 
   const flagFilePath = path.join(algorithmPath, ".flag-lang");
+  const fileContent = readTextFilePath(flagFilePath, { encoding: "utf8" });
 
-  try {
-    if (!fs.existsSync(flagFilePath)) {
-      return new Set();
-    }
-
-    const fileContent = fs.readFileSync(flagFilePath, "utf8");
-    const keys = fileContent
-      .split(/\r?\n/)
-      .map((line) => line.trim().toLowerCase())
-      .filter((line) => line.length > 0);
-
-    return new Set(keys);
-  } catch (_) {
+  if (typeof fileContent !== "string") {
     return new Set();
   }
+
+  const keys = fileContent
+    .split(/\r?\n/)
+    .map((line) => line.trim().toLowerCase())
+    .filter((line) => line.length > 0);
+
+  return new Set(keys);
 }
 
 /**
@@ -606,28 +610,32 @@ function readMatchingIncludeFilePaths(
     return [];
   }
 
-  try {
-    const entries = fs.readdirSync(includeDirectoryPath, { withFileTypes: true });
-    entries.sort(compareDirectoryEntries);
+  const entries = readDirectoryEntries(includeDirectoryPath, {
+    withFileTypes: true,
+    useCache: false,
+  });
 
-    const matchingFiles = [];
-
-    for (const entry of entries) {
-      if (!entry.isFile()) {
-        continue;
-      }
-
-      const entryPath = path.join(includeDirectoryPath, entry.name);
-
-      if (isAllowedSidebarFile(entryPath, resolvedRoot, supportedLanguageKeys)) {
-        matchingFiles.push(entryPath);
-      }
-    }
-
-    return matchingFiles;
-  } catch (_) {
+  if (!Array.isArray(entries)) {
     return [];
   }
+
+  entries.sort(compareDirectoryEntries);
+
+  const matchingFiles = [];
+
+  for (const entry of entries) {
+    if (!entry.isFile()) {
+      continue;
+    }
+
+    const entryPath = path.join(includeDirectoryPath, entry.name);
+
+    if (isAllowedSidebarFile(entryPath, resolvedRoot, supportedLanguageKeys)) {
+      matchingFiles.push(entryPath);
+    }
+  }
+
+  return matchingFiles;
 }
 
 /**
@@ -1078,31 +1086,34 @@ function collectAllowedSidebarFiles(directoryPath, resolvedRoot, supportedLangua
    * @returns {void}
    */
   function walk(currentPath) {
-    try {
-      const entries = fs.readdirSync(currentPath, { withFileTypes: true });
+    const entries = readDirectoryEntries(currentPath, {
+      withFileTypes: true,
+      useCache: false,
+    });
 
-      for (const entry of entries) {
-        const entryPath = path.join(currentPath, entry.name);
+    if (!Array.isArray(entries)) {
+      return;
+    }
 
-        if (entry.isFile()) {
-          if (isAllowedSidebarFile(entryPath, resolvedRoot, supportedLanguageKeys)) {
-            collectedFiles.push(entryPath);
-          }
-          continue;
+    for (const entry of entries) {
+      const entryPath = path.join(currentPath, entry.name);
+
+      if (entry.isFile()) {
+        if (isAllowedSidebarFile(entryPath, resolvedRoot, supportedLanguageKeys)) {
+          collectedFiles.push(entryPath);
         }
-
-        if (!entry.isDirectory()) {
-          continue;
-        }
-
-        if (!hasAllowedSidebarDescendant(entryPath, resolvedRoot, supportedLanguageKeys)) {
-          continue;
-        }
-
-        walk(entryPath);
+        continue;
       }
-    } catch (_) {
-      // Ignore unreadable folders and continue scanning remaining branches.
+
+      if (!entry.isDirectory()) {
+        continue;
+      }
+
+      if (!hasAllowedSidebarDescendant(entryPath, resolvedRoot, supportedLanguageKeys)) {
+        continue;
+      }
+
+      walk(entryPath);
     }
   }
 
@@ -1208,13 +1219,20 @@ function readSidebarDirectoryChildren(directoryPath, resolvedRoot, supportedLang
     return [];
   }
 
-  try {
-    const entries = fs.readdirSync(directoryPath, { withFileTypes: true });
-    entries.sort(compareDirectoryEntries);
-    const visibleEntries = [];
-    const isAlgorithmDirectory = isAlgorithmDirectoryPath(directoryPath, resolvedRoot);
-    const attachedIncludeLanguages = new Set();
-    const algorithmFlaggedLanguageCache = new Map();
+  const entries = readDirectoryEntries(directoryPath, {
+    withFileTypes: true,
+    useCache: false,
+  });
+
+  if (!Array.isArray(entries)) {
+    return [];
+  }
+
+  entries.sort(compareDirectoryEntries);
+  const visibleEntries = [];
+  const isAlgorithmDirectory = isAlgorithmDirectoryPath(directoryPath, resolvedRoot);
+  const attachedIncludeLanguages = new Set();
+  const algorithmFlaggedLanguageCache = new Map();
 
     /**
      * Returns cached flagged language keys for one algorithm directory.
@@ -1237,108 +1255,105 @@ function readSidebarDirectoryChildren(directoryPath, resolvedRoot, supportedLang
       return algorithmFlaggedLanguageCache.get(algorithmPath);
     }
 
-    if (isAlgorithmDirectory) {
-      const algorithmFlaggedLanguageKeys = getFlaggedLanguageKeys(directoryPath);
-
-      for (const entry of entries) {
-        if (!entry.isFile()) {
-          continue;
-        }
-
-        const entryPath = path.join(directoryPath, entry.name);
-
-        if (!isAllowedSidebarFile(entryPath, resolvedRoot, supportedLanguageKeys)) {
-          continue;
-        }
-
-        const languageKey = getPrimaryAlgorithmFileLanguageKey(entryPath, resolvedRoot);
-
-        if (!languageKey) {
-          continue;
-        }
-
-        const includeFileChildren = readIncludeFileChildren(
-          directoryPath,
-          languageKey,
-          resolvedRoot,
-          supportedLanguageKeys,
-          algorithmFlaggedLanguageKeys
-        );
-
-        if (includeFileChildren.length > 0) {
-          attachedIncludeLanguages.add(languageKey);
-        }
-      }
-    }
+  if (isAlgorithmDirectory) {
+    const algorithmFlaggedLanguageKeys = getFlaggedLanguageKeys(directoryPath);
 
     for (const entry of entries) {
+      if (!entry.isFile()) {
+        continue;
+      }
+
       const entryPath = path.join(directoryPath, entry.name);
 
-      if (entry.isFile()) {
-        if (isAllowedSidebarFile(entryPath, resolvedRoot, supportedLanguageKeys)) {
-          const algorithmPath = resolveAlgorithmPathForSidebarFile(entryPath, resolvedRoot);
-          const fileLanguageKey = resolveSidebarFileLanguageKey(entryPath, resolvedRoot);
-          const languageKey = isAlgorithmDirectory
-            ? getPrimaryAlgorithmFileLanguageKey(entryPath, resolvedRoot)
-            : null;
-          const hasIncludeChildren = Boolean(
-            languageKey && attachedIncludeLanguages.has(languageKey)
-          );
-          const flaggedLanguageKeys = getFlaggedLanguageKeys(algorithmPath);
-          const isFlagged = Boolean(
-            fileLanguageKey && flaggedLanguageKeys.has(fileLanguageKey)
-          );
-
-          visibleEntries.push(
-            createSidebarTreeNode(
-              entryPath,
-              entry,
-              isDirectAlgorithmRootFile(entryPath, resolvedRoot),
-              algorithmPath,
-              fileLanguageKey || languageKey,
-              hasIncludeChildren,
-              isFlagged
-            )
-          );
-        }
+      if (!isAllowedSidebarFile(entryPath, resolvedRoot, supportedLanguageKeys)) {
         continue;
       }
 
-      if (!entry.isDirectory()) {
+      const languageKey = getPrimaryAlgorithmFileLanguageKey(entryPath, resolvedRoot);
+
+      if (!languageKey) {
         continue;
       }
 
-      if (
-        isAlgorithmDirectory
-        && isLanguageIncludeDirectoryName(entry.name)
-        && attachedIncludeLanguages.has(entry.name.slice(0, -8).toLowerCase())
-      ) {
-        continue;
-      }
+      const includeFileChildren = readIncludeFileChildren(
+        directoryPath,
+        languageKey,
+        resolvedRoot,
+        supportedLanguageKeys,
+        algorithmFlaggedLanguageKeys
+      );
 
-      if (
-        isFirstLayerDirectoryPath(entryPath, resolvedRoot)
-        || isAlgorithmDirectoryPath(entryPath, resolvedRoot)
-      ) {
-        visibleEntries.push(
-          createSidebarTreeNode(entryPath, entry, false, null, null, false, false)
+      if (includeFileChildren.length > 0) {
+        attachedIncludeLanguages.add(languageKey);
+      }
+    }
+  }
+
+  for (const entry of entries) {
+    const entryPath = path.join(directoryPath, entry.name);
+
+    if (entry.isFile()) {
+      if (isAllowedSidebarFile(entryPath, resolvedRoot, supportedLanguageKeys)) {
+        const algorithmPath = resolveAlgorithmPathForSidebarFile(entryPath, resolvedRoot);
+        const fileLanguageKey = resolveSidebarFileLanguageKey(entryPath, resolvedRoot);
+        const languageKey = isAlgorithmDirectory
+          ? getPrimaryAlgorithmFileLanguageKey(entryPath, resolvedRoot)
+          : null;
+        const hasIncludeChildren = Boolean(
+          languageKey && attachedIncludeLanguages.has(languageKey)
         );
-        continue;
-      }
+        const flaggedLanguageKeys = getFlaggedLanguageKeys(algorithmPath);
+        const isFlagged = Boolean(
+          fileLanguageKey && flaggedLanguageKeys.has(fileLanguageKey)
+        );
 
-      if (!hasAllowedSidebarDescendant(entryPath, resolvedRoot, supportedLanguageKeys)) {
-        continue;
+        visibleEntries.push(
+          createSidebarTreeNode(
+            entryPath,
+            entry,
+            isDirectAlgorithmRootFile(entryPath, resolvedRoot),
+            algorithmPath,
+            fileLanguageKey || languageKey,
+            hasIncludeChildren,
+            isFlagged
+          )
+        );
       }
+      continue;
+    }
 
+    if (!entry.isDirectory()) {
+      continue;
+    }
+
+    if (
+      isAlgorithmDirectory
+      && isLanguageIncludeDirectoryName(entry.name)
+      && attachedIncludeLanguages.has(entry.name.slice(0, -8).toLowerCase())
+    ) {
+      continue;
+    }
+
+    if (
+      isFirstLayerDirectoryPath(entryPath, resolvedRoot)
+      || isAlgorithmDirectoryPath(entryPath, resolvedRoot)
+    ) {
       visibleEntries.push(
         createSidebarTreeNode(entryPath, entry, false, null, null, false, false)
       );
+      continue;
     }
 
-    return visibleEntries;
-  } catch (_) {
-    return [];
+    if (!hasAllowedSidebarDescendant(entryPath, resolvedRoot, supportedLanguageKeys)) {
+      continue;
+    }
+
+    visibleEntries.push(
+      createSidebarTreeNode(entryPath, entry, false, null, null, false, false)
+    );
   }
+
+  return visibleEntries;
 }
 
 /**
@@ -2152,12 +2167,6 @@ class WorkspaceStatusTreeDataProvider {
  */
 function registerWorkspaceAlgorithmsRunView() {
   const provider = new WorkspaceStatusTreeDataProvider();
-  const smokeOutputChannel = vscode.window.createOutputChannel(
-    SMOKE_TEST_OUTPUT_CHANNEL_NAME
-  );
-  const smokeProcessByAlgorithmPath = new Map();
-  const smokeRunTokenByAlgorithmPath = new Map();
-  const stoppedSmokeRunTokenByAlgorithmPath = new Map();
   const languageStatusDecorationProvider = {
     provideFileDecoration(uri) {
       if (
@@ -2273,156 +2282,65 @@ function registerWorkspaceAlgorithmsRunView() {
   });
 
   /**
-   * Terminates any active smoke-test process for one algorithm directory.
+   * Dispatches one smoke-runtime action and refreshes tree view on state change.
    *
-   * @param {string} algorithmPath Algorithm directory path.
+   * @param {{type: string, payload: unknown}} action Store action.
    * @returns {void}
    */
-  function stopActiveSmokeProcess(
-    algorithmPath,
-    options = {
-      markStopped: false,
-      invalidateRunToken: true,
+  function dispatchSmokeRuntimeActionAndRefresh(action) {
+    const previousState = extensionStateStore.getState();
+    extensionStateStore.dispatch(action);
+
+    if (extensionStateStore.getState() !== previousState) {
+      provider.refresh();
     }
-  ) {
-    const activeProcess = smokeProcessByAlgorithmPath.get(algorithmPath);
-
-    if (!activeProcess) {
-      return false;
-    }
-
-    const markStopped = options.markStopped === true;
-    const invalidateRunToken = options.invalidateRunToken !== false;
-    const activeRunToken = smokeRunTokenByAlgorithmPath.get(algorithmPath) || 0;
-
-    if (markStopped) {
-      stoppedSmokeRunTokenByAlgorithmPath.set(algorithmPath, activeRunToken);
-      provider.markRemainingSmokeStatusesStopped(algorithmPath);
-    } else {
-      stoppedSmokeRunTokenByAlgorithmPath.delete(algorithmPath);
-    }
-
-    if (invalidateRunToken) {
-      smokeRunTokenByAlgorithmPath.set(algorithmPath, activeRunToken + 1);
-    }
-
-    smokeProcessByAlgorithmPath.delete(algorithmPath);
-    provider.setSmokeProcessRunning(algorithmPath, false);
-
-    try {
-      activeProcess.kill();
-    } catch (_) {
-      // Ignore process termination errors during replacement/disposal.
-    }
-
-    return true;
   }
 
-  /**
-   * Returns whether one smoke-test callback belongs to a manually stopped run.
-   *
-   * @param {string} algorithmPath Algorithm directory path.
-   * @param {number} runToken Smoke run token.
-   * @returns {boolean} True when the callback belongs to a stopped run token.
-   */
-  function isStoppedSmokeRun(algorithmPath, runToken) {
-    return stoppedSmokeRunTokenByAlgorithmPath.get(algorithmPath) === runToken;
-  }
+  const smokeProcessLifecycle = createSmokeProcessLifecycle({
+    vscodeApi: vscode,
+    parseSmokeStatusLine,
+    onRunStarted: (_algorithmPath, _runToken) => {
+      provider.refresh();
+    },
+    onSmokeLanguageStatus: (algorithmPath, languageKey, smokeStatus) => {
+      dispatchSmokeRuntimeActionAndRefresh(
+        actionCreators.setSmokeLanguageStatus(algorithmPath, languageKey, smokeStatus)
+      );
+    },
+    onRunStopped: (algorithmPath) => {
+      dispatchSmokeRuntimeActionAndRefresh(
+        actionCreators.applyRemainingSmokeStatus(algorithmPath, "stopped")
+      );
+      provider.refresh();
+    },
+    onRunFailed: (algorithmPath, _errorMessage) => {
+      dispatchSmokeRuntimeActionAndRefresh(
+        actionCreators.applyRemainingSmokeStatus(algorithmPath, "failed")
+      );
+      provider.refresh();
+      vscode.window.showErrorMessage(
+        `Smoke Test failed to start for ${path.basename(algorithmPath)}.`
+      );
+    },
+    onRunCompleted: (algorithmPath, details) => {
+      dispatchSmokeRuntimeActionAndRefresh(
+        actionCreators.applyRemainingSmokeStatus(algorithmPath, "failed")
+      );
+      provider.refresh();
 
-  /**
-   * Returns whether one smoke-test callback belongs to the latest run token.
-   *
-   * @param {string} algorithmPath Algorithm directory path.
-   * @param {number} runToken Smoke run token.
-   * @returns {boolean} True when the callback should still mutate provider state.
-   */
-  function isCurrentSmokeRun(algorithmPath, runToken) {
-    return smokeRunTokenByAlgorithmPath.get(algorithmPath) === runToken;
-  }
+      const smokeState = selectSmokeStateForAlgorithm(algorithmPath);
+      const summary = buildSmokeStatusSummary(smokeState);
+      const summaryLine = `Smoke summary for ${path.basename(algorithmPath)}: queued=${summary.queued} running=${summary.running} passed=${summary.passed} failed=${summary.failed} stopped=${summary.stopped}`;
+      smokeProcessLifecycle.appendLine(summaryLine);
 
-  /**
-   * Seeds smoke-test status for every language row in one algorithm.
-   *
-   * @param {string} algorithmPath Algorithm directory path.
-   * @param {string|null} resolvedRoot Canonical repository root path.
-   * @param {string[]|null} selectedLanguageKeys Optional selected smoke languages.
-   * @returns {string[]} Smoke-test language keys for the run.
-   */
-  function initializeSmokeStatusesForAlgorithm(
-    algorithmPath,
-    resolvedRoot,
-    selectedLanguageKeys
-  ) {
-    const supportedLanguageKeys = getSupportedLanguageKeys(resolvedRoot);
-    const defaultSmokeLanguageKeys = getSmokeTestLanguageKeys(
-      resolvedRoot,
-      supportedLanguageKeys
-    );
-    const requestedLanguageKeys = Array.isArray(selectedLanguageKeys)
-      ? selectedLanguageKeys
-      : defaultSmokeLanguageKeys;
-    const smokeLanguageKeys = requestedLanguageKeys.filter((languageKey) =>
-      defaultSmokeLanguageKeys.includes(languageKey)
-    );
-    const languageSummaryRows = readAlgorithmLanguageSummary(
-      algorithmPath,
-      resolvedRoot,
-      supportedLanguageKeys
-    );
-    const hasFilesByLanguageKey = new Map(
-      languageSummaryRows.map((row) => [row.languageKey, row.hasFiles])
-    );
-    const smokeState = new Map();
-
-    for (const languageKey of smokeLanguageKeys) {
-      const hasFiles = hasFilesByLanguageKey.get(languageKey) === true;
-      smokeState.set(languageKey, {
-        status: hasFiles ? "queued" : "failed",
-        locked: !hasFiles,
-      });
-    }
-
-    provider.replaceSmokeStateForAlgorithm(algorithmPath, smokeState);
-    return smokeLanguageKeys;
-  }
-
-  /**
-   * Appends smoke-test process output and updates provider state from parsed lines.
-   *
-   * @param {string} algorithmPath Algorithm directory path.
-   * @param {number} runToken Smoke run token.
-   * @param {string} chunk Output chunk text.
-   * @param {string} bufferKey Buffer state property name.
-   * @param {{stdoutBuffer: string, stderrBuffer: string}} bufferState Output buffer state.
-   * @returns {void}
-   */
-  function processSmokeOutputChunk(
-    algorithmPath,
-    runToken,
-    chunk,
-    bufferKey,
-    bufferState
-  ) {
-    bufferState[bufferKey] += chunk;
-    smokeOutputChannel.append(chunk);
-
-    const lines = bufferState[bufferKey].split(/\r?\n/);
-    bufferState[bufferKey] = lines.pop() || "";
-
-    for (const line of lines) {
-      const parsedLine = parseSmokeStatusLine(line);
-
-      if (!parsedLine || !isCurrentSmokeRun(algorithmPath, runToken)) {
-        continue;
+      if (summary.failed > 0 || details.exitCode !== 0) {
+        vscode.window.showWarningMessage(summaryLine);
+        return;
       }
 
-      provider.setSmokeLanguageStatus(
-        algorithmPath,
-        parsedLine.languageKey,
-        parsedLine.smokeStatus
-      );
-    }
-  }
+      vscode.window.showInformationMessage(summaryLine);
+    },
+  });
 
   /**
    * Runs one algorithm-level smoke test and streams smoke-state updates.
@@ -2464,7 +2382,7 @@ function registerWorkspaceAlgorithmsRunView() {
       "run-smoke-test.sh"
     );
 
-    if (!fs.existsSync(smokeScriptPath)) {
+    if (!isFilePath(smokeScriptPath, { useCache: false })) {
       vscodeApi.window.showErrorMessage(
         `Smoke test runner not found: ${smokeScriptPath}`
       );
@@ -2475,11 +2393,6 @@ function registerWorkspaceAlgorithmsRunView() {
       };
     }
 
-    stopActiveSmokeProcess(algorithmPath);
-    stoppedSmokeRunTokenByAlgorithmPath.delete(algorithmPath);
-
-    const runToken = (smokeRunTokenByAlgorithmPath.get(algorithmPath) || 0) + 1;
-    smokeRunTokenByAlgorithmPath.set(algorithmPath, runToken);
     const smokeOptions = getEffectiveSidebarSmokeArgs();
 
     if (!smokeOptions.ok) {
@@ -2493,13 +2406,32 @@ function registerWorkspaceAlgorithmsRunView() {
       };
     }
 
-    const smokeLanguageKeys = initializeSmokeStatusesForAlgorithm(
+    const supportedLanguageKeys = getSupportedLanguageKeys(resolvedRoot);
+    const defaultSmokeLanguageKeys = getSmokeTestLanguageKeys(
+      resolvedRoot,
+      supportedLanguageKeys
+    );
+    const requestedLanguageKeys = Array.isArray(smokeOptions.selectedLanguages)
+      ? smokeOptions.selectedLanguages
+      : defaultSmokeLanguageKeys;
+    const smokeLanguageKeys = requestedLanguageKeys.filter((languageKey) =>
+      defaultSmokeLanguageKeys.includes(languageKey)
+    );
+    const languageSummaryRows = readAlgorithmLanguageSummary(
       algorithmPath,
       resolvedRoot,
-      smokeOptions.selectedLanguages
+      supportedLanguageKeys
     );
+    const hasFilesByLanguageKey = new Map(
+      languageSummaryRows.map((row) => [row.languageKey, row.hasFiles])
+    );
+    const seededSmokeLanguageKeys = smokeProcessLifecycle.seedSmokeStateForRun({
+      algorithmPath,
+      smokeLanguageKeys,
+      hasFilesByLanguageKey,
+    });
 
-    if (smokeLanguageKeys.length === 0) {
+    if (seededSmokeLanguageKeys.length === 0) {
       vscodeApi.window.showWarningMessage(
         "No compatible smoke-test languages are selected for this algorithm."
       );
@@ -2510,96 +2442,23 @@ function registerWorkspaceAlgorithmsRunView() {
       };
     }
 
-    const smokeCommandArgs = [smokeScriptPath, `--dir=${algorithmPath}`, ...smokeOptions.args];
-
-    const smokeProcess = spawn("sh", smokeCommandArgs, {
+    const startResult = smokeProcessLifecycle.startRun({
+      algorithmPath,
+      smokeScriptPath,
+      smokeArgs: smokeOptions.args,
       cwd: algorithmPath,
     });
-    const bufferState = {
-      stdoutBuffer: "",
-      stderrBuffer: "",
-    };
 
-    smokeProcessByAlgorithmPath.set(algorithmPath, smokeProcess);
-    provider.setSmokeProcessRunning(algorithmPath, true);
-    smokeOutputChannel.appendLine("");
-    smokeOutputChannel.appendLine(`=== Smoke Test: ${algorithmPath} ===`);
-    smokeOutputChannel.show(true);
-
-    smokeProcess.stdout.setEncoding("utf8");
-    smokeProcess.stderr.setEncoding("utf8");
-
-    smokeProcess.stdout.on("data", (chunk) => {
-      processSmokeOutputChunk(
-        algorithmPath,
-        runToken,
-        chunk,
-        "stdoutBuffer",
-        bufferState
-      );
-    });
-
-    smokeProcess.stderr.on("data", (chunk) => {
-      processSmokeOutputChunk(
-        algorithmPath,
-        runToken,
-        chunk,
-        "stderrBuffer",
-        bufferState
-      );
-    });
-
-    smokeProcess.on("error", (error) => {
-      if (isStoppedSmokeRun(algorithmPath, runToken)) {
-        stoppedSmokeRunTokenByAlgorithmPath.delete(algorithmPath);
-        return;
-      }
-
-      if (!isCurrentSmokeRun(algorithmPath, runToken)) {
-        return;
-      }
-
-      smokeProcessByAlgorithmPath.delete(algorithmPath);
-      provider.setSmokeProcessRunning(algorithmPath, false);
-      provider.markRemainingSmokeStatusesFailed(algorithmPath);
-      smokeOutputChannel.appendLine(`Process error: ${error.message}`);
+    if (!startResult.ok) {
       vscodeApi.window.showErrorMessage(
         `Smoke Test failed to start for ${path.basename(algorithmPath)}.`
       );
-    });
-
-    smokeProcess.on("close", (code, signal) => {
-      if (isStoppedSmokeRun(algorithmPath, runToken)) {
-        stoppedSmokeRunTokenByAlgorithmPath.delete(algorithmPath);
-        return;
-      }
-
-      if (!isCurrentSmokeRun(algorithmPath, runToken)) {
-        return;
-      }
-
-      smokeProcessByAlgorithmPath.delete(algorithmPath);
-      provider.setSmokeProcessRunning(algorithmPath, false);
-      provider.markRemainingSmokeStatusesFailed(algorithmPath);
-
-      const summary = provider.getSmokeStatusSummary(algorithmPath);
-      const summaryLine = `Smoke summary for ${path.basename(algorithmPath)}: queued=${summary.queued} running=${summary.running} passed=${summary.passed} failed=${summary.failed} stopped=${summary.stopped}`;
-
-      if (signal) {
-        smokeOutputChannel.appendLine(`Smoke process terminated by signal: ${signal}`);
-      } else {
-        smokeOutputChannel.appendLine(`Smoke process exited with code: ${code}`);
-      }
-
-      smokeOutputChannel.appendLine(summaryLine);
-
-      if (summary.failed > 0 || code !== 0) {
-        vscodeApi.window.showWarningMessage(summaryLine);
-        return;
-      }
-
-      vscodeApi.window.showInformationMessage(summaryLine);
-    });
+      return {
+        ok: false,
+        status: "failed",
+        reason: startResult.reason,
+      };
+    }
 
     vscodeApi.window.showInformationMessage(
       `Smoke Test started for ${path.basename(algorithmPath)}.`
@@ -2646,9 +2505,12 @@ function registerWorkspaceAlgorithmsRunView() {
       };
     }
 
-    const activeProcess = smokeProcessByAlgorithmPath.get(algorithmPath);
+    const didStop = smokeProcessLifecycle.stopRun(algorithmPath, {
+      markStopped: true,
+      invalidateRunToken: true,
+    });
 
-    if (!activeProcess) {
+    if (!didStop) {
       vscodeApi.window.showInformationMessage(
         `No smoke test is running for ${path.basename(algorithmPath)}.`
       );
@@ -2659,10 +2521,6 @@ function registerWorkspaceAlgorithmsRunView() {
       };
     }
 
-    stopActiveSmokeProcess(algorithmPath, {
-      markStopped: true,
-      invalidateRunToken: true,
-    });
     vscodeApi.window.showInformationMessage(
       `Stop requested for smoke test: ${path.basename(algorithmPath)}.`
     );
@@ -2817,12 +2675,7 @@ function registerWorkspaceAlgorithmsRunView() {
    * @returns {boolean} True when path exists.
    */
   function pathExists(targetPath) {
-    try {
-      fs.lstatSync(targetPath);
-      return true;
-    } catch (_) {
-      return false;
-    }
+    return Boolean(statPath(targetPath, { useCache: false }));
   }
 
   /**
@@ -2832,11 +2685,7 @@ function registerWorkspaceAlgorithmsRunView() {
    * @returns {boolean} True when existing path is a directory.
    */
   function isDirectoryPath(targetPath) {
-    try {
-      return fs.lstatSync(targetPath).isDirectory();
-    } catch (_) {
-      return false;
-    }
+    return fsIsDirectoryPath(targetPath, { useCache: false });
   }
 
   /**
@@ -2939,7 +2788,7 @@ function registerWorkspaceAlgorithmsRunView() {
       return { ok: false, status: "blocked", reason: "target-exists" };
     }
 
-    fs.mkdirSync(targetPath, { recursive: false });
+    ensureDirectoryPath(targetPath, { recursive: false });
     provider.refresh();
     vscodeApi.window.showInformationMessage(`Created folder: src/${folderName}`);
     return { ok: true, status: "created", reason: null };
@@ -2993,7 +2842,7 @@ function registerWorkspaceAlgorithmsRunView() {
       return { ok: false, status: "blocked", reason: "invalid-target-path" };
     }
 
-    fs.mkdirSync(targetPath, { recursive: false });
+    ensureDirectoryPath(targetPath, { recursive: false });
     provider.refresh();
     vscodeApi.window.showInformationMessage(`Created folder: ${path.basename(targetPath)}`);
     return { ok: true, status: "created", reason: null };
@@ -3060,7 +2909,10 @@ function registerWorkspaceAlgorithmsRunView() {
       }
     }
 
-    fs.writeFileSync(targetPath, "", { flag: "wx" });
+    createEmptyFilePath(targetPath, {
+      ensureParentDirectory: false,
+      exclusive: true,
+    });
     provider.refresh();
     await vscodeApi.commands.executeCommand("vscode.open", vscode.Uri.file(targetPath));
 
@@ -3146,8 +2998,11 @@ function registerWorkspaceAlgorithmsRunView() {
       return { ok: false, status: "blocked", reason: "include-language-mismatch" };
     }
 
-    fs.mkdirSync(includeDirectoryPath, { recursive: true });
-    fs.writeFileSync(targetPath, "", { flag: "wx" });
+    ensureDirectoryPath(includeDirectoryPath, { recursive: true });
+    createEmptyFilePath(targetPath, {
+      ensureParentDirectory: false,
+      exclusive: true,
+    });
     provider.refresh();
     await vscodeApi.commands.executeCommand("vscode.open", vscode.Uri.file(targetPath));
     return { ok: true, status: "created", reason: null };
@@ -3312,11 +3167,7 @@ function registerWorkspaceAlgorithmsRunView() {
    * @returns {void}
    */
   function disposeSmokeResources() {
-    for (const algorithmPath of smokeProcessByAlgorithmPath.keys()) {
-      stopActiveSmokeProcess(algorithmPath);
-    }
-
-    smokeOutputChannel.dispose();
+    smokeProcessLifecycle.dispose();
   }
 
   return {

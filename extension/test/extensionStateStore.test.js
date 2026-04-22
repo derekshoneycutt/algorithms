@@ -6,6 +6,16 @@ const {
   selectCachedPreflightState,
   selectSidebarCleanOptionsState,
   selectSidebarFilterMode,
+  selectFilesystemCacheTtlMs,
+  selectFilesystemDirectoryCacheEntry,
+  selectFilesystemStatCacheEntry,
+  selectFilesystemPendingOperation,
+  selectFilesystemOperationError,
+  selectEnvironmentCheckEnvResult,
+  selectEnvironmentCopyIconsResult,
+  selectEnvironmentBatchRoutingResult,
+  selectEnvironmentVariableStatus,
+  selectEnvironmentRoutingStatus,
   selectSidebarRunArgsState,
   selectSidebarRunChecksState,
   selectSidebarSmokeControlsState,
@@ -13,6 +23,8 @@ const {
   selectSidebarViewMode,
   selectHasSmokeResultsForAlgorithm,
   selectIsSmokeProcessRunningForAlgorithm,
+  selectSmokeRunTokenForAlgorithm,
+  selectStoppedSmokeRunTokenForAlgorithm,
   selectSmokeLanguageState,
   selectSmokeStateForAlgorithm,
 } = require("../src/runtime/extensionStateStore");
@@ -23,6 +35,8 @@ const {
  * @returns {void}
  */
 function resetExtensionStoreState() {
+  const resetAlgorithmPath = "/tmp/store-smoke";
+
   extensionStateStore.dispatch(actionCreators.setSidebarRunArgsEnabled(false));
   extensionStateStore.dispatch(actionCreators.setSidebarRunArgsText(""));
   extensionStateStore.dispatch(actionCreators.setSidebarSourceProfileEnabled(false));
@@ -38,7 +52,23 @@ function resetExtensionStoreState() {
   extensionStateStore.dispatch(actionCreators.setSidebarSmokeAllLanguagesEnabled(true));
   extensionStateStore.dispatch(actionCreators.setSidebarViewMode("files"));
   extensionStateStore.dispatch(actionCreators.setSidebarFilterMode("all"));
+  extensionStateStore.dispatch(actionCreators.setFilesystemCacheTtlMs(2000));
+  extensionStateStore.dispatch(actionCreators.clearFilesystemCache());
+  extensionStateStore.dispatch(actionCreators.clearFilesystemPendingOperations());
+  extensionStateStore.dispatch(actionCreators.clearFilesystemOperationErrors());
+  extensionStateStore.dispatch(actionCreators.resetEnvironmentStatus());
+  extensionStateStore.dispatch(actionCreators.resetEnvironmentDraftValues());
   extensionStateStore.dispatch(actionCreators.setCachedPreflightState(null));
+  extensionStateStore.dispatch(actionCreators.setSmokeRunToken(resetAlgorithmPath, 0));
+  extensionStateStore.dispatch(
+    actionCreators.setStoppedSmokeRunToken(resetAlgorithmPath, null)
+  );
+  extensionStateStore.dispatch(
+    actionCreators.setSmokeProcessError(resetAlgorithmPath, "")
+  );
+  extensionStateStore.dispatch(
+    actionCreators.setSmokeProcessExit(resetAlgorithmPath, null, null)
+  );
 }
 
 /**
@@ -257,6 +287,31 @@ function testSmokeRuntimeTransitions() {
 }
 
 /**
+ * Verifies smoke lifecycle token metadata updates round-trip through selectors.
+ *
+ * @returns {void}
+ */
+function testSmokeRuntimeLifecycleMetadataTransitions() {
+  resetExtensionStoreState();
+
+  const algorithmPath = "/tmp/store-smoke";
+
+  extensionStateStore.dispatch(actionCreators.setSmokeRunToken(algorithmPath, 4));
+  extensionStateStore.dispatch(
+    actionCreators.setStoppedSmokeRunToken(algorithmPath, 4)
+  );
+
+  assert.strictEqual(selectSmokeRunTokenForAlgorithm(algorithmPath), 4);
+  assert.strictEqual(selectStoppedSmokeRunTokenForAlgorithm(algorithmPath), 4);
+
+  extensionStateStore.dispatch(
+    actionCreators.setStoppedSmokeRunToken(algorithmPath, null)
+  );
+
+  assert.strictEqual(selectStoppedSmokeRunTokenForAlgorithm(algorithmPath), null);
+}
+
+/**
  * Verifies cached preflight snapshot can be stored and retrieved.
  *
  * @returns {void}
@@ -284,6 +339,181 @@ function testPreflightCacheTransitions() {
 }
 
 /**
+ * Verifies filesystem cache transitions and selectors round-trip metadata.
+ *
+ * @returns {void}
+ */
+function testFilesystemCacheTransitions() {
+  resetExtensionStoreState();
+
+  const directoryPath = "/tmp/cache-dir";
+  const statPath = "/tmp/cache-file";
+
+  extensionStateStore.dispatch(actionCreators.setFilesystemCacheTtlMs(2500));
+  extensionStateStore.dispatch(
+    actionCreators.setFilesystemDirectoryCacheEntry(directoryPath, 8, 1234)
+  );
+  extensionStateStore.dispatch(
+    actionCreators.setFilesystemStatCacheEntry(statPath, true, "file", 5678)
+  );
+
+  assert.strictEqual(selectFilesystemCacheTtlMs(), 2500);
+  assert.deepStrictEqual(selectFilesystemDirectoryCacheEntry(directoryPath), {
+    entryCount: 8,
+    updatedAt: 1234,
+  });
+  assert.deepStrictEqual(selectFilesystemStatCacheEntry(statPath), {
+    exists: true,
+    kind: "file",
+    updatedAt: 5678,
+  });
+
+  extensionStateStore.dispatch(actionCreators.clearFilesystemCache(directoryPath));
+  assert.strictEqual(selectFilesystemDirectoryCacheEntry(directoryPath), null);
+  assert.ok(selectFilesystemStatCacheEntry(statPath));
+
+  extensionStateStore.dispatch(actionCreators.clearFilesystemCache());
+  assert.strictEqual(selectFilesystemStatCacheEntry(statPath), null);
+}
+
+/**
+ * Verifies filesystem pending-operation and error transitions.
+ *
+ * @returns {void}
+ */
+function testFilesystemOperationTransitions() {
+  resetExtensionStoreState();
+
+  const operationId = "op-1";
+  const targetPath = "/tmp/pending-target";
+
+  extensionStateStore.dispatch(
+    actionCreators.setFilesystemPendingOperation(
+      operationId,
+      "create-file",
+      targetPath,
+      "pending",
+      1111
+    )
+  );
+  extensionStateStore.dispatch(
+    actionCreators.setFilesystemOperationError(targetPath, "permission denied")
+  );
+
+  assert.deepStrictEqual(selectFilesystemPendingOperation(operationId), {
+    type: "create-file",
+    targetPath,
+    status: "pending",
+    updatedAt: 1111,
+  });
+  assert.strictEqual(selectFilesystemOperationError(targetPath), "permission denied");
+
+  extensionStateStore.dispatch(
+    actionCreators.clearFilesystemPendingOperation(operationId)
+  );
+  assert.strictEqual(selectFilesystemPendingOperation(operationId), null);
+
+  extensionStateStore.dispatch(
+    actionCreators.setFilesystemPendingOperation(
+      "op-2",
+      "delete",
+      "/tmp/other",
+      "pending",
+      2222
+    )
+  );
+  extensionStateStore.dispatch(actionCreators.clearFilesystemPendingOperations());
+  assert.strictEqual(selectFilesystemPendingOperation("op-2"), null);
+
+  extensionStateStore.dispatch(actionCreators.clearFilesystemOperationErrors());
+  assert.strictEqual(selectFilesystemOperationError(targetPath), null);
+}
+
+/**
+ * Verifies environment status transitions round-trip through selectors.
+ *
+ * @returns {void}
+ */
+function testEnvironmentStatusTransitions() {
+  resetExtensionStoreState();
+
+  extensionStateStore.dispatch(
+    actionCreators.setEnvironmentCheckEnvResult({
+      kind: "ok",
+      text: "Environment check succeeded.",
+      filteredOutput: "filtered",
+      rawOutput: "raw",
+    })
+  );
+  extensionStateStore.dispatch(
+    actionCreators.setEnvironmentCopyIconsResult({
+      kind: "error",
+      text: "copy failed",
+    })
+  );
+  extensionStateStore.dispatch(
+    actionCreators.setEnvironmentBatchRoutingResult({
+      kind: "running",
+      text: "Applying",
+    })
+  );
+  extensionStateStore.dispatch(
+    actionCreators.setEnvironmentVariableStatus("timeout", {
+      kind: "ok",
+      text: "saved",
+    })
+  );
+  extensionStateStore.dispatch(
+    actionCreators.setEnvironmentRoutingStatus("python", {
+      kind: "ok",
+      text: "saved",
+    })
+  );
+
+  assert.deepStrictEqual(selectEnvironmentCheckEnvResult(), {
+    kind: "ok",
+    text: "Environment check succeeded.",
+    filteredOutput: "filtered",
+    rawOutput: "raw",
+  });
+  assert.deepStrictEqual(selectEnvironmentCopyIconsResult(), {
+    kind: "error",
+    text: "copy failed",
+  });
+  assert.deepStrictEqual(selectEnvironmentBatchRoutingResult(), {
+    kind: "running",
+    text: "Applying",
+  });
+  assert.deepStrictEqual(selectEnvironmentVariableStatus("timeout"), {
+    kind: "ok",
+    text: "saved",
+  });
+  assert.deepStrictEqual(selectEnvironmentRoutingStatus("python"), {
+    kind: "ok",
+    text: "saved",
+  });
+
+  extensionStateStore.dispatch(actionCreators.resetEnvironmentStatus());
+
+  assert.deepStrictEqual(selectEnvironmentCheckEnvResult(), {
+    kind: "idle",
+    text: "",
+    filteredOutput: "",
+    rawOutput: "",
+  });
+  assert.deepStrictEqual(selectEnvironmentCopyIconsResult(), {
+    kind: "idle",
+    text: "",
+  });
+  assert.deepStrictEqual(selectEnvironmentBatchRoutingResult(), {
+    kind: "idle",
+    text: "",
+  });
+  assert.strictEqual(selectEnvironmentVariableStatus("timeout"), null);
+  assert.strictEqual(selectEnvironmentRoutingStatus("python"), null);
+}
+
+/**
  * Runs all extension-state-store tests.
  *
  * @returns {void}
@@ -297,6 +527,10 @@ function runTests() {
   testStoreSubscriptionLifecycle();
   testSidebarUiModeTransitions();
   testSmokeRuntimeTransitions();
+  testSmokeRuntimeLifecycleMetadataTransitions();
+  testFilesystemCacheTransitions();
+  testFilesystemOperationTransitions();
+  testEnvironmentStatusTransitions();
   testPreflightCacheTransitions();
   resetExtensionStoreState();
 }
