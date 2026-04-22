@@ -3,7 +3,7 @@
 const { executeCommand } = require("../core/commandLineCore");
 const {
   createRuntimeProcessLifecycle,
-} = require("../../runtimeProcessLifecycle");
+} = require("../../process/runtimeProcessLifecycle");
 
 // ---------------------------------------------------------------------------
 // SECTION 1: Operation constants

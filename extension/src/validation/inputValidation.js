@@ -4,7 +4,7 @@ const {
   LANGUAGE_ID_ALIASES,
   normalizeExtensionToLanguageKey,
   normalizeLanguageId,
-} = require("../runtime/languageMetadata");
+} = require("../runtime/language/languageModule");
 
 const SUPPORTED_CHECK_ONLY_ROUTES = new Set(["native", "docker", "ssh"]);
 

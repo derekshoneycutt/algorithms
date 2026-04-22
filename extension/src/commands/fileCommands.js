@@ -4,18 +4,18 @@ const { executeCommand } = require("../runtime/commandline/core/commandLineCore"
 const { createRunCommandAdapter } = require("../runtime/commandline/adapters/runCommandAdapter");
 const {
   createRuntimeProcessLifecycle,
-} = require("../runtime/runtimeProcessLifecycle");
+} = require("../runtime/process/runtimeProcessLifecycle");
 const {
   resolveActiveFileRunContext,
   resolveCleanContextFromExplorer,
   resolveLocalCleanContextFromExplorer,
-} = require("../runtime/commandPathContext");
+} = require("../runtime/filesystem/commandPathContext");
 const {
   getEffectiveSidebarCleanDefaults,
   getEffectiveSidebarRunArgs,
   getEffectiveSidebarSourceProfile,
   getEffectiveSidebarRunChecks,
-} = require("../runtime/sidebarRunArgsState");
+} = require("../runtime/state/sidebarRunArgsState");
 // Validation and message helpers for active editor and language checks.
 const {
   validateActiveEditorContext,

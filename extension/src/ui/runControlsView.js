@@ -7,7 +7,7 @@ const {
   renderSectionHeader,
   renderTemplate,
   serializeForScript,
-} = require("./webviewHostUtils");
+} = require("./templateModule");
 const {
   actionCreators,
   extensionStateStore,
@@ -15,17 +15,18 @@ const {
   selectSidebarRunArgsState,
   selectSidebarRunChecksState,
   selectSidebarSourceProfileState,
-} = require("../runtime/extensionStateStore");
+} = require("../runtime/state/extensionStateStore");
 const {
   parseSidebarRunArgsText,
-} = require("../runtime/sidebarRunArgsState");
+} = require("../runtime/state/sidebarRunArgsState");
 
 const RUN_CONTROLS_MEDIA_PATH_SEGMENTS = ["src", "ui", "media"];
 const RUN_CONTROLS_SHARED_CSS_FILE_NAME = "panelShared.css";
 const RUN_CONTROLS_CSS_FILE_NAME = "runControls.css";
 const RUN_CONTROLS_WEBVIEW_CLIENT_UTILS_JS_FILE_NAME =
-  "webviewClientUtils.js";
-const RUN_CONTROLS_JS_FILE_NAME = "runControls.js";
+  "comms/webviewClientUtils.js";
+const RUN_CONTROLS_COMMS_JS_FILE_NAME = "comms/runControlsComms.js";
+const RUN_CONTROLS_JS_FILE_NAME = "ui/runControls.js";
 const RUN_CONTROLS_TEMPLATE_PATH_SEGMENTS = ["src", "ui", "templates"];
 const RUN_CONTROLS_SHELL_TEMPLATE_FILE_NAME = "run-controls-shell.html";
 const RUN_CONTROLS_COMMAND_ARGUMENTS_TEMPLATE_FILE_NAME =
@@ -332,6 +333,7 @@ function buildCleanOptionsSectionHtml(stateSnapshot, templates) {
  * @param {string} sharedStylesheetUri Webview shared stylesheet URI.
  * @param {string} stylesheetUri Webview stylesheet URI.
  * @param {string} clientUtilsScriptUri Webview shared client-utils script URI.
+ * @param {string} commsScriptUri Webview comms script URI.
  * @param {string} scriptUri Webview script URI.
  * @param {{shell: string, commandArguments: string, runChecks: string, sourceProfile: string, cleanOptions: string}} templates Run-controls templates.
  * @returns {string} Rendered HTML.
@@ -341,6 +343,7 @@ function buildRunControlsHtml(
   sharedStylesheetUri,
   stylesheetUri,
   clientUtilsScriptUri,
+  commsScriptUri,
   scriptUri,
   templates
 ) {
@@ -353,6 +356,7 @@ function buildRunControlsHtml(
     sharedStylesheetUri,
     stylesheetUri,
     clientUtilsScriptUri,
+    commsScriptUri,
     scriptUri,
     serializedState,
     commandArgumentsSection: buildCommandArgumentsSectionHtml(
@@ -398,6 +402,7 @@ class SidebarRunControlsViewProvider {
         sharedStylesheetUri: RUN_CONTROLS_SHARED_CSS_FILE_NAME,
         stylesheetUri: RUN_CONTROLS_CSS_FILE_NAME,
         clientUtilsScriptUri: RUN_CONTROLS_WEBVIEW_CLIENT_UTILS_JS_FILE_NAME,
+        commsScriptUri: RUN_CONTROLS_COMMS_JS_FILE_NAME,
         scriptUri: RUN_CONTROLS_JS_FILE_NAME,
       },
       localResourceRoots: ({ mediaBaseUri }) => {
@@ -409,6 +414,7 @@ class SidebarRunControlsViewProvider {
           context.assetUris.sharedStylesheetUri,
           context.assetUris.stylesheetUri,
           context.assetUris.clientUtilsScriptUri,
+          context.assetUris.commsScriptUri,
           context.assetUris.scriptUri,
           context.templates
         );
@@ -449,7 +455,7 @@ class SidebarRunControlsViewProvider {
    * Returns webview resource URIs for run-controls assets.
    *
    * @param {import("vscode").Webview} webview Webview instance.
-   * @returns {{sharedStylesheetUri: string, stylesheetUri: string, clientUtilsScriptUri: string, scriptUri: string}} Resource URI map.
+   * @returns {{sharedStylesheetUri: string, stylesheetUri: string, clientUtilsScriptUri: string, commsScriptUri: string, scriptUri: string}} Resource URI map.
    */
   getAssetUris(webview) {
     return this._templateProvider.getAssetUris(webview);

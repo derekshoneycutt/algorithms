@@ -1,0 +1,534 @@
+"use strict";
+
+const app = document.getElementById("app");
+const initialStateNode = document.getElementById("environmentInitialState");
+const templatesNode = document.getElementById("environmentTemplates");
+let state = {};
+let templates = {};
+
+if (initialStateNode) {
+  try {
+    state = JSON.parse(initialStateNode.textContent || "{}");
+  } catch (_) {
+    state = {};
+  }
+}
+
+if (templatesNode) {
+  try {
+    templates = JSON.parse(templatesNode.textContent || "{}");
+  } catch (_) {
+    templates = {};
+  }
+}
+
+const requiredTemplateNames = [
+  "panel",
+  "profileSection",
+  "checkEnvSection",
+  "copyIconsSection",
+  "variablesSection",
+  "routingSection",
+  "batchSection",
+  "variableCard",
+  "languageRow",
+];
+
+/**
+ * Renders a status badge element, or an empty string if there is no text.
+ *
+ * @param {string} statusKind CSS class name for the status kind (e.g. "idle", "error", "success").
+ * @param {string} statusText Human-readable status message.
+ * @returns {string} Status badge HTML, or empty string.
+ */
+function renderStatus(statusKind, statusText) {
+  const resolvedKind = String(statusKind || "idle");
+  const resolvedText = String(statusText || "").trim();
+
+  if (!resolvedText) {
+    return "";
+  }
+
+  return '<div class="status ' + window.escapeHtml(resolvedKind) + '">' + window.escapeHtml(resolvedText) + '</div>';
+}
+
+/**
+ * Returns the source string for a named template from the bootstrapped templates object.
+ *
+ * @param {string} templateName Template key as declared in requiredTemplateNames.
+ * @returns {string} Template source, or empty string if not found.
+ */
+function getTemplateSource(templateName) {
+  return String(templates[templateName] || "");
+}
+
+/**
+ * Returns whether all required templates are present and non-empty.
+ *
+ * @returns {boolean} True if every entry in requiredTemplateNames has source.
+ */
+function hasRequiredTemplates() {
+  return requiredTemplateNames.every((templateName) => {
+    return getTemplateSource(templateName).trim().length > 0;
+  });
+}
+
+/**
+ * Returns the names of any required templates that are absent or empty.
+ *
+ * @returns {string[]} Names of missing templates.
+ */
+function getMissingTemplateNames() {
+  return requiredTemplateNames.filter(
+    (templateName) => getTemplateSource(templateName).trim().length === 0
+  );
+}
+
+/**
+ * Builds the combined HTML for all environment variable cards using the variableCard template.
+ *
+ * @returns {string} Concatenated variable card HTML.
+ */
+function buildVariableCardsHtml() {
+  const variableCardTemplate = getTemplateSource("variableCard");
+
+  return state.variables.map((variable) => {
+    return window.renderTemplate(variableCardTemplate, {
+      variableLabel: window.escapeHtml(variable.label),
+      variableKey: window.escapeHtml(variable.key),
+      variableValue: window.escapeHtml(variable.value),
+      variableStatus: renderStatus(variable.statusKind, variable.statusText),
+    });
+  }).join("");
+}
+
+/**
+ * Renders a small indicator badge with an escaped label.
+ *
+ * @param {string} label Indicator label text.
+ * @returns {string} Indicator span HTML.
+ */
+function buildIndicatorHtml(label) {
+  return '<span class="indicator">' + window.escapeHtml(label) + '</span>';
+}
+
+/**
+ * Builds the combined HTML for all language routing rows using the languageRow template.
+ *
+ * @returns {string} Concatenated language row HTML.
+ */
+function buildLanguageRowsHtml() {
+  const languageRowTemplate = getTemplateSource("languageRow");
+
+  return state.languages.map((language) => {
+    const conflictClass = language.isConflict ? ' conflict' : '';
+    const indicators = [
+      language.dockerEnabled ? buildIndicatorHtml('docker') : '',
+      language.sshEnabled ? buildIndicatorHtml('ssh') : ''
+    ].join('');
+
+    return window.renderTemplate(languageRowTemplate, {
+      conflictClass,
+      languageIconUri: window.escapeHtml(language.iconUri),
+      languageLabel: window.escapeHtml(language.label),
+      languageIndicators: indicators,
+      languageKey: window.escapeHtml(language.key),
+      dockerChecked: language.dockerEnabled ? 'checked' : '',
+      dockerValue: window.escapeHtml(language.dockerValue),
+      dockerDisabledAttr: language.dockerEnabled ? '' : 'disabled',
+      sshChecked: language.sshEnabled ? 'checked' : '',
+      sshValue: window.escapeHtml(language.sshValue),
+      sshDisabledAttr: language.sshEnabled ? '' : 'disabled',
+      languageStatus: renderStatus(language.statusKind, language.statusText),
+    });
+  }).join('');
+}
+
+/**
+ * Fully re-renders the environment pane into the app element using current state and templates.
+ * All section header HTML values are produced locally; leaf data values arrive pre-escaped.
+ *
+ * @returns {void}
+ */
+function render() {
+  if (!hasRequiredTemplates()) {
+    const missingNames = getMissingTemplateNames();
+    console.error('[algorithms-runner] Environment pane missing templates: ' + missingNames.join(', '));
+    app.innerHTML = '<div class="panel"><section class="section"><div class="status error">Environment templates failed to load.</div></section></div>';
+    return;
+  }
+
+  const sectionHeaders = state.sectionHeaders || {};
+
+  const profileSectionHtml = window.renderTemplate(getTemplateSource('profileSection'), {
+    profileHeader: String(sectionHeaders.profile || ''),
+    profilePath: window.escapeHtml(state.profilePath),
+    profilePlaceholder: window.escapeHtml(state.profilePlaceholder),
+    effectiveProfilePath: window.escapeHtml(state.effectiveProfilePath || state.profilePlaceholder),
+  });
+  const checkEnvSectionHtml = window.renderTemplate(getTemplateSource('checkEnvSection'), {
+    checkEnvHeader: String(sectionHeaders.checkEnv || ''),
+    checkEnvStatus: renderStatus(state.checkEnv.kind, state.checkEnv.text),
+    checkEnvFilteredOutput: window.escapeHtml(state.checkEnv.filteredOutput || 'No check-environment output yet.'),
+    checkEnvRawOutput: window.escapeHtml(state.checkEnv.rawOutput || 'No raw output yet.'),
+  });
+  const copyIconsSectionHtml = window.renderTemplate(getTemplateSource('copyIconsSection'), {
+    copyIconsHeader: String(sectionHeaders.copyIcons || ''),
+    copyIconsPath: window.escapeHtml(state.copyIconsPath),
+    copyIconsPlaceholder: window.escapeHtml(state.copyIconsPlaceholder),
+    copyIconsStatus: renderStatus(state.copyIconsResult.kind, state.copyIconsResult.text),
+  });
+  const variablesSectionHtml = window.renderTemplate(getTemplateSource('variablesSection'), {
+    variablesHeader: String(sectionHeaders.variables || ''),
+    variableCardsHtml: buildVariableCardsHtml(),
+  });
+  const batchSectionHtml = window.renderTemplate(getTemplateSource('batchSection'), {
+    batchHeader: String(sectionHeaders.batch || ''),
+    batchDockerChecked: state.batch.dockerEnabled ? 'checked' : '',
+    batchDockerValue: window.escapeHtml(state.batch.dockerValue),
+    batchDockerDisabledAttr: state.batch.dockerEnabled ? '' : 'disabled',
+    batchSshChecked: state.batch.sshEnabled ? 'checked' : '',
+    batchSshValue: window.escapeHtml(state.batch.sshValue),
+    batchSshDisabledAttr: state.batch.sshEnabled ? '' : 'disabled',
+    batchStatus: renderStatus(state.batch.statusKind, state.batch.statusText),
+  });
+  const routingSectionHtml = window.renderTemplate(getTemplateSource('routingSection'), {
+    routingHeader: String(sectionHeaders.routing || ''),
+    batchSection: batchSectionHtml,
+    languageRowsHtml: buildLanguageRowsHtml(),
+  });
+
+  app.innerHTML = window.renderTemplate(getTemplateSource('panel'), {
+    profileSection: profileSectionHtml,
+    checkEnvSection: checkEnvSectionHtml,
+    copyIconsSection: copyIconsSectionHtml,
+    variablesSection: variablesSectionHtml,
+    routingSection: routingSectionHtml,
+  });
+}
+
+/**
+ * Returns the current value of the profile path input, or an empty string if not present.
+ *
+ * @returns {string} Profile path input value.
+ */
+function getProfilePath() {
+  const profileInput = document.getElementById('profilePath');
+  return profileInput ? profileInput.value : '';
+}
+
+/**
+ * Returns the current value of the copy-icons path input, or an empty string if not present.
+ *
+ * @returns {string} Copy-icons path input value.
+ */
+function getCopyIconsPath() {
+  const copyIconsInput = document.getElementById('copyIconsPath');
+  return copyIconsInput ? copyIconsInput.value : '';
+}
+
+/**
+ * Updates the status fields on one state entry and triggers a re-render.
+ *
+ * @param {"variable"|"language"|"batch"} targetKind Category of the target entry.
+ * @param {string} targetKey Key identifying the specific entry (empty string for batch).
+ * @param {string} statusKind CSS class for the status kind.
+ * @param {string} statusText Human-readable status message.
+ * @returns {void}
+ */
+function setLocalStatus(targetKind, targetKey, statusKind, statusText) {
+  if (targetKind === 'variable') {
+    const variable = state.variables.find((item) => item.key === targetKey);
+    if (variable) {
+      variable.statusKind = statusKind;
+      variable.statusText = statusText;
+    }
+    render();
+    return;
+  }
+
+  if (targetKind === 'language') {
+    const language = state.languages.find((item) => item.key === targetKey);
+    if (language) {
+      language.statusKind = statusKind;
+      language.statusText = statusText;
+    }
+    render();
+    return;
+  }
+
+  if (targetKind === 'batch') {
+    state.batch.statusKind = statusKind;
+    state.batch.statusText = statusText;
+    render();
+  }
+}
+
+/**
+ * Applies inputs from a language row control to the in-memory state draft without saving.
+ *
+ * @param {HTMLElement} target Control element carrying data-lang-key and data-input-kind attributes.
+ * @returns {void}
+ */
+function updateLanguageDraft(target) {
+  const languageKey = target.getAttribute('data-lang-key');
+  const inputKind = target.getAttribute('data-input-kind');
+  const language = state.languages.find((item) => item.key === languageKey);
+
+  if (!language) {
+    return;
+  }
+
+  if (inputKind === 'language-docker-enabled') {
+    language.dockerEnabled = target.checked;
+  }
+
+  if (inputKind === 'language-docker-value') {
+    language.dockerValue = target.value;
+  }
+
+  if (inputKind === 'language-ssh-enabled') {
+    language.sshEnabled = target.checked;
+  }
+
+  if (inputKind === 'language-ssh-value') {
+    language.sshValue = target.value;
+  }
+
+  language.isConflict = language.dockerEnabled && language.sshEnabled;
+}
+
+/**
+ * Applies the current input value of a variable card to the in-memory state draft without saving.
+ *
+ * @param {HTMLElement} target Input element carrying a data-variable-key attribute.
+ * @returns {void}
+ */
+function updateVariableDraft(target) {
+  const variableKey = target.getAttribute('data-variable-key');
+  const variable = state.variables.find((item) => item.key === variableKey);
+
+  if (variable) {
+    variable.value = target.value;
+  }
+}
+
+/**
+ * Reads the current batch-all form inputs and updates the in-memory state draft without saving.
+ *
+ * @returns {void}
+ */
+function updateBatchDraft() {
+  const batchDockerEnabled = document.getElementById('batchDockerEnabled');
+  const batchDockerValue = document.getElementById('batchDockerValue');
+  const batchSshEnabled = document.getElementById('batchSshEnabled');
+  const batchSshValue = document.getElementById('batchSshValue');
+
+  state.batch.dockerEnabled = batchDockerEnabled ? batchDockerEnabled.checked : false;
+  state.batch.dockerValue = batchDockerValue ? batchDockerValue.value : '';
+  state.batch.sshEnabled = batchSshEnabled ? batchSshEnabled.checked : false;
+  state.batch.sshValue = batchSshValue ? batchSshValue.value : '';
+  state.batch.isConflict = state.batch.dockerEnabled && state.batch.sshEnabled;
+}
+
+/**
+ * Validates a language routing entry before saving; sets a local error status and returns false on failure.
+ *
+ * @param {string} languageKey Identifier of the language being validated.
+ * @param {{dockerEnabled: boolean, dockerValue: string, sshEnabled: boolean, sshValue: string}} language Current language state draft.
+ * @returns {boolean} True if the entry is valid and safe to save.
+ */
+function canSaveLanguage(languageKey, language) {
+  if (language.dockerEnabled && language.sshEnabled) {
+    setLocalStatus(
+      'language',
+      languageKey,
+      'error',
+      'Cannot save with both docker and ssh enabled.'
+    );
+    return false;
+  }
+
+  if (language.dockerEnabled && !String(language.dockerValue || '').trim()) {
+    setLocalStatus('language', languageKey, 'error', 'Enter a Docker value before saving.');
+    return false;
+  }
+
+  if (language.sshEnabled && !String(language.sshValue || '').trim()) {
+    setLocalStatus('language', languageKey, 'error', 'Enter an SSH route before saving.');
+    return false;
+  }
+
+  return true;
+}
+
+/**
+ * Validates the batch-all state before saving; sets a local error status and returns false on failure.
+ *
+ * @returns {boolean} True if the batch entry is valid and safe to save.
+ */
+function canSaveBatch() {
+  if (state.batch.dockerEnabled && state.batch.sshEnabled) {
+    setLocalStatus('batch', '', 'error', 'Cannot save Batch All with both docker and ssh enabled.');
+    return false;
+  }
+
+  if (state.batch.dockerEnabled && !String(state.batch.dockerValue || '').trim()) {
+    setLocalStatus('batch', '', 'error', 'Enter a Docker value before saving Batch All.');
+    return false;
+  }
+
+  if (state.batch.sshEnabled && !String(state.batch.sshValue || '').trim()) {
+    setLocalStatus('batch', '', 'error', 'Enter an SSH route before saving Batch All.');
+    return false;
+  }
+
+  return true;
+}
+
+const clickActionHandlers = {
+  refreshState: () => {
+    window.AlgosEnvironmentInitComms.sendRefreshState(getProfilePath(), getCopyIconsPath());
+  },
+  runCheckEnv: () => {
+    window.AlgosEnvironmentInitComms.sendCheckEnv(getProfilePath(), getCopyIconsPath());
+  },
+  runCopyIcons: () => {
+    window.AlgosEnvironmentInitComms.sendCopyIcons(getProfilePath(), getCopyIconsPath());
+  },
+  saveVariable: (target) => {
+    const variableKey = target.getAttribute('data-variable-key');
+    const variable = state.variables.find((item) => item.key === variableKey);
+
+    if (!variable) {
+      return;
+    }
+
+    window.AlgosEnvironmentInitComms.sendSaveVariable(
+      getProfilePath(),
+      getCopyIconsPath(),
+      variableKey,
+      variable.value
+    );
+  },
+  saveLanguage: (target) => {
+    const languageKey = target.getAttribute('data-lang-key');
+    const language = state.languages.find((item) => item.key === languageKey);
+
+    if (!language || !canSaveLanguage(languageKey, language)) {
+      return;
+    }
+
+    window.AlgosEnvironmentInitComms.sendSaveLanguageRouting(
+      getProfilePath(),
+      getCopyIconsPath(),
+      languageKey,
+      language.dockerEnabled,
+      language.dockerValue,
+      language.sshEnabled,
+      language.sshValue
+    );
+  },
+  saveBatch: () => {
+    updateBatchDraft();
+
+    if (!canSaveBatch()) {
+      return;
+    }
+
+    window.AlgosEnvironmentInitComms.sendSaveBatchRouting(
+      getProfilePath(),
+      getCopyIconsPath(),
+      state.batch.dockerEnabled,
+      state.batch.dockerValue,
+      state.batch.sshEnabled,
+      state.batch.sshValue
+    );
+  },
+};
+
+app.addEventListener('input', (event) => {
+  const target = event.target;
+
+  if (!(target instanceof HTMLInputElement)) {
+    return;
+  }
+
+  if (target.getAttribute('data-input-kind') && target.getAttribute('data-lang-key')) {
+    updateLanguageDraft(target);
+    return;
+  }
+
+  if (target.getAttribute('data-input-kind') === 'variable') {
+    updateVariableDraft(target);
+    return;
+  }
+
+  if (
+    target.id === 'batchDockerEnabled'
+    || target.id === 'batchDockerValue'
+    || target.id === 'batchSshEnabled'
+    || target.id === 'batchSshValue'
+  ) {
+    updateBatchDraft();
+  }
+});
+
+app.addEventListener('change', (event) => {
+  const target = event.target;
+
+  if (!(target instanceof HTMLInputElement)) {
+    return;
+  }
+
+  if (target.getAttribute('data-input-kind') && target.getAttribute('data-lang-key')) {
+    updateLanguageDraft(target);
+    render();
+    return;
+  }
+
+  if (
+    target.id === 'batchDockerEnabled'
+    || target.id === 'batchDockerValue'
+    || target.id === 'batchSshEnabled'
+    || target.id === 'batchSshValue'
+  ) {
+    updateBatchDraft();
+    render();
+  }
+});
+
+app.addEventListener('click', (event) => {
+  const target = event.target;
+
+  if (!(target instanceof HTMLElement)) {
+    return;
+  }
+
+  const action = target.getAttribute('data-action');
+
+  if (!action) {
+    return;
+  }
+
+  const clickActionHandler = clickActionHandlers[action];
+
+  if (clickActionHandler) {
+    clickActionHandler(target);
+  }
+});
+
+window.AlgosEnvironmentInitUi = {
+  /**
+   * Applies a new state snapshot and re-renders the environment pane.
+   *
+   * @param {Record<string, unknown>} newState New state snapshot from extension host.
+   * @returns {void}
+   */
+  applyState(newState) {
+    state = newState;
+    render();
+  },
+};
+
+render();

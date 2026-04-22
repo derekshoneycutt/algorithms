@@ -1,7 +1,7 @@
 "use strict";
 
 const { spawn, spawnSync } = require("child_process");
-const { isAbsoluteFilesystemPath } = require("../../workspaceFilesystem");
+const { isAbsoluteFilesystemPath } = require("../../filesystem/workspaceFilesystem");
 
 // ---------------------------------------------------------------------------
 // SECTION 1: Process primitive

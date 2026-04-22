@@ -4,29 +4,27 @@ const { VIEW_IDS } = require("../runtime/viewConstants");
 const {
   realpathSafe,
   resolveEligibilityState,
-} = require("../runtime/pathResolver");
+  getWorkspaceFolders,
+} = require("../runtime/filesystem/eligibilityResolver");
 const {
   createEmptyFilePath,
+  deleteWithTrashFallback,
   ensureDirectoryPath,
   isDirectoryPath: fsIsDirectoryPath,
   isFilePath,
+  isPathWithinRoot,
   readDirectoryEntries,
   readTextFilePath,
   statPath,
-} = require("../runtime/workspaceFilesystem");
-const {
-  deleteWithTrashFallback,
-  getWorkspaceFolders,
-  isPathWithinRoot,
-} = require("./uiWorkspaceFsUtils");
-const { getEffectiveSidebarSmokeArgs } = require("../runtime/sidebarRunArgsState");
+} = require("../runtime/filesystem/workspaceFilesystem");
+const { getEffectiveSidebarSmokeArgs } = require("../runtime/state/sidebarRunArgsState");
 const {
   getDefaultSmokeLanguageKeys,
   getLanguageDisplayLabel,
   LANGUAGE_ICON_SAMPLE_EXTENSIONS,
   getSupportedLanguageKeys,
   normalizeExtensionToLanguageKey,
-} = require("../runtime/languageMetadata");
+} = require("../runtime/language/languageModule");
 const {
   actionCreators,
   extensionStateStore,
@@ -36,13 +34,13 @@ const {
   selectSidebarViewMode,
   selectSmokeLanguageState,
   selectSmokeStateForAlgorithm,
-} = require("../runtime/extensionStateStore");
+} = require("../runtime/state/extensionStateStore");
 const {
   buildSmokeStatusSummary,
-} = require("../runtime/smokeStatusState");
+} = require("../runtime/state/smokeStatusState");
 const {
   createSmokeProcessLifecycle,
-} = require("../runtime/smokeProcessLifecycle");
+} = require("../runtime/process/smokeProcessLifecycle");
 
 const LANGUAGE_ICON_DIRECTORY_SEGMENT = ".algos-language-icons";
 const LANGUAGE_PRESENT_URI_FRAGMENT = "algos-language-present";

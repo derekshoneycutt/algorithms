@@ -7,14 +7,16 @@ const {
   actionCreators,
   extensionStateStore,
   selectEnvironmentDraftValues,
-} = require("../../extensionStateStore");
+} = require("../../state/extensionStateStore");
 const {
   expandHomeFilesystemPath,
   getDefaultProfilePathForPlatform,
   getProfilePlaceholderForPlatform,
-  readTextFilePath,
   resolveEnvironmentRootInfoForWorkspace,
-} = require("../../workspaceFilesystem");
+} = require("../../filesystem/platformProfile");
+const {
+  readTextFilePath,
+} = require("../../filesystem/workspaceFilesystem");
 
 /**
  * Creates one default parsed environment config shape.

@@ -8,25 +8,26 @@ const {
   renderSectionHeader,
   renderTemplate,
   serializeForScript,
-} = require("./webviewHostUtils");
+} = require("./templateModule");
 const {
   actionCreators,
   extensionStateStore,
-} = require("../runtime/extensionStateStore");
+} = require("../runtime/state/extensionStateStore");
 const {
   getSidebarSmokeControlsState,
-} = require("../runtime/sidebarRunArgsState");
+} = require("../runtime/state/sidebarRunArgsState");
 
 const LANGUAGE_ICON_PATH_SEGMENT = "icons/languages";
 const FALLBACK_ICON_PATH_SEGMENT = "icons/play-sidebar.svg";
 const SMOKE_CONTROLS_MEDIA_PATH_SEGMENTS = ["src", "ui", "media"];
-const { LANGUAGE_ICON_FILE_BY_KEY } = require("../runtime/languageMetadata");
+const { LANGUAGE_ICON_FILE_BY_KEY } = require("../runtime/language/languageModule");
 
 const SMOKE_CONTROLS_SHARED_CSS_FILE_NAME = "panelShared.css";
 const SMOKE_CONTROLS_CSS_FILE_NAME = "smokeControls.css";
 const SMOKE_CONTROLS_WEBVIEW_CLIENT_UTILS_JS_FILE_NAME =
-  "webviewClientUtils.js";
-const SMOKE_CONTROLS_JS_FILE_NAME = "smokeControls.js";
+  "comms/webviewClientUtils.js";
+const SMOKE_CONTROLS_COMMS_JS_FILE_NAME = "comms/smokeControlsComms.js";
+const SMOKE_CONTROLS_JS_FILE_NAME = "ui/smokeControls.js";
 const SMOKE_CONTROLS_TEMPLATE_PATH_SEGMENTS = ["src", "ui", "templates"];
 const SMOKE_CONTROLS_SHELL_TEMPLATE_FILE_NAME = "smoke-controls-shell.html";
 const SMOKE_CONTROLS_REPORT_GENERATION_TEMPLATE_FILE_NAME =
@@ -267,6 +268,7 @@ function buildLanguagesSectionHtml(stateSnapshot, templates, languageIconUris) {
  * @param {string} sharedStylesheetUri Webview shared stylesheet URI.
  * @param {string} stylesheetUri Webview stylesheet URI.
  * @param {string} clientUtilsScriptUri Webview shared client-utils script URI.
+ * @param {string} commsScriptUri Webview comms script URI.
  * @param {string} scriptUri Webview script URI.
  * @param {{shell: string, reportGeneration: string, timeouts: string, languages: string}} templates Smoke-controls templates.
  * @param {{fallbackIconUri: string, iconUriByLanguageKey: Map<string, string>}} languageIconUris Webview-safe icon URI metadata.
@@ -277,6 +279,7 @@ function buildSmokeControlsHtml(
   sharedStylesheetUri,
   stylesheetUri,
   clientUtilsScriptUri,
+  commsScriptUri,
   scriptUri,
   templates,
   languageIconUris
@@ -289,6 +292,7 @@ function buildSmokeControlsHtml(
     sharedStylesheetUri,
     stylesheetUri,
     clientUtilsScriptUri,
+    commsScriptUri,
     scriptUri,
     serializedState,
     reportGenerationSection: buildReportGenerationSectionHtml(
@@ -341,6 +345,7 @@ class SidebarSmokeControlsViewProvider {
         sharedStylesheetUri: SMOKE_CONTROLS_SHARED_CSS_FILE_NAME,
         stylesheetUri: SMOKE_CONTROLS_CSS_FILE_NAME,
         clientUtilsScriptUri: SMOKE_CONTROLS_WEBVIEW_CLIENT_UTILS_JS_FILE_NAME,
+        commsScriptUri: SMOKE_CONTROLS_COMMS_JS_FILE_NAME,
         scriptUri: SMOKE_CONTROLS_JS_FILE_NAME,
       },
       localResourceRoots: ({ mediaBaseUri, templateBaseUri }) => {
@@ -365,6 +370,7 @@ class SidebarSmokeControlsViewProvider {
           context.assetUris.sharedStylesheetUri,
           context.assetUris.stylesheetUri,
           context.assetUris.clientUtilsScriptUri,
+          context.assetUris.commsScriptUri,
           context.assetUris.scriptUri,
           context.templates,
           languageIconUris
@@ -408,7 +414,7 @@ class SidebarSmokeControlsViewProvider {
    * Returns webview resource URIs for smoke-controls assets.
    *
    * @param {import("vscode").Webview} webview Webview instance.
-   * @returns {{sharedStylesheetUri: string, stylesheetUri: string, clientUtilsScriptUri: string, scriptUri: string}} Resource URI map.
+   * @returns {{sharedStylesheetUri: string, stylesheetUri: string, clientUtilsScriptUri: string, commsScriptUri: string, scriptUri: string}} Resource URI map.
    */
   getAssetUris(webview) {
     return this._templateProvider.getAssetUris(webview);

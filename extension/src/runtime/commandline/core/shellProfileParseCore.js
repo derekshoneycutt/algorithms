@@ -1,6 +1,6 @@
 "use strict";
 
-const { getSupportedLanguageKeys } = require("../../languageMetadata");
+const { getSupportedLanguageKeys } = require("../../language/languageModule");
 
 // init.sh export block marker start.
 const PROFILE_BLOCK_START = "# >>> DEREKALGOS INIT >>>";

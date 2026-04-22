@@ -6,7 +6,7 @@ const {
 } = require("../core/commandLineCore");
 const {
   createRuntimeProcessLifecycle,
-} = require("../../runtimeProcessLifecycle");
+} = require("../../process/runtimeProcessLifecycle");
 
 // Shared terminal label used for extension-owned execution sessions.
 const TERMINAL_NAME = "Algorithms Runner";

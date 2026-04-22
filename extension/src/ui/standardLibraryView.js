@@ -4,23 +4,21 @@ const { VIEW_IDS } = require("../runtime/viewConstants");
 const {
   realpathSafe,
   resolveEligibilityState,
-} = require("../runtime/pathResolver");
+  getWorkspaceFolders,
+} = require("../runtime/filesystem/eligibilityResolver");
 const {
   createEmptyFilePath,
   deleteWithTrashFallback,
   ensureDirectoryPath,
   isDirectoryPath,
   isFilePath,
-  readDirectoryEntries,
-} = require("../runtime/workspaceFilesystem");
-const {
-  getWorkspaceFolders,
   isPathWithinRoot,
-} = require("./uiWorkspaceFsUtils");
+  readDirectoryEntries,
+} = require("../runtime/filesystem/workspaceFilesystem");
 const {
   getSupportedLanguageKeys,
   normalizeExtensionToLanguageKey,
-} = require("../runtime/languageMetadata");
+} = require("../runtime/language/languageModule");
 
 const DELETE_CONFIRM_ACTION = "Delete";
 const CREATE_ANYWAY_ACTION = "Create Anyway";

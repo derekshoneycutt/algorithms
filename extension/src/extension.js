@@ -5,7 +5,7 @@ const {
   invalidateCanaryCache,
   resolveEligibilityState,
   summarizeEligibilityState,
-} = require("./runtime/pathResolver");
+} = require("./runtime/filesystem/eligibilityResolver");
 // Validation helpers for converting eligibility state into user-facing outcomes.
 const {
   validateEligibilityForExecution,
@@ -60,7 +60,7 @@ const {
   selectCachedPreflightState,
   selectSidebarViewMode,
   selectSidebarFilterMode,
-} = require("./runtime/extensionStateStore");
+} = require("./runtime/state/extensionStateStore");
 
 // Debounce delay for document lifecycle-driven preflight updates.
 const DOCUMENT_PRECHECK_DEBOUNCE_MS = 250;

@@ -8,11 +8,11 @@ const {
   renderSectionHeader,
   renderTemplate,
   serializeForScript,
-} = require("./webviewHostUtils");
+} = require("./templateModule");
 const {
   getLanguageDisplayLabel,
   LANGUAGE_ICON_FILE_BY_KEY,
-} = require("../runtime/languageMetadata");
+} = require("../runtime/language/languageModule");
 const {
   createEnvironmentProfileAdapter,
 } = require("../runtime/commandline/adapters/environmentProfileAdapter");
@@ -46,13 +46,14 @@ const {
   selectEnvironmentParsedConfig,
   selectEnvironmentVariableStatus,
   selectEnvironmentRoutingStatus,
-} = require("../runtime/extensionStateStore");
+} = require("../runtime/state/extensionStateStore");
 
 const ENVIRONMENT_MEDIA_PATH_SEGMENTS = ["src", "ui", "media"];
 const ENVIRONMENT_SHARED_CSS_FILE_NAME = "panelShared.css";
 const ENVIRONMENT_INIT_CSS_FILE_NAME = "environmentInit.css";
-const ENVIRONMENT_INIT_JS_FILE_NAME = "environmentInit.js";
-const ENVIRONMENT_SHARED_UTILS_JS_FILE_NAME = "webviewSharedUtils.js";
+const ENVIRONMENT_INIT_JS_FILE_NAME = "ui/environmentInit.js";
+const ENVIRONMENT_INIT_COMMS_JS_FILE_NAME = "comms/environmentInitComms.js";
+const ENVIRONMENT_SHARED_UTILS_JS_FILE_NAME = "ui/webviewSharedUtils.js";
 const ENVIRONMENT_TEMPLATE_PATH_SEGMENTS = ["src", "ui", "templates"];
 const ENVIRONMENT_SHELL_TEMPLATE_FILE_NAME = "environment-shell.html";
 const ENVIRONMENT_PANEL_TEMPLATE_FILE_NAME = "environment-panel.html";
@@ -254,6 +255,9 @@ function buildEnvironmentHtml(webview, provider) {
   const scriptUri = webview.asWebviewUri(
     vscode.Uri.joinPath(provider._mediaBaseUri, ENVIRONMENT_INIT_JS_FILE_NAME)
   ).toString();
+  const commsScriptUri = webview.asWebviewUri(
+    vscode.Uri.joinPath(provider._mediaBaseUri, ENVIRONMENT_INIT_COMMS_JS_FILE_NAME)
+  ).toString();
   const sharedUtilsScriptUri = webview.asWebviewUri(
     vscode.Uri.joinPath(provider._mediaBaseUri, ENVIRONMENT_SHARED_UTILS_JS_FILE_NAME)
   ).toString();
@@ -263,6 +267,7 @@ function buildEnvironmentHtml(webview, provider) {
     sharedStylesheetUri,
     stylesheetUri,
     scriptUri,
+    commsScriptUri,
     sharedUtilsScriptUri,
     serializedState,
     serializedTemplates,
