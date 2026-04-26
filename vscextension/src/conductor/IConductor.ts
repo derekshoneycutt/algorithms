@@ -83,10 +83,31 @@ export type ConductorSmokeIntent =
   | { kind: "deselectAllLanguages" };
 
 /**
+ * Host-side run controls intents owned by conductor policy.
+ */
+export type ConductorRunControlsIntent =
+  | { kind: "setRunArgsEnabled"; enabled: boolean }
+  | { kind: "setRunArgsText"; text: string }
+  | { kind: "setSourceProfileEnabled"; enabled: boolean }
+  | { kind: "setSourceProfileText"; text: string }
+  | { kind: "setRunChecksMode"; mode: "none" | "check-only" | "compile-only" }
+  | { kind: "setRunChecksRoute"; route: "native" | "docker" | "ssh" }
+  | { kind: "setCleanStdlibEnabled"; enabled: boolean }
+  | { kind: "setCleanArchivesEnabled"; enabled: boolean };
+
+/**
  * Input for conductor smoke reaction policy.
  */
 export interface ConductorReactToSmokeIntentInput {
   intent: ConductorSmokeIntent;
+  snapshot: ExtensionHostSnapshot;
+}
+
+/**
+ * Input for conductor run controls reaction policy.
+ */
+export interface ConductorReactToRunControlsIntentInput {
+  intent: ConductorRunControlsIntent;
   snapshot: ExtensionHostSnapshot;
 }
 
@@ -108,6 +129,15 @@ export interface ConductorSmokeReaction {
 }
 
 /**
+ * Reaction output returned by run controls conductor policy.
+ */
+export interface ConductorRunControlsReaction {
+  stateEvents: ExtensionHostEvent[];
+  notification: ConductorNotificationEffect | null;
+  shouldPublishSnapshot: boolean;
+}
+
+/**
  * DI contract for host-side long-running orchestration.
  */
 export interface IConductor {
@@ -120,6 +150,16 @@ export interface IConductor {
   reactToSmokeIntent(
     input: ConductorReactToSmokeIntentInput
   ): ConductorSmokeReaction;
+
+  /**
+   * Interprets one run controls intent and returns host reaction effects.
+   *
+   * @param {ConductorReactToRunControlsIntentInput} input Conductor reaction input.
+   * @returns {ConductorRunControlsReaction} Deterministic reaction result.
+   */
+  reactToRunControlsIntent(
+    input: ConductorReactToRunControlsIntentInput
+  ): ConductorRunControlsReaction;
 
   /**
    * Starts one run and returns its first snapshot.

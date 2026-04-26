@@ -38,6 +38,23 @@ function createSmokeControlsWebviewBuildOptions() {
 }
 
 /**
+ * Returns the esbuild configuration for the run controls webview frontend bundle.
+ *
+ * @returns {import("esbuild").BuildOptions} Webview build configuration.
+ */
+function createRunControlsWebviewBuildOptions() {
+  return {
+    bundle: true,
+    entryPoints: ["./src/views/media/runControls/runControlsView.ts"],
+    format: "iife",
+    outfile: "./dist/views/runControls/runControlsView.js",
+    platform: "browser",
+    sourcemap: true,
+    target: "es2022",
+  };
+}
+
+/**
  * Runs the extension build once or in watch mode.
  *
  * @returns {Promise<void>} Resolves when setup is complete.
@@ -46,6 +63,7 @@ async function main() {
   const buildOptions = [
     createExtensionBuildOptions(),
     createSmokeControlsWebviewBuildOptions(),
+    createRunControlsWebviewBuildOptions(),
   ];
 
   if (isWatchMode) {

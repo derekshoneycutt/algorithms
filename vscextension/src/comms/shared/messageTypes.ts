@@ -1,4 +1,9 @@
-import type { SmokeStatusClassName } from "../../state";
+import type {
+  RunChecksMode,
+  RunChecksRoute,
+  SmokeStatusClassName,
+  ViewStatusClassName,
+} from "../../state";
 
 /**
  * Smoke language payload sent to the webview.
@@ -30,6 +35,29 @@ export interface SmokeControlsViewSnapshot {
 }
 
 /**
+ * Run controls snapshot payload shared with webview.
+ */
+export interface RunControlsViewSnapshot {
+  stateValue: string;
+  runArgsEnabled: boolean;
+  runArgsText: string;
+  runArgsStatusText: string;
+  runArgsStatusClassName: ViewStatusClassName;
+  sourceProfileEnabled: boolean;
+  sourceProfileText: string;
+  sourceProfileStatusText: string;
+  sourceProfileStatusClassName: ViewStatusClassName;
+  runChecksMode: RunChecksMode;
+  runChecksRoute: RunChecksRoute;
+  runChecksStatusText: string;
+  runChecksStatusClassName: ViewStatusClassName;
+  cleanStdlibEnabled: boolean;
+  cleanArchivesEnabled: boolean;
+  cleanOptionsStatusText: string;
+  cleanOptionsStatusClassName: ViewStatusClassName;
+}
+
+/**
  * Smoke controls intent sent from the webview.
  */
 export type ViewSmokeControlIntent =
@@ -42,12 +70,29 @@ export type ViewSmokeControlIntent =
   | { kind: "deselectAllLanguages" };
 
 /**
+ * Run controls intent sent from the webview.
+ */
+export type ViewRunControlsIntent =
+  | { kind: "setRunArgsEnabled"; enabled: boolean }
+  | { kind: "setRunArgsText"; text: string }
+  | { kind: "setSourceProfileEnabled"; enabled: boolean }
+  | { kind: "setSourceProfileText"; text: string }
+  | { kind: "setRunChecksMode"; mode: RunChecksMode }
+  | { kind: "setRunChecksRoute"; route: RunChecksRoute }
+  | { kind: "setCleanStdlibEnabled"; enabled: boolean }
+  | { kind: "setCleanArchivesEnabled"; enabled: boolean };
+
+/**
  * Message sent from the host runtime to a webview frontend.
  */
 export type HostToViewMessage =
   | {
       type: "smoke.snapshot";
       payload: SmokeControlsViewSnapshot;
+    }
+  | {
+      type: "run.snapshot";
+      payload: RunControlsViewSnapshot;
     };
 
 /**
@@ -60,7 +105,77 @@ export type ViewToHostMessage =
   | {
       type: "smoke.intent";
       payload: ViewSmokeControlIntent;
+    }
+  | {
+      type: "run.ready";
+    }
+  | {
+      type: "run.intent";
+      payload: ViewRunControlsIntent;
     };
+
+/**
+ * Checks whether one class name is a valid shared status class.
+ *
+ * @param {unknown} value Candidate value.
+ * @returns {boolean} True when the value is a supported status class.
+ */
+function isStatusClassName(value: unknown): boolean {
+  return value === "status-muted" || value === "status-ok" || value === "status-error";
+}
+
+/**
+ * Checks whether one value is a run controls snapshot payload.
+ *
+ * @param {unknown} value Candidate value.
+ * @returns {value is RunControlsViewSnapshot} True when the value is valid.
+ */
+function isRunControlsViewSnapshot(value: unknown): value is RunControlsViewSnapshot {
+  if (typeof value !== "object" || value === null) {
+    return false;
+  }
+
+  return (
+    "stateValue" in value &&
+    typeof value.stateValue === "string" &&
+    "runArgsEnabled" in value &&
+    typeof value.runArgsEnabled === "boolean" &&
+    "runArgsText" in value &&
+    typeof value.runArgsText === "string" &&
+    "runArgsStatusText" in value &&
+    typeof value.runArgsStatusText === "string" &&
+    "runArgsStatusClassName" in value &&
+    isStatusClassName(value.runArgsStatusClassName) &&
+    "sourceProfileEnabled" in value &&
+    typeof value.sourceProfileEnabled === "boolean" &&
+    "sourceProfileText" in value &&
+    typeof value.sourceProfileText === "string" &&
+    "sourceProfileStatusText" in value &&
+    typeof value.sourceProfileStatusText === "string" &&
+    "sourceProfileStatusClassName" in value &&
+    isStatusClassName(value.sourceProfileStatusClassName) &&
+    "runChecksMode" in value &&
+    (value.runChecksMode === "none" ||
+      value.runChecksMode === "check-only" ||
+      value.runChecksMode === "compile-only") &&
+    "runChecksRoute" in value &&
+    (value.runChecksRoute === "native" ||
+      value.runChecksRoute === "docker" ||
+      value.runChecksRoute === "ssh") &&
+    "runChecksStatusText" in value &&
+    typeof value.runChecksStatusText === "string" &&
+    "runChecksStatusClassName" in value &&
+    isStatusClassName(value.runChecksStatusClassName) &&
+    "cleanStdlibEnabled" in value &&
+    typeof value.cleanStdlibEnabled === "boolean" &&
+    "cleanArchivesEnabled" in value &&
+    typeof value.cleanArchivesEnabled === "boolean" &&
+    "cleanOptionsStatusText" in value &&
+    typeof value.cleanOptionsStatusText === "string" &&
+    "cleanOptionsStatusClassName" in value &&
+    isStatusClassName(value.cleanOptionsStatusClassName)
+  );
+}
 
 /**
  * Checks whether one value is a smoke-controls view language entry.
@@ -132,6 +247,54 @@ export function isViewSmokeControlIntent(value: unknown): value is ViewSmokeCont
 }
 
 /**
+ * Checks whether an unknown value is a valid run controls intent.
+ *
+ * @param {unknown} value Candidate value.
+ * @returns {value is ViewRunControlsIntent} True when the value is a run controls intent.
+ */
+export function isViewRunControlsIntent(value: unknown): value is ViewRunControlsIntent {
+  if (typeof value !== "object" || value === null || !("kind" in value)) {
+    return false;
+  }
+
+  if (value.kind === "setRunArgsEnabled") {
+    return "enabled" in value && typeof value.enabled === "boolean";
+  }
+
+  if (value.kind === "setRunArgsText") {
+    return "text" in value && typeof value.text === "string";
+  }
+
+  if (value.kind === "setSourceProfileEnabled") {
+    return "enabled" in value && typeof value.enabled === "boolean";
+  }
+
+  if (value.kind === "setSourceProfileText") {
+    return "text" in value && typeof value.text === "string";
+  }
+
+  if (value.kind === "setRunChecksMode") {
+    return (
+      "mode" in value &&
+      (value.mode === "none" || value.mode === "check-only" || value.mode === "compile-only")
+    );
+  }
+
+  if (value.kind === "setRunChecksRoute") {
+    return (
+      "route" in value &&
+      (value.route === "native" || value.route === "docker" || value.route === "ssh")
+    );
+  }
+
+  if (value.kind === "setCleanStdlibEnabled" || value.kind === "setCleanArchivesEnabled") {
+    return "enabled" in value && typeof value.enabled === "boolean";
+  }
+
+  return false;
+}
+
+/**
  * Checks whether an unknown value is a host-to-view message.
  *
  * @param {unknown} value Candidate value.
@@ -140,6 +303,10 @@ export function isViewSmokeControlIntent(value: unknown): value is ViewSmokeCont
 export function isHostToViewMessage(value: unknown): value is HostToViewMessage {
   if (typeof value !== "object" || value === null || !("type" in value)) {
     return false;
+  }
+
+  if (value.type === "run.snapshot") {
+    return "payload" in value && isRunControlsViewSnapshot(value.payload);
   }
 
   if (value.type !== "smoke.snapshot") {
@@ -165,15 +332,11 @@ export function isHostToViewMessage(value: unknown): value is HostToViewMessage 
     "reportStatusText" in value.payload &&
     typeof value.payload.reportStatusText === "string" &&
     "reportStatusClassName" in value.payload &&
-    (value.payload.reportStatusClassName === "status-muted" ||
-      value.payload.reportStatusClassName === "status-ok" ||
-      value.payload.reportStatusClassName === "status-error") &&
+    isStatusClassName(value.payload.reportStatusClassName) &&
     "smokeStatusText" in value.payload &&
     typeof value.payload.smokeStatusText === "string" &&
     "smokeStatusClassName" in value.payload &&
-    (value.payload.smokeStatusClassName === "status-muted" ||
-      value.payload.smokeStatusClassName === "status-ok" ||
-      value.payload.smokeStatusClassName === "status-error") &&
+    isStatusClassName(value.payload.smokeStatusClassName) &&
     "languages" in value.payload &&
     Array.isArray(value.payload.languages) &&
     value.payload.languages.every((language) => isSmokeControlsViewLanguage(language))
@@ -193,6 +356,14 @@ export function isViewToHostMessage(value: unknown): value is ViewToHostMessage 
 
   if (value.type === "smoke.ready") {
     return true;
+  }
+
+  if (value.type === "run.ready") {
+    return true;
+  }
+
+  if (value.type === "run.intent") {
+    return "payload" in value && isViewRunControlsIntent(value.payload);
   }
 
   if (value.type !== "smoke.intent") {

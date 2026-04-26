@@ -7,7 +7,14 @@ import * as vscode from "vscode";
 import type { HostToViewMessage, ViewToHostMessage } from "../comms";
 import { isViewToHostMessage } from "../comms";
 import type { IViewHost } from "./IViewHost";
-import { getSmokeControlsSidebarViewId } from "./viewIds";
+import { getRunControlsSidebarViewId, getSmokeControlsSidebarViewId } from "./viewIds";
+
+interface ViewProviderRegistration {
+  viewId: string;
+  mediaRoot: vscode.Uri;
+  webviewDistRoot: vscode.Uri;
+  renderHtml: (webview: vscode.Webview) => string;
+}
 
 /**
  * Builds a nonce used by the webview content security policy.
@@ -33,6 +40,19 @@ function readSmokeControlsTemplate(context: vscode.ExtensionContext): string {
       "smokeControls",
       "smokeControlsView.html"
     )
+  );
+  return fs.readFileSync(templatePath, "utf8");
+}
+
+/**
+ * Reads the HTML template for the run controls webview.
+ *
+ * @param {vscode.ExtensionContext} context Extension activation context.
+ * @returns {string} Template HTML content.
+ */
+function readRunControlsTemplate(context: vscode.ExtensionContext): string {
+  const templatePath = context.asAbsolutePath(
+    path.join("src", "views", "media", "runControls", "runControlsView.html")
   );
   return fs.readFileSync(templatePath, "utf8");
 }
@@ -106,56 +126,127 @@ function renderSmokeControlsHtml(
 }
 
 /**
+ * Creates rendered HTML from the run controls webview template.
+ *
+ * @param {vscode.Webview} webview Webview instance.
+ * @param {vscode.ExtensionContext} context Extension activation context.
+ * @returns {string} Rendered webview HTML.
+ */
+function renderRunControlsHtml(
+  webview: vscode.Webview,
+  context: vscode.ExtensionContext
+): string {
+  const template = readRunControlsTemplate(context);
+  const nonce = createNonce();
+
+  const styleUri = webview
+    .asWebviewUri(
+      vscode.Uri.joinPath(
+        context.extensionUri,
+        "src",
+        "views",
+        "media",
+        "runControls",
+        "runControlsView.css"
+      )
+    )
+    .toString();
+
+  const scriptUri = webview
+    .asWebviewUri(
+      vscode.Uri.joinPath(
+        context.extensionUri,
+        "dist",
+        "views",
+        "runControls",
+        "runControlsView.js"
+      )
+    )
+    .toString();
+
+  return renderTripleCurlyTemplate(template, {
+    TITLE: "Algorithms Sidebar",
+    CSP_SOURCE: webview.cspSource,
+    NONCE: nonce,
+    STYLE_URI: styleUri,
+    SCRIPT_URI: scriptUri,
+  });
+}
+
+/**
  * Creates the concrete host-side view module implementation.
  *
  * @param {vscode.ExtensionContext} context Extension activation context.
  * @returns {IViewHost} View host implementation.
  */
 export function createViewHost(context: vscode.ExtensionContext): IViewHost {
-  const smokeControlsViewId = getSmokeControlsSidebarViewId();
-  const mediaRoot = vscode.Uri.joinPath(
-    context.extensionUri,
-    "src",
-    "views",
-    "media",
-    "smokeControls"
-  );
-  const webviewDistRoot = vscode.Uri.joinPath(
-    context.extensionUri,
-    "dist",
-    "views",
-    "smokeControls"
-  );
   const iconsRoot = vscode.Uri.joinPath(context.extensionUri, "icons");
-
-  let resolvedView: vscode.WebviewView | undefined;
-  let registration: vscode.Disposable | undefined;
-  const inboundListeners = new Set<(message: ViewToHostMessage) => void>();
-
-  const provider: vscode.WebviewViewProvider = {
-    resolveWebviewView(webviewView) {
-      resolvedView = webviewView;
-      webviewView.webview.options = {
-        enableScripts: true,
-        localResourceRoots: [mediaRoot, webviewDistRoot, iconsRoot],
-      };
-
-      webviewView.webview.onDidReceiveMessage((message: unknown) => {
-        if (!isViewToHostMessage(message)) {
-          return;
-        }
-
-        for (const listener of inboundListeners) {
-          listener(message);
-        }
-      });
-
-      webviewView.webview.html = renderSmokeControlsHtml(
-        webviewView.webview,
-        context
-      );
+  const providerRegistrations: ViewProviderRegistration[] = [
+    {
+      viewId: getSmokeControlsSidebarViewId(),
+      mediaRoot: vscode.Uri.joinPath(
+        context.extensionUri,
+        "src",
+        "views",
+        "media",
+        "smokeControls"
+      ),
+      webviewDistRoot: vscode.Uri.joinPath(
+        context.extensionUri,
+        "dist",
+        "views",
+        "smokeControls"
+      ),
+      renderHtml: (webview: vscode.Webview) => {
+        return renderSmokeControlsHtml(webview, context);
+      },
     },
-  };
+    {
+      viewId: getRunControlsSidebarViewId(),
+      mediaRoot: vscode.Uri.joinPath(
+        context.extensionUri,
+        "src",
+        "views",
+        "media",
+        "runControls"
+      ),
+      webviewDistRoot: vscode.Uri.joinPath(
+        context.extensionUri,
+        "dist",
+        "views",
+        "runControls"
+      ),
+      renderHtml: (webview: vscode.Webview) => {
+        return renderRunControlsHtml(webview, context);
+      },
+    },
+  ];
+
+  const resolvedViews = new Map<string, vscode.WebviewView>();
+  let registration: vscode.Disposable | undefined;
+  const inboundListenersByViewId = new Map<
+    string,
+    Set<(message: ViewToHostMessage) => void>
+  >();
+
+  /**
+   * Returns the listener set for one view ID, creating it when missing.
+   *
+   * @param {string} viewId Sidebar view identifier.
+   * @returns {Set<(message: ViewToHostMessage) => void>} Listener set.
+   */
+  function getOrCreateInboundListeners(
+    viewId: string
+  ): Set<(message: ViewToHostMessage) => void> {
+    const existingListeners = inboundListenersByViewId.get(viewId);
+    if (existingListeners !== undefined) {
+      return existingListeners;
+    }
+
+    const nextListeners = new Set<(message: ViewToHostMessage) => void>();
+    inboundListenersByViewId.set(viewId, nextListeners);
+    return nextListeners;
+  }
 
   return {
     register(): vscode.Disposable {
@@ -163,47 +254,94 @@ export function createViewHost(context: vscode.ExtensionContext): IViewHost {
         return registration;
       }
 
-      registration = vscode.window.registerWebviewViewProvider(
-        smokeControlsViewId,
-        provider,
-        {
-          webviewOptions: {
-            retainContextWhenHidden: true,
+      const registrations = providerRegistrations.map((providerRegistration) => {
+        const provider: vscode.WebviewViewProvider = {
+          resolveWebviewView(webviewView) {
+            resolvedViews.set(providerRegistration.viewId, webviewView);
+            webviewView.webview.options = {
+              enableScripts: true,
+              localResourceRoots: [
+                providerRegistration.mediaRoot,
+                providerRegistration.webviewDistRoot,
+                iconsRoot,
+              ],
+            };
+
+            webviewView.webview.onDidReceiveMessage((message: unknown) => {
+              if (!isViewToHostMessage(message)) {
+                return;
+              }
+
+              const inboundListeners = inboundListenersByViewId.get(
+                providerRegistration.viewId
+              );
+
+              if (inboundListeners === undefined) {
+                return;
+              }
+
+              for (const listener of inboundListeners) {
+                listener(message);
+              }
+            });
+
+            webviewView.webview.html = providerRegistration.renderHtml(
+              webviewView.webview
+            );
           },
-        }
-      );
+        };
+
+        return vscode.window.registerWebviewViewProvider(
+          providerRegistration.viewId,
+          provider,
+          {
+            webviewOptions: {
+              retainContextWhenHidden: true,
+            },
+          }
+        );
+      });
+
+      registration = vscode.Disposable.from(...registrations);
 
       return registration;
     },
 
-    focusPrimaryView(): Thenable<void> {
-      return vscode.commands.executeCommand(`${smokeControlsViewId}.focus`);
+    focusView(viewId: string): Thenable<void> {
+      return vscode.commands.executeCommand(`${viewId}.focus`);
     },
 
     onDidReceiveMessage(
+      viewId: string,
       listener: (message: ViewToHostMessage) => void
     ): vscode.Disposable {
+      const inboundListeners = getOrCreateInboundListeners(viewId);
       inboundListeners.add(listener);
+
       return new vscode.Disposable(() => {
         inboundListeners.delete(listener);
       });
     },
 
-    postMessageToPrimaryWebview(
+    postMessageToWebview(
+      viewId: string,
       message: HostToViewMessage
     ): Thenable<boolean> | undefined {
-      return resolvedView?.webview.postMessage(message);
+      return resolvedViews.get(viewId)?.webview.postMessage(message);
     },
 
-    toWebviewResourceUri(resourceUri: vscode.Uri): string | undefined {
-      return resolvedView?.webview.asWebviewUri(resourceUri).toString();
+    toWebviewResourceUri(
+      viewId: string,
+      resourceUri: vscode.Uri
+    ): string | undefined {
+      return resolvedViews.get(viewId)?.webview.asWebviewUri(resourceUri).toString();
     },
 
     dispose(): void {
-      inboundListeners.clear();
+      inboundListenersByViewId.clear();
       registration?.dispose();
       registration = undefined;
-      resolvedView = undefined;
+      resolvedViews.clear();
     },
   };
 }

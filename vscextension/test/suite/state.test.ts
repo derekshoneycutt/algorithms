@@ -82,6 +82,77 @@ describe("state — createHostStateService", () => {
     }
   });
 
+  it("returns default run controls in the initial snapshot", () => {
+    const service = createHostStateService();
+
+    try {
+      const snapshot = service.getSnapshot();
+
+      assert.equal(snapshot.runControls.runArgsEnabled, false);
+      assert.equal(snapshot.runControls.runArgsText, "");
+      assert.equal(snapshot.runControls.runArgsStatusText, "Arguments Disabled");
+      assert.equal(snapshot.runControls.sourceProfileEnabled, false);
+      assert.equal(snapshot.runControls.runChecksMode, "none");
+      assert.equal(snapshot.runControls.runChecksRoute, "native");
+      assert.equal(snapshot.runControls.cleanStdlibEnabled, true);
+      assert.equal(snapshot.runControls.cleanArchivesEnabled, true);
+    } finally {
+      service.dispose();
+    }
+  });
+
+  it("persists run controls updates in ready state", () => {
+    const service = createHostStateService();
+
+    try {
+      service.send({ type: "RUN_ARGS_ENABLED_SET", enabled: true });
+      service.send({ type: "RUN_ARGS_TEXT_SET", text: "--foo \"two words\"" });
+      service.send({ type: "RUN_ARGS_STATUS_SET", statusText: "2 Arguments", statusClassName: "status-ok" });
+      service.send({ type: "RUN_SOURCE_PROFILE_ENABLED_SET", enabled: true });
+      service.send({ type: "RUN_SOURCE_PROFILE_TEXT_SET", text: "/etc/profile.custom" });
+      service.send({
+        type: "RUN_SOURCE_PROFILE_STATUS_SET",
+        statusText: "Source Profile Enabled",
+        statusClassName: "status-ok",
+      });
+      service.send({ type: "RUN_CHECKS_MODE_SET", mode: "check-only" });
+      service.send({ type: "RUN_CHECKS_ROUTE_SET", route: "docker" });
+      service.send({
+        type: "RUN_CHECKS_STATUS_SET",
+        statusText: "Check Only (docker) Enabled",
+        statusClassName: "status-ok",
+      });
+      service.send({ type: "RUN_CLEAN_STDLIB_ENABLED_SET", enabled: false });
+      service.send({ type: "RUN_CLEAN_ARCHIVES_ENABLED_SET", enabled: true });
+      service.send({
+        type: "RUN_CLEAN_OPTIONS_STATUS_SET",
+        statusText: "Defaults: n|y (stdlib|archive)",
+        statusClassName: "status-muted",
+      });
+
+      const snapshot = service.getSnapshot();
+
+      assert.equal(snapshot.runControls.runArgsEnabled, true);
+      assert.equal(snapshot.runControls.runArgsText, "--foo \"two words\"");
+      assert.equal(snapshot.runControls.runArgsStatusText, "2 Arguments");
+      assert.equal(snapshot.runControls.runArgsStatusClassName, "status-ok");
+      assert.equal(snapshot.runControls.sourceProfileEnabled, true);
+      assert.equal(snapshot.runControls.sourceProfileText, "/etc/profile.custom");
+      assert.equal(snapshot.runControls.sourceProfileStatusText, "Source Profile Enabled");
+      assert.equal(snapshot.runControls.runChecksMode, "check-only");
+      assert.equal(snapshot.runControls.runChecksRoute, "docker");
+      assert.equal(snapshot.runControls.runChecksStatusText, "Check Only (docker) Enabled");
+      assert.equal(snapshot.runControls.cleanStdlibEnabled, false);
+      assert.equal(snapshot.runControls.cleanArchivesEnabled, true);
+      assert.equal(
+        snapshot.runControls.cleanOptionsStatusText,
+        "Defaults: n|y (stdlib|archive)"
+      );
+    } finally {
+      service.dispose();
+    }
+  });
+
   it("selects and deselects all languages", () => {
     const service = createHostStateService();
 
@@ -205,6 +276,24 @@ describe("state — buildBootstrapStatusMessage", () => {
     languages: [],
     statusLabel: "ready",
   };
+  const runControls = {
+    runArgsEnabled: false,
+    runArgsText: "",
+    runArgsStatusText: "Arguments Disabled",
+    runArgsStatusClassName: "status-muted" as const,
+    sourceProfileEnabled: false,
+    sourceProfileText: "",
+    sourceProfileStatusText: "Source Profile Unchecked",
+    sourceProfileStatusClassName: "status-muted" as const,
+    runChecksMode: "none" as const,
+    runChecksRoute: "native" as const,
+    runChecksStatusText: "No Run Check Override",
+    runChecksStatusClassName: "status-muted" as const,
+    cleanStdlibEnabled: true,
+    cleanArchivesEnabled: true,
+    cleanOptionsStatusText: "Defaults: y|y (stdlib|archive)",
+    cleanOptionsStatusClassName: "status-muted" as const,
+  };
 
   it("returns base message when no command has run yet", () => {
     const message = buildBootstrapStatusMessage(config, {
@@ -213,6 +302,7 @@ describe("state — buildBootstrapStatusMessage", () => {
       lastResult: null,
       lastFailure: null,
       smokeControls,
+      runControls,
     });
 
     assert.match(message, /Test Extension/);
@@ -227,6 +317,7 @@ describe("state — buildBootstrapStatusMessage", () => {
       lastResult: null,
       lastFailure: null,
       smokeControls,
+      runControls,
     });
 
     assert.match(message, /algos\.showBootstrapStatus/);

@@ -18,7 +18,8 @@
   ],
   "activationEvents": [
     "onCommand:algos.showBootstrapStatus",
-    "onView:algos.smokeControlsSidebarView"
+    "onView:algos.smokeControlsSidebarView",
+    "onView:algos.runControlsSidebarView"
   ],
   "main": "./dist/extension.js",
   "contributes": {
@@ -36,6 +37,11 @@
         {
           "id": "algos.smokeControlsSidebarView",
           "name": "Algorithms Smoke Controls",
+          "type": "webview"
+        },
+        {
+          "id": "algos.runControlsSidebarView",
+          "name": "Algorithms Run Controls",
           "type": "webview"
         }
       ]

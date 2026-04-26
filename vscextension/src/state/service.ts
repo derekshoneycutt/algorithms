@@ -6,6 +6,7 @@ import type {
   ExtensionHostEvent,
   ExtensionHostSnapshot,
   ExtensionHostStateValue,
+  InitialRunControlsSettingsInput,
   InitialSmokeControlsSettingsInput,
 } from "./types";
 
@@ -16,6 +17,7 @@ export type { IStateMachine } from "./IStateMachine";
  */
 export interface CreateHostStateServiceInput {
   initialSmokeControls?: InitialSmokeControlsSettingsInput;
+  initialRunControls?: InitialRunControlsSettingsInput;
 }
 
 /**
@@ -34,6 +36,7 @@ export function createHostStateService(
   const actor = createActor(createExtensionHostMachine(), {
     input: {
       initialSmokeControls: input?.initialSmokeControls,
+      initialRunControls: input?.initialRunControls,
     },
   });
   let started = false;
@@ -70,6 +73,9 @@ export function createHostStateService(
               ...language,
             };
           }),
+        },
+        runControls: {
+          ...snapshot.context.runControls,
         },
       };
     },

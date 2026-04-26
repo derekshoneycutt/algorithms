@@ -3,13 +3,21 @@ import type {
   ConductorMarkCompletedInput,
   ConductorMarkFailedInput,
   ConductorMarkProgressInput,
+  ConductorRunControlsIntent,
+  ConductorRunControlsReaction,
   ConductorSmokeReaction,
   ConductorRunSnapshot,
   ConductorSmokeIntent,
   ConductorStartRunInput,
   IConductor,
 } from "./IConductor";
-import type { SmokeControlsSettings, SmokeLanguageSelection } from "../state";
+import type { RunControlsSettings, SmokeControlsSettings, SmokeLanguageSelection } from "../state";
+import {
+  createCleanOptionsStatus,
+  createRunArgsStatus,
+  createRunChecksStatus,
+  createSourceProfileStatus,
+} from "../state";
 
 let nextRunSequence = 1;
 
@@ -310,6 +318,190 @@ function createSmokeIntentReaction(
 }
 
 /**
+ * Projects the next run-controls settings for one intent.
+ *
+ * @param {RunControlsSettings} settings Current run controls settings.
+ * @param {ConductorRunControlsIntent} intent Incoming run controls intent.
+ * @returns {RunControlsSettings} Projected run controls settings.
+ */
+function projectRunControlsSettings(
+  settings: RunControlsSettings,
+  intent: ConductorRunControlsIntent
+): RunControlsSettings {
+  if (intent.kind === "setRunArgsEnabled") {
+    return {
+      ...settings,
+      runArgsEnabled: intent.enabled,
+    };
+  }
+
+  if (intent.kind === "setRunArgsText") {
+    return {
+      ...settings,
+      runArgsText: intent.text,
+    };
+  }
+
+  if (intent.kind === "setSourceProfileEnabled") {
+    return {
+      ...settings,
+      sourceProfileEnabled: intent.enabled,
+    };
+  }
+
+  if (intent.kind === "setSourceProfileText") {
+    return {
+      ...settings,
+      sourceProfileText: intent.text,
+    };
+  }
+
+  if (intent.kind === "setRunChecksMode") {
+    const nextRoute = intent.mode === "check-only" ? settings.runChecksRoute : settings.runChecksRoute;
+
+    return {
+      ...settings,
+      runChecksMode: intent.mode,
+      runChecksRoute: nextRoute,
+    };
+  }
+
+  if (intent.kind === "setRunChecksRoute") {
+    return {
+      ...settings,
+      runChecksRoute: intent.route,
+    };
+  }
+
+  if (intent.kind === "setCleanStdlibEnabled") {
+    return {
+      ...settings,
+      cleanStdlibEnabled: intent.enabled,
+    };
+  }
+
+  return {
+    ...settings,
+    cleanArchivesEnabled: intent.enabled,
+  };
+}
+
+/**
+ * Creates a deterministic run controls reaction output for one intent.
+ *
+ * @param {ConductorRunControlsIntent} intent Run controls intent.
+ * @param {RunControlsSettings} settings Current run controls settings.
+ * @returns {ConductorRunControlsReaction} Reaction result.
+ */
+function createRunControlsIntentReaction(
+  intent: ConductorRunControlsIntent,
+  settings: RunControlsSettings
+): ConductorRunControlsReaction {
+  const stateEvents = [] as ConductorRunControlsReaction["stateEvents"];
+
+  if (intent.kind === "setRunArgsEnabled") {
+    stateEvents.push({ type: "RUN_ARGS_ENABLED_SET", enabled: intent.enabled });
+  }
+
+  if (intent.kind === "setRunArgsText") {
+    stateEvents.push({ type: "RUN_ARGS_TEXT_SET", text: intent.text });
+  }
+
+  if (intent.kind === "setSourceProfileEnabled") {
+    stateEvents.push({ type: "RUN_SOURCE_PROFILE_ENABLED_SET", enabled: intent.enabled });
+  }
+
+  if (intent.kind === "setSourceProfileText") {
+    stateEvents.push({ type: "RUN_SOURCE_PROFILE_TEXT_SET", text: intent.text });
+  }
+
+  if (intent.kind === "setRunChecksMode") {
+    stateEvents.push({ type: "RUN_CHECKS_MODE_SET", mode: intent.mode });
+  }
+
+  if (intent.kind === "setRunChecksRoute") {
+    stateEvents.push({ type: "RUN_CHECKS_ROUTE_SET", route: intent.route });
+  }
+
+  if (intent.kind === "setCleanStdlibEnabled") {
+    stateEvents.push({ type: "RUN_CLEAN_STDLIB_ENABLED_SET", enabled: intent.enabled });
+  }
+
+  if (intent.kind === "setCleanArchivesEnabled") {
+    stateEvents.push({ type: "RUN_CLEAN_ARCHIVES_ENABLED_SET", enabled: intent.enabled });
+  }
+
+  const projectedSettings = projectRunControlsSettings(settings, intent);
+  const runArgsStatus = createRunArgsStatus(
+    projectedSettings.runArgsEnabled,
+    projectedSettings.runArgsText
+  );
+  const sourceProfileStatus = createSourceProfileStatus(
+    projectedSettings.sourceProfileEnabled,
+    projectedSettings.sourceProfileText
+  );
+  const runChecksStatus = createRunChecksStatus(
+    projectedSettings.runChecksMode,
+    projectedSettings.runChecksRoute
+  );
+  const cleanOptionsStatus = createCleanOptionsStatus(
+    projectedSettings.cleanStdlibEnabled,
+    projectedSettings.cleanArchivesEnabled
+  );
+
+  stateEvents.push({
+    type: "RUN_ARGS_STATUS_SET",
+    statusText: runArgsStatus.statusText,
+    statusClassName: runArgsStatus.statusClassName,
+  });
+  stateEvents.push({
+    type: "RUN_SOURCE_PROFILE_STATUS_SET",
+    statusText: sourceProfileStatus.statusText,
+    statusClassName: sourceProfileStatus.statusClassName,
+  });
+  stateEvents.push({
+    type: "RUN_CHECKS_STATUS_SET",
+    statusText: runChecksStatus.statusText,
+    statusClassName: runChecksStatus.statusClassName,
+  });
+  stateEvents.push({
+    type: "RUN_CLEAN_OPTIONS_STATUS_SET",
+    statusText: cleanOptionsStatus.statusText,
+    statusClassName: cleanOptionsStatus.statusClassName,
+  });
+
+  if (intent.kind === "setRunArgsEnabled") {
+    return {
+      stateEvents,
+      notification: {
+        level: "info",
+        message: intent.enabled ? "Run arguments enabled" : "Run arguments disabled",
+      },
+      shouldPublishSnapshot: true,
+    };
+  }
+
+  if (intent.kind === "setSourceProfileEnabled") {
+    return {
+      stateEvents,
+      notification: {
+        level: "info",
+        message: intent.enabled
+          ? "Profile sourcing override enabled"
+          : "Profile sourcing override disabled",
+      },
+      shouldPublishSnapshot: true,
+    };
+  }
+
+  return {
+    stateEvents,
+    notification: null,
+    shouldPublishSnapshot: true,
+  };
+}
+
+/**
  * Creates the conductor service bootstrap implementation.
  *
  * This is an interface-stable skeleton that intentionally defers full
@@ -321,6 +513,10 @@ export function createConductorService(): IConductor {
   return {
     reactToSmokeIntent(input) {
       return createSmokeIntentReaction(input.intent, input.snapshot.smokeControls);
+    },
+
+    reactToRunControlsIntent(input) {
+      return createRunControlsIntentReaction(input.intent, input.snapshot.runControls);
     },
 
     startRun(input: ConductorStartRunInput): ConductorRunSnapshot {

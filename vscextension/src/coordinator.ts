@@ -7,12 +7,15 @@ import {
 import { createCommunicationHub } from "./comms";
 import type {
   ICommunicationHub,
+  RunControlsViewSnapshot,
   SmokeControlsViewSnapshot,
+  ViewRunControlsIntent,
   ViewSmokeControlIntent,
 } from "./comms";
 import { createConductorService } from "./conductor";
 import type {
   ConductorNotificationEffect,
+  ConductorRunControlsIntent,
   ConductorSmokeIntent,
   IConductor,
 } from "./conductor";
@@ -25,7 +28,11 @@ import type { IStateMachine } from "./state";
 import { createHostStateService } from "./state";
 import type { SmokeLanguageSelection } from "./state";
 import type { IViewHost } from "./views";
-import { createViewHost } from "./views";
+import {
+  createViewHost,
+  getRunControlsSidebarViewId,
+  getSmokeControlsSidebarViewId,
+} from "./views";
 
 /**
  * Returns the schema-aligned platform token for the current host.
@@ -147,6 +154,8 @@ function buildInitialSmokeLanguageSelections(
 export function createCoordinator(
   context: vscode.ExtensionContext
 ): vscode.Disposable {
+  const runControlsViewId = getRunControlsSidebarViewId();
+  const smokeControlsViewId = getSmokeControlsSidebarViewId();
   const languages: ILanguages = createLanguages(GENERATED_LANGUAGE_DATA);
   const smokeLanguages: SmokeLanguageSelection[] =
     buildInitialSmokeLanguageSelections(languages);
@@ -184,6 +193,7 @@ export function createCoordinator(
 
     if (iconFileName !== undefined) {
       const iconUri = viewHost.toWebviewResourceUri(
+        smokeControlsViewId,
         vscode.Uri.joinPath(context.extensionUri, "icons", "languages", iconFileName)
       );
 
@@ -193,6 +203,7 @@ export function createCoordinator(
     }
 
     return viewHost.toWebviewResourceUri(
+      smokeControlsViewId,
       vscode.Uri.joinPath(context.extensionUri, "icons", "play-sidebar.svg")
     );
   }
@@ -226,12 +237,53 @@ export function createCoordinator(
   }
 
   /**
+   * Builds the host->view run controls snapshot payload from state.
+   *
+   * @returns {RunControlsViewSnapshot} Snapshot payload.
+   */
+  function buildRunControlsSnapshotPayload(): RunControlsViewSnapshot {
+    const snapshot = stateMachine.getSnapshot();
+
+    return {
+      stateValue: snapshot.stateValue,
+      runArgsEnabled: snapshot.runControls.runArgsEnabled,
+      runArgsText: snapshot.runControls.runArgsText,
+      runArgsStatusText: snapshot.runControls.runArgsStatusText,
+      runArgsStatusClassName: snapshot.runControls.runArgsStatusClassName,
+      sourceProfileEnabled: snapshot.runControls.sourceProfileEnabled,
+      sourceProfileText: snapshot.runControls.sourceProfileText,
+      sourceProfileStatusText: snapshot.runControls.sourceProfileStatusText,
+      sourceProfileStatusClassName: snapshot.runControls.sourceProfileStatusClassName,
+      runChecksMode: snapshot.runControls.runChecksMode,
+      runChecksRoute: snapshot.runControls.runChecksRoute,
+      runChecksStatusText: snapshot.runControls.runChecksStatusText,
+      runChecksStatusClassName: snapshot.runControls.runChecksStatusClassName,
+      cleanStdlibEnabled: snapshot.runControls.cleanStdlibEnabled,
+      cleanArchivesEnabled: snapshot.runControls.cleanArchivesEnabled,
+      cleanOptionsStatusText: snapshot.runControls.cleanOptionsStatusText,
+      cleanOptionsStatusClassName: snapshot.runControls.cleanOptionsStatusClassName,
+    };
+  }
+
+  /**
    * Maps one comms smoke intent into the conductor intent contract.
    *
    * @param {ViewSmokeControlIntent} intent Message intent.
    * @returns {ConductorSmokeIntent} Conductor intent.
    */
   function mapViewIntentToConductorIntent(intent: ViewSmokeControlIntent): ConductorSmokeIntent {
+    return intent;
+  }
+
+  /**
+   * Maps one run controls view intent into the conductor intent contract.
+   *
+   * @param {ViewRunControlsIntent} intent Message intent.
+   * @returns {ConductorRunControlsIntent} Conductor intent.
+   */
+  function mapRunViewIntentToConductorIntent(
+    intent: ViewRunControlsIntent
+  ): ConductorRunControlsIntent {
     return intent;
   }
 
@@ -257,9 +309,9 @@ export function createCoordinator(
     void notificationRouter.info(notification.message);
   }
 
-  const commsSubscription = communicationHub.subscribe((message) => {
+  const commsSubscription = communicationHub.subscribe(smokeControlsViewId, (message) => {
     if (message.type === "smoke.ready") {
-      communicationHub.post({
+      communicationHub.post(smokeControlsViewId, {
         type: "smoke.snapshot",
         payload: buildSmokeSnapshotPayload(),
       });
@@ -281,9 +333,41 @@ export function createCoordinator(
       }
 
       if (reaction.shouldPublishSnapshot) {
-        communicationHub.post({
+        communicationHub.post(smokeControlsViewId, {
           type: "smoke.snapshot",
           payload: buildSmokeSnapshotPayload(),
+        });
+      }
+    }
+  });
+
+  const runControlsSubscription = communicationHub.subscribe(runControlsViewId, (message) => {
+    if (message.type === "run.ready") {
+      communicationHub.post(runControlsViewId, {
+        type: "run.snapshot",
+        payload: buildRunControlsSnapshotPayload(),
+      });
+      return;
+    }
+
+    if (message.type === "run.intent") {
+      const reaction = conductor.reactToRunControlsIntent({
+        intent: mapRunViewIntentToConductorIntent(message.payload),
+        snapshot: stateMachine.getSnapshot(),
+      });
+
+      for (const stateEvent of reaction.stateEvents) {
+        stateMachine.send(stateEvent);
+      }
+
+      if (reaction.notification !== null) {
+        routeConductorNotification(reaction.notification);
+      }
+
+      if (reaction.shouldPublishSnapshot) {
+        communicationHub.post(runControlsViewId, {
+          type: "run.snapshot",
+          payload: buildRunControlsSnapshotPayload(),
         });
       }
     }
@@ -306,6 +390,7 @@ export function createCoordinator(
     stateMachine,
     communicationHub,
     commsSubscription,
+    runControlsSubscription,
     viewHost,
     viewsRegistration,
     registerCommands(commands)

@@ -6,9 +6,22 @@ export type {
   ExtensionHostEvent,
   ExtensionHostSnapshot,
   ExtensionHostStateValue,
+  InitialRunControlsSettingsInput,
   InitialSmokeControlsSettingsInput,
+  RunChecksMode,
+  RunChecksRoute,
+  RunControlsSettings,
   SmokeControlsSettings,
   SmokeLanguageSelection,
   SmokeStatusClassName,
+  ViewStatusClassName,
 } from "./types";
-export { createInitialSmokeControlsSettings } from "./types";
+export {
+  createCleanOptionsStatus,
+  createInitialRunControlsSettings,
+  createInitialSmokeControlsSettings,
+  createRunArgsStatus,
+  createRunChecksStatus,
+  createSourceProfileStatus,
+  parseRunArgumentsText,
+} from "./types";

@@ -1,9 +1,11 @@
 import { assign, setup } from "xstate";
 
 import {
+  createInitialRunControlsSettings,
   createInitialSmokeControlsSettings,
   type ExtensionHostContext,
   type ExtensionHostEvent,
+  type InitialRunControlsSettingsInput,
   type InitialSmokeControlsSettingsInput,
   type SmokeLanguageSelection,
 } from "./types";
@@ -13,6 +15,7 @@ import {
  */
 export interface ExtensionHostMachineInput {
   initialSmokeControls?: InitialSmokeControlsSettingsInput;
+  initialRunControls?: InitialRunControlsSettingsInput;
 }
 
 /**
@@ -99,6 +102,7 @@ export function createExtensionHostMachine() {
       lastResult: null,
       lastFailure: null,
       smokeControls: createInitialSmokeControlsSettings(input.initialSmokeControls),
+      runControls: createInitialRunControlsSettings(input.initialRunControls),
     };
   },
   states: {
@@ -217,6 +221,130 @@ export function createExtensionHostMachine() {
               return {
                 ...context.smokeControls,
                 statusLabel: event.statusLabel,
+              };
+            },
+          }),
+        },
+        RUN_ARGS_ENABLED_SET: {
+          actions: assign({
+            runControls: ({ context, event }) => {
+              return {
+                ...context.runControls,
+                runArgsEnabled: event.enabled,
+              };
+            },
+          }),
+        },
+        RUN_ARGS_TEXT_SET: {
+          actions: assign({
+            runControls: ({ context, event }) => {
+              return {
+                ...context.runControls,
+                runArgsText: event.text,
+              };
+            },
+          }),
+        },
+        RUN_SOURCE_PROFILE_ENABLED_SET: {
+          actions: assign({
+            runControls: ({ context, event }) => {
+              return {
+                ...context.runControls,
+                sourceProfileEnabled: event.enabled,
+              };
+            },
+          }),
+        },
+        RUN_SOURCE_PROFILE_TEXT_SET: {
+          actions: assign({
+            runControls: ({ context, event }) => {
+              return {
+                ...context.runControls,
+                sourceProfileText: event.text,
+              };
+            },
+          }),
+        },
+        RUN_CHECKS_MODE_SET: {
+          actions: assign({
+            runControls: ({ context, event }) => {
+              return {
+                ...context.runControls,
+                runChecksMode: event.mode,
+              };
+            },
+          }),
+        },
+        RUN_CHECKS_ROUTE_SET: {
+          actions: assign({
+            runControls: ({ context, event }) => {
+              return {
+                ...context.runControls,
+                runChecksRoute: event.route,
+              };
+            },
+          }),
+        },
+        RUN_CLEAN_STDLIB_ENABLED_SET: {
+          actions: assign({
+            runControls: ({ context, event }) => {
+              return {
+                ...context.runControls,
+                cleanStdlibEnabled: event.enabled,
+              };
+            },
+          }),
+        },
+        RUN_CLEAN_ARCHIVES_ENABLED_SET: {
+          actions: assign({
+            runControls: ({ context, event }) => {
+              return {
+                ...context.runControls,
+                cleanArchivesEnabled: event.enabled,
+              };
+            },
+          }),
+        },
+        RUN_ARGS_STATUS_SET: {
+          actions: assign({
+            runControls: ({ context, event }) => {
+              return {
+                ...context.runControls,
+                runArgsStatusText: event.statusText,
+                runArgsStatusClassName: event.statusClassName,
+              };
+            },
+          }),
+        },
+        RUN_SOURCE_PROFILE_STATUS_SET: {
+          actions: assign({
+            runControls: ({ context, event }) => {
+              return {
+                ...context.runControls,
+                sourceProfileStatusText: event.statusText,
+                sourceProfileStatusClassName: event.statusClassName,
+              };
+            },
+          }),
+        },
+        RUN_CHECKS_STATUS_SET: {
+          actions: assign({
+            runControls: ({ context, event }) => {
+              return {
+                ...context.runControls,
+                runChecksStatusText: event.statusText,
+                runChecksStatusClassName: event.statusClassName,
+              };
+            },
+          }),
+        },
+        RUN_CLEAN_OPTIONS_STATUS_SET: {
+          actions: assign({
+            runControls: ({ context, event }) => {
+              return {
+                ...context.runControls,
+                cleanOptionsStatusText: event.statusText,
+                cleanOptionsStatusClassName: event.statusClassName,
               };
             },
           }),
@@ -346,6 +474,130 @@ export function createExtensionHostMachine() {
               return {
                 ...context.smokeControls,
                 statusLabel: event.statusLabel,
+              };
+            },
+          }),
+        },
+        RUN_ARGS_ENABLED_SET: {
+          actions: assign({
+            runControls: ({ context, event }) => {
+              return {
+                ...context.runControls,
+                runArgsEnabled: event.enabled,
+              };
+            },
+          }),
+        },
+        RUN_ARGS_TEXT_SET: {
+          actions: assign({
+            runControls: ({ context, event }) => {
+              return {
+                ...context.runControls,
+                runArgsText: event.text,
+              };
+            },
+          }),
+        },
+        RUN_SOURCE_PROFILE_ENABLED_SET: {
+          actions: assign({
+            runControls: ({ context, event }) => {
+              return {
+                ...context.runControls,
+                sourceProfileEnabled: event.enabled,
+              };
+            },
+          }),
+        },
+        RUN_SOURCE_PROFILE_TEXT_SET: {
+          actions: assign({
+            runControls: ({ context, event }) => {
+              return {
+                ...context.runControls,
+                sourceProfileText: event.text,
+              };
+            },
+          }),
+        },
+        RUN_CHECKS_MODE_SET: {
+          actions: assign({
+            runControls: ({ context, event }) => {
+              return {
+                ...context.runControls,
+                runChecksMode: event.mode,
+              };
+            },
+          }),
+        },
+        RUN_CHECKS_ROUTE_SET: {
+          actions: assign({
+            runControls: ({ context, event }) => {
+              return {
+                ...context.runControls,
+                runChecksRoute: event.route,
+              };
+            },
+          }),
+        },
+        RUN_CLEAN_STDLIB_ENABLED_SET: {
+          actions: assign({
+            runControls: ({ context, event }) => {
+              return {
+                ...context.runControls,
+                cleanStdlibEnabled: event.enabled,
+              };
+            },
+          }),
+        },
+        RUN_CLEAN_ARCHIVES_ENABLED_SET: {
+          actions: assign({
+            runControls: ({ context, event }) => {
+              return {
+                ...context.runControls,
+                cleanArchivesEnabled: event.enabled,
+              };
+            },
+          }),
+        },
+        RUN_ARGS_STATUS_SET: {
+          actions: assign({
+            runControls: ({ context, event }) => {
+              return {
+                ...context.runControls,
+                runArgsStatusText: event.statusText,
+                runArgsStatusClassName: event.statusClassName,
+              };
+            },
+          }),
+        },
+        RUN_SOURCE_PROFILE_STATUS_SET: {
+          actions: assign({
+            runControls: ({ context, event }) => {
+              return {
+                ...context.runControls,
+                sourceProfileStatusText: event.statusText,
+                sourceProfileStatusClassName: event.statusClassName,
+              };
+            },
+          }),
+        },
+        RUN_CHECKS_STATUS_SET: {
+          actions: assign({
+            runControls: ({ context, event }) => {
+              return {
+                ...context.runControls,
+                runChecksStatusText: event.statusText,
+                runChecksStatusClassName: event.statusClassName,
+              };
+            },
+          }),
+        },
+        RUN_CLEAN_OPTIONS_STATUS_SET: {
+          actions: assign({
+            runControls: ({ context, event }) => {
+              return {
+                ...context.runControls,
+                cleanOptionsStatusText: event.statusText,
+                cleanOptionsStatusClassName: event.statusClassName,
               };
             },
           }),

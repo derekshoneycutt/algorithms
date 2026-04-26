@@ -121,4 +121,100 @@ describe("conductor — createConductorService", () => {
       stateMachine.dispose();
     }
   });
+
+  it("maps run-controls intents to state-machine reaction events", () => {
+    const conductor = createConductorService();
+    const stateMachine = createHostStateService();
+
+    try {
+      const reaction = conductor.reactToRunControlsIntent({
+        intent: {
+          kind: "setRunArgsText",
+          text: "--flag \"two words\"",
+        },
+        snapshot: stateMachine.getSnapshot(),
+      });
+
+      assert.deepStrictEqual(reaction.stateEvents[0], {
+        type: "RUN_ARGS_TEXT_SET",
+        text: "--flag \"two words\"",
+      });
+      assert.deepStrictEqual(reaction.stateEvents[1], {
+        type: "RUN_ARGS_STATUS_SET",
+        statusText: "Arguments Disabled",
+        statusClassName: "status-muted",
+      });
+      assert.deepStrictEqual(reaction.stateEvents[2], {
+        type: "RUN_SOURCE_PROFILE_STATUS_SET",
+        statusText: "Source Profile Unchecked",
+        statusClassName: "status-muted",
+      });
+      assert.deepStrictEqual(reaction.stateEvents[3], {
+        type: "RUN_CHECKS_STATUS_SET",
+        statusText: "No Run Check Override",
+        statusClassName: "status-muted",
+      });
+      assert.deepStrictEqual(reaction.stateEvents[4], {
+        type: "RUN_CLEAN_OPTIONS_STATUS_SET",
+        statusText: "Defaults: y|y (stdlib|archive)",
+        statusClassName: "status-muted",
+      });
+      assert.strictEqual(reaction.notification, null);
+      assert.strictEqual(reaction.shouldPublishSnapshot, true);
+    } finally {
+      stateMachine.dispose();
+    }
+  });
+
+  it("emits a notification when enabling run arguments", () => {
+    const conductor = createConductorService();
+    const stateMachine = createHostStateService();
+
+    try {
+      const reaction = conductor.reactToRunControlsIntent({
+        intent: { kind: "setRunArgsEnabled", enabled: true },
+        snapshot: stateMachine.getSnapshot(),
+      });
+
+      assert.deepStrictEqual(reaction.stateEvents[0], {
+        type: "RUN_ARGS_ENABLED_SET",
+        enabled: true,
+      });
+      assert.deepStrictEqual(reaction.stateEvents[1], {
+        type: "RUN_ARGS_STATUS_SET",
+        statusText: "0 Arguments",
+        statusClassName: "status-ok",
+      });
+      assert.deepStrictEqual(reaction.notification, {
+        level: "info",
+        message: "Run arguments enabled",
+      });
+    } finally {
+      stateMachine.dispose();
+    }
+  });
+
+  it("surfaces parse errors in run-arguments status", () => {
+    const conductor = createConductorService();
+    const stateMachine = createHostStateService({
+      initialRunControls: {
+        runArgsEnabled: true,
+      },
+    });
+
+    try {
+      const reaction = conductor.reactToRunControlsIntent({
+        intent: { kind: "setRunArgsText", text: "--broken \"unterminated" },
+        snapshot: stateMachine.getSnapshot(),
+      });
+
+      assert.deepStrictEqual(reaction.stateEvents[1], {
+        type: "RUN_ARGS_STATUS_SET",
+        statusText: "Run args contain an unclosed quote.",
+        statusClassName: "status-error",
+      });
+    } finally {
+      stateMachine.dispose();
+    }
+  });
 });
