@@ -206,7 +206,7 @@ export function createInitialSmokeControlsSettings(
   ];
 
   const reportEnabled = input?.reportEnabled ?? false;
-  const markdownPath = input?.markdownPath ?? "output/smoke-report.md";
+  const markdownPath = input?.markdownPath ?? "";
   const languages = input?.languages ?? defaultLanguages;
   const reportStatus = createInitialReportStatus(reportEnabled, markdownPath);
   const selectionStatus = createInitialSelectionStatus(languages);
@@ -214,8 +214,8 @@ export function createInitialSmokeControlsSettings(
   return {
     reportEnabled,
     markdownPath,
-    timeoutSeconds: input?.timeoutSeconds ?? "30",
-    slowTimeoutSeconds: input?.slowTimeoutSeconds ?? "5",
+    timeoutSeconds: input?.timeoutSeconds ?? "8m",
+    slowTimeoutSeconds: input?.slowTimeoutSeconds ?? "20m",
     languages,
     reportStatusText: reportStatus.statusText,
     reportStatusClassName: reportStatus.statusClassName,

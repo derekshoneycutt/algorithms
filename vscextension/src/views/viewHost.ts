@@ -126,6 +126,7 @@ export function createViewHost(context: vscode.ExtensionContext): IViewHost {
     "views",
     "smokeControls"
   );
+  const iconsRoot = vscode.Uri.joinPath(context.extensionUri, "icons");
 
   let resolvedView: vscode.WebviewView | undefined;
   let registration: vscode.Disposable | undefined;
@@ -136,7 +137,7 @@ export function createViewHost(context: vscode.ExtensionContext): IViewHost {
       resolvedView = webviewView;
       webviewView.webview.options = {
         enableScripts: true,
-        localResourceRoots: [mediaRoot, webviewDistRoot],
+        localResourceRoots: [mediaRoot, webviewDistRoot, iconsRoot],
       };
 
       webviewView.webview.onDidReceiveMessage((message: unknown) => {
@@ -192,6 +193,10 @@ export function createViewHost(context: vscode.ExtensionContext): IViewHost {
       message: HostToViewMessage
     ): Thenable<boolean> | undefined {
       return resolvedView?.webview.postMessage(message);
+    },
+
+    toWebviewResourceUri(resourceUri: vscode.Uri): string | undefined {
+      return resolvedView?.webview.asWebviewUri(resourceUri).toString();
     },
 
     dispose(): void {

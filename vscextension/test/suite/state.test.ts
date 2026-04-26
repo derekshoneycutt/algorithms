@@ -15,7 +15,7 @@ describe("state — createHostStateService", () => {
       assert.equal(snapshot.lastResult, null);
       assert.equal(snapshot.lastFailure, null);
       assert.equal(snapshot.smokeControls.reportEnabled, false);
-      assert.equal(snapshot.smokeControls.markdownPath, "output/smoke-report.md");
+      assert.equal(snapshot.smokeControls.markdownPath, "");
       assert.equal(snapshot.smokeControls.languages.length > 0, true);
     } finally {
       service.dispose();
@@ -195,9 +195,9 @@ describe("state — buildBootstrapStatusMessage", () => {
   };
   const smokeControls = {
     reportEnabled: false,
-    markdownPath: "output/smoke-report.md",
-    timeoutSeconds: "30",
-    slowTimeoutSeconds: "5",
+    markdownPath: "",
+    timeoutSeconds: "8m",
+    slowTimeoutSeconds: "20m",
     reportStatusText: "No report generated.",
     reportStatusClassName: "status-muted" as const,
     smokeStatusText: "All languages selected (omit --langs)",

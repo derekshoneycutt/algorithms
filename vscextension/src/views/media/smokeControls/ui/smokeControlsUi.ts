@@ -24,6 +24,43 @@ export interface ISmokeControlsUi {
   setSnapshot(snapshot: SmokeControlsViewSnapshot): void;
 }
 
+const SMOKE_CONTROLS_SECTION_ICON_SVG_BY_NAME = Object.freeze({
+  report:
+    '<svg class="sectionIcon" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-hidden="true">'
+    + '<path d="M4 2H10L12 4V13C12 13.55 11.55 14 11 14H4C3.45 14 3 13.55 3 13V3C3 2.45 3.45 2 4 2Z" stroke="currentColor" stroke-width="1"/>'
+    + '<path d="M10 2V4H12" stroke="currentColor" stroke-width="1"/>'
+    + '<path d="M5 7H11" stroke="currentColor" stroke-width="1" stroke-linecap="round"/>'
+    + '<path d="M5 9.5H9" stroke="currentColor" stroke-width="1" stroke-linecap="round"/>'
+    + '</svg>',
+  timeout:
+    '<svg class="sectionIcon" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-hidden="true">'
+    + '<circle cx="8" cy="8" r="5.5" stroke="currentColor" stroke-width="1"/>'
+    + '<path d="M8 5V8L10 9.5" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"/>'
+    + '</svg>',
+  languages:
+    '<svg class="sectionIcon" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-hidden="true">'
+    + '<path d="M5 5L2 8L5 11" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"/>'
+    + '<path d="M11 5L14 8L11 11" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"/>'
+    + '<path d="M9 3L7 13" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/>'
+    + '</svg>',
+});
+
+/**
+ * Renders one section header with icon and optional actions markup.
+ *
+ * @param {string} title Section title.
+ * @param {"report" | "timeout" | "languages"} iconName Icon key.
+ * @param {string} [actionsHtml] Optional actions markup.
+ * @returns {string} Section header HTML.
+ */
+function renderSectionHeader(
+  title: string,
+  iconName: "report" | "timeout" | "languages",
+  actionsHtml = ""
+): string {
+  return `<div class="sectionHeader"><div class="sectionTitleGroup">${SMOKE_CONTROLS_SECTION_ICON_SVG_BY_NAME[iconName]}<div class="sectionTitle">${title}</div></div>${actionsHtml}</div>`;
+}
+
 /**
  * Binds smoke controls event handlers for one app root.
  *
@@ -127,49 +164,64 @@ function renderSmokeControls(
       const disabledTitle = language.disabledReason
         ? ` title="${language.disabledReason}"`
         : "";
-      return `<label class="smoke-language-item"${disabledTitle}><input type="checkbox" data-role="language-toggle" data-language-key="${language.languageKey}" ${checked} ${disabled} /> <span>${language.label}</span></label>`;
+      const iconElement =
+        typeof language.iconUri === "string" && language.iconUri.length > 0
+          ? `<img class="smoke-language-icon" src="${language.iconUri}" alt="" aria-hidden="true" />`
+          : '<span class="smoke-language-icon smoke-language-icon-fallback" aria-hidden="true"></span>';
+      return `<label class="smoke-language-item"${disabledTitle}><input type="checkbox" data-role="language-toggle" data-language-key="${language.languageKey}" ${checked} ${disabled} /><span class="smoke-language-label">${iconElement}<span>${language.label}</span></span></label>`;
     })
     .join("");
 
   appRoot.innerHTML = `
-    <section class="smoke-controls" aria-label="Smoke controls">
-      <p class="smoke-controls-status">Status: ${snapshot.statusLabel} (${snapshot.stateValue})</p>
-      <fieldset class="smoke-fieldset">
-        <legend>Report</legend>
-        <label class="smoke-field-row">
-          <input type="checkbox" data-role="report-enabled" ${
-            snapshot.reportEnabled ? "checked" : ""
-          } />
-          <span>Enable Markdown report</span>
-        </label>
-        <label class="smoke-field-row">
-          <span>Markdown path</span>
-          <input type="text" data-role="markdown-path" value="${snapshot.markdownPath}" />
-        </label>
-        <p class="smoke-status ${snapshot.reportStatusClassName}">${snapshot.reportStatusText}</p>
-      </fieldset>
-      <fieldset class="smoke-fieldset">
-        <legend>Timeouts</legend>
-        <label class="smoke-field-row">
-          <span>Timeout seconds</span>
-          <input type="text" data-role="timeout-seconds" value="${snapshot.timeoutSeconds}" />
-        </label>
-        <label class="smoke-field-row">
-          <span>Slow timeout seconds</span>
-          <input type="text" data-role="slow-timeout-seconds" value="${snapshot.slowTimeoutSeconds}" />
-        </label>
-      </fieldset>
-      <fieldset class="smoke-fieldset">
-        <legend>Languages</legend>
-        <div class="smoke-language-actions">
-          <button type="button" data-role="select-all-languages">Select all</button>
-          <button type="button" data-role="deselect-all-languages">Deselect all</button>
+    <section class="panel" aria-label="Smoke controls">
+      <p class="panelDescription">Controls smoke tests run in supported directories.</p>
+      <section class="section">
+        ${renderSectionHeader("Report Generation", "report")}
+        <div class="smoke-markdown-row">
+          <label class="smoke-markdown-label" for="smoke-markdown-enabled">
+            <input id="smoke-markdown-enabled" type="checkbox" data-role="report-enabled" ${
+              snapshot.reportEnabled ? "checked" : ""
+            } />
+          </label>
+          <input
+            class="smoke-input"
+            type="text"
+            data-role="markdown-path"
+            placeholder="Optional report path"
+            value="${snapshot.markdownPath}"
+            ${snapshot.reportEnabled ? "" : "disabled"}
+          />
         </div>
-        <div class="smoke-language-grid">
-          ${languageItems}
+        <p class="smoke-helper-text">Enable markdown output and optionally override the generated report path.</p>
+        <p class="smoke-status ${snapshot.reportStatusClassName}">${snapshot.reportStatusText}</p>
+      </section>
+      <section class="section">
+        ${renderSectionHeader("Timeouts", "timeout")}
+        <div class="smoke-timeout-row">
+          <label class="smoke-timeout-field">
+            <span>Timeout</span>
+            <input class="smoke-input" type="text" data-role="timeout-seconds" value="${snapshot.timeoutSeconds}" />
+          </label>
+          <label class="smoke-timeout-field">
+            <span>Slow Timeout</span>
+            <input class="smoke-input" type="text" data-role="slow-timeout-seconds" value="${snapshot.slowTimeoutSeconds}" />
+          </label>
+        </div>
+        <p class="smoke-helper-text">Defaults use timeout. Long-running languages should use slow-timeout.</p>
+      </section>
+      <section class="section">
+        ${renderSectionHeader(
+          "Languages",
+          "languages",
+          '<div class="buttonRow"><button class="button secondary" type="button" data-role="select-all-languages">Select all</button><button class="button secondary" type="button" data-role="deselect-all-languages">Deselect all</button></div>'
+        )}
+        <div class="smoke-language-list-container">
+          <div class="smoke-language-grid">
+            ${languageItems}
+          </div>
         </div>
         <p class="smoke-status ${snapshot.smokeStatusClassName}">${snapshot.smokeStatusText}</p>
-      </fieldset>
+      </section>
     </section>
   `;
 }

@@ -150,6 +150,16 @@ export function createCoordinator(
   const languages: ILanguages = createLanguages(GENERATED_LANGUAGE_DATA);
   const smokeLanguages: SmokeLanguageSelection[] =
     buildInitialSmokeLanguageSelections(languages);
+  const languageIconFileByKey = new Map<string, string>();
+
+  for (const language of languages.getAll()) {
+    const canonicalKey = language.key.trim().toLowerCase();
+    const iconFileName = language.icon.fileName.trim();
+
+    if (iconFileName.length > 0) {
+      languageIconFileByKey.set(canonicalKey, iconFileName);
+    }
+  }
 
   const stateMachine: IStateMachine = createHostStateService({
     initialSmokeControls: {
@@ -161,6 +171,31 @@ export function createCoordinator(
   const viewHost: IViewHost = createViewHost(context);
   const communicationHub: ICommunicationHub = createCommunicationHub(viewHost);
   const viewsRegistration = viewHost.register();
+
+  /**
+   * Resolves one language icon URI for the smoke controls snapshot.
+   *
+   * @param {string} languageKey Language key.
+   * @returns {string | undefined} Icon URI string if resolvable.
+   */
+  function resolveLanguageIconUri(languageKey: string): string | undefined {
+    const canonicalKey = languageKey.trim().toLowerCase();
+    const iconFileName = languageIconFileByKey.get(canonicalKey);
+
+    if (iconFileName !== undefined) {
+      const iconUri = viewHost.toWebviewResourceUri(
+        vscode.Uri.joinPath(context.extensionUri, "icons", "languages", iconFileName)
+      );
+
+      if (iconUri !== undefined) {
+        return iconUri;
+      }
+    }
+
+    return viewHost.toWebviewResourceUri(
+      vscode.Uri.joinPath(context.extensionUri, "icons", "play-sidebar.svg")
+    );
+  }
 
   /**
    * Builds the host->view smoke snapshot payload from state.
@@ -184,6 +219,7 @@ export function createCoordinator(
       languages: snapshot.smokeControls.languages.map((language) => {
         return {
           ...language,
+          iconUri: resolveLanguageIconUri(language.languageKey),
         };
       }),
     };

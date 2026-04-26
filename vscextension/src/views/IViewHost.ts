@@ -42,4 +42,12 @@ export interface IViewHost extends vscode.Disposable {
   postMessageToPrimaryWebview(
     message: HostToViewMessage
   ): Thenable<boolean> | undefined;
+
+  /**
+   * Converts one extension resource URI into a webview-safe URI string.
+   *
+   * @param {vscode.Uri} resourceUri Extension resource URI.
+   * @returns {string | undefined} Webview-safe URI or undefined when unresolved.
+   */
+  toWebviewResourceUri(resourceUri: vscode.Uri): string | undefined;
 }
