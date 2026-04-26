@@ -1,138 +1,201 @@
 # Architecture Summary
 
-This document defines the bootstrap architecture for the new TypeScript-based algorithms VS Code extension in `vscextension/`.
+This document summarizes the architecture of `vscextension` as a module system with explicit ownership boundaries and coordinator-only composition.
 
-The goal of this phase is not feature parity with the existing JavaScript extension in `extension/`. The goal is to stand up a clean, testable foundation with strong boundaries, a small runtime surface, and tooling that supports later migration work.
+## Table of Contents
 
-## 1. Bootstrap Goals
+- [1. System Snapshot](#1-system-snapshot)
+- [2. Tech Stack](#2-tech-stack)
+- [3. Design Philosophy](#3-design-philosophy)
+- [4. Category Definitions](#4-category-definitions)
+- [5. Module Contracts](#5-module-contracts)
+- [6. Runtime Flow](#6-runtime-flow)
+- [7. Internal Structure Policy](#7-internal-structure-policy)
+- [8. Dependency Rules](#8-dependency-rules)
+- [9. Where Code Goes](#9-where-code-goes)
+- [10. Summary](#10-summary)
 
-This bootstrap exists to establish the following:
+## 1. System Snapshot
 
-1. A standalone TypeScript extension package in `vscextension/`.
-2. A thin activation entrypoint in `src/extension.ts`.
-3. A single composition root in `src/coordinator.ts`.
-4. A minimal command slice that proves activation, registration, and user-visible behavior.
-5. Build, lint, typecheck, test, and package workflows that work before broader migration begins.
+The extension runtime is host-authoritative:
 
-## 2. Bootstrap Non-Goals
+1. Host owns canonical state and policy.
+2. Webviews render host snapshots and send typed write-intent messages.
+3. Shared contracts define host/webview protocol shape.
+4. Coordinator composes module implementations; policy and behavior remain in domain modules.
 
-This phase intentionally does not include the following:
+Current UI scope is two sidebar webviews:
 
-1. Feature parity with the existing extension in `extension/`.
-2. Full sidebar migration (target shape is 5 panels, but only one bootstrap webview is implemented in this phase).
-3. Full multi-panel Lit component library expansion.
-4. Full multi-panel comms protocol expansion.
-5. Full module expansion for `filesystem`, `models`, or other future domains.
-6. Root-level repo script integration.
+1. Smoke Controls.
+2. Run Controls.
 
-XState is now active for host state orchestration. The `state` module is the canonical host state owner.
+## 2. Tech Stack
 
-If one of those concerns becomes necessary later, it should be added as a new vertical slice rather than pre-created as placeholder architecture.
+1. Platform/runtime: VS Code extension host + webview frontend.
+2. Language: TypeScript across host and frontend layers.
+3. Frontend UI rendering: Lit (`lit`) in webview UI layers.
+4. Host state orchestration: XState (`xstate`) for host machine/actor flow.
+5. Build/bundle: npm scripts + webpack/esbuild pipeline for extension host and webview bundles.
+6. Testing: VS Code extension-host tests through the npm test pipeline.
+7. Packaging/publishing: VSCE (`@vscode/vsce`).
+8. Linting/quality: ESLint + TypeScript typechecking.
+9. Contracts/architecture: typed host-webview protocol in `src/comms/shared` with coordinator-owned DI wiring.
 
-## 3. Core Architectural Rules
+## 3. Design Philosophy
 
-The bootstrap architecture follows these rules:
+Architecture uses four module categories:
 
-1. `src/extension.ts` stays thin and delegates startup immediately.
-2. `src/coordinator.ts` is the only composition root and the only place allowed to construct concrete services across module boundaries.
-3. Feature code is organized by responsibility, not by speculative future layers.
-4. Cross-module behavior should move through explicit contracts when a second implementation or consumer appears.
-5. The first implementation should prefer a real vertical slice over empty folders and placeholder abstractions.
-6. Every module exposes exactly one named DI interface as its public contract, following the naming convention `I<ModuleName>` (e.g. `IStateMachine` for the `state` module, `IExtensionCommands` for the `commands` module). That interface lives in its own file (`I<ModuleName>.ts`) inside the module folder and is the single entry point that consumers outside the module are allowed to depend on. Concrete implementations are wired only in the coordinator.
-7. Every module has a module entrypoint file (`index.ts`) that re-exports its public surface so consumers import the module, not internal implementation files.
+1. Domain modules.
+2. Boundary/support modules.
+3. Composition modules.
+4. Utility/support surfaces.
 
-## 4. Initial Module Shape
+Quality checks for adding or splitting modules:
 
-The initial source tree should stay small.
+1. Distinct reason to change.
+2. Distinct ownership boundary.
+3. Distinct external contract.
+4. Distinct failure modes.
+5. Interface-first dependency flow: cross-module behavior depends on injected contracts, not concrete imports outside coordinator wiring.
 
-| Module | Purpose | Owns | Must Not Own |
-| --- | --- | --- | --- |
-| `extension` | VS Code activation and shutdown handoff | Activation lifecycle entrypoints | Concrete feature wiring beyond delegation |
-| `coordinator` | Composition root for the runtime | Startup wiring, command registration, state service construction, shared disposables | Deep feature logic |
-| `commands` | User-invoked extension behavior | `IExtensionCommands` contract, module entrypoint (`src/commands/index.ts`), command registration helpers, and command handlers | Extension activation flow, canonical state, or unrelated future domains |
-| `conductor` | Host-side long-running multi-step orchestration policy | `IConductor` contract, module entrypoint (`src/conductor/index.ts`), and orchestration lifecycle interface for non-user-driven host process flow | Direct process execution primitives, terminal UI ownership, comms transport ownership, or canonical state storage ownership |
-| `state` | Canonical host state | XState machine, lazy-start actor, `IStateMachine` contract, snapshot selectors | Filesystem I/O, command registration, or UI rendering |
-| `languages` | Canonical language catalog and lookup behavior | Generated language data adapter, `ILanguages` contract, normalization/lookups by key, language ID, and extension | Command execution side effects, state transitions, UI rendering, or direct script invocation |
-| `filesystem` | Canonical filesystem access and path safety behavior | `IFilesystem` contract, module entrypoint (`src/filesystem/index.ts`), path canonicalization helpers, and bounded file/directory operations | Command orchestration, extension state transitions, UI rendering, or language catalog ownership |
-| `commandline` | Canonical command-line execution and process management | `ICommandLine` contract, module entrypoint (`src/commandline/index.ts`), spawn/spawnSync execution, process handle primitives, and internal adapter layer (`src/commandline/adapters/`) | Command routing policy, terminal UI ownership, docker/ssh abstraction ownership, or workflow orchestration policy |
-| `comms` | Canonical host-webview transport contracts and routing | `ICommunicationHub` contract, shared protocol contracts (`src/comms/shared`), and host-side message hub wiring | Workflow/domain policy ownership or direct UI rendering ownership |
-| `notifications` | Canonical host-side notification routing | `INotificationRouter` contract, module entrypoint (`src/notifications/index.ts`), and VS Code notification adapter | Workflow policy ownership, view rendering ownership, or comms transport ownership |
-| `views` | Canonical host-side view registration and interactions | `IViewHost` contract, module entrypoint (`src/views/index.ts`), one bootstrap webview provider, and webview template rendering | Command orchestration logic, canonical state ownership, filesystem policy ownership, or language catalog ownership |
+## 4. Category Definitions
 
-Additional modules should be added only when a real responsibility boundary appears.
+### 4.1 Domain Modules
 
-The current sidebar scope intentionally includes only one implemented webview. The planned target shape remains 5 panels total: 3 webviews and 2 file-based treeviews. Frontend structure is standardized now as shared webview base code plus panel-local `comms`, `ui`, and `bridges` layers.
+Purpose: own product behavior and workflow policy.
 
-The current notifications scope is intentionally host-only and VS Code-backed. Webview notification bridges and per-view targeting remain deferred.
+Responsibilities: encode invariants, validate/transform intent, and expose stable contracts.
 
-The current commandline scope is module-first only. `ICommandLine`, its implementation, and a bootstrap adapter layer are in place, but coordinator wiring and live command consumers are intentionally deferred.
+Modules:
 
-The conductor now owns smoke-controls host reaction policy. `IConductor` is wired in the coordinator for smoke intent interpretation and reaction effects, while smoke execution/runtime process control remains deferred.
+1. `state`
+2. `conductor`
+3. `commands`
+4. `languages`
 
-Lit is the standard rendering layer for webview UI surfaces, with shared UI core primitives provided from `src/views/media/shared/ui/`.
+### 4.2 Boundary and Support Modules
 
-## 5. Runtime Flow
+Purpose: adapt domain behavior to runtime boundaries.
 
-1. VS Code activates the extension through a bootstrap command.
-2. `src/extension.ts` hands control to `src/coordinator.ts`.
-3. The coordinator constructs `IStateMachine`, `IExtensionCommands`, `IViewHost`, `ICommunicationHub`, and `INotificationRouter`, then registers the initial command set and one bootstrap webview provider.
-4. `IConductor` interprets typed smoke control intents and returns deterministic host reaction effects (state events, optional notifications, snapshot publish signal).
-5. `ICommunicationHub` receives typed view-to-host messages, coordinator routes them through conductor policy, and posts typed host-to-view smoke snapshots.
-6. The bootstrap frontend composes shared comms/runtime/UI-core base plus panel `comms`, `ui`, and `bridges` layers for transport, rendering, and glue logic.
-7. On first command invocation the state machine starts lazily, receives a `COMMAND_REQUESTED` event, and the command derives its output from the resulting snapshot.
-8. The command records the outcome back to the machine via `COMMAND_SUCCEEDED` or `COMMAND_FAILED`.
-9. Tests validate activation, command registration, lazy machine startup, and state-derived message content.
+Responsibilities: transport adaptation, filesystem/process boundaries, notification routing, and view-host adaptation.
 
-## 6. Dependency Rules
+Modules:
 
-The following rules apply from the first commit:
+1. `comms`
+2. `views`
+3. `notifications`
+4. `filesystem`
+5. `commandline`
 
-1. Only `src/coordinator.ts` may create concrete cross-module dependencies.
-2. Modules outside the coordinator should not reach back into the activation layer.
-3. Command handlers should stay focused on command behavior and depend on injected collaborators when shared behavior appears.
-4. Utility code may be shared only when it removes duplication without taking ownership away from a clearer module.
+### 4.3 Composition Modules
 
-## 7. Where New Code Goes
+Purpose: wire modules into a running extension.
 
-Code should go to these locations:
+Responsibilities: startup ordering, construction of concrete dependencies, and integration lifecycle.
 
-1. Activation entrypoint: `src/extension.ts`
-2. Composition root: `src/coordinator.ts`
-3. Command module entrypoint and command logic: `src/commands/` (public surface from `src/commands/index.ts`)
-4. Host-side long-running orchestration contracts and service: `src/conductor/`
-5. Canonical host state machine and service: `src/state/`
-6. Canonical language catalog interface and helpers: `src/languages/`
-7. Canonical filesystem interface and helpers: `src/filesystem/`
-8. Canonical command-line execution and process helpers: `src/commandline/`
-9. Commandline adapter layer (bootstrap scaffold): `src/commandline/adapters/`
-10. Canonical host-webview communication contracts and hub: `src/comms/`
-11. Canonical host notification routing: `src/notifications/`
-12. Canonical view host and provider wiring: `src/views/`
-13. Webview templates and client assets authored in TypeScript (HTML/CSS/TS): `src/views/media/`
-14. Shared webview frontend base (`comms`, runtime helpers, Lit UI core): `src/views/media/shared/`
-15. Panel-local frontend layers (`comms`, `ui`, `bridges`): `src/views/media/<panel>/`
-16. Compiled webview client bundles: `dist/views/`
-17. Extension-host and unit tests: `test/`
-18. Build and quality tooling: package-level config files in `vscextension/`
+Modules:
 
-Do not create top-level directories for future domains until a migrated feature actually needs them.
+1. `coordinator`
+2. `extension`
 
-## 8. Expansion Path
+### 4.4 Utility Support Surfaces
 
-Once the bootstrap is stable, new modules can be introduced one slice at a time. The expected order is:
+Purpose: reusable support that does not own domain policy.
 
-1. Add the first migrated feature from the current extension.
-2. Introduce a new module only when that feature reveals a real ownership boundary.
-3. Update this document alongside the new boundary so the written architecture stays aligned with the codebase.
+Responsibilities: generated data, frontend shared runtime/UI primitives, and test scaffolding.
 
-## 9. Summary
+Surfaces:
 
-The bootstrap architecture is intentionally narrow:
+1. `src/views/media/shared/`
+2. `test/`
 
-1. TypeScript first.
-2. Thin activation.
-3. Coordinator-owned composition.
-4. Minimal real command slice.
-5. No speculative module sprawl.
+## 5. Module Contracts
 
-Success means the new extension package is small, clean, and executable, with room to grow without inheriting the current extension's coupling.
+| Module | Why It Exists | Owns | Must Not Own | Primary Contracts |
+| --- | --- | --- | --- | --- |
+| `commands` | User-invoked extension behavior | `src/commands/`, command registration and command handlers | Canonical state ownership, view transport ownership | `IExtensionCommands` |
+| `commandline` | Process execution boundary | `src/commandline/`, process handle abstraction, adapters | Workflow policy, UI ownership, host state ownership | `ICommandLine`, `ICommandLineProcessHandle` |
+| `comms` | Typed host/webview transport and routing | `src/comms/shared`, message hub wiring, payload builders | Domain policy ownership, canonical state ownership | `ICommunicationHub` |
+| `conductor` | Host reaction/orchestration policy | `src/conductor/`, typed intent reactions and effects | Direct transport ownership, direct VS Code view ownership, canonical state storage | `IConductor` |
+| `filesystem` | Filesystem boundary | `src/filesystem/`, path-safe host file operations | Workflow policy, transport ownership, UI rendering ownership | `IFilesystem` |
+| `languages` | Canonical language catalog and lookup behavior | `src/languages/`, generated data adaptation, language lookup/normalization | Command execution ownership, transport ownership, UI rendering ownership | `ILanguages` |
+| `notifications` | Host notification routing | `src/notifications/`, VS Code notification adaptation | Product workflow policy ownership, view-state ownership | `INotificationRouter` |
+| `state` | Canonical host runtime state | `src/state/`, XState machine/actor lifecycle, snapshot selectors | Filesystem/process side effects, transport ownership, UI rendering ownership | `IStateMachine` |
+| `views` | Host-side webview registration and host-view bridge | `src/views/`, webview provider lifecycle, template rendering, message ingress/egress bridge | Canonical workflow policy ownership, canonical state storage ownership | `IViewHost` |
+| `coordinator` | Composition root | `src/coordinator.ts`, concrete construction and cross-module wiring | Deep domain policy and module-internal ownership | Composition wiring only |
+
+## 6. Runtime Flow
+
+1. `src/extension.ts` activates the extension and delegates to `createCoordinator`.
+2. `src/coordinator.ts` constructs concrete modules (`languages`, `state`, `conductor`, `notifications`, `views`, `comms`, `commands`) and registers host resources.
+3. `views` registers Smoke Controls and Run Controls webview providers and bridges inbound/outbound messages.
+4. `comms` subscribes per-view channels and forwards typed view messages into coordinator handlers.
+5. On `smoke.ready` and `run.ready`, coordinator publishes typed snapshots derived from `state`.
+6. On `smoke.intent` and `run.intent`, coordinator calls `conductor` reaction methods with current state snapshot.
+7. `conductor` returns deterministic effects: state events, optional notification effect, and snapshot-publish signal.
+8. Coordinator applies returned state events through `state`, routes optional notifications via `notifications`, and publishes updated snapshots through `comms` when requested.
+9. Commands are registered from `commands`; command handlers derive output from host state and route user-visible status via `notifications`.
+
+## 7. Internal Structure Policy
+
+Modules may keep internal vertical layers where it improves cohesion without creating top-level sprawl.
+
+Rules:
+
+1. Prefer coherent module internals over premature top-level module creation.
+2. Split a module only when ownership boundaries diverge in a durable way.
+3. Keep internal layers scoped to module responsibility and exported through module entrypoints.
+
+### 7.1 Notable Internal Structures
+
+| Module | Layer | Location | Responsibility | Boundary |
+| --- | --- | --- | --- | --- |
+| `views` | Shared frontend base | `src/views/media/shared/` | Shared webview runtime, typed frontend comms facade, and Lit UI core | No host policy ownership or canonical host state ownership |
+| `views` | Smoke Controls panel | `src/views/media/smokeControls/` | Smoke panel comms, bridge, and UI rendering | No host canonical state ownership or cross-panel policy ownership |
+| `views` | Run Controls panel | `src/views/media/runControls/` | Run panel comms, bridge, and UI rendering | No host canonical state ownership or cross-panel policy ownership |
+| `comms` | Shared protocol | `src/comms/shared/` | Transport-agnostic message contracts and guards | No domain side effects |
+| `comms` | Payload builders | `src/comms/builders/` | Typed host->view snapshot payload shaping support | No workflow policy ownership |
+| `commandline` | Adapter layer | `src/commandline/adapters/` | Isolated process execution adapter boundary | No workflow orchestration policy ownership |
+| `languages` | Generated catalog data | `src/languages/generated/` | Source language metadata consumed by language service | No state/transport ownership |
+
+`src/runtime/` currently exists as a staging surface (`adapters/`, `builders/`) and is not part of the active module contract graph until concrete production responsibilities are wired through coordinator.
+
+## 8. Dependency Rules
+
+Coordinator scope directive (non-negotiable):
+
+"The job of the Coordinator is to initate all modules and handle the dependency graph. Anything else you're trying to do in Coordinator you need to go fuck yoruself."
+
+MUST rules:
+
+1. Only `src/coordinator.ts` may construct concrete cross-module implementations.
+2. Non-coordinator modules must depend on contract types or local internals, not concrete runtime imports from other modules.
+3. Contracts are defined by provider modules and consumed via injection in coordinator wiring.
+4. Host/webview protocol shape is centralized in `src/comms/shared`.
+5. Webview frontend code may depend on shared frontend surfaces under `src/views/media/shared`, but not host-only module internals.
+6. New top-level modules require explicit ownership justification and architecture-doc updates in the same change.
+
+## 9. Where Code Goes
+
+1. Activation/deactivation entrypoints: `src/extension.ts`
+2. Composition wiring and runtime integration: `src/coordinator.ts`
+3. User command registration/handlers: `src/commands/`
+4. Canonical host state machine and snapshots: `src/state/`
+5. Host intent reaction/orchestration policy: `src/conductor/`
+6. Language catalog and lookups: `src/languages/`
+7. Filesystem boundary code: `src/filesystem/`
+8. Process execution boundary code: `src/commandline/`
+9. Host/webview protocol and host message hub: `src/comms/`
+10. Host notification routing: `src/notifications/`
+11. Host-side view registration and webview hosting: `src/views/`
+12. Webview panel assets and panel-local runtime/UI: `src/views/media/`
+13. Webview bundles: `dist/views/`
+14. Tests and architecture assertions: `test/`
+
+## 10. Summary
+
+1. Domain modules own behavior and policy (`state`, `conductor`, `commands`, `languages`).
+2. Boundary/support modules adapt runtime edges (`comms`, `views`, `notifications`, `filesystem`, `commandline`).
+3. Coordinator is the sole composition root for concrete dependency wiring.
+4. Host remains canonical; webviews render snapshots and send typed write-intent.
+5. Architecture grows by real ownership boundaries, not speculative top-level module expansion.

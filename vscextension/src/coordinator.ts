@@ -4,146 +4,41 @@ import {
   createShowBootstrapStatusCommand,
   registerCommands,
 } from "./commands";
-import { createCommunicationHub } from "./comms";
-import type {
-  ICommunicationHub,
-  RunControlsViewSnapshot,
-  SmokeControlsViewSnapshot,
-  ViewRunControlsIntent,
-  ViewSmokeControlIntent,
-} from "./comms";
-import { createConductorService } from "./conductor";
-import type {
-  ConductorNotificationEffect,
-  ConductorRunControlsIntent,
-  ConductorSmokeIntent,
-  IConductor,
-} from "./conductor";
 import type { IExtensionCommands } from "./commands";
-import { createLanguages, GENERATED_LANGUAGE_DATA } from "./languages";
-import type { ILanguages, LanguageRecord } from "./languages";
-import { createNotificationRouter } from "./notifications";
+import {
+  buildRunControlsSnapshot,
+  createSmokeLanguageIconUriResolver,
+  createSmokeSnapshotBuilder,
+  createCommunicationHub,
+} from "./comms";
+import type { ICommunicationHub } from "./comms";
+import { createConductorService } from "./conductor";
+import type { IConductor } from "./conductor";
+import {
+  buildSmokeLanguageSelections,
+  createLanguages,
+  GENERATED_LANGUAGE_DATA,
+} from "./languages";
+import type { ILanguages } from "./languages";
+import {
+  createNotificationRouter,
+  createConductorNotificationDispatcher,
+} from "./notifications";
 import type { INotificationRouter } from "./notifications";
-import type { IStateMachine } from "./state";
 import { createHostStateService } from "./state";
-import type { SmokeLanguageSelection } from "./state";
-import type { IViewHost } from "./views";
+import type { IStateMachine } from "./state";
 import {
   createViewHost,
   getRunControlsSidebarViewId,
   getSmokeControlsSidebarViewId,
 } from "./views";
-
-/**
- * Returns the schema-aligned platform token for the current host.
- *
- * @returns {string} Platform token.
- */
-function getCurrentPlatformToken(): string {
-  if (process.platform === "darwin") {
-    return "Darwin";
-  }
-
-  if (process.platform === "linux") {
-    return "Linux";
-  }
-
-  if (process.platform === "freebsd") {
-    return "FreeBSD";
-  }
-
-  if (process.platform === "win32") {
-    return "MINGW64_NT";
-  }
-
-  return "*";
-}
-
-/**
- * Returns the schema-aligned architecture token for the current host.
- *
- * @returns {string} Architecture token.
- */
-function getCurrentArchitectureToken(): string {
-  if (process.arch === "arm64") {
-    return "arm64";
-  }
-
-  if (process.arch === "x64") {
-    return "x86_64";
-  }
-
-  return process.arch;
-}
-
-/**
- * Checks whether one language is runnable on the current host.
- *
- * @param {LanguageRecord} language Language record.
- * @returns {boolean} True when at least one rule permits current platform and arch.
- */
-function isLanguageRunnableOnCurrentHost(language: LanguageRecord): boolean {
-  const canRunRules = Array.isArray(language.constraints?.canRun)
-    ? language.constraints.canRun
-    : [];
-
-  if (canRunRules.length === 0) {
-    return true;
-  }
-
-  const platformToken = getCurrentPlatformToken();
-  const archToken = getCurrentArchitectureToken();
-
-  for (const rule of canRunRules) {
-    const platforms = Array.isArray(rule.platform) ? rule.platform : ["*"];
-    const archValues = Array.isArray(rule.arch) ? rule.arch : ["*"];
-    const platformMatch = platforms.includes("*") || platforms.includes(platformToken);
-    const archMatch = archValues.includes("*") || archValues.includes(archToken);
-
-    if (platformMatch && archMatch) {
-      return true;
-    }
-  }
-
-  return false;
-}
-
-/**
- * Builds initial smoke language selections from generated language metadata.
- *
- * @param {ILanguages} languages Languages module instance.
- * @returns {SmokeLanguageSelection[]} Initial smoke language selections.
- */
-function buildInitialSmokeLanguageSelections(
-  languages: ILanguages
-): SmokeLanguageSelection[] {
-  const defaultSmokeKeys = new Set(languages.getDefaultSmokeKeys());
-
-  return languages
-    .getAll()
-    .filter((language) => language.smoke.visible !== false)
-    .map((language) => {
-      const languageKey = language.key.trim().toLowerCase();
-      const runnable = isLanguageRunnableOnCurrentHost(language);
-
-      return {
-        languageKey,
-        label: language.displayLabel,
-        selected: defaultSmokeKeys.has(languageKey) && runnable,
-        disabled: !runnable,
-        disabledReason: runnable
-          ? ""
-          : "Not runnable on this platform/architecture.",
-      };
-    });
-}
+import type { IViewHost } from "./views";
 
 /**
  * Creates the coordinator for the bootstrap extension runtime.
  *
  * The coordinator is the only place that constructs concrete implementations
- * of `IStateMachine` and `IExtensionCommands`. All other modules receive
- * only the interfaces.
+ * across module boundaries. All other modules receive only injected interfaces.
  *
  * The state machine is constructed eagerly but its underlying XState actor
  * starts lazily on the first command dispatch.
@@ -156,221 +51,41 @@ export function createCoordinator(
 ): vscode.Disposable {
   const runControlsViewId = getRunControlsSidebarViewId();
   const smokeControlsViewId = getSmokeControlsSidebarViewId();
+
   const languages: ILanguages = createLanguages(GENERATED_LANGUAGE_DATA);
-  const smokeLanguages: SmokeLanguageSelection[] =
-    buildInitialSmokeLanguageSelections(languages);
-  const languageIconFileByKey = new Map<string, string>();
-
-  for (const language of languages.getAll()) {
-    const canonicalKey = language.key.trim().toLowerCase();
-    const iconFileName = language.icon.fileName.trim();
-
-    if (iconFileName.length > 0) {
-      languageIconFileByKey.set(canonicalKey, iconFileName);
-    }
-  }
-
   const stateMachine: IStateMachine = createHostStateService({
     initialSmokeControls: {
-      languages: smokeLanguages,
+      languages: buildSmokeLanguageSelections(languages),
     },
   });
   const conductor: IConductor = createConductorService();
   const notificationRouter: INotificationRouter = createNotificationRouter();
+  const notificationDispatcher = createConductorNotificationDispatcher(notificationRouter);
   const viewHost: IViewHost = createViewHost(context);
   const communicationHub: ICommunicationHub = createCommunicationHub(viewHost);
   const viewsRegistration = viewHost.register();
-
-  /**
-   * Resolves one language icon URI for the smoke controls snapshot.
-   *
-   * @param {string} languageKey Language key.
-   * @returns {string | undefined} Icon URI string if resolvable.
-   */
-  function resolveLanguageIconUri(languageKey: string): string | undefined {
-    const canonicalKey = languageKey.trim().toLowerCase();
-    const iconFileName = languageIconFileByKey.get(canonicalKey);
-
-    if (iconFileName !== undefined) {
-      const iconUri = viewHost.toWebviewResourceUri(
-        smokeControlsViewId,
-        vscode.Uri.joinPath(context.extensionUri, "icons", "languages", iconFileName)
-      );
-
-      if (iconUri !== undefined) {
-        return iconUri;
-      }
-    }
-
-    return viewHost.toWebviewResourceUri(
-      smokeControlsViewId,
-      vscode.Uri.joinPath(context.extensionUri, "icons", "play-sidebar.svg")
-    );
-  }
-
-  /**
-   * Builds the host->view smoke snapshot payload from state.
-   *
-    * @returns {SmokeControlsViewSnapshot} Snapshot payload.
-   */
-    function buildSmokeSnapshotPayload(): SmokeControlsViewSnapshot {
-    const snapshot = stateMachine.getSnapshot();
-
-    return {
-      stateValue: snapshot.stateValue,
-      reportEnabled: snapshot.smokeControls.reportEnabled,
-      markdownPath: snapshot.smokeControls.markdownPath,
-      timeoutSeconds: snapshot.smokeControls.timeoutSeconds,
-      slowTimeoutSeconds: snapshot.smokeControls.slowTimeoutSeconds,
-      statusLabel: snapshot.smokeControls.statusLabel,
-      reportStatusText: snapshot.smokeControls.reportStatusText,
-      reportStatusClassName: snapshot.smokeControls.reportStatusClassName,
-      smokeStatusText: snapshot.smokeControls.smokeStatusText,
-      smokeStatusClassName: snapshot.smokeControls.smokeStatusClassName,
-      languages: snapshot.smokeControls.languages.map((language) => {
-        return {
-          ...language,
-          iconUri: resolveLanguageIconUri(language.languageKey),
-        };
-      }),
-    };
-  }
-
-  /**
-   * Builds the host->view run controls snapshot payload from state.
-   *
-   * @returns {RunControlsViewSnapshot} Snapshot payload.
-   */
-  function buildRunControlsSnapshotPayload(): RunControlsViewSnapshot {
-    const snapshot = stateMachine.getSnapshot();
-
-    return {
-      stateValue: snapshot.stateValue,
-      runArgsEnabled: snapshot.runControls.runArgsEnabled,
-      runArgsText: snapshot.runControls.runArgsText,
-      runArgsStatusText: snapshot.runControls.runArgsStatusText,
-      runArgsStatusClassName: snapshot.runControls.runArgsStatusClassName,
-      sourceProfileEnabled: snapshot.runControls.sourceProfileEnabled,
-      sourceProfileText: snapshot.runControls.sourceProfileText,
-      sourceProfileStatusText: snapshot.runControls.sourceProfileStatusText,
-      sourceProfileStatusClassName: snapshot.runControls.sourceProfileStatusClassName,
-      runChecksMode: snapshot.runControls.runChecksMode,
-      runChecksRoute: snapshot.runControls.runChecksRoute,
-      runChecksStatusText: snapshot.runControls.runChecksStatusText,
-      runChecksStatusClassName: snapshot.runControls.runChecksStatusClassName,
-      cleanStdlibEnabled: snapshot.runControls.cleanStdlibEnabled,
-      cleanArchivesEnabled: snapshot.runControls.cleanArchivesEnabled,
-      cleanOptionsStatusText: snapshot.runControls.cleanOptionsStatusText,
-      cleanOptionsStatusClassName: snapshot.runControls.cleanOptionsStatusClassName,
-    };
-  }
-
-  /**
-   * Maps one comms smoke intent into the conductor intent contract.
-   *
-   * @param {ViewSmokeControlIntent} intent Message intent.
-   * @returns {ConductorSmokeIntent} Conductor intent.
-   */
-  function mapViewIntentToConductorIntent(intent: ViewSmokeControlIntent): ConductorSmokeIntent {
-    return intent;
-  }
-
-  /**
-   * Maps one run controls view intent into the conductor intent contract.
-   *
-   * @param {ViewRunControlsIntent} intent Message intent.
-   * @returns {ConductorRunControlsIntent} Conductor intent.
-   */
-  function mapRunViewIntentToConductorIntent(
-    intent: ViewRunControlsIntent
-  ): ConductorRunControlsIntent {
-    return intent;
-  }
-
-  /**
-   * Routes one conductor notification effect.
-   *
-   * @param {ConductorNotificationEffect} notification Notification effect.
-   * @returns {void}
-   */
-  function routeConductorNotification(
-    notification: ConductorNotificationEffect
-  ): void {
-    if (notification.level === "error") {
-      void notificationRouter.error(notification.message);
-      return;
-    }
-
-    if (notification.level === "warn") {
-      void notificationRouter.warn(notification.message);
-      return;
-    }
-
-    void notificationRouter.info(notification.message);
-  }
-
-  const commsSubscription = communicationHub.subscribe(smokeControlsViewId, (message) => {
-    if (message.type === "smoke.ready") {
-      communicationHub.post(smokeControlsViewId, {
-        type: "smoke.snapshot",
-        payload: buildSmokeSnapshotPayload(),
-      });
-      return;
-    }
-
-    if (message.type === "smoke.intent") {
-      const reaction = conductor.reactToSmokeIntent({
-        intent: mapViewIntentToConductorIntent(message.payload),
-        snapshot: stateMachine.getSnapshot(),
-      });
-
-      for (const stateEvent of reaction.stateEvents) {
-        stateMachine.send(stateEvent);
-      }
-
-      if (reaction.notification !== null) {
-        routeConductorNotification(reaction.notification);
-      }
-
-      if (reaction.shouldPublishSnapshot) {
-        communicationHub.post(smokeControlsViewId, {
-          type: "smoke.snapshot",
-          payload: buildSmokeSnapshotPayload(),
-        });
-      }
-    }
+  const resolveSmokeLanguageIconUri = createSmokeLanguageIconUriResolver({
+    languages,
+    viewHost,
+    viewId: smokeControlsViewId,
+    extensionUri: context.extensionUri,
   });
-
-  const runControlsSubscription = communicationHub.subscribe(runControlsViewId, (message) => {
-    if (message.type === "run.ready") {
-      communicationHub.post(runControlsViewId, {
-        type: "run.snapshot",
-        payload: buildRunControlsSnapshotPayload(),
-      });
-      return;
-    }
-
-    if (message.type === "run.intent") {
-      const reaction = conductor.reactToRunControlsIntent({
-        intent: mapRunViewIntentToConductorIntent(message.payload),
-        snapshot: stateMachine.getSnapshot(),
-      });
-
-      for (const stateEvent of reaction.stateEvents) {
-        stateMachine.send(stateEvent);
-      }
-
-      if (reaction.notification !== null) {
-        routeConductorNotification(reaction.notification);
-      }
-
-      if (reaction.shouldPublishSnapshot) {
-        communicationHub.post(runControlsViewId, {
-          type: "run.snapshot",
-          payload: buildRunControlsSnapshotPayload(),
-        });
-      }
-    }
+  const buildSmokeControlsSnapshot = createSmokeSnapshotBuilder(
+    resolveSmokeLanguageIconUri
+  );
+  const smokeControlsChannel = communicationHub.registerSmokeControlsChannel({
+    viewId: smokeControlsViewId,
+    stateMachine,
+    conductor,
+    dispatchNotification: notificationDispatcher.dispatch,
+    buildSnapshot: buildSmokeControlsSnapshot,
+  });
+  const runControlsChannel = communicationHub.registerRunControlsChannel({
+    viewId: runControlsViewId,
+    stateMachine,
+    conductor,
+    dispatchNotification: notificationDispatcher.dispatch,
+    buildSnapshot: buildRunControlsSnapshot,
   });
 
   const commands: IExtensionCommands = {
@@ -380,17 +95,15 @@ export function createCoordinator(
       ),
       extensionVersion: String(context.extension.packageJSON.version ?? "0.0.0"),
       hostState: stateMachine,
-      showStatusMessage: (message) => {
-        return notificationRouter.info(message);
-      },
+      showStatusMessage: notificationRouter.info,
     }),
   };
 
   return vscode.Disposable.from(
     stateMachine,
     communicationHub,
-    commsSubscription,
-    runControlsSubscription,
+    smokeControlsChannel,
+    runControlsChannel,
     viewHost,
     viewsRegistration,
     registerCommands(commands)

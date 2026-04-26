@@ -1,7 +1,11 @@
 import * as vscode from "vscode";
 
 import type { IViewHost } from "../views";
-import type { ICommunicationHub } from "./ICommunicationHub";
+import type {
+  ICommunicationHub,
+  RegisterRunControlsChannelInput,
+  RegisterSmokeControlsChannelInput,
+} from "./ICommunicationHub";
 import type { HostToViewMessage, ViewToHostMessage } from "./shared/messageTypes";
 
 /**
@@ -77,6 +81,82 @@ export function createCommunicationHub(viewHost: IViewHost): ICommunicationHub {
       message: HostToViewMessage
     ): Thenable<boolean> | undefined {
       return viewHost.postMessageToWebview(viewId, message);
+    },
+
+    registerSmokeControlsChannel(
+      input: RegisterSmokeControlsChannelInput
+    ): vscode.Disposable {
+      return this.subscribe(input.viewId, (message) => {
+        if (message.type === "smoke.ready") {
+          this.post(input.viewId, {
+            type: "smoke.snapshot",
+            payload: input.buildSnapshot(input.stateMachine.getSnapshot()),
+          });
+          return;
+        }
+
+        if (message.type !== "smoke.intent") {
+          return;
+        }
+
+        const reaction = input.conductor.reactToSmokeIntent({
+          intent: message.payload,
+          snapshot: input.stateMachine.getSnapshot(),
+        });
+
+        for (const stateEvent of reaction.stateEvents) {
+          input.stateMachine.send(stateEvent);
+        }
+
+        if (reaction.notification !== null) {
+          input.dispatchNotification(reaction.notification);
+        }
+
+        if (reaction.shouldPublishSnapshot) {
+          this.post(input.viewId, {
+            type: "smoke.snapshot",
+            payload: input.buildSnapshot(input.stateMachine.getSnapshot()),
+          });
+        }
+      });
+    },
+
+    registerRunControlsChannel(
+      input: RegisterRunControlsChannelInput
+    ): vscode.Disposable {
+      return this.subscribe(input.viewId, (message) => {
+        if (message.type === "run.ready") {
+          this.post(input.viewId, {
+            type: "run.snapshot",
+            payload: input.buildSnapshot(input.stateMachine.getSnapshot()),
+          });
+          return;
+        }
+
+        if (message.type !== "run.intent") {
+          return;
+        }
+
+        const reaction = input.conductor.reactToRunControlsIntent({
+          intent: message.payload,
+          snapshot: input.stateMachine.getSnapshot(),
+        });
+
+        for (const stateEvent of reaction.stateEvents) {
+          input.stateMachine.send(stateEvent);
+        }
+
+        if (reaction.notification !== null) {
+          input.dispatchNotification(reaction.notification);
+        }
+
+        if (reaction.shouldPublishSnapshot) {
+          this.post(input.viewId, {
+            type: "run.snapshot",
+            payload: input.buildSnapshot(input.stateMachine.getSnapshot()),
+          });
+        }
+      });
     },
 
     dispose(): void {
