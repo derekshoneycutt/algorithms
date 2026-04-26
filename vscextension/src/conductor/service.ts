@@ -3,6 +3,7 @@ import type {
   ConductorMarkCompletedInput,
   ConductorMarkFailedInput,
   ConductorMarkProgressInput,
+  ConductorNotificationEffect,
   ConductorRunControlsIntent,
   ConductorRunControlsReaction,
   ConductorSmokeReaction,
@@ -11,13 +12,173 @@ import type {
   ConductorStartRunInput,
   IConductor,
 } from "./IConductor";
-import type { RunControlsSettings, SmokeControlsSettings, SmokeLanguageSelection } from "../state";
+import type { ViewToHostMessage } from "../comms/shared/messageTypes";
+import type {
+  IStateMachine,
+  RunControlsSettings,
+  SmokeControlsSettings,
+  SmokeLanguageSelection,
+} from "../state";
 import {
   createCleanOptionsStatus,
   createRunArgsStatus,
   createRunChecksStatus,
   createSourceProfileStatus,
 } from "../state";
+
+/**
+ * Dependencies used to apply one conductor reaction to host runtime state.
+ */
+export interface ApplyConductorReactionDependencies {
+  stateMachine: IStateMachine;
+  dispatchNotification: (notification: ConductorNotificationEffect) => void;
+}
+
+/**
+ * Dependencies used to react to and apply one smoke-controls intent.
+ */
+export interface ReactAndApplySmokeIntentDependencies
+  extends ApplyConductorReactionDependencies {
+  conductor: IConductor;
+}
+
+/**
+ * Dependencies used to react to and apply one run-controls intent.
+ */
+export interface ReactAndApplyRunControlsIntentDependencies
+  extends ApplyConductorReactionDependencies {
+  conductor: IConductor;
+}
+
+/**
+ * Dependencies used to create one smoke-controls channel handler.
+ */
+export interface CreateSmokeControlsChannelMessageHandlerInput
+  extends ReactAndApplySmokeIntentDependencies {
+  publishSnapshot: () => void;
+}
+
+/**
+ * Dependencies used to create one run-controls channel handler.
+ */
+export interface CreateRunControlsChannelMessageHandlerInput
+  extends ReactAndApplyRunControlsIntentDependencies {
+  publishSnapshot: () => void;
+}
+
+/**
+ * Applies one conductor reaction to host state and notifications.
+ *
+ * @param {ConductorSmokeReaction | ConductorRunControlsReaction} reaction Conductor reaction to apply.
+ * @param {ApplyConductorReactionDependencies} dependencies Host runtime dependencies.
+ * @returns {boolean} True when the caller should publish a refreshed snapshot.
+ */
+export function applyConductorReaction(
+  reaction: ConductorSmokeReaction | ConductorRunControlsReaction,
+  dependencies: ApplyConductorReactionDependencies
+): boolean {
+  for (const stateEvent of reaction.stateEvents) {
+    dependencies.stateMachine.send(stateEvent);
+  }
+
+  if (reaction.notification !== null) {
+    dependencies.dispatchNotification(reaction.notification);
+  }
+
+  return reaction.shouldPublishSnapshot;
+}
+
+/**
+ * Reacts to one smoke-controls intent and applies the resulting effects.
+ *
+ * @param {ConductorSmokeIntent} intent Smoke-controls intent.
+ * @param {ReactAndApplySmokeIntentDependencies} dependencies Conductor and runtime dependencies.
+ * @returns {boolean} True when the caller should publish a refreshed snapshot.
+ */
+export function reactAndApplySmokeIntent(
+  intent: ConductorSmokeIntent,
+  dependencies: ReactAndApplySmokeIntentDependencies
+): boolean {
+  const reaction = dependencies.conductor.reactToSmokeIntent({
+    intent,
+    snapshot: dependencies.stateMachine.getSnapshot(),
+  });
+
+  return applyConductorReaction(reaction, dependencies);
+}
+
+/**
+ * Reacts to one run-controls intent and applies the resulting effects.
+ *
+ * @param {ConductorRunControlsIntent} intent Run-controls intent.
+ * @param {ReactAndApplyRunControlsIntentDependencies} dependencies Conductor and runtime dependencies.
+ * @returns {boolean} True when the caller should publish a refreshed snapshot.
+ */
+export function reactAndApplyRunControlsIntent(
+  intent: ConductorRunControlsIntent,
+  dependencies: ReactAndApplyRunControlsIntentDependencies
+): boolean {
+  const reaction = dependencies.conductor.reactToRunControlsIntent({
+    intent,
+    snapshot: dependencies.stateMachine.getSnapshot(),
+  });
+
+  return applyConductorReaction(reaction, dependencies);
+}
+
+/**
+ * Creates one conductor-owned message handler for the smoke-controls channel.
+ *
+ * @param {CreateSmokeControlsChannelMessageHandlerInput} input Channel handler dependencies.
+ * @returns {(message: ViewToHostMessage) => void} Message handler.
+ */
+export function createSmokeControlsChannelMessageHandler(
+  input: CreateSmokeControlsChannelMessageHandlerInput
+): (message: ViewToHostMessage) => void {
+  return (message: ViewToHostMessage): void => {
+    if (message.type === "smoke.ready") {
+      input.publishSnapshot();
+      return;
+    }
+
+    if (message.type !== "smoke.intent") {
+      return;
+    }
+
+    const shouldPublishSnapshot = reactAndApplySmokeIntent(message.payload, input);
+
+    if (shouldPublishSnapshot) {
+      input.publishSnapshot();
+    }
+  };
+}
+
+/**
+ * Creates one conductor-owned message handler for the run-controls channel.
+ *
+ * @param {CreateRunControlsChannelMessageHandlerInput} input Channel handler dependencies.
+ * @returns {(message: ViewToHostMessage) => void} Message handler.
+ */
+export function createRunControlsChannelMessageHandler(
+  input: CreateRunControlsChannelMessageHandlerInput
+): (message: ViewToHostMessage) => void {
+  return (message: ViewToHostMessage): void => {
+    if (message.type === "run.ready") {
+      input.publishSnapshot();
+      return;
+    }
+
+    if (message.type !== "run.intent") {
+      return;
+    }
+
+    const shouldPublishSnapshot = reactAndApplyRunControlsIntent(message.payload, input);
+
+    if (shouldPublishSnapshot) {
+      input.publishSnapshot();
+    }
+  };
+}
 
 let nextRunSequence = 1;
 

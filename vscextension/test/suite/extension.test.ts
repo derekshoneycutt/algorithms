@@ -43,4 +43,32 @@ describe("bootstrap extension", () => {
       "subsequent invocation should reflect last command ID in message"
     );
   });
+
+  it("contributes workspace tree view panels", async () => {
+    const extension = vscode.extensions.getExtension(
+      "derekshoneycutt.algorithms-runner-vscext"
+    );
+
+    assert.ok(extension, "extension should be discoverable");
+
+    await extension.activate();
+
+    const contributedViews =
+      (extension.packageJSON?.contributes?.views?.algosSidebar as
+        | Array<{ id?: string }>
+        | undefined) ?? [];
+
+    const contributedViewIds = contributedViews.map((view) => {
+      return String(view.id ?? "");
+    });
+
+    assert.ok(
+      contributedViewIds.includes("algos.workspaceAlgorithmsTreeView"),
+      "algorithms tree view should be contributed"
+    );
+    assert.ok(
+      contributedViewIds.includes("algos.workspaceStandardLibraryTreeView"),
+      "standard-library tree view should be contributed"
+    );
+  });
 });

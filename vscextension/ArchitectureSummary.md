@@ -1,6 +1,6 @@
 # Architecture Summary
 
-This document summarizes the architecture of `vscextension` as a module system with explicit ownership boundaries and coordinator-only composition.
+This document summarizes the architecture of `vscextension` as a module system with clear ownership boundaries.
 
 ## Table of Contents
 
@@ -17,185 +17,183 @@ This document summarizes the architecture of `vscextension` as a module system w
 
 ## 1. System Snapshot
 
-The extension runtime is host-authoritative:
+The extension is host-authoritative:
 
 1. Host owns canonical state and policy.
 2. Webviews render host snapshots and send typed write-intent messages.
 3. Shared contracts define host/webview protocol shape.
-4. Coordinator composes module implementations; policy and behavior remain in domain modules.
+4. Coordinator composes modules; domain logic remains in domain modules.
 
-Current UI scope is two sidebar webviews:
+Current UI scope is four sidebar panels:
 
 1. Smoke Controls.
 2. Run Controls.
+3. Algorithms tree.
+4. Standard Library tree.
 
 ## 2. Tech Stack
 
 1. Platform/runtime: VS Code extension host + webview frontend.
 2. Language: TypeScript across host and frontend layers.
 3. Frontend UI rendering: Lit (`lit`) in webview UI layers.
-4. Host state orchestration: XState (`xstate`) for host machine/actor flow.
+4. Host state orchestration: XState (`xstate`) for host state machine/actor flow.
 5. Build/bundle: npm scripts + webpack/esbuild pipeline for extension host and webview bundles.
 6. Testing: VS Code extension-host tests through the npm test pipeline.
 7. Packaging/publishing: VSCE (`@vscode/vsce`).
 8. Linting/quality: ESLint + TypeScript typechecking.
-9. Contracts/architecture: typed host-webview protocol in `src/comms/shared` with coordinator-owned DI wiring.
+9. Contracts/architecture: typed host-webview protocol in `src/comms/shared` with coordinator-owned DI via interface/port contracts.
 
 ## 3. Design Philosophy
 
 Architecture uses four module categories:
 
 1. Domain modules.
-2. Boundary/support modules.
+2. Boundary and support modules.
 3. Composition modules.
-4. Utility/support surfaces.
+4. Utility support surfaces.
 
-Quality checks for adding or splitting modules:
+Quality checks:
 
 1. Distinct reason to change.
 2. Distinct ownership boundary.
 3. Distinct external contract.
 4. Distinct failure modes.
-5. Interface-first dependency flow: cross-module behavior depends on injected contracts, not concrete imports outside coordinator wiring.
+5. Interface-first dependency flow: cross-module runtime behavior uses injected contracts, not concrete imports outside Coordinator.
 
 ## 4. Category Definitions
 
 ### 4.1 Domain Modules
 
-Purpose: own product behavior and workflow policy.
+Purpose: own product behavior and workflow rules.
 
-Responsibilities: encode invariants, validate/transform intent, and expose stable contracts.
+Responsibilities: encode invariants, expose stable contracts, and avoid transport/composition ownership.
 
-Modules:
-
-1. `state`
-2. `conductor`
-3. `commands`
-4. `languages`
+Modules: `commands`, `conductor`, `languages`, `state`.
 
 ### 4.2 Boundary and Support Modules
 
-Purpose: adapt domain behavior to runtime boundaries.
+Purpose: adapt domain behavior to runtime concerns.
 
-Responsibilities: transport adaptation, filesystem/process boundaries, notification routing, and view-host adaptation.
+Responsibilities: typed transport adaptation, view lifecycle integration, filesystem/process boundaries, and notification routing.
 
-Modules:
-
-1. `comms`
-2. `views`
-3. `notifications`
-4. `filesystem`
-5. `commandline`
+Modules: `comms`, `views`, `notifications`, `filesystem`, `commandline`.
 
 ### 4.3 Composition Modules
 
-Purpose: wire modules into a running extension.
+Purpose: wire modules into a running system.
 
-Responsibilities: startup ordering, construction of concrete dependencies, and integration lifecycle.
+Responsibilities: startup ordering, concrete construction, interface binding, and subscription registration.
 
-Modules:
-
-1. `coordinator`
-2. `extension`
+Modules: `coordinator`.
 
 ### 4.4 Utility Support Surfaces
 
-Purpose: reusable support that does not own domain policy.
+Purpose: provide reusable support without domain ownership.
 
-Responsibilities: generated data, frontend shared runtime/UI primitives, and test scaffolding.
+Responsibilities: generic helpers without accidental domain ownership.
 
-Surfaces:
-
-1. `src/views/media/shared/`
-2. `test/`
+Surfaces: `src/views/media/shared/`, `test/`.
 
 ## 5. Module Contracts
 
 | Module | Why It Exists | Owns | Must Not Own | Primary Contracts |
 | --- | --- | --- | --- | --- |
 | `commands` | User-invoked extension behavior | `src/commands/`, command registration and command handlers | Canonical state ownership, view transport ownership | `IExtensionCommands` |
-| `commandline` | Process execution boundary | `src/commandline/`, process handle abstraction, adapters | Workflow policy, UI ownership, host state ownership | `ICommandLine`, `ICommandLineProcessHandle` |
-| `comms` | Typed host/webview transport and routing | `src/comms/shared`, message hub wiring, payload builders | Domain policy ownership, canonical state ownership | `ICommunicationHub` |
-| `conductor` | Host reaction/orchestration policy | `src/conductor/`, typed intent reactions and effects | Direct transport ownership, direct VS Code view ownership, canonical state storage | `IConductor` |
-| `filesystem` | Filesystem boundary | `src/filesystem/`, path-safe host file operations | Workflow policy, transport ownership, UI rendering ownership | `IFilesystem` |
-| `languages` | Canonical language catalog and lookup behavior | `src/languages/`, generated data adaptation, language lookup/normalization | Command execution ownership, transport ownership, UI rendering ownership | `ILanguages` |
-| `notifications` | Host notification routing | `src/notifications/`, VS Code notification adaptation | Product workflow policy ownership, view-state ownership | `INotificationRouter` |
-| `state` | Canonical host runtime state | `src/state/`, XState machine/actor lifecycle, snapshot selectors | Filesystem/process side effects, transport ownership, UI rendering ownership | `IStateMachine` |
-| `views` | Host-side webview registration and host-view bridge | `src/views/`, webview provider lifecycle, template rendering, message ingress/egress bridge | Canonical workflow policy ownership, canonical state storage ownership | `IViewHost` |
-| `coordinator` | Composition root | `src/coordinator.ts`, concrete construction and cross-module wiring | Deep domain policy and module-internal ownership | Composition wiring only |
+| `commandline` | Process execution boundary | `src/commandline/`, process handle abstraction and adapters | Workflow policy, UI ownership, host state ownership | `ICommandLine`, `ICommandLineProcessHandle` |
+| `comms` | Typed host/webview messaging | `src/comms/shared/`, `src/comms/communicationHub.ts`, payload and publish helpers under `src/comms/builders/` | Workflow policy, orchestration policy, canonical state ownership | `ICommunicationHub` |
+| `conductor` | Host-side workflow and orchestration | `src/conductor/`, reaction helpers, effect application helpers, channel handlers | Direct transport ownership, direct VS Code view ownership, canonical state storage | `IConductor` |
+| `filesystem` | Filesystem boundary | `src/filesystem/`, path-safe host file operations | Product workflow decisions, transport ownership, UI rendering ownership | `IFilesystem` |
+| `languages` | Canonical language catalog and lookup behavior | `src/languages/`, generated data adaptation, language lookup/normalization, smoke selection rules | Command execution ownership, transport ownership, UI rendering ownership | `ILanguages` |
+| `notifications` | Host notification policy and routing | `src/notifications/`, notification adaptation and routing | Product domain decisions | `INotificationRouter` |
+| `state` | Canonical host state | `src/state/`, XState machine/actor lifecycle and snapshot selectors | Asset I/O, transport ownership, UI rendering ownership | `IStateMachine` |
+| `views` | Webview provider, tree provider, template, and frontend runtime | `src/views/`, `src/views/media/`, `src/views/trees/` | Canonical workflow state, orchestration policy | `IViewHost` |
+| `coordinator` | Composition root | `src/coordinator.ts` | Deep domain logic | Composition wiring and concrete construction |
 
 ## 6. Runtime Flow
 
-1. `src/extension.ts` activates the extension and delegates to `createCoordinator`.
-2. `src/coordinator.ts` constructs concrete modules (`languages`, `state`, `conductor`, `notifications`, `views`, `comms`, `commands`) and registers host resources.
-3. `views` registers Smoke Controls and Run Controls webview providers and bridges inbound/outbound messages.
-4. `comms` subscribes per-view channels and forwards typed view messages into coordinator handlers.
-5. On `smoke.ready` and `run.ready`, coordinator publishes typed snapshots derived from `state`.
-6. On `smoke.intent` and `run.intent`, coordinator calls `conductor` reaction methods with current state snapshot.
-7. `conductor` returns deterministic effects: state events, optional notification effect, and snapshot-publish signal.
-8. Coordinator applies returned state events through `state`, routes optional notifications via `notifications`, and publishes updated snapshots through `comms` when requested.
+1. `src/extension.ts` activates extension runtime.
+2. `src/coordinator.ts` constructs concrete modules and binds them together.
+3. `views` registers the Smoke Controls and Run Controls webviews plus the Algorithms and Standard Library tree providers, then connects VS Code view lifecycle to the host runtime.
+4. `coordinator` wires `ICommunicationHub.subscribe` with conductor-owned channel handlers.
+5. `comms` receives typed host/webview traffic and delivers inbound messages to subscribed handlers.
+6. `conductor` owns ready/intent handling, computes reactions, applies state effects, dispatches notifications, and decides whether snapshots should be republished.
+7. `comms.post` transports outbound snapshots back to the webview when asked.
+8. `state` remains canonical throughout; snapshots are derived from host state rather than treated as source of truth.
 9. Commands are registered from `commands`; command handlers derive output from host state and route user-visible status via `notifications`.
 
 ## 7. Internal Structure Policy
 
-Modules may keep internal vertical layers where it improves cohesion without creating top-level sprawl.
+Modules may use internal vertical structure when it improves coherence.
 
 Rules:
 
-1. Prefer coherent module internals over premature top-level module creation.
-2. Split a module only when ownership boundaries diverge in a durable way.
-3. Keep internal layers scoped to module responsibility and exported through module entrypoints.
+1. Prefer coherent internals over premature nanomodules.
+2. Split modules only when ownership boundaries clearly diverge.
+3. Keep internals scoped to module responsibility.
 
 ### 7.1 Notable Internal Structures
 
+These internals are intentionally layered. Each row documents one layer's responsibility and explicit boundary.
+
 | Module | Layer | Location | Responsibility | Boundary |
 | --- | --- | --- | --- | --- |
-| `views` | Shared frontend base | `src/views/media/shared/` | Shared webview runtime, typed frontend comms facade, and Lit UI core | No host policy ownership or canonical host state ownership |
-| `views` | Smoke Controls panel | `src/views/media/smokeControls/` | Smoke panel comms, bridge, and UI rendering | No host canonical state ownership or cross-panel policy ownership |
-| `views` | Run Controls panel | `src/views/media/runControls/` | Run panel comms, bridge, and UI rendering | No host canonical state ownership or cross-panel policy ownership |
-| `comms` | Shared protocol | `src/comms/shared/` | Transport-agnostic message contracts and guards | No domain side effects |
-| `comms` | Payload builders | `src/comms/builders/` | Typed host->view snapshot payload shaping support | No workflow policy ownership |
-| `commandline` | Adapter layer | `src/commandline/adapters/` | Isolated process execution adapter boundary | No workflow orchestration policy ownership |
-| `languages` | Generated catalog data | `src/languages/generated/` | Source language metadata consumed by language service | No state/transport ownership |
+| `views` | Provider boundary | `src/views/` | Bind VS Code view lifecycle to coordinator handoff. | No domain logic or canonical state ownership. |
+| `views` | Shared frontend base | `src/views/media/shared/` | Shared webview runtime, typed frontend comms facade, and Lit UI support. | No host policy ownership or canonical host state ownership. |
+| `views` | Smoke Controls panel | `src/views/media/smokeControls/` | Smoke panel bridge and UI rendering. | No canonical host state ownership or cross-panel policy ownership. |
+| `views` | Run Controls panel | `src/views/media/runControls/` | Run panel bridge and UI rendering. | No canonical host state ownership or cross-panel policy ownership. |
+| `views` | Tree providers | `src/views/trees/` | Algorithms and standard-library tree data providers and restricted file shaping. | No canonical host state ownership or cross-panel policy ownership. |
+| `conductor` | Orchestration service | `src/conductor/service.ts` | Own intent reactions, effect application, and host-side channel handling. | No direct transport implementation ownership. |
+| `comms` | Shared protocol | `src/comms/shared/` | Define transport-agnostic message contracts and guards. | No host/frontend runtime side effects. |
+| `comms` | Transport hub | `src/comms/communicationHub.ts`, `src/comms/ICommunicationHub.ts` | Deliver subscribed messages and outbound transport posting. | No workflow/domain policy ownership. |
+| `comms` | Payload/publish helpers | `src/comms/builders/` | Shape snapshots and construct transport-facing publish helpers. | No domain decision ownership. |
+| `commandline` | Adapter layer | `src/commandline/adapters/` | Isolated process execution adapter boundary. | No workflow orchestration policy ownership. |
+| `languages` | Generated catalog data | `src/languages/generated/` | Source language metadata consumed by the language service. | No state/transport ownership. |
 
-`src/runtime/` currently exists as a staging surface (`adapters/`, `builders/`) and is not part of the active module contract graph until concrete production responsibilities are wired through coordinator.
+These are internal layers inside module boundaries, not separate top-level modules.
 
 ## 8. Dependency Rules
 
-Coordinator scope directive (non-negotiable):
-
-"The job of the Coordinator is to initate all modules and handle the dependency graph. Anything else you're trying to do in Coordinator you need to go fuck yoruself."
+The job of the Coordinator is to initate all modules and handle the dependency graph. All other logic should be in appropriate modules otherwise, linked through the dependency graph owned by Coordinator.
 
 MUST rules:
 
-1. Only `src/coordinator.ts` may construct concrete cross-module implementations.
-2. Non-coordinator modules must depend on contract types or local internals, not concrete runtime imports from other modules.
-3. Contracts are defined by provider modules and consumed via injection in coordinator wiring.
-4. Host/webview protocol shape is centralized in `src/comms/shared`.
+1. Only `src/coordinator.ts` may construct or runtime-import concrete cross-module implementations.
+2. All non-coordinator modules must depend on contract types (interfaces or ports), not concrete runtime imports.
+3. Contracts must be defined by the provider module and consumed as injected dependencies.
+4. Shared protocol exception: modules may import `src/comms/shared` for transport contract types and guards only, not transport implementation.
 5. Webview frontend code may depend on shared frontend surfaces under `src/views/media/shared`, but not host-only module internals.
-6. New top-level modules require explicit ownership justification and architecture-doc updates in the same change.
+6. Coordinator may bind subscriptions and callbacks because that is dependency-graph wiring; Coordinator must not decide runtime behavior.
+7. Conductor owns orchestration logic for reactions, effect application, and channel-handler behavior.
+8. Comms is restricted to communication abstraction only: front/back transport, subscription delivery, message posting, and payload/publish helper support.
+9. If comms decides behavior instead of forwarding or delivering, that is an architecture violation.
+10. Violations should fail CI through targeted architecture assertions in the test suite.
+
+Example:
+
+1. `INotificationRouter` is defined in `notifications`, consumed as an injected contract in dependent modules, and concrete wiring remains in `src/coordinator.ts`.
 
 ## 9. Where Code Goes
 
-1. Activation/deactivation entrypoints: `src/extension.ts`
-2. Composition wiring and runtime integration: `src/coordinator.ts`
-3. User command registration/handlers: `src/commands/`
-4. Canonical host state machine and snapshots: `src/state/`
-5. Host intent reaction/orchestration policy: `src/conductor/`
-6. Language catalog and lookups: `src/languages/`
-7. Filesystem boundary code: `src/filesystem/`
-8. Process execution boundary code: `src/commandline/`
-9. Host/webview protocol and host message hub: `src/comms/`
-10. Host notification routing: `src/notifications/`
-11. Host-side view registration and webview hosting: `src/views/`
-12. Webview panel assets and panel-local runtime/UI: `src/views/media/`
-13. Webview bundles: `dist/views/`
-14. Tests and architecture assertions: `test/`
+1. Messaging contracts/transports: `src/comms/`
+2. Host-side orchestration and channel handling: `src/conductor/`
+3. Packaged asset I/O/discovery: `src/filesystem/`
+4. Notification policy/routing: `src/notifications/`
+5. Canonical host state: `src/state/`
+6. User commands: `src/commands/`
+7. Language catalog and lookups: `src/languages/`
+8. Process execution boundary: `src/commandline/`
+9. Webview provider and frontend runtime: `src/views/`, `src/views/media/`
+10. Composition root: `src/coordinator.ts`
+11. Utility support surfaces: `src/views/media/shared/`, `test/`
 
 ## 10. Summary
 
-1. Domain modules own behavior and policy (`state`, `conductor`, `commands`, `languages`).
-2. Boundary/support modules adapt runtime edges (`comms`, `views`, `notifications`, `filesystem`, `commandline`).
-3. Coordinator is the sole composition root for concrete dependency wiring.
-4. Host remains canonical; webviews render snapshots and send typed write-intent.
-5. Architecture grows by real ownership boundaries, not speculative top-level module expansion.
+1. Domain modules own behavior.
+2. Boundary/support modules adapt runtime concerns.
+3. Composition modules wire the runtime.
+4. Utility support surfaces provide shared support without domain ownership.
+5. Coordinator is the sole composition root; it owns the concrete dependency graph and subscription wiring.
+6. `conductor` is a first-class domain owner; it conducts workflow transitions and host-side orchestration.
+7. `comms` is not a decision-maker; it is a transport abstraction.
+
+Goal: clear ownership boundaries with flexible internal structure, without nanomodule fragmentation.

@@ -3,7 +3,7 @@ import * as vscode from "vscode";
 import type { ILanguages } from "../../languages";
 import type { ExtensionHostSnapshot } from "../../state";
 import type { IViewHost } from "../../views";
-import type { SmokeControlsViewSnapshot } from "../shared/messageTypes";
+import type { HostToViewMessage, SmokeControlsViewSnapshot } from "../shared/messageTypes";
 
 /**
  * Dependencies for creating one smoke language icon URI resolver.
@@ -93,5 +93,31 @@ export function createSmokeSnapshotBuilder(
 ): (snapshot: ExtensionHostSnapshot) => SmokeControlsViewSnapshot {
   return (snapshot: ExtensionHostSnapshot): SmokeControlsViewSnapshot => {
     return buildSmokeSnapshot(snapshot, resolveIconUri);
+  };
+}
+
+/**
+ * Dependencies for creating a smoke snapshot publisher.
+ */
+export interface CreateSmokeSnapshotPublisherInput {
+  postMessage: (message: HostToViewMessage) => Thenable<boolean> | undefined;
+  getSnapshot: () => ExtensionHostSnapshot;
+  buildSnapshot: (snapshot: ExtensionHostSnapshot) => SmokeControlsViewSnapshot;
+}
+
+/**
+ * Creates a smoke snapshot publisher bound to one transport channel.
+ *
+ * @param {CreateSmokeSnapshotPublisherInput} input Publisher dependencies.
+ * @returns {() => void} Smoke snapshot publisher.
+ */
+export function createSmokeSnapshotPublisher(
+  input: CreateSmokeSnapshotPublisherInput
+): () => void {
+  return (): void => {
+    input.postMessage({
+      type: "smoke.snapshot",
+      payload: input.buildSnapshot(input.getSnapshot()),
+    });
   };
 }

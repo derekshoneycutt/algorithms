@@ -15,3 +15,21 @@ export function getSmokeControlsSidebarViewId(): string {
 export function getRunControlsSidebarViewId(): string {
   return "algos.runControlsSidebarView";
 }
+
+/**
+ * Returns the view ID for the workspace algorithms tree view.
+ *
+ * @returns {string} Workspace algorithms tree view ID.
+ */
+export function getWorkspaceAlgorithmsTreeViewId(): string {
+  return "algos.workspaceAlgorithmsTreeView";
+}
+
+/**
+ * Returns the view ID for the workspace standard-library tree view.
+ *
+ * @returns {string} Workspace standard-library tree view ID.
+ */
+export function getWorkspaceStandardLibraryTreeViewId(): string {
+  return "algos.workspaceStandardLibraryTreeView";
+}

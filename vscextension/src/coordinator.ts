@@ -7,13 +7,23 @@ import {
 import type { IExtensionCommands } from "./commands";
 import {
   buildRunControlsSnapshot,
+  createRunControlsSnapshotPublisher,
   createSmokeLanguageIconUriResolver,
   createSmokeSnapshotBuilder,
+  createSmokeSnapshotPublisher,
   createCommunicationHub,
 } from "./comms";
 import type { ICommunicationHub } from "./comms";
-import { createConductorService } from "./conductor";
+import {
+  createConductorService,
+  createRunControlsChannelMessageHandler,
+  createSmokeControlsChannelMessageHandler,
+} from "./conductor";
 import type { IConductor } from "./conductor";
+import {
+  createFilesystem,
+} from "./filesystem";
+import type { IFilesystem } from "./filesystem";
 import {
   buildSmokeLanguageSelections,
   createLanguages,
@@ -28,9 +38,13 @@ import type { INotificationRouter } from "./notifications";
 import { createHostStateService } from "./state";
 import type { IStateMachine } from "./state";
 import {
+  createWorkspaceAlgorithmsTreeDataProvider,
+  createWorkspaceStandardLibraryTreeDataProvider,
   createViewHost,
   getRunControlsSidebarViewId,
   getSmokeControlsSidebarViewId,
+  getWorkspaceAlgorithmsTreeViewId,
+  getWorkspaceStandardLibraryTreeViewId,
 } from "./views";
 import type { IViewHost } from "./views";
 
@@ -51,7 +65,10 @@ export function createCoordinator(
 ): vscode.Disposable {
   const runControlsViewId = getRunControlsSidebarViewId();
   const smokeControlsViewId = getSmokeControlsSidebarViewId();
+  const workspaceAlgorithmsTreeViewId = getWorkspaceAlgorithmsTreeViewId();
+  const workspaceStandardLibraryTreeViewId = getWorkspaceStandardLibraryTreeViewId();
 
+  const filesystem: IFilesystem = createFilesystem();
   const languages: ILanguages = createLanguages(GENERATED_LANGUAGE_DATA);
   const stateMachine: IStateMachine = createHostStateService({
     initialSmokeControls: {
@@ -64,6 +81,23 @@ export function createCoordinator(
   const viewHost: IViewHost = createViewHost(context);
   const communicationHub: ICommunicationHub = createCommunicationHub(viewHost);
   const viewsRegistration = viewHost.register();
+  const workspaceAlgorithmsTreeProvider = createWorkspaceAlgorithmsTreeDataProvider({
+    filesystem,
+    languages,
+  });
+  const workspaceStandardLibraryTreeProvider =
+    createWorkspaceStandardLibraryTreeDataProvider({
+      filesystem,
+      languages,
+    });
+  const workspaceAlgorithmsTreeRegistration = viewHost.registerTreeDataProvider(
+    workspaceAlgorithmsTreeViewId,
+    workspaceAlgorithmsTreeProvider
+  );
+  const workspaceStandardLibraryTreeRegistration = viewHost.registerTreeDataProvider(
+    workspaceStandardLibraryTreeViewId,
+    workspaceStandardLibraryTreeProvider
+  );
   const resolveSmokeLanguageIconUri = createSmokeLanguageIconUriResolver({
     languages,
     viewHost,
@@ -73,20 +107,36 @@ export function createCoordinator(
   const buildSmokeControlsSnapshot = createSmokeSnapshotBuilder(
     resolveSmokeLanguageIconUri
   );
-  const smokeControlsChannel = communicationHub.registerSmokeControlsChannel({
-    viewId: smokeControlsViewId,
-    stateMachine,
-    conductor,
-    dispatchNotification: notificationDispatcher.dispatch,
+  const getStateSnapshot = stateMachine.getSnapshot.bind(stateMachine);
+  const publishSmokeSnapshot = createSmokeSnapshotPublisher({
+    postMessage: communicationHub.post.bind(communicationHub, smokeControlsViewId),
+    getSnapshot: getStateSnapshot,
     buildSnapshot: buildSmokeControlsSnapshot,
   });
-  const runControlsChannel = communicationHub.registerRunControlsChannel({
-    viewId: runControlsViewId,
-    stateMachine,
-    conductor,
-    dispatchNotification: notificationDispatcher.dispatch,
+  const publishRunSnapshot = createRunControlsSnapshotPublisher({
+    postMessage: communicationHub.post.bind(communicationHub, runControlsViewId),
+    getSnapshot: getStateSnapshot,
     buildSnapshot: buildRunControlsSnapshot,
   });
+
+  const smokeControlsChannel = communicationHub.subscribe(
+    smokeControlsViewId,
+    createSmokeControlsChannelMessageHandler({
+      conductor,
+      stateMachine,
+      dispatchNotification: notificationDispatcher.dispatch,
+      publishSnapshot: publishSmokeSnapshot,
+    })
+  );
+  const runControlsChannel = communicationHub.subscribe(
+    runControlsViewId,
+    createRunControlsChannelMessageHandler({
+      conductor,
+      stateMachine,
+      dispatchNotification: notificationDispatcher.dispatch,
+      publishSnapshot: publishRunSnapshot,
+    })
+  );
 
   const commands: IExtensionCommands = {
     showBootstrapStatus: createShowBootstrapStatusCommand({
@@ -104,6 +154,8 @@ export function createCoordinator(
     communicationHub,
     smokeControlsChannel,
     runControlsChannel,
+    workspaceAlgorithmsTreeRegistration,
+    workspaceStandardLibraryTreeRegistration,
     viewHost,
     viewsRegistration,
     registerCommands(commands)

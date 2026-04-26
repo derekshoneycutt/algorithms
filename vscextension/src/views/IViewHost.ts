@@ -17,6 +17,19 @@ export interface IViewHost extends vscode.Disposable {
   register(): vscode.Disposable;
 
   /**
+   * Registers one tree data provider for a contributed tree view.
+   *
+   * @template T Element type returned by the provider.
+   * @param {string} viewId Tree view identifier.
+   * @param {vscode.TreeDataProvider<T>} provider Tree data provider.
+   * @returns {vscode.Disposable} Disposable registration handle.
+   */
+  registerTreeDataProvider<T>(
+    viewId: string,
+    provider: vscode.TreeDataProvider<T>
+  ): vscode.Disposable;
+
+  /**
     * Focuses one registered sidebar webview.
    *
    * @param {string} viewId Sidebar view identifier.

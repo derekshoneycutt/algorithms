@@ -1,5 +1,5 @@
 import type { ExtensionHostSnapshot } from "../../state";
-import type { RunControlsViewSnapshot } from "../shared/messageTypes";
+import type { HostToViewMessage, RunControlsViewSnapshot } from "../shared/messageTypes";
 
 /**
  * Builds a typed run controls snapshot payload from host state.
@@ -28,5 +28,31 @@ export function buildRunControlsSnapshot(
     cleanArchivesEnabled: snapshot.runControls.cleanArchivesEnabled,
     cleanOptionsStatusText: snapshot.runControls.cleanOptionsStatusText,
     cleanOptionsStatusClassName: snapshot.runControls.cleanOptionsStatusClassName,
+  };
+}
+
+/**
+ * Dependencies for creating a run snapshot publisher.
+ */
+export interface CreateRunControlsSnapshotPublisherInput {
+  postMessage: (message: HostToViewMessage) => Thenable<boolean> | undefined;
+  getSnapshot: () => ExtensionHostSnapshot;
+  buildSnapshot: (snapshot: ExtensionHostSnapshot) => RunControlsViewSnapshot;
+}
+
+/**
+ * Creates a run snapshot publisher bound to one transport channel.
+ *
+ * @param {CreateRunControlsSnapshotPublisherInput} input Publisher dependencies.
+ * @returns {() => void} Run snapshot publisher.
+ */
+export function createRunControlsSnapshotPublisher(
+  input: CreateRunControlsSnapshotPublisherInput
+): () => void {
+  return (): void => {
+    input.postMessage({
+      type: "run.snapshot",
+      payload: input.buildSnapshot(input.getSnapshot()),
+    });
   };
 }

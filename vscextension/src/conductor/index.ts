@@ -4,10 +4,10 @@ export type {
   ConductorMarkFailedInput,
   ConductorMarkProgressInput,
   ConductorNotificationEffect,
+  ConductorRunControlsReaction,
   ConductorReactToRunControlsIntentInput,
   ConductorReactToSmokeIntentInput,
   ConductorRunControlsIntent,
-  ConductorRunControlsReaction,
   ConductorRunSnapshot,
   ConductorSmokeIntent,
   ConductorSmokeReaction,
@@ -15,4 +15,18 @@ export type {
   ConductorStartRunInput,
   IConductor,
 } from "./IConductor";
-export { createConductorService } from "./service";
+export type { ApplyConductorReactionDependencies } from "./service";
+export type {
+  CreateRunControlsChannelMessageHandlerInput,
+  CreateSmokeControlsChannelMessageHandlerInput,
+  ReactAndApplyRunControlsIntentDependencies,
+  ReactAndApplySmokeIntentDependencies,
+} from "./service";
+export {
+  applyConductorReaction,
+  createRunControlsChannelMessageHandler,
+  createSmokeControlsChannelMessageHandler,
+  createConductorService,
+  reactAndApplyRunControlsIntent,
+  reactAndApplySmokeIntent,
+} from "./service";

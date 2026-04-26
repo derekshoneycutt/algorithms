@@ -224,6 +224,7 @@ export function createViewHost(context: vscode.ExtensionContext): IViewHost {
 
   const resolvedViews = new Map<string, vscode.WebviewView>();
   let registration: vscode.Disposable | undefined;
+  const treeRegistrations: vscode.Disposable[] = [];
   const inboundListenersByViewId = new Map<
     string,
     Set<(message: ViewToHostMessage) => void>
@@ -307,6 +308,15 @@ export function createViewHost(context: vscode.ExtensionContext): IViewHost {
       return registration;
     },
 
+    registerTreeDataProvider<T>(
+      viewId: string,
+      provider: vscode.TreeDataProvider<T>
+    ): vscode.Disposable {
+      const treeRegistration = vscode.window.registerTreeDataProvider(viewId, provider);
+      treeRegistrations.push(treeRegistration);
+      return treeRegistration;
+    },
+
     focusView(viewId: string): Thenable<void> {
       return vscode.commands.executeCommand(`${viewId}.focus`);
     },
@@ -339,6 +349,9 @@ export function createViewHost(context: vscode.ExtensionContext): IViewHost {
 
     dispose(): void {
       inboundListenersByViewId.clear();
+      for (const treeRegistration of treeRegistrations.splice(0)) {
+        treeRegistration.dispose();
+      }
       registration?.dispose();
       registration = undefined;
       resolvedViews.clear();

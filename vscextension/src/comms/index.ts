@@ -1,15 +1,17 @@
 export type {
 	ICommunicationHub,
-	RegisterRunControlsChannelInput,
-	RegisterSmokeControlsChannelInput,
 } from "./ICommunicationHub";
 export { createCommunicationHub } from "./communicationHub";
 export { buildSmokeSnapshot } from "./builders/smokeSnapshot";
 export {
 	createSmokeSnapshotBuilder,
 	createSmokeLanguageIconUriResolver,
+	createSmokeSnapshotPublisher,
 } from "./builders/smokeSnapshot";
-export { buildRunControlsSnapshot } from "./builders/runControlsSnapshot";
+export {
+	buildRunControlsSnapshot,
+	createRunControlsSnapshotPublisher,
+} from "./builders/runControlsSnapshot";
 export type {
 	HostToViewMessage,
 	RunControlsViewSnapshot,

@@ -19,7 +19,9 @@
   "activationEvents": [
     "onCommand:algos.showBootstrapStatus",
     "onView:algos.smokeControlsSidebarView",
-    "onView:algos.runControlsSidebarView"
+    "onView:algos.runControlsSidebarView",
+    "onView:algos.workspaceAlgorithmsTreeView",
+    "onView:algos.workspaceStandardLibraryTreeView"
   ],
   "main": "./dist/extension.js",
   "contributes": {
@@ -37,12 +39,26 @@
         {
           "id": "algos.smokeControlsSidebarView",
           "name": "Algorithms Smoke Controls",
-          "type": "webview"
+          "type": "webview",
+          "visibility": "collapsed"
         },
         {
           "id": "algos.runControlsSidebarView",
           "name": "Algorithms Run Controls",
-          "type": "webview"
+          "type": "webview",
+          "visibility": "collapsed"
+        },
+        {
+          "id": "algos.workspaceAlgorithmsTreeView",
+          "name": "Algorithms",
+          "type": "tree",
+          "visibility": "visible"
+        },
+        {
+          "id": "algos.workspaceStandardLibraryTreeView",
+          "name": "Standard Library",
+          "type": "tree",
+          "visibility": "collapsed"
         }
       ]
     },
