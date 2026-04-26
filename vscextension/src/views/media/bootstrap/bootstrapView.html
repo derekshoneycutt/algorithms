@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta
+      http-equiv="Content-Security-Policy"
+      content="default-src 'none'; img-src {{{CSP_SOURCE}}} https: data:; style-src {{{CSP_SOURCE}}}; script-src 'nonce-{{{NONCE}}}';"
+    />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <link rel="stylesheet" href="{{{STYLE_URI}}}" />
+    <title>{{{TITLE}}}</title>
+  </head>
+  <body>
+    <main class="bootstrap-shell" data-role="bootstrap-shell">
+      <header class="bootstrap-header">
+        <h1 class="bootstrap-title">Algorithms</h1>
+      </header>
+      <section class="bootstrap-content" aria-label="Bootstrap content">
+        <div data-role="bootstrap-app"></div>
+      </section>
+    </main>
+    <script nonce="{{{NONCE}}}" src="{{{SCRIPT_URI}}}"></script>
+  </body>
+</html>

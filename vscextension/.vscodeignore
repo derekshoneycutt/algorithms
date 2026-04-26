@@ -1,0 +1,10 @@
+src/**
+test/**
+out/**
+node_modules/**
+tsconfig.json
+tsconfig.test.json
+esbuild.js
+eslint.config.js
+ArchitectureSummary.md
+CodingStandards.md

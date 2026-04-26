@@ -1,0 +1,82 @@
+{
+  "name": "algorithms-runner-vscext",
+  "displayName": "Derek's Algorithms Runner",
+  "description": "TypeScript bootstrap for the algorithms VS Code extension rewrite.",
+  "version": "0.0.1",
+  "publisher": "derekshoneycutt",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/derekshoneycutt/algorithms.git"
+  },
+  "engines": {
+    "node": ">=18",
+    "vscode": "^1.90.0"
+  },
+  "categories": [
+    "Other"
+  ],
+  "activationEvents": [
+    "onCommand:algos.showBootstrapStatus",
+    "onView:algos.bootstrapSidebarView"
+  ],
+  "main": "./dist/extension.js",
+  "contributes": {
+    "viewsContainers": {
+      "activitybar": [
+        {
+          "id": "algosSidebar",
+          "title": "Algorithms",
+          "icon": "./icons/play-sidebar.svg"
+        }
+      ]
+    },
+    "views": {
+      "algosSidebar": [
+        {
+          "id": "algos.bootstrapSidebarView",
+          "name": "Algorithms Bootstrap",
+          "type": "webview"
+        }
+      ]
+    },
+    "commands": [
+      {
+        "command": "algos.showBootstrapStatus",
+        "title": "Show Bootstrap Status",
+        "category": "Derek's Algorithms"
+      }
+    ]
+  },
+  "scripts": {
+    "build": "node ./esbuild.js",
+    "watch": "node ./esbuild.js --watch",
+    "typecheck": "tsc --noEmit -p ./tsconfig.json",
+    "lint:ts": "eslint esbuild.js eslint.config.js src test",
+    "lint:md": "markdownlint \"**/*.md\" --config ./.markdownlint.json --ignore node_modules --ignore dist --ignore out",
+    "lint": "npm run lint:ts && npm run lint:md",
+    "compile-tests": "tsc -p ./tsconfig.test.json",
+    "pretest": "npm run build && npm run compile-tests",
+    "test": "node ./out/test/runTest.js",
+    "package": "vsce package --no-dependencies --allow-missing-repository"
+  },
+  "dependencies": {
+    "lit": "^3.3.2",
+    "xstate": "^5.18.2"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.25.1",
+    "@types/mocha": "^10.0.10",
+    "@types/node": "^22.15.18",
+    "@types/vscode": "^1.90.0",
+    "@vscode/test-electron": "^2.5.2",
+    "@vscode/vsce": "^3.8.0",
+    "esbuild": "^0.25.3",
+    "eslint": "^9.25.1",
+    "globals": "^16.0.0",
+    "markdownlint-cli": "^0.44.0",
+    "mocha": "^11.2.2",
+    "typescript": "^5.8.3",
+    "typescript-eslint": "^8.30.1"
+  }
+}
