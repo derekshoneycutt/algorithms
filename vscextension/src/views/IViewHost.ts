@@ -17,7 +17,7 @@ export interface IViewHost extends vscode.Disposable {
   register(): vscode.Disposable;
 
   /**
-   * Focuses the primary bootstrap webview.
+    * Focuses the primary smoke controls webview.
    *
    * @returns {Thenable<void>} Completion signal.
    */

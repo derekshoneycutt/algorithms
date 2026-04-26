@@ -9,9 +9,9 @@ import {
 } from "../../shared";
 
 /**
- * Bootstrap panel comms facade.
+ * Smoke controls panel comms facade.
  */
-export interface IBootstrapCommsFacade {
+export interface ISmokeControlsCommsFacade {
   /**
    * Sends one typed message to the host.
    *
@@ -30,14 +30,14 @@ export interface IBootstrapCommsFacade {
 }
 
 /**
- * Creates bootstrap panel comms facade from shared frontend comms base.
+ * Creates smoke controls panel comms facade from shared frontend comms base.
  *
  * @param {IWebviewCommsFacade} [base] Shared comms base.
- * @returns {IBootstrapCommsFacade} Bootstrap comms facade.
+ * @returns {ISmokeControlsCommsFacade} Smoke controls comms facade.
  */
-export function createBootstrapCommsFacade(
+export function createSmokeControlsCommsFacade(
   base: IWebviewCommsFacade = createWebviewCommsFacade()
-): IBootstrapCommsFacade {
+): ISmokeControlsCommsFacade {
   return {
     send(message: ViewToHostMessage): void {
       base.send(message);

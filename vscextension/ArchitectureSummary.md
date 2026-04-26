@@ -50,9 +50,11 @@ The initial source tree should stay small.
 | `extension` | VS Code activation and shutdown handoff | Activation lifecycle entrypoints | Concrete feature wiring beyond delegation |
 | `coordinator` | Composition root for the runtime | Startup wiring, command registration, state service construction, shared disposables | Deep feature logic |
 | `commands` | User-invoked extension behavior | `IExtensionCommands` contract, module entrypoint (`src/commands/index.ts`), command registration helpers, and command handlers | Extension activation flow, canonical state, or unrelated future domains |
+| `conductor` | Host-side long-running multi-step orchestration policy | `IConductor` contract, module entrypoint (`src/conductor/index.ts`), and orchestration lifecycle interface for non-user-driven host process flow | Direct process execution primitives, terminal UI ownership, comms transport ownership, or canonical state storage ownership |
 | `state` | Canonical host state | XState machine, lazy-start actor, `IStateMachine` contract, snapshot selectors | Filesystem I/O, command registration, or UI rendering |
 | `languages` | Canonical language catalog and lookup behavior | Generated language data adapter, `ILanguages` contract, normalization/lookups by key, language ID, and extension | Command execution side effects, state transitions, UI rendering, or direct script invocation |
 | `filesystem` | Canonical filesystem access and path safety behavior | `IFilesystem` contract, module entrypoint (`src/filesystem/index.ts`), path canonicalization helpers, and bounded file/directory operations | Command orchestration, extension state transitions, UI rendering, or language catalog ownership |
+| `commandline` | Canonical command-line execution and process management | `ICommandLine` contract, module entrypoint (`src/commandline/index.ts`), spawn/spawnSync execution, process handle primitives, and internal adapter layer (`src/commandline/adapters/`) | Command routing policy, terminal UI ownership, docker/ssh abstraction ownership, or workflow orchestration policy |
 | `comms` | Canonical host-webview transport contracts and routing | `ICommunicationHub` contract, shared protocol contracts (`src/comms/shared`), and host-side message hub wiring | Workflow/domain policy ownership or direct UI rendering ownership |
 | `notifications` | Canonical host-side notification routing | `INotificationRouter` contract, module entrypoint (`src/notifications/index.ts`), and VS Code notification adapter | Workflow policy ownership, view rendering ownership, or comms transport ownership |
 | `views` | Canonical host-side view registration and interactions | `IViewHost` contract, module entrypoint (`src/views/index.ts`), one bootstrap webview provider, and webview template rendering | Command orchestration logic, canonical state ownership, filesystem policy ownership, or language catalog ownership |
@@ -63,6 +65,10 @@ The current sidebar scope intentionally includes only one implemented webview. T
 
 The current notifications scope is intentionally host-only and VS Code-backed. Webview notification bridges and per-view targeting remain deferred.
 
+The current commandline scope is module-first only. `ICommandLine`, its implementation, and a bootstrap adapter layer are in place, but coordinator wiring and live command consumers are intentionally deferred.
+
+The conductor now owns smoke-controls host reaction policy. `IConductor` is wired in the coordinator for smoke intent interpretation and reaction effects, while smoke execution/runtime process control remains deferred.
+
 Lit is the standard rendering layer for webview UI surfaces, with shared UI core primitives provided from `src/views/media/shared/ui/`.
 
 ## 5. Runtime Flow
@@ -70,11 +76,12 @@ Lit is the standard rendering layer for webview UI surfaces, with shared UI core
 1. VS Code activates the extension through a bootstrap command.
 2. `src/extension.ts` hands control to `src/coordinator.ts`.
 3. The coordinator constructs `IStateMachine`, `IExtensionCommands`, `IViewHost`, `ICommunicationHub`, and `INotificationRouter`, then registers the initial command set and one bootstrap webview provider.
-4. `ICommunicationHub` receives typed view-to-host messages, applies host-side routing, and posts typed host-to-view snapshots.
-5. The bootstrap frontend composes shared comms/runtime/UI-core base plus panel `comms`, `ui`, and `bridges` layers for transport, rendering, and glue logic.
-6. On first command invocation the state machine starts lazily, receives a `COMMAND_REQUESTED` event, and the command derives its output from the resulting snapshot.
-7. The command records the outcome back to the machine via `COMMAND_SUCCEEDED` or `COMMAND_FAILED`.
-8. Tests validate activation, command registration, lazy machine startup, and state-derived message content.
+4. `IConductor` interprets typed smoke control intents and returns deterministic host reaction effects (state events, optional notifications, snapshot publish signal).
+5. `ICommunicationHub` receives typed view-to-host messages, coordinator routes them through conductor policy, and posts typed host-to-view smoke snapshots.
+6. The bootstrap frontend composes shared comms/runtime/UI-core base plus panel `comms`, `ui`, and `bridges` layers for transport, rendering, and glue logic.
+7. On first command invocation the state machine starts lazily, receives a `COMMAND_REQUESTED` event, and the command derives its output from the resulting snapshot.
+8. The command records the outcome back to the machine via `COMMAND_SUCCEEDED` or `COMMAND_FAILED`.
+9. Tests validate activation, command registration, lazy machine startup, and state-derived message content.
 
 ## 6. Dependency Rules
 
@@ -92,18 +99,21 @@ Code should go to these locations:
 1. Activation entrypoint: `src/extension.ts`
 2. Composition root: `src/coordinator.ts`
 3. Command module entrypoint and command logic: `src/commands/` (public surface from `src/commands/index.ts`)
-4. Canonical host state machine and service: `src/state/`
-5. Canonical language catalog interface and helpers: `src/languages/`
-6. Canonical filesystem interface and helpers: `src/filesystem/`
-7. Canonical host-webview communication contracts and hub: `src/comms/`
-8. Canonical host notification routing: `src/notifications/`
-9. Canonical view host and provider wiring: `src/views/`
-10. Webview templates and client assets authored in TypeScript (HTML/CSS/TS): `src/views/media/`
-11. Shared webview frontend base (`comms`, runtime helpers, Lit UI core): `src/views/media/shared/`
-12. Panel-local frontend layers (`comms`, `ui`, `bridges`): `src/views/media/<panel>/`
-13. Compiled webview client bundles: `dist/views/`
-14. Extension-host and unit tests: `test/`
-15. Build and quality tooling: package-level config files in `vscextension/`
+4. Host-side long-running orchestration contracts and service: `src/conductor/`
+5. Canonical host state machine and service: `src/state/`
+6. Canonical language catalog interface and helpers: `src/languages/`
+7. Canonical filesystem interface and helpers: `src/filesystem/`
+8. Canonical command-line execution and process helpers: `src/commandline/`
+9. Commandline adapter layer (bootstrap scaffold): `src/commandline/adapters/`
+10. Canonical host-webview communication contracts and hub: `src/comms/`
+11. Canonical host notification routing: `src/notifications/`
+12. Canonical view host and provider wiring: `src/views/`
+13. Webview templates and client assets authored in TypeScript (HTML/CSS/TS): `src/views/media/`
+14. Shared webview frontend base (`comms`, runtime helpers, Lit UI core): `src/views/media/shared/`
+15. Panel-local frontend layers (`comms`, `ui`, `bridges`): `src/views/media/<panel>/`
+16. Compiled webview client bundles: `dist/views/`
+17. Extension-host and unit tests: `test/`
+18. Build and quality tooling: package-level config files in `vscextension/`
 
 Do not create top-level directories for future domains until a migrated feature actually needs them.
 

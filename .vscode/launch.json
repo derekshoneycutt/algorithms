@@ -2,7 +2,22 @@
   "version": "0.2.0",
   "configurations": [
     {
-      "name": "Run Algorithms Extension",
+      "name": "Run Algorithms Extension (TypeScript Rewrite)",
+      "type": "extensionHost",
+      "request": "launch",
+      "runtimeExecutable": "${execPath}",
+      "args": [
+        "--user-data-dir=/tmp/algorithms-edh-user-data",
+        "--extensions-dir=/tmp/algorithms-edh-extensions",
+        "--disable-extensions",
+        "--extensionDevelopmentPath=${workspaceFolder}/vscextension"
+      ],
+      "outFiles": [
+        "${workspaceFolder}/vscextension/dist/**/*.js"
+      ]
+    },
+    {
+      "name": "Run Algorithms Extension (Legacy JS)",
       "type": "extensionHost",
       "request": "launch",
       "runtimeExecutable": "${execPath}",

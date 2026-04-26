@@ -1,8 +1,8 @@
 /**
- * Returns the view ID for the bootstrap sidebar webview.
+ * Returns the view ID for the smoke controls sidebar webview.
  *
- * @returns {string} Bootstrap view ID.
+ * @returns {string} Smoke controls view ID.
  */
-export function getBootstrapSidebarViewId(): string {
-  return "algos.bootstrapSidebarView";
+export function getSmokeControlsSidebarViewId(): string {
+  return "algos.smokeControlsSidebarView";
 }

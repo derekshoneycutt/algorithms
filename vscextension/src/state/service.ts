@@ -1,14 +1,22 @@
 import { createActor } from "xstate";
 
 import type { IStateMachine } from "./IStateMachine";
-import { extensionHostMachine } from "./machine";
+import { createExtensionHostMachine } from "./machine";
 import type {
   ExtensionHostEvent,
   ExtensionHostSnapshot,
   ExtensionHostStateValue,
+  InitialSmokeControlsSettingsInput,
 } from "./types";
 
 export type { IStateMachine } from "./IStateMachine";
+
+/**
+ * Optional state service bootstrap configuration.
+ */
+export interface CreateHostStateServiceInput {
+  initialSmokeControls?: InitialSmokeControlsSettingsInput;
+}
 
 /**
  * Creates a lazily-started XState-backed host state service.
@@ -17,10 +25,17 @@ export type { IStateMachine } from "./IStateMachine";
  * until the first call to `send`, so the extension host pays no startup cost
  * until a command actually requires orchestration.
  *
+ * @param {CreateHostStateServiceInput} [input] Optional bootstrap configuration.
  * @returns {IStateMachine} Host state machine instance.
  */
-export function createHostStateService(): IStateMachine {
-  const actor = createActor(extensionHostMachine);
+export function createHostStateService(
+  input?: CreateHostStateServiceInput
+): IStateMachine {
+  const actor = createActor(createExtensionHostMachine(), {
+    input: {
+      initialSmokeControls: input?.initialSmokeControls,
+    },
+  });
   let started = false;
 
   /**
@@ -48,6 +63,14 @@ export function createHostStateService(): IStateMachine {
         lastCommandId: snapshot.context.lastCommandId,
         lastResult: snapshot.context.lastResult,
         lastFailure: snapshot.context.lastFailure,
+        smokeControls: {
+          ...snapshot.context.smokeControls,
+          languages: snapshot.context.smokeControls.languages.map((language) => {
+            return {
+              ...language,
+            };
+          }),
+        },
       };
     },
 

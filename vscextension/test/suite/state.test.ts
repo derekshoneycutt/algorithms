@@ -14,6 +14,91 @@ describe("state — createHostStateService", () => {
       assert.equal(snapshot.lastCommandId, null);
       assert.equal(snapshot.lastResult, null);
       assert.equal(snapshot.lastFailure, null);
+      assert.equal(snapshot.smokeControls.reportEnabled, false);
+      assert.equal(snapshot.smokeControls.markdownPath, "output/smoke-report.md");
+      assert.equal(snapshot.smokeControls.languages.length > 0, true);
+    } finally {
+      service.dispose();
+    }
+  });
+
+  it("supports injected initial smoke languages", () => {
+    const service = createHostStateService({
+      initialSmokeControls: {
+        languages: [
+          {
+            languageKey: "ada",
+            label: "Ada",
+            selected: true,
+            disabled: false,
+            disabledReason: "",
+          },
+          {
+            languageKey: "julia",
+            label: "Julia",
+            selected: false,
+            disabled: true,
+            disabledReason: "Not runnable on this platform/architecture.",
+          },
+        ],
+      },
+    });
+
+    try {
+      const snapshot = service.getSnapshot();
+
+      assert.equal(snapshot.smokeControls.languages.length, 2);
+      assert.equal(snapshot.smokeControls.languages[0].languageKey, "ada");
+      assert.equal(snapshot.smokeControls.languages[0].selected, true);
+      assert.equal(snapshot.smokeControls.languages[0].disabled, false);
+      assert.equal(snapshot.smokeControls.languages[1].languageKey, "julia");
+      assert.equal(snapshot.smokeControls.languages[1].selected, false);
+      assert.equal(snapshot.smokeControls.languages[1].disabled, true);
+    } finally {
+      service.dispose();
+    }
+  });
+
+  it("persists smoke settings updates in ready state", () => {
+    const service = createHostStateService();
+
+    try {
+      service.send({ type: "SMOKE_REPORT_ENABLED_SET", enabled: true });
+      service.send({ type: "SMOKE_MARKDOWN_PATH_SET", path: "output/custom.md" });
+      service.send({ type: "SMOKE_TIMEOUT_SECONDS_SET", seconds: "45" });
+      service.send({ type: "SMOKE_SLOW_TIMEOUT_SECONDS_SET", seconds: "8" });
+      service.send({ type: "SMOKE_STATUS_LABEL_SET", statusLabel: "configured" });
+
+      const snapshot = service.getSnapshot();
+
+      assert.equal(snapshot.smokeControls.reportEnabled, true);
+      assert.equal(snapshot.smokeControls.markdownPath, "output/custom.md");
+      assert.equal(snapshot.smokeControls.timeoutSeconds, "45");
+      assert.equal(snapshot.smokeControls.slowTimeoutSeconds, "8");
+      assert.equal(snapshot.smokeControls.statusLabel, "configured");
+      assert.equal(snapshot.smokeControls.reportStatusClassName, "status-muted");
+    } finally {
+      service.dispose();
+    }
+  });
+
+  it("selects and deselects all languages", () => {
+    const service = createHostStateService();
+
+    try {
+      service.send({ type: "SMOKE_ALL_LANGUAGES_DESELECTED" });
+      let snapshot = service.getSnapshot();
+      assert.equal(
+        snapshot.smokeControls.languages.every((language) => !language.selected),
+        true
+      );
+
+      service.send({ type: "SMOKE_ALL_LANGUAGES_SELECTED" });
+      snapshot = service.getSnapshot();
+      assert.equal(
+        snapshot.smokeControls.languages.every((language) => language.selected),
+        true
+      );
     } finally {
       service.dispose();
     }
@@ -108,6 +193,18 @@ describe("state — buildBootstrapStatusMessage", () => {
     extensionDisplayName: "Test Extension",
     extensionVersion: "1.2.3",
   };
+  const smokeControls = {
+    reportEnabled: false,
+    markdownPath: "output/smoke-report.md",
+    timeoutSeconds: "30",
+    slowTimeoutSeconds: "5",
+    reportStatusText: "No report generated.",
+    reportStatusClassName: "status-muted" as const,
+    smokeStatusText: "All languages selected (omit --langs)",
+    smokeStatusClassName: "status-muted" as const,
+    languages: [],
+    statusLabel: "ready",
+  };
 
   it("returns base message when no command has run yet", () => {
     const message = buildBootstrapStatusMessage(config, {
@@ -115,6 +212,7 @@ describe("state — buildBootstrapStatusMessage", () => {
       lastCommandId: null,
       lastResult: null,
       lastFailure: null,
+      smokeControls,
     });
 
     assert.match(message, /Test Extension/);
@@ -128,6 +226,7 @@ describe("state — buildBootstrapStatusMessage", () => {
       lastCommandId: "algos.showBootstrapStatus",
       lastResult: null,
       lastFailure: null,
+      smokeControls,
     });
 
     assert.match(message, /algos\.showBootstrapStatus/);

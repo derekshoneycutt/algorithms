@@ -21,16 +21,16 @@ function createExtensionBuildOptions() {
 }
 
 /**
- * Returns the esbuild configuration for the bootstrap webview frontend bundle.
+ * Returns the esbuild configuration for the smoke controls webview frontend bundle.
  *
  * @returns {import("esbuild").BuildOptions} Webview build configuration.
  */
-function createBootstrapWebviewBuildOptions() {
+function createSmokeControlsWebviewBuildOptions() {
   return {
     bundle: true,
-    entryPoints: ["./src/views/media/bootstrap/bootstrapView.ts"],
+    entryPoints: ["./src/views/media/smokeControls/smokeControlsView.ts"],
     format: "iife",
-    outfile: "./dist/views/bootstrap/bootstrapView.js",
+    outfile: "./dist/views/smokeControls/smokeControlsView.js",
     platform: "browser",
     sourcemap: true,
     target: "es2022",
@@ -45,7 +45,7 @@ function createBootstrapWebviewBuildOptions() {
 async function main() {
   const buildOptions = [
     createExtensionBuildOptions(),
-    createBootstrapWebviewBuildOptions(),
+    createSmokeControlsWebviewBuildOptions(),
   ];
 
   if (isWatchMode) {

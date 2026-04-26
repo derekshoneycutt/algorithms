@@ -7,7 +7,7 @@ import * as vscode from "vscode";
 import type { HostToViewMessage, ViewToHostMessage } from "../comms";
 import { isViewToHostMessage } from "../comms";
 import type { IViewHost } from "./IViewHost";
-import { getBootstrapSidebarViewId } from "./viewIds";
+import { getSmokeControlsSidebarViewId } from "./viewIds";
 
 /**
  * Builds a nonce used by the webview content security policy.
@@ -19,14 +19,20 @@ function createNonce(): string {
 }
 
 /**
- * Reads the HTML template for the bootstrap webview.
+ * Reads the HTML template for the smoke controls webview.
  *
  * @param {vscode.ExtensionContext} context Extension activation context.
  * @returns {string} Template HTML content.
  */
-function readBootstrapTemplate(context: vscode.ExtensionContext): string {
+function readSmokeControlsTemplate(context: vscode.ExtensionContext): string {
   const templatePath = context.asAbsolutePath(
-    path.join("src", "views", "media", "bootstrap", "bootstrapView.html")
+    path.join(
+      "src",
+      "views",
+      "media",
+      "smokeControls",
+      "smokeControlsView.html"
+    )
   );
   return fs.readFileSync(templatePath, "utf8");
 }
@@ -58,11 +64,11 @@ function renderTripleCurlyTemplate(
  * @param {vscode.ExtensionContext} context Extension activation context.
  * @returns {string} Rendered webview HTML.
  */
-function renderBootstrapHtml(
+function renderSmokeControlsHtml(
   webview: vscode.Webview,
   context: vscode.ExtensionContext
 ): string {
-  const template = readBootstrapTemplate(context);
+  const template = readSmokeControlsTemplate(context);
   const nonce = createNonce();
 
   const styleUri = webview
@@ -72,8 +78,8 @@ function renderBootstrapHtml(
         "src",
         "views",
         "media",
-        "bootstrap",
-        "bootstrapView.css"
+        "smokeControls",
+        "smokeControlsView.css"
       )
     )
     .toString();
@@ -84,8 +90,8 @@ function renderBootstrapHtml(
         context.extensionUri,
         "dist",
         "views",
-        "bootstrap",
-        "bootstrapView.js"
+        "smokeControls",
+        "smokeControlsView.js"
       )
     )
     .toString();
@@ -106,19 +112,19 @@ function renderBootstrapHtml(
  * @returns {IViewHost} View host implementation.
  */
 export function createViewHost(context: vscode.ExtensionContext): IViewHost {
-  const bootstrapViewId = getBootstrapSidebarViewId();
+  const smokeControlsViewId = getSmokeControlsSidebarViewId();
   const mediaRoot = vscode.Uri.joinPath(
     context.extensionUri,
     "src",
     "views",
     "media",
-    "bootstrap"
+    "smokeControls"
   );
   const webviewDistRoot = vscode.Uri.joinPath(
     context.extensionUri,
     "dist",
     "views",
-    "bootstrap"
+    "smokeControls"
   );
 
   let resolvedView: vscode.WebviewView | undefined;
@@ -143,7 +149,10 @@ export function createViewHost(context: vscode.ExtensionContext): IViewHost {
         }
       });
 
-      webviewView.webview.html = renderBootstrapHtml(webviewView.webview, context);
+      webviewView.webview.html = renderSmokeControlsHtml(
+        webviewView.webview,
+        context
+      );
     },
   };
 
@@ -154,7 +163,7 @@ export function createViewHost(context: vscode.ExtensionContext): IViewHost {
       }
 
       registration = vscode.window.registerWebviewViewProvider(
-        bootstrapViewId,
+        smokeControlsViewId,
         provider,
         {
           webviewOptions: {
@@ -167,7 +176,7 @@ export function createViewHost(context: vscode.ExtensionContext): IViewHost {
     },
 
     focusPrimaryView(): Thenable<void> {
-      return vscode.commands.executeCommand(`${bootstrapViewId}.focus`);
+      return vscode.commands.executeCommand(`${smokeControlsViewId}.focus`);
     },
 
     onDidReceiveMessage(
