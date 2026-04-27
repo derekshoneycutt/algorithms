@@ -1,5 +1,6 @@
 import * as vscode from "vscode";
 
+import type { IConductor, ConductorRunStatus } from "../../conductor";
 import type { IFilesystem } from "../../filesystem";
 import type { ILanguages } from "../../languages";
 import type { IAlgorithmsIndex } from "../../algorithms";
@@ -53,6 +54,10 @@ export interface WorkspaceTreeNode {
   languageFileCount?: number;
   /** True when this row has a concrete open target file. */
   hasOpenTarget?: boolean;
+  /** Optional run status for row decoration. */
+  runStatus?: ConductorRunStatus;
+  /** Optional tooltip detail for run status. */
+  runStatusTooltip?: string;
 }
 
 /**
@@ -81,6 +86,7 @@ export interface RestrictedTreeDiscoveryDependencies {
  */
 export interface AlgorithmsTreeDataProviderDependencies {
   algorithmsIndex: IAlgorithmsIndex;
+  conductor?: IConductor;
   viewModeService: IViewModeService;
   filterModeService: IFilterModeService;
   languages: ILanguages;

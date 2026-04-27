@@ -137,8 +137,12 @@ export function createCoordinator(
       viewModeService,
       filterModeService,
       algorithmsIndex,
+      conductor,
       languages,
     });
+  const runStatusTreeRefreshSubscription = conductor.subscribeRunTargetStatus(() => {
+    workspaceAlgorithmsTreeProvider.refresh();
+  });
   const workspaceStandardLibraryTreeProvider: RefreshableWorkspaceTreeDataProvider =
     createWorkspaceStandardLibraryTreeDataProvider({
       algorithmsIndex,
@@ -292,6 +296,7 @@ export function createCoordinator(
     runControlsChannel,
     workspaceAlgorithmsTreeRegistration,
     workspaceStandardLibraryTreeRegistration,
+    runStatusTreeRefreshSubscription,
     languageStatusDecorationRegistration,
     viewHost,
     viewsRegistration,

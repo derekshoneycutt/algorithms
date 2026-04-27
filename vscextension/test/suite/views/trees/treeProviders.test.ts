@@ -12,6 +12,7 @@ import type { AlgorithmCategory, AlgorithmEntry, AlgorithmImplementation, Standa
 import {
   createAlgorithmsIndex,
 } from "../../../../src/algorithms";
+import type { IConductor } from "../../../../src/conductor";
 import type { ILanguages } from "../../../../src/languages";
 import type { IFilterModeService } from "../../../../src/state";
 import type { SidebarViewMode, IViewModeService } from "../../../../src/state/viewMode";
@@ -556,9 +557,137 @@ describe("views/trees — URI fragments and FileDecoration provider", () => {
     assert.deepStrictEqual(absentDecoration.color, new vscode.ThemeColor("testing.iconQueued"));
     assert.ok(absentDecoration.tooltip?.includes("not present in algorithm"));
 
+    // run fragments
+    const runRunningUri = vscode.Uri.file("/test/file.py").with({ fragment: "algos-runfile-running" });
+    const runRunningDecoration = provider.provideFileDecoration(runRunningUri, {} as any) as vscode.FileDecoration | undefined;
+    assert.ok(runRunningDecoration !== undefined && runRunningDecoration !== null);
+    assert.strictEqual(runRunningDecoration.badge, "▶");
+    assert.deepStrictEqual(runRunningDecoration.color, new vscode.ThemeColor("testing.iconQueued"));
+
+    const runFailedUri = vscode.Uri.file("/test/file.py").with({ fragment: "algos-runfile-failed" });
+    const runFailedDecoration = provider.provideFileDecoration(runFailedUri, {} as any) as vscode.FileDecoration | undefined;
+    assert.ok(runFailedDecoration !== undefined && runFailedDecoration !== null);
+    assert.strictEqual(runFailedDecoration.badge, "✕");
+    assert.deepStrictEqual(runFailedDecoration.color, new vscode.ThemeColor("testing.iconFailed"));
+
     // No fragment → undefined
     const noUri = vscode.Uri.file("/test/file.py");
     const noDecoration = provider.provideFileDecoration(noUri, {} as any);
     assert.strictEqual(noDecoration, undefined);
+  });
+});
+
+describe("views/trees — run file status projection", () => {
+  it("decorates only the launched target row and sets tooltip", async () => {
+    const algorithmPath = "/repo/src/numeric/euclidgcd";
+    const categories: AlgorithmCategory[] = [
+      { name: "numeric", path: "/repo/src/numeric" },
+    ];
+    const algorithms: AlgorithmEntry[] = [
+      { name: "euclidgcd", path: algorithmPath, categoryPath: "/repo/src/numeric" },
+    ];
+    const implementations: AlgorithmImplementation[] = [
+      {
+        languageKey: "python",
+        isFlagged: false,
+        filePath: "/repo/src/numeric/euclidgcd/euclidgcd.py",
+        filePaths: ["/repo/src/numeric/euclidgcd/euclidgcd.py"],
+        hasIncludes: false,
+        includeFilePaths: [],
+      },
+      {
+        languageKey: "go",
+        isFlagged: false,
+        filePath: "/repo/src/numeric/euclidgcd/euclidgcd.go",
+        filePaths: ["/repo/src/numeric/euclidgcd/euclidgcd.go"],
+        hasIncludes: false,
+        includeFilePaths: [],
+      },
+    ];
+
+    const conductor: IConductor = {
+      reactToSmokeIntent(): never {
+        throw new Error("not used");
+      },
+      reactToRunControlsIntent(): never {
+        throw new Error("not used");
+      },
+      async runFile(): Promise<void> {
+        return;
+      },
+      getRunForTarget(target) {
+        if (
+          target.nodeKind === "mainFile"
+          && target.filePath === "/repo/src/numeric/euclidgcd/euclidgcd.py"
+        ) {
+          return {
+            runId: "run-1",
+            ownerKey: "python:euclidgcd.py",
+            status: "running",
+            startedAt: 1,
+            updatedAt: 2,
+            message: "Run File dispatched to terminal",
+            progressPercent: null,
+            stepKey: null,
+            errorMessage: null,
+          };
+        }
+
+        return null;
+      },
+      subscribeRunTargetStatus() {
+        return {
+          dispose(): void {
+            return;
+          },
+        };
+      },
+      startRun(): never {
+        throw new Error("not used");
+      },
+      markProgress(): never {
+        throw new Error("not used");
+      },
+      markCompleted(): never {
+        throw new Error("not used");
+      },
+      markFailed(): never {
+        throw new Error("not used");
+      },
+      cancelRun(): never {
+        throw new Error("not used");
+      },
+      getRun(): never {
+        throw new Error("not used");
+      },
+    };
+
+    const provider = createWorkspaceAlgorithmsTreeDataProvider({
+      algorithmsIndex: createAlgorithmsIndexStub(categories, algorithms, implementations),
+      conductor,
+      viewModeService: createViewModeServiceStub("files"),
+      filterModeService: createFilterModeServiceStub("all"),
+      languages: createLanguageStub(),
+    });
+
+    const rootChildren = (await provider.getChildren()) ?? [];
+    const categoryNode = rootChildren[0];
+    const algorithmNodes = (await provider.getChildren(categoryNode)) ?? [];
+    const algorithmNode = algorithmNodes[0];
+    const fileRows = (await provider.getChildren(algorithmNode)) ?? [];
+    const pythonMain = fileRows.find((row) => {
+      return row.filePath.endsWith("euclidgcd.py");
+    }) as WorkspaceTreeNode;
+    const goMain = fileRows.find((row) => {
+      return row.filePath.endsWith("euclidgcd.go");
+    }) as WorkspaceTreeNode;
+
+    const pythonItem = await provider.getTreeItem(pythonMain);
+    const goItem = await provider.getTreeItem(goMain);
+
+    assert.strictEqual(pythonItem.resourceUri?.fragment, "algos-runfile-running");
+    assert.ok(String(pythonItem.tooltip).includes("Run File: Running"));
+    assert.ok(String(pythonItem.tooltip).includes("dispatched to terminal"));
+    assert.strictEqual(goItem.resourceUri?.fragment, "");
   });
 });

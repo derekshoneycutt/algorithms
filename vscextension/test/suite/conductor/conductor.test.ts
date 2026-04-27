@@ -326,6 +326,14 @@ describe("conductor — createConductorService", () => {
       assert.strictEqual(runCalls[0][0].targetToken, "cpp");
       assert.strictEqual(runCalls[0][0].workingDirectoryPath, "/repo/src/numeric/max");
 
+      const runSnapshot = conductor.getRunForTarget({
+        filePath: "/repo/src/numeric/max/max.cpp",
+        nodeKind: "languageSummary",
+      });
+      assert.ok(runSnapshot !== null);
+      assert.strictEqual(runSnapshot?.status, "running");
+      assert.ok(runSnapshot?.message?.includes("dispatched to terminal"));
+
       const snapshot = stateMachine.getSnapshot();
       assert.strictEqual(snapshot.lastCommandId, "algorithms.run-file");
       assert.ok(snapshot.lastResult?.includes("Run File started for cpp (cpp)"));
@@ -438,10 +446,331 @@ describe("conductor — createConductorService", () => {
       assert.strictEqual(runCalls.length, 0);
       assert.ok(warnings[0].includes("unclosed quote"));
 
+      const runSnapshot = conductor.getRunForTarget({
+        filePath: "/repo/src/numeric/max/max.py",
+        nodeKind: "file",
+      });
+      assert.ok(runSnapshot !== null);
+      assert.strictEqual(runSnapshot?.status, "failed");
+      assert.ok(runSnapshot?.errorMessage?.includes("unclosed quote"));
+
       const snapshot = stateMachine.getSnapshot();
       assert.strictEqual(snapshot.lastCommandId, "algorithms.run-file");
       assert.ok(snapshot.lastFailure?.includes("unclosed quote"));
     } finally {
+      stateMachine.dispose();
+    }
+  });
+
+  it("marks run target completed when terminal reports successful exit", async () => {
+    const adapter: IAlgorithmsTerminalRunAdapter = {
+      run(input): void {
+        if (input.onExit !== undefined) {
+          input.onExit(0);
+        }
+      },
+      getTerminalName(): string {
+        return "Algorithms Runner";
+      },
+    };
+
+    const conductor = createConductorService({
+      algorithmsTerminalRunAdapter: adapter,
+    });
+    const stateMachine = createHostStateService();
+
+    try {
+      await conductor.runFile({
+        filesystem: {
+          async realpath(targetPath: string): Promise<string> {
+            return targetPath;
+          },
+          async isFile(): Promise<boolean> {
+            return true;
+          },
+          async isDirectory(): Promise<boolean> {
+            return true;
+          },
+          async readText(): Promise<string | null> {
+            return null;
+          },
+          async writeText(): Promise<void> {
+            return;
+          },
+          async listDirectory(): Promise<null> {
+            return null;
+          },
+          async ensureDirectory(): Promise<void> {
+            return;
+          },
+          async deletePath(): Promise<void> {
+            return;
+          },
+          async isPathWithinRoot(): Promise<boolean> {
+            return true;
+          },
+        },
+        hostState: stateMachine,
+        languages: {
+          getAll() {
+            return [];
+          },
+          getByKey() {
+            return undefined;
+          },
+          normalizeLanguageId(languageId: string) {
+            return languageId;
+          },
+          normalizeFileExtension() {
+            return "python";
+          },
+          getDisplayLabel() {
+            return undefined;
+          },
+          getDefaultSmokeKeys() {
+            return [];
+          },
+        },
+        notificationRouter: {
+          info() {
+            return Promise.resolve(undefined);
+          },
+          warn() {
+            return Promise.resolve(undefined);
+          },
+          error() {
+            return Promise.resolve(undefined);
+          },
+        },
+        refreshAlgorithmsTree(): void {
+          return;
+        },
+        treeNode: {
+          kind: "file",
+          filePath: "/repo/src/numeric/max/max.py",
+        },
+        workspaceFolderPaths: ["/repo"],
+      });
+
+      const runSnapshot = conductor.getRunForTarget({
+        filePath: "/repo/src/numeric/max/max.py",
+        nodeKind: "file",
+      });
+
+      assert.ok(runSnapshot !== null);
+      assert.strictEqual(runSnapshot?.status, "completed");
+      assert.ok(runSnapshot?.message?.includes("completed"));
+    } finally {
+      stateMachine.dispose();
+    }
+  });
+
+  it("clears target run status after retention timeout", async () => {
+    const adapter: IAlgorithmsTerminalRunAdapter = {
+      run(): void {
+        return;
+      },
+      getTerminalName(): string {
+        return "Algorithms Runner";
+      },
+    };
+
+    const conductor = createConductorService({
+      algorithmsTerminalRunAdapter: adapter,
+      runStatusRetentionMs: 10,
+    });
+    const stateMachine = createHostStateService();
+
+    try {
+      await conductor.runFile({
+        filesystem: {
+          async realpath(targetPath: string): Promise<string> {
+            return targetPath;
+          },
+          async isFile(): Promise<boolean> {
+            return true;
+          },
+          async isDirectory(): Promise<boolean> {
+            return true;
+          },
+          async readText(): Promise<string | null> {
+            return null;
+          },
+          async writeText(): Promise<void> {
+            return;
+          },
+          async listDirectory(): Promise<null> {
+            return null;
+          },
+          async ensureDirectory(): Promise<void> {
+            return;
+          },
+          async deletePath(): Promise<void> {
+            return;
+          },
+          async isPathWithinRoot(): Promise<boolean> {
+            return true;
+          },
+        },
+        hostState: stateMachine,
+        languages: {
+          getAll() {
+            return [];
+          },
+          getByKey() {
+            return undefined;
+          },
+          normalizeLanguageId(languageId: string) {
+            return languageId;
+          },
+          normalizeFileExtension() {
+            return "python";
+          },
+          getDisplayLabel() {
+            return undefined;
+          },
+          getDefaultSmokeKeys() {
+            return [];
+          },
+        },
+        notificationRouter: {
+          info() {
+            return Promise.resolve(undefined);
+          },
+          warn() {
+            return Promise.resolve(undefined);
+          },
+          error() {
+            return Promise.resolve(undefined);
+          },
+        },
+        refreshAlgorithmsTree(): void {
+          return;
+        },
+        treeNode: {
+          kind: "file",
+          filePath: "/repo/src/numeric/max/max.py",
+        },
+        workspaceFolderPaths: ["/repo"],
+      });
+
+      const initialSnapshot = conductor.getRunForTarget({
+        filePath: "/repo/src/numeric/max/max.py",
+        nodeKind: "file",
+      });
+      assert.ok(initialSnapshot !== null);
+
+      await new Promise<void>((resolve) => {
+        setTimeout(() => {
+          resolve();
+        }, 30);
+      });
+
+      const clearedSnapshot = conductor.getRunForTarget({
+        filePath: "/repo/src/numeric/max/max.py",
+        nodeKind: "file",
+      });
+      assert.strictEqual(clearedSnapshot, null);
+    } finally {
+      stateMachine.dispose();
+    }
+  });
+
+  it("publishes run-target status changes to subscribers", async () => {
+    const adapter: IAlgorithmsTerminalRunAdapter = {
+      run(): void {
+        return;
+      },
+      getTerminalName(): string {
+        return "Algorithms Runner";
+      },
+    };
+
+    const conductor = createConductorService({
+      algorithmsTerminalRunAdapter: adapter,
+    });
+    const stateMachine = createHostStateService();
+    const statuses: string[] = [];
+    const subscription = conductor.subscribeRunTargetStatus((change) => {
+      statuses.push(change.snapshot.status);
+    });
+
+    try {
+      await conductor.runFile({
+        filesystem: {
+          async realpath(targetPath: string): Promise<string> {
+            return targetPath;
+          },
+          async isFile(): Promise<boolean> {
+            return true;
+          },
+          async isDirectory(): Promise<boolean> {
+            return true;
+          },
+          async readText(): Promise<string | null> {
+            return null;
+          },
+          async writeText(): Promise<void> {
+            return;
+          },
+          async listDirectory(): Promise<null> {
+            return null;
+          },
+          async ensureDirectory(): Promise<void> {
+            return;
+          },
+          async deletePath(): Promise<void> {
+            return;
+          },
+          async isPathWithinRoot(): Promise<boolean> {
+            return true;
+          },
+        },
+        hostState: stateMachine,
+        languages: {
+          getAll() {
+            return [];
+          },
+          getByKey() {
+            return undefined;
+          },
+          normalizeLanguageId(languageId: string) {
+            return languageId;
+          },
+          normalizeFileExtension() {
+            return "python";
+          },
+          getDisplayLabel() {
+            return undefined;
+          },
+          getDefaultSmokeKeys() {
+            return [];
+          },
+        },
+        notificationRouter: {
+          info() {
+            return Promise.resolve(undefined);
+          },
+          warn() {
+            return Promise.resolve(undefined);
+          },
+          error() {
+            return Promise.resolve(undefined);
+          },
+        },
+        refreshAlgorithmsTree(): void {
+          return;
+        },
+        treeNode: {
+          kind: "file",
+          filePath: "/repo/src/numeric/max/max.py",
+        },
+        workspaceFolderPaths: ["/repo"],
+      });
+
+      assert.deepStrictEqual(statuses, ["starting", "running"]);
+    } finally {
+      subscription.dispose();
       stateMachine.dispose();
     }
   });

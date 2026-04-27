@@ -9,10 +9,13 @@ import type {
   ConductorRunControlsIntent,
   ConductorRunControlsReaction,
   ConductorRunFileInput,
+  ConductorRunTargetRef,
+  ConductorRunTargetStatusChange,
   ConductorSmokeReaction,
   ConductorRunSnapshot,
   ConductorSmokeIntent,
   ConductorStartRunInput,
+  ConductorSubscription,
   IConductor,
 } from "./IConductor";
 import type { ViewToHostMessage } from "../comms/shared/messageTypes";
@@ -33,12 +36,50 @@ import {
 } from "../state";
 
 const RUN_FILE_COMMAND_ID = "algorithms.run-file";
+const DEFAULT_RUN_STATUS_RETENTION_MS = 120_000;
+
+/**
+ * Builds one stable run-target key.
+ *
+ * @param {ConductorRunTargetRef} target Run target reference.
+ * @returns {string} Stable target key.
+ */
+function buildRunTargetKey(target: ConductorRunTargetRef): string {
+  return `${target.nodeKind}:${target.filePath}`;
+}
+
+/**
+ * Lifecycle operations used by run-file orchestration.
+ */
+interface RunFileStatusLifecycle {
+  markCompleted(
+    target: ConductorRunTargetRef,
+    message?: string | null,
+    expectedRunId?: string
+  ): void;
+  markFailed(
+    target: ConductorRunTargetRef,
+    errorMessage: string,
+    expectedRunId?: string
+  ): void;
+  markRunning(
+    target: ConductorRunTargetRef,
+    message?: string | null,
+    expectedRunId?: string
+  ): void;
+  start(
+    target: ConductorRunTargetRef,
+    ownerKey: string,
+    message?: string | null
+  ): ConductorRunSnapshot;
+}
 
 /**
  * Dependencies required to create the conductor service.
  */
 export interface CreateConductorServiceInput {
   algorithmsTerminalRunAdapter?: IAlgorithmsTerminalRunAdapter;
+  runStatusRetentionMs?: number;
 }
 
 /**
@@ -203,9 +244,17 @@ let nextRunSequence = 1;
  * @param {ConductorRunFileInput["treeNode"]} treeNode Candidate node.
  * @returns {boolean} True when supported by Run File.
  */
+type RunnableTreeNode = {
+  filePath: string;
+  hasOpenTarget?: boolean;
+  kind: "file" | "mainFile" | "languageSummary";
+  languageKey?: string;
+  parentAlgorithmPath?: string;
+};
+
 function isRunnableTreeNode(
   treeNode: ConductorRunFileInput["treeNode"]
-): treeNode is NonNullable<ConductorRunFileInput["treeNode"]> {
+): treeNode is RunnableTreeNode {
   if (treeNode === undefined) {
     return false;
   }
@@ -220,13 +269,13 @@ function isRunnableTreeNode(
  * @returns {string} Algorithm directory path.
  */
 function resolveAlgorithmDirectoryPath(
-  treeNode: NonNullable<ConductorRunFileInput["treeNode"]>
+  treeNode: RunnableTreeNode
 ): string {
   if (treeNode.parentAlgorithmPath !== undefined) {
     return treeNode.parentAlgorithmPath;
   }
 
-  if (treeNode.kind === "languageSummary" || treeNode.kind === "algorithmDir") {
+  if (treeNode.kind === "languageSummary") {
     return treeNode.filePath;
   }
 
@@ -241,7 +290,7 @@ function resolveAlgorithmDirectoryPath(
  * @returns {string | null} Normalized language key or null when unavailable.
  */
 function resolveLanguageKeyFromNode(
-  treeNode: NonNullable<ConductorRunFileInput["treeNode"]>,
+  treeNode: RunnableTreeNode,
   input: ConductorRunFileInput
 ): string | null {
   if (treeNode.languageKey !== undefined && treeNode.languageKey.trim().length > 0) {
@@ -361,7 +410,8 @@ function recordRunFileFailure(input: ConductorRunFileInput, errorMessage: string
  */
 async function runAlgorithmsFile(
   input: ConductorRunFileInput,
-  runAdapter: IAlgorithmsTerminalRunAdapter | undefined
+  runAdapter: IAlgorithmsTerminalRunAdapter | undefined,
+  runLifecycle: RunFileStatusLifecycle
 ): Promise<void> {
   if (!isRunnableTreeNode(input.treeNode)) {
     await input.notificationRouter.warn("Select an algorithm file or language row to run.");
@@ -369,6 +419,10 @@ async function runAlgorithmsFile(
   }
 
   const treeNode = input.treeNode;
+  const runTarget: ConductorRunTargetRef = {
+    nodeKind: treeNode.kind,
+    filePath: treeNode.filePath,
+  };
 
   if (treeNode.kind === "languageSummary" && treeNode.hasOpenTarget === false) {
     await input.notificationRouter.warn("Cannot run a missing language row.");
@@ -377,6 +431,7 @@ async function runAlgorithmsFile(
 
   if (runAdapter === undefined) {
     const errorMessage = "Run adapter is not configured.";
+    runLifecycle.markFailed(runTarget, errorMessage);
     recordRunFileFailure(input, errorMessage);
     await input.notificationRouter.error(errorMessage);
     return;
@@ -402,6 +457,7 @@ async function runAlgorithmsFile(
   const runScriptPath = path.join(repositoryRootPath, "run.sh");
   if (!(await input.filesystem.isFile(runScriptPath))) {
     const errorMessage = "run.sh is unavailable.";
+    runLifecycle.markFailed(runTarget, errorMessage);
     recordRunFileFailure(input, errorMessage);
     await input.notificationRouter.error(errorMessage);
     return;
@@ -435,6 +491,7 @@ async function runAlgorithmsFile(
   const languageKey = resolveLanguageKeyFromNode(treeNode, input);
   if (languageKey === null) {
     const errorMessage = "Language could not be determined.";
+    runLifecycle.markFailed(runTarget, errorMessage);
     recordRunFileFailure(input, errorMessage);
     await input.notificationRouter.warn(errorMessage);
     return;
@@ -445,6 +502,7 @@ async function runAlgorithmsFile(
   const runControlPassthrough = buildRunControlPassthroughTokens(runControls);
   if (!runControlPassthrough.ok) {
     const errorMessage = runControlPassthrough.reason ?? "Run args are invalid.";
+    runLifecycle.markFailed(runTarget, errorMessage);
     recordRunFileFailure(input, errorMessage);
     await input.notificationRouter.warn(errorMessage);
     return;
@@ -453,9 +511,22 @@ async function runAlgorithmsFile(
   const runTargetToken = treeNode.kind === "languageSummary"
     ? languageKey
     : path.basename(canonicalTargetFilePath);
+  const runOwnerKey = `${languageKey}:${runTargetToken}`;
 
   try {
+    const startedRunSnapshot = runLifecycle.start(
+      runTarget,
+      runOwnerKey,
+      "Run File launch requested"
+    );
+    const startedRunId = startedRunSnapshot.runId;
     input.hostState.send({ type: "COMMAND_REQUESTED", commandId: RUN_FILE_COMMAND_ID });
+
+    runLifecycle.markRunning(
+      runTarget,
+      `Run File dispatched to terminal for ${runTargetToken} (${languageKey})`,
+      startedRunId
+    );
 
     runAdapter.run({
       executablePath: runScriptPath,
@@ -463,6 +534,22 @@ async function runAlgorithmsFile(
       passthroughTokens: runControlPassthrough.tokens,
       targetToken: runTargetToken,
       workingDirectoryPath: algorithmDirectoryPath,
+      onExit(exitCode): void {
+        if (typeof exitCode === "number" && exitCode !== 0) {
+          runLifecycle.markFailed(
+            runTarget,
+            `Run File exited with code ${exitCode}.`,
+            startedRunId
+          );
+          return;
+        }
+
+        runLifecycle.markCompleted(
+          runTarget,
+          `Run File completed for ${runTargetToken} (${languageKey}).`,
+          startedRunId
+        );
+      },
     });
 
     const successMessage = `Run File started for ${runTargetToken} (${languageKey}) in ${runAdapter.getTerminalName()}.`;
@@ -470,6 +557,7 @@ async function runAlgorithmsFile(
     await input.notificationRouter.info(successMessage);
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : String(error);
+    runLifecycle.markFailed(runTarget, errorMessage);
     input.hostState.send({ type: "COMMAND_FAILED", error: errorMessage });
     await input.notificationRouter.error(`Failed to run target: ${errorMessage}`);
   }
@@ -499,6 +587,28 @@ function createBootstrapRunSnapshot(
     stepKey: null,
     errorMessage: null,
   };
+}
+
+/**
+ * Returns true when one run target still points to one expected run id.
+ *
+ * @param {ConductorRunSnapshot | undefined} snapshot Current target snapshot.
+ * @param {string | undefined} expectedRunId Expected run id.
+ * @returns {boolean} True when update should be applied.
+ */
+function matchesExpectedRunId(
+  snapshot: ConductorRunSnapshot | undefined,
+  expectedRunId: string | undefined
+): boolean {
+  if (snapshot === undefined) {
+    return false;
+  }
+
+  if (expectedRunId === undefined) {
+    return true;
+  }
+
+  return snapshot.runId === expectedRunId;
 }
 
 /**
@@ -968,6 +1078,258 @@ export function createConductorService(
   input?: CreateConductorServiceInput
 ): IConductor {
   const runAdapter = input?.algorithmsTerminalRunAdapter;
+  const runStatusRetentionMs = input?.runStatusRetentionMs ?? DEFAULT_RUN_STATUS_RETENTION_MS;
+  const runTargetByRunId = new Map<string, string>();
+  const runSnapshotsById = new Map<string, ConductorRunSnapshot>();
+  const runSnapshotsByTarget = new Map<string, ConductorRunSnapshot>();
+  const runStatusClearTimersByTarget = new Map<string, NodeJS.Timeout>();
+  const runTargetListeners = new Set<
+    (change: ConductorRunTargetStatusChange) => void
+  >();
+
+  /**
+   * Clears one scheduled run-status timer for one target key.
+   *
+   * @param {string} targetKey Stable target key.
+   * @returns {void}
+   */
+  function clearRunStatusTimer(targetKey: string): void {
+    const existingTimer = runStatusClearTimersByTarget.get(targetKey);
+    if (existingTimer === undefined) {
+      return;
+    }
+
+    clearTimeout(existingTimer);
+    runStatusClearTimersByTarget.delete(targetKey);
+  }
+
+  /**
+   * Emits one target-status change event to subscribers.
+   *
+   * @param {ConductorRunTargetRef} target Run target reference.
+   * @param {ConductorRunSnapshot} snapshot Updated snapshot.
+   * @returns {void}
+   */
+  function publishRunTargetStatusChange(
+    target: ConductorRunTargetRef,
+    snapshot: ConductorRunSnapshot
+  ): void {
+    const change: ConductorRunTargetStatusChange = {
+      target,
+      snapshot,
+    };
+
+    for (const listener of runTargetListeners) {
+      listener(change);
+    }
+  }
+
+  /**
+   * Stores one run snapshot by run id and target.
+   *
+   * @param {ConductorRunTargetRef} target Run target reference.
+   * @param {ConductorRunSnapshot} snapshot Snapshot to store.
+   * @returns {ConductorRunSnapshot} Stored snapshot.
+   */
+  function storeRunSnapshotForTarget(
+    target: ConductorRunTargetRef,
+    snapshot: ConductorRunSnapshot
+  ): ConductorRunSnapshot {
+    const targetKey = buildRunTargetKey(target);
+    runSnapshotsById.set(snapshot.runId, snapshot);
+    runTargetByRunId.set(snapshot.runId, targetKey);
+    runSnapshotsByTarget.set(targetKey, snapshot);
+    publishRunTargetStatusChange(target, snapshot);
+
+    if (runStatusRetentionMs > 0) {
+      clearRunStatusTimer(targetKey);
+
+      const retainedRunId = snapshot.runId;
+      const timeoutHandle = setTimeout(() => {
+        runStatusClearTimersByTarget.delete(targetKey);
+
+        const latestSnapshot = runSnapshotsByTarget.get(targetKey);
+        if (latestSnapshot === undefined || latestSnapshot.runId !== retainedRunId) {
+          return;
+        }
+
+        runSnapshotsByTarget.delete(targetKey);
+        runTargetByRunId.delete(retainedRunId);
+        publishRunTargetStatusChange(target, latestSnapshot);
+      }, runStatusRetentionMs);
+
+      runStatusClearTimersByTarget.set(targetKey, timeoutHandle);
+    }
+
+    return snapshot;
+  }
+
+  /**
+   * Resolves the run target for one run identifier.
+   *
+   * @param {string} runId Run identifier.
+   * @returns {ConductorRunTargetRef | null} Target reference or null.
+   */
+  function getRunTargetForRunId(runId: string): ConductorRunTargetRef | null {
+    const targetKey = runTargetByRunId.get(runId);
+    if (targetKey === undefined) {
+      return null;
+    }
+
+    const separatorIndex = targetKey.indexOf(":");
+    if (separatorIndex < 0) {
+      return null;
+    }
+
+    const nodeKind = targetKey.slice(0, separatorIndex);
+    const filePath = targetKey.slice(separatorIndex + 1);
+    if (
+      nodeKind !== "file"
+      && nodeKind !== "mainFile"
+      && nodeKind !== "languageSummary"
+    ) {
+      return null;
+    }
+
+    return {
+      nodeKind,
+      filePath,
+    };
+  }
+
+  /**
+   * Starts one run snapshot for one target.
+   *
+   * @param {ConductorRunTargetRef} target Run target reference.
+   * @param {string} ownerKey Run owner key.
+   * @param {string | null} message Snapshot message.
+   * @returns {ConductorRunSnapshot} Started snapshot.
+   */
+  function startRunForTarget(
+    target: ConductorRunTargetRef,
+    ownerKey: string,
+    message: string | null
+  ): ConductorRunSnapshot {
+    const started = createBootstrapRunSnapshot({
+      ownerKey,
+      reason: message,
+    });
+    return storeRunSnapshotForTarget(target, started);
+  }
+
+  /**
+   * Marks one target run as running.
+   *
+   * @param {ConductorRunTargetRef} target Run target reference.
+   * @param {string | null} message Optional status message.
+   * @returns {ConductorRunSnapshot | null} Updated snapshot or null.
+   */
+  function markTargetRunRunning(
+    target: ConductorRunTargetRef,
+    message: string | null,
+    expectedRunId?: string
+  ): ConductorRunSnapshot | null {
+    const targetKey = buildRunTargetKey(target);
+    const snapshot = runSnapshotsByTarget.get(targetKey);
+    if (snapshot === undefined) {
+      return null;
+    }
+
+    if (expectedRunId !== undefined && snapshot.runId !== expectedRunId) {
+      return null;
+    }
+
+    const updated: ConductorRunSnapshot = {
+      ...snapshot,
+      status: "running",
+      message,
+      updatedAt: Date.now(),
+    };
+    return storeRunSnapshotForTarget(target, updated);
+  }
+
+  /**
+   * Marks one target run as failed.
+   *
+   * @param {ConductorRunTargetRef} target Run target reference.
+   * @param {string} errorMessage Failure message.
+   * @returns {ConductorRunSnapshot} Updated snapshot.
+   */
+  function markTargetRunFailed(
+    target: ConductorRunTargetRef,
+    errorMessage: string,
+    expectedRunId?: string
+  ): ConductorRunSnapshot {
+    const targetKey = buildRunTargetKey(target);
+    const existing = runSnapshotsByTarget.get(targetKey);
+    if (existing !== undefined && !matchesExpectedRunId(existing, expectedRunId)) {
+      return existing;
+    }
+
+    const baseSnapshot = existing ?? createBootstrapRunSnapshot({
+      ownerKey: `failed:${target.filePath}`,
+      reason: null,
+    });
+
+    const updated: ConductorRunSnapshot = {
+      ...baseSnapshot,
+      status: "failed",
+      errorMessage,
+      message: errorMessage,
+      updatedAt: Date.now(),
+    };
+
+    return storeRunSnapshotForTarget(target, updated);
+  }
+
+  /**
+   * Marks one target run as completed.
+   *
+   * @param {ConductorRunTargetRef} target Run target reference.
+   * @param {string | null} message Completion message.
+   * @param {string} [expectedRunId] Expected run id for stale-update protection.
+   * @returns {ConductorRunSnapshot | null} Updated snapshot or null.
+   */
+  function markTargetRunCompleted(
+    target: ConductorRunTargetRef,
+    message: string | null,
+    expectedRunId?: string
+  ): ConductorRunSnapshot | null {
+    const targetKey = buildRunTargetKey(target);
+    const snapshot = runSnapshotsByTarget.get(targetKey);
+    if (snapshot === undefined) {
+      return null;
+    }
+
+    if (expectedRunId !== undefined && snapshot.runId !== expectedRunId) {
+      return null;
+    }
+
+    const updated: ConductorRunSnapshot = {
+      ...snapshot,
+      status: "completed",
+      errorMessage: null,
+      message,
+      updatedAt: Date.now(),
+    };
+
+    return storeRunSnapshotForTarget(target, updated);
+  }
+
+  const runLifecycle: RunFileStatusLifecycle = {
+    start(target, ownerKey, message): ConductorRunSnapshot {
+      return startRunForTarget(target, ownerKey, message ?? null);
+    },
+    markRunning(target, message, expectedRunId): void {
+      markTargetRunRunning(target, message ?? null, expectedRunId);
+    },
+    markCompleted(target, message, expectedRunId): void {
+      markTargetRunCompleted(target, message ?? null, expectedRunId);
+    },
+    markFailed(target, errorMessage, expectedRunId): void {
+      markTargetRunFailed(target, errorMessage, expectedRunId);
+    },
+  };
 
   return {
     reactToSmokeIntent(input) {
@@ -979,36 +1341,127 @@ export function createConductorService(
     },
 
     async runFile(input: ConductorRunFileInput): Promise<void> {
-      await runAlgorithmsFile(input, runAdapter);
+      await runAlgorithmsFile(input, runAdapter, runLifecycle);
+    },
+
+    getRunForTarget(target: ConductorRunTargetRef): ConductorRunSnapshot | null {
+      const targetKey = buildRunTargetKey(target);
+      const snapshot = runSnapshotsByTarget.get(targetKey);
+      return snapshot ?? null;
+    },
+
+    subscribeRunTargetStatus(
+      listener: (change: ConductorRunTargetStatusChange) => void
+    ): ConductorSubscription {
+      runTargetListeners.add(listener);
+      return {
+        dispose(): void {
+          runTargetListeners.delete(listener);
+        },
+      };
     },
 
     startRun(input: ConductorStartRunInput): ConductorRunSnapshot {
-      return createBootstrapRunSnapshot(input);
+      const snapshot = createBootstrapRunSnapshot(input);
+      runSnapshotsById.set(snapshot.runId, snapshot);
+      return snapshot;
     },
 
     markProgress(input: ConductorMarkProgressInput): ConductorRunSnapshot | null {
-      void input;
-      return null;
+      const snapshot = runSnapshotsById.get(input.runId);
+      if (snapshot === undefined) {
+        return null;
+      }
+
+      const updated: ConductorRunSnapshot = {
+        ...snapshot,
+        status: "running",
+        message: input.message ?? snapshot.message,
+        progressPercent: input.progressPercent ?? snapshot.progressPercent,
+        stepKey: input.stepKey ?? snapshot.stepKey,
+        updatedAt: Date.now(),
+      };
+      runSnapshotsById.set(updated.runId, updated);
+
+      const target = getRunTargetForRunId(updated.runId);
+      if (target !== null) {
+        storeRunSnapshotForTarget(target, updated);
+      }
+
+      return updated;
     },
 
     markCompleted(input: ConductorMarkCompletedInput): ConductorRunSnapshot | null {
-      void input;
-      return null;
+      const snapshot = runSnapshotsById.get(input.runId);
+      if (snapshot === undefined) {
+        return null;
+      }
+
+      const updated: ConductorRunSnapshot = {
+        ...snapshot,
+        status: "completed",
+        message: input.message ?? snapshot.message,
+        errorMessage: null,
+        updatedAt: Date.now(),
+      };
+      runSnapshotsById.set(updated.runId, updated);
+
+      const target = getRunTargetForRunId(updated.runId);
+      if (target !== null) {
+        storeRunSnapshotForTarget(target, updated);
+      }
+
+      return updated;
     },
 
     markFailed(input: ConductorMarkFailedInput): ConductorRunSnapshot | null {
-      void input;
-      return null;
+      const snapshot = runSnapshotsById.get(input.runId);
+      if (snapshot === undefined) {
+        return null;
+      }
+
+      const updated: ConductorRunSnapshot = {
+        ...snapshot,
+        status: "failed",
+        errorMessage: input.errorMessage,
+        message: input.message ?? input.errorMessage,
+        updatedAt: Date.now(),
+      };
+      runSnapshotsById.set(updated.runId, updated);
+
+      const target = getRunTargetForRunId(updated.runId);
+      if (target !== null) {
+        storeRunSnapshotForTarget(target, updated);
+      }
+
+      return updated;
     },
 
     cancelRun(input: ConductorCancelRunInput): ConductorRunSnapshot | null {
-      void input;
-      return null;
+      const snapshot = runSnapshotsById.get(input.runId);
+      if (snapshot === undefined) {
+        return null;
+      }
+
+      const updated: ConductorRunSnapshot = {
+        ...snapshot,
+        status: "cancelled",
+        message: input.message ?? snapshot.message,
+        updatedAt: Date.now(),
+      };
+      runSnapshotsById.set(updated.runId, updated);
+
+      const target = getRunTargetForRunId(updated.runId);
+      if (target !== null) {
+        storeRunSnapshotForTarget(target, updated);
+      }
+
+      return updated;
     },
 
     getRun(runId: string): ConductorRunSnapshot | null {
-      void runId;
-      return null;
+      const snapshot = runSnapshotsById.get(runId);
+      return snapshot ?? null;
     },
   };
 }

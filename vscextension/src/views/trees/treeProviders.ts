@@ -3,6 +3,7 @@ import type { Dirent } from "node:fs";
 
 import * as vscode from "vscode";
 
+import type { ConductorRunStatus } from "../../conductor";
 import type { IFilesystem } from "../../filesystem";
 import type { ILanguages } from "../../languages";
 import type { RestrictedTreeDiscoveryDependencies, WorkspaceTreeNode } from "./types";
@@ -302,6 +303,43 @@ export async function readRestrictedDirectoryChildren(
 const URI_FRAGMENT_FLAGGED = "algos-language-flagged";
 const URI_FRAGMENT_FLAGGED_ABSENT = "algos-language-flagged-absent";
 const URI_FRAGMENT_ABSENT = "algos-language-absent";
+const URI_FRAGMENT_RUN_STARTING = "algos-runfile-starting";
+const URI_FRAGMENT_RUN_RUNNING = "algos-runfile-running";
+const URI_FRAGMENT_RUN_COMPLETED = "algos-runfile-completed";
+const URI_FRAGMENT_RUN_FAILED = "algos-runfile-failed";
+const URI_FRAGMENT_RUN_CANCELLED = "algos-runfile-cancelled";
+
+/**
+ * Maps one conductor run status to one URI fragment.
+ *
+ * @param {ConductorRunStatus | undefined} runStatus Run status.
+ * @returns {string | undefined} URI fragment for FileDecoration lookup.
+ */
+function getRunStatusUriFragment(
+  runStatus: ConductorRunStatus | undefined
+): string | undefined {
+  if (runStatus === "starting") {
+    return URI_FRAGMENT_RUN_STARTING;
+  }
+
+  if (runStatus === "running") {
+    return URI_FRAGMENT_RUN_RUNNING;
+  }
+
+  if (runStatus === "completed") {
+    return URI_FRAGMENT_RUN_COMPLETED;
+  }
+
+  if (runStatus === "failed") {
+    return URI_FRAGMENT_RUN_FAILED;
+  }
+
+  if (runStatus === "cancelled") {
+    return URI_FRAGMENT_RUN_CANCELLED;
+  }
+
+  return undefined;
+}
 
 /**
  * Creates one TreeItem for the given node.
@@ -323,6 +361,15 @@ export function createTreeItem(
     resourceUri = resourceUri.with({ fragment: URI_FRAGMENT_FLAGGED });
   } else if (element.isFlagged !== true && element.isMissing === true) {
     resourceUri = resourceUri.with({ fragment: URI_FRAGMENT_ABSENT });
+  }
+
+  // Run File status decoration is applied only when no language-problem fragment
+  // is active so flagged/missing diagnostics keep icon precedence.
+  if (resourceUri.fragment.length === 0) {
+    const runStatusFragment = getRunStatusUriFragment(element.runStatus);
+    if (runStatusFragment !== undefined) {
+      resourceUri = resourceUri.with({ fragment: runStatusFragment });
+    }
   }
 
   // Handle language summary rows
@@ -352,6 +399,9 @@ export function createTreeItem(
     if (contextValue !== undefined) {
       treeItem.contextValue = contextValue;
     }
+    if (element.runStatusTooltip !== undefined) {
+      treeItem.tooltip = element.runStatusTooltip;
+    }
     return treeItem;
   }
 
@@ -373,6 +423,9 @@ export function createTreeItem(
     };
     if (contextValue !== undefined) {
       treeItem.contextValue = contextValue;
+    }
+    if (element.runStatusTooltip !== undefined) {
+      treeItem.tooltip = element.runStatusTooltip;
     }
     return treeItem;
   }
@@ -398,6 +451,9 @@ export function createTreeItem(
   };
   if (contextValue !== undefined) {
     treeItem.contextValue = contextValue;
+  }
+  if (element.runStatusTooltip !== undefined) {
+    treeItem.tooltip = element.runStatusTooltip;
   }
   return treeItem;
 }
@@ -432,6 +488,46 @@ export function createLanguageStatusDecorationProvider(): vscode.FileDecorationP
           badge: "●",
           color: new vscode.ThemeColor("testing.iconQueued"),
           tooltip: "Language not present in algorithm",
+        };
+      }
+
+      if (uri.fragment === URI_FRAGMENT_RUN_STARTING) {
+        return {
+          badge: "◷",
+          color: new vscode.ThemeColor("testing.iconQueued"),
+          tooltip: "Run File: Starting",
+        };
+      }
+
+      if (uri.fragment === URI_FRAGMENT_RUN_RUNNING) {
+        return {
+          badge: "▶",
+          color: new vscode.ThemeColor("testing.iconQueued"),
+          tooltip: "Run File: Running",
+        };
+      }
+
+      if (uri.fragment === URI_FRAGMENT_RUN_COMPLETED) {
+        return {
+          badge: "✓",
+          color: new vscode.ThemeColor("testing.iconPassed"),
+          tooltip: "Run File: Completed",
+        };
+      }
+
+      if (uri.fragment === URI_FRAGMENT_RUN_FAILED) {
+        return {
+          badge: "✕",
+          color: new vscode.ThemeColor("testing.iconFailed"),
+          tooltip: "Run File: Failed",
+        };
+      }
+
+      if (uri.fragment === URI_FRAGMENT_RUN_CANCELLED) {
+        return {
+          badge: "■",
+          color: new vscode.ThemeColor("testing.iconQueued"),
+          tooltip: "Run File: Cancelled",
         };
       }
 

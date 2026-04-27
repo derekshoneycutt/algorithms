@@ -161,6 +161,16 @@ describe("commands/algorithmTreeActions — run-file integration", () => {
       async runFile(input: ConductorRunFileInput): Promise<void> {
         runInputs.push(input);
       },
+      getRunForTarget() {
+        return null;
+      },
+      subscribeRunTargetStatus() {
+        return {
+          dispose(): void {
+            return;
+          },
+        };
+      },
       startRun(): never {
         throw new Error("not used");
       },

@@ -31,6 +31,29 @@ export interface ConductorRunSnapshot {
 }
 
 /**
+ * Stable run-target reference used by tree status projection.
+ */
+export interface ConductorRunTargetRef {
+  nodeKind: "file" | "mainFile" | "languageSummary";
+  filePath: string;
+}
+
+/**
+ * Change payload emitted when run-target status changes.
+ */
+export interface ConductorRunTargetStatusChange {
+  snapshot: ConductorRunSnapshot;
+  target: ConductorRunTargetRef;
+}
+
+/**
+ * Disposable subscription handle.
+ */
+export interface ConductorSubscription {
+  dispose(): void;
+}
+
+/**
  * Input for starting one run.
  */
 export interface ConductorStartRunInput {
@@ -186,6 +209,24 @@ export interface IConductor {
    * @returns {Promise<void>} Resolves when orchestration finishes.
    */
   runFile(input: ConductorRunFileInput): Promise<void>;
+
+  /**
+   * Gets the latest run snapshot for one target.
+   *
+   * @param {ConductorRunTargetRef} target Stable run target reference.
+   * @returns {ConductorRunSnapshot | null} Snapshot for target or null.
+   */
+  getRunForTarget(target: ConductorRunTargetRef): ConductorRunSnapshot | null;
+
+  /**
+   * Subscribes to run-target status change events.
+   *
+   * @param {(change: ConductorRunTargetStatusChange) => void} listener Change listener.
+   * @returns {ConductorSubscription} Disposable listener handle.
+   */
+  subscribeRunTargetStatus(
+    listener: (change: ConductorRunTargetStatusChange) => void
+  ): ConductorSubscription;
 
   /**
    * Starts one run and returns its first snapshot.

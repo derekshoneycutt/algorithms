@@ -14,6 +14,58 @@ import {
 import { createTreeItem } from "./treeProviders";
 
 /**
+ * Returns true when one tree node kind can project Run File status.
+ *
+ * @param {WorkspaceTreeNode} element Tree node.
+ * @returns {boolean} True when run-status projection is supported.
+ */
+type RunStatusNode = WorkspaceTreeNode & {
+  kind: "file" | "mainFile" | "languageSummary";
+};
+
+function isRunStatusNode(element: WorkspaceTreeNode): element is RunStatusNode {
+  return element.kind === "file" || element.kind === "mainFile" || element.kind === "languageSummary";
+}
+
+/**
+ * Formats one run status to title case for tooltip text.
+ *
+ * @param {string} status Raw run status.
+ * @returns {string} Human-readable status.
+ */
+function formatRunStatusLabel(status: string): string {
+  if (status.length === 0) {
+    return "Unknown";
+  }
+
+  return status.charAt(0).toUpperCase() + status.slice(1);
+}
+
+/**
+ * Builds one run-status tooltip text from snapshot details.
+ *
+ * @param {string} status Run status.
+ * @param {string | null} message Snapshot message.
+ * @param {string | null} errorMessage Snapshot error message.
+ * @returns {string} Tooltip text.
+ */
+function buildRunStatusTooltip(
+  status: string,
+  message: string | null,
+  errorMessage: string | null
+): string {
+  const lines = [`Run File: ${formatRunStatusLabel(status)}`];
+
+  if (errorMessage !== null && errorMessage.trim().length > 0) {
+    lines.push(`Error: ${errorMessage}`);
+  } else if (message !== null && message.trim().length > 0) {
+    lines.push(message);
+  }
+
+  return lines.join("\n");
+}
+
+/**
  * Resolves the context value for a tree item based on element kind and flags.
  *
  * @param {WorkspaceTreeNode} element Tree element.
@@ -66,6 +118,7 @@ export function createWorkspaceAlgorithmsTreeDataProvider(
 ): RefreshableWorkspaceTreeDataProvider {
   const {
     algorithmsIndex,
+    conductor,
     filterModeService,
     viewModeService,
     languages,
@@ -143,7 +196,28 @@ export function createWorkspaceAlgorithmsTreeDataProvider(
    */
   function getTreeItemForElement(element: WorkspaceTreeNode): vscode.TreeItem {
     const contextValue = getTreeItemContextValue(element);
-    const treeItem = createTreeItem(element, contextValue);
+    let resolvedElement = element;
+
+    if (conductor !== undefined && isRunStatusNode(element)) {
+      const runSnapshot = conductor.getRunForTarget({
+        filePath: element.filePath,
+        nodeKind: element.kind,
+      });
+
+      if (runSnapshot !== null) {
+        resolvedElement = {
+          ...element,
+          runStatus: runSnapshot.status,
+          runStatusTooltip: buildRunStatusTooltip(
+            runSnapshot.status,
+            runSnapshot.message,
+            runSnapshot.errorMessage
+          ),
+        };
+      }
+    }
+
+    const treeItem = createTreeItem(resolvedElement, contextValue);
 
     if (element.kind === "languageSummary" && element.languageKey) {
       treeItem.label =

@@ -13,6 +13,7 @@ export interface AlgorithmsTerminalRunInput {
   passthroughTokens: readonly string[];
   targetToken: string;
   workingDirectoryPath: string;
+  onExit?: (exitCode: number | undefined) => void;
 }
 
 /**
@@ -88,6 +89,85 @@ function getAlgorithmsRunnerTerminal(): vscode.Terminal {
 }
 
 /**
+ * Waits for shell integration to become available on one terminal.
+ *
+ * @param {vscode.Terminal} terminal Terminal instance.
+ * @param {number} timeoutMs Maximum wait time in milliseconds.
+ * @returns {Promise<vscode.TerminalShellIntegration | null>} Shell integration or null.
+ */
+async function waitForTerminalShellIntegration(
+  terminal: vscode.Terminal,
+  timeoutMs: number
+): Promise<vscode.TerminalShellIntegration | null> {
+  if (terminal.shellIntegration !== undefined) {
+    return terminal.shellIntegration;
+  }
+
+  return new Promise((resolve) => {
+    let settled = false;
+
+    const subscription = vscode.window.onDidChangeTerminalShellIntegration((event) => {
+      if (event.terminal !== terminal) {
+        return;
+      }
+
+      if (settled) {
+        return;
+      }
+
+      settled = true;
+      clearTimeout(timeoutHandle);
+      subscription.dispose();
+      resolve(event.shellIntegration);
+    });
+
+    const timeoutHandle = setTimeout(() => {
+      if (settled) {
+        return;
+      }
+
+      settled = true;
+      subscription.dispose();
+      resolve(null);
+    }, timeoutMs);
+  });
+}
+
+/**
+ * Dispatches one command and returns terminal-reported exit code when available.
+ *
+ * @param {vscode.Terminal} terminal Terminal instance.
+ * @param {string} command Command line text.
+ * @returns {Promise<number | undefined | null>} Exit code when tracked, null when unavailable.
+ */
+async function executeTrackedTerminalCommand(
+  terminal: vscode.Terminal,
+  command: string
+): Promise<number | undefined | null> {
+  const shellIntegration = await waitForTerminalShellIntegration(terminal, 1500);
+  if (shellIntegration === null) {
+    terminal.sendText(command);
+    return null;
+  }
+
+  const execution = shellIntegration.executeCommand(command);
+  return new Promise((resolve) => {
+    const subscription = vscode.window.onDidEndTerminalShellExecution((event) => {
+      if (event.terminal !== terminal) {
+        return;
+      }
+
+      if (event.execution !== execution) {
+        return;
+      }
+
+      subscription.dispose();
+      resolve(event.exitCode);
+    });
+  });
+}
+
+/**
  * Creates one adapter that launches run.sh commands in the extension terminal.
  *
  * @returns {IAlgorithmsTerminalRunAdapter} Terminal run adapter.
@@ -99,7 +179,15 @@ export function createAlgorithmsTerminalRunAdapter(): IAlgorithmsTerminalRunAdap
       const command = buildAlgorithmsTerminalRunCommand(input);
 
       terminal.show(false);
-      terminal.sendText(command);
+      void executeTrackedTerminalCommand(terminal, command).then((exitCode) => {
+        if (exitCode === null) {
+          return;
+        }
+
+        if (input.onExit !== undefined) {
+          input.onExit(exitCode);
+        }
+      });
     },
 
     getTerminalName(): string {
