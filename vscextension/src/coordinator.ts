@@ -29,7 +29,9 @@ import {
 } from "./commands";
 import type { IExtensionCommands } from "./commands";
 import {
+  buildEnvironmentControlsSnapshot,
   buildRunControlsSnapshot,
+  createEnvironmentControlsSnapshotPublisher,
   createRunControlsSnapshotPublisher,
   createSmokeLanguageIconUriResolver,
   createSmokeSnapshotBuilder,
@@ -42,6 +44,7 @@ import {
   createCommandLine,
 } from "./commandline";
 import {
+  createEnvironmentControlsChannelMessageHandler,
   createConductorService,
   createRunControlsChannelMessageHandler,
   createSmokeControlsChannelMessageHandler,
@@ -85,6 +88,7 @@ import {
   createWorkspaceStandardLibraryTreeDataProvider,
   createLanguageStatusDecorationProvider,
   createViewHost,
+  getEnvironmentControlsSidebarViewId,
   getRunControlsSidebarViewId,
   getSmokeControlsSidebarViewId,
   getWorkspaceAlgorithmsTreeViewId,
@@ -109,8 +113,12 @@ export function createCoordinator(
 ): vscode.Disposable {
   const runControlsViewId = getRunControlsSidebarViewId();
   const smokeControlsViewId = getSmokeControlsSidebarViewId();
+  const environmentControlsViewId = getEnvironmentControlsSidebarViewId();
   const workspaceAlgorithmsTreeViewId = getWorkspaceAlgorithmsTreeViewId();
   const workspaceStandardLibraryTreeViewId = getWorkspaceStandardLibraryTreeViewId();
+  const workspaceFolderPaths = (vscode.workspace.workspaceFolders ?? []).map(
+    (workspaceFolder) => workspaceFolder.uri.fsPath
+  );
 
   const filesystem: IFilesystem = createFilesystem();
   const languages: ILanguages = createLanguages(GENERATED_LANGUAGE_DATA);
@@ -126,15 +134,14 @@ export function createCoordinator(
   const conductor: IConductor = createConductorService({
     algorithmsTerminalRunAdapter,
     commandLine,
+    filesystem,
+    repositoryRoot: workspaceFolderPaths[0] ?? "",
   });
   const notificationRouter: INotificationRouter = createNotificationRouter();
   const notificationDispatcher = createConductorNotificationDispatcher(notificationRouter);
   const viewHost: IViewHost = createViewHost(context);
   const communicationHub: ICommunicationHub = createCommunicationHub(viewHost);
   const viewsRegistration = viewHost.register();
-  const workspaceFolderPaths = (vscode.workspace.workspaceFolders ?? []).map(
-    (workspaceFolder) => workspaceFolder.uri.fsPath
-  );
   const algorithmsIndex: IAlgorithmsIndex = createAlgorithmsIndex({
     filesystem,
     languages,
@@ -191,6 +198,11 @@ export function createCoordinator(
     getSnapshot: getStateSnapshot,
     buildSnapshot: buildRunControlsSnapshot,
   });
+  const publishEnvironmentSnapshot = createEnvironmentControlsSnapshotPublisher({
+    postMessage: communicationHub.post.bind(communicationHub, environmentControlsViewId),
+    getSnapshot: getStateSnapshot,
+    buildSnapshot: buildEnvironmentControlsSnapshot,
+  });
 
   const smokeControlsChannel = communicationHub.subscribe(
     smokeControlsViewId,
@@ -208,6 +220,15 @@ export function createCoordinator(
       stateMachine,
       dispatchNotification: notificationDispatcher.dispatch,
       publishSnapshot: publishRunSnapshot,
+    })
+  );
+  const environmentControlsChannel = communicationHub.subscribe(
+    environmentControlsViewId,
+    createEnvironmentControlsChannelMessageHandler({
+      conductor,
+      stateMachine,
+      dispatchNotification: notificationDispatcher.dispatch,
+      publishSnapshot: publishEnvironmentSnapshot,
     })
   );
 
@@ -370,6 +391,7 @@ export function createCoordinator(
     communicationHub,
     smokeControlsChannel,
     runControlsChannel,
+    environmentControlsChannel,
     workspaceAlgorithmsTreeRegistration,
     workspaceStandardLibraryTreeRegistration,
     runStatusTreeRefreshSubscription,

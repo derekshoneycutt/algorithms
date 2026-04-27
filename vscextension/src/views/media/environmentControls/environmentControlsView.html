@@ -1,0 +1,17 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta
+      http-equiv="Content-Security-Policy"
+      content="default-src 'none'; style-src {{{CSP_SOURCE}}}; img-src {{{CSP_SOURCE}}} https: data:; script-src 'nonce-{{{NONCE}}}';"
+    />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>{{{TITLE}}}</title>
+    <link rel="stylesheet" href="{{{STYLE_URI}}}" />
+  </head>
+  <body>
+    <main class="container" data-role="environment-controls-app"></main>
+    <script nonce="{{{NONCE}}}" src="{{{SCRIPT_URI}}}"></script>
+  </body>
+</html>

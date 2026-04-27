@@ -12,16 +12,23 @@ export {
 	buildRunControlsSnapshot,
 	createRunControlsSnapshotPublisher,
 } from "./builders/runControlsSnapshot";
+export {
+	buildEnvironmentControlsSnapshot,
+	createEnvironmentControlsSnapshotPublisher,
+} from "./builders/environmentSnapshot";
 export type {
+	EnvironmentControlsViewSnapshot,
 	HostToViewMessage,
 	RunControlsViewSnapshot,
 	SmokeControlsViewSnapshot,
+	ViewEnvironmentControlsIntent,
 	ViewRunControlsIntent,
 	ViewSmokeControlIntent,
 	ViewToHostMessage,
 } from "./shared/messageTypes";
 export {
 	isHostToViewMessage,
+	isViewEnvironmentControlsIntent,
 	isViewRunControlsIntent,
 	isViewSmokeControlIntent,
 	isViewToHostMessage,

@@ -55,6 +55,23 @@ function createRunControlsWebviewBuildOptions() {
 }
 
 /**
+ * Returns the esbuild configuration for the environment controls webview frontend bundle.
+ *
+ * @returns {import("esbuild").BuildOptions} Webview build configuration.
+ */
+function createEnvironmentControlsWebviewBuildOptions() {
+  return {
+    bundle: true,
+    entryPoints: ["./src/views/media/environmentControls/environmentControlsView.ts"],
+    format: "iife",
+    outfile: "./dist/views/environmentControls/environmentControlsView.js",
+    platform: "browser",
+    sourcemap: true,
+    target: "es2022",
+  };
+}
+
+/**
  * Runs the extension build once or in watch mode.
  *
  * @returns {Promise<void>} Resolves when setup is complete.
@@ -64,6 +81,7 @@ async function main() {
     createExtensionBuildOptions(),
     createSmokeControlsWebviewBuildOptions(),
     createRunControlsWebviewBuildOptions(),
+    createEnvironmentControlsWebviewBuildOptions(),
   ];
 
   if (isWatchMode) {

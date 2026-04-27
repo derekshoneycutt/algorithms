@@ -90,6 +90,14 @@ export function createHostStateService(
         runControls: {
           ...snapshot.context.runControls,
         },
+        environmentControls: {
+          ...snapshot.context.environmentControls,
+          variables: snapshot.context.environmentControls.variables.map((variable) => {
+            return {
+              ...variable,
+            };
+          }),
+        },
       };
     },
 

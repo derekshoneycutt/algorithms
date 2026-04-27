@@ -20,6 +20,13 @@ export {
   readEnvironment,
   writeEnvironment,
 } from "./environmentAdapter";
+export type {
+  CreateEnvironmentControlsChannelMessageHandlerInput,
+} from "./environmentChannelHandler";
+export {
+  createEnvironmentControlsChannelMessageHandler,
+} from "./environmentChannelHandler";
+export type { ApplyConductorReactionDependencies } from "../channelHandlerTypes";
 
 /**
  * Creates an initial environment operation state.

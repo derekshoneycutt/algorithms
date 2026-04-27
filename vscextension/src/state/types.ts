@@ -73,6 +73,48 @@ export interface RunControlsSettings {
 }
 
 /**
+ * Supported environment variable keys managed by the environment view.
+ */
+export type EnvironmentVariableKey =
+  | "timeout"
+  | "eiffel"
+  | "gcc13Directory"
+  | "gcc13Name"
+  | "gxx13Name";
+
+/**
+ * One environment variable entry displayed in the environment panel.
+ */
+export interface EnvironmentVariableSetting {
+  key: EnvironmentVariableKey;
+  label: string;
+  value: string;
+  statusText: string;
+  statusClassName: ViewStatusClassName;
+}
+
+/**
+ * Canonical environment controls settings stored in host state.
+ */
+export interface EnvironmentControlsSettings {
+  profilePath: string;
+  profilePlaceholder: string;
+  effectiveProfilePath: string;
+  copyIconsPath: string;
+  checkEnvStatusText: string;
+  checkEnvStatusClassName: ViewStatusClassName;
+  checkEnvFilteredOutput: string;
+  checkEnvRawOutput: string;
+  copyIconsStatusText: string;
+  copyIconsStatusClassName: ViewStatusClassName;
+  routingDockerMapText: string;
+  routingSshMapText: string;
+  routingStatusText: string;
+  routingStatusClassName: ViewStatusClassName;
+  variables: EnvironmentVariableSetting[];
+}
+
+/**
  * Per-language runtime smoke-test status.
  */
 export type SmokeLanguageRunStatus = "queued" | "running" | "passed" | "failed";
@@ -390,6 +432,18 @@ export interface InitialRunControlsSettingsInput {
 }
 
 /**
+ * Input overrides for initial environment controls settings.
+ */
+export interface InitialEnvironmentControlsSettingsInput {
+  profilePath?: string;
+  profilePlaceholder?: string;
+  effectiveProfilePath?: string;
+  copyIconsPath?: string;
+  routingDockerMapText?: string;
+  routingSshMapText?: string;
+}
+
+/**
  * Mutable context held across all machine states.
  */
 export interface ExtensionHostContext {
@@ -401,6 +455,7 @@ export interface ExtensionHostContext {
   activeSmokeRunAlgorithmPath: string | null;
   activeSmokeRunIdByAlgorithm: Record<string, string>;
   runControls: RunControlsSettings;
+  environmentControls: EnvironmentControlsSettings;
 }
 
 /**
@@ -474,6 +529,40 @@ export type ExtensionHostEvent =
       statusText: string;
       statusClassName: ViewStatusClassName;
     }
+  | { type: "ENV_PROFILE_PATH_SET"; profilePath: string }
+  | { type: "ENV_PROFILE_PLACEHOLDER_SET"; profilePlaceholder: string }
+  | { type: "ENV_EFFECTIVE_PROFILE_PATH_SET"; effectiveProfilePath: string }
+  | { type: "ENV_COPY_ICONS_PATH_SET"; copyIconsPath: string }
+  | {
+      type: "ENV_CHECK_ENV_STATUS_SET";
+      statusText: string;
+      statusClassName: ViewStatusClassName;
+      filteredOutput: string;
+      rawOutput: string;
+    }
+  | {
+      type: "ENV_COPY_ICONS_STATUS_SET";
+      statusText: string;
+      statusClassName: ViewStatusClassName;
+    }
+  | {
+      type: "ENV_VARIABLE_VALUE_SET";
+      key: EnvironmentVariableKey;
+      value: string;
+    }
+  | {
+      type: "ENV_VARIABLE_STATUS_SET";
+      key: EnvironmentVariableKey;
+      statusText: string;
+      statusClassName: ViewStatusClassName;
+    }
+  | { type: "ENV_ROUTING_DOCKER_MAP_TEXT_SET"; text: string }
+  | { type: "ENV_ROUTING_SSH_MAP_TEXT_SET"; text: string }
+  | {
+      type: "ENV_ROUTING_STATUS_SET";
+      statusText: string;
+      statusClassName: ViewStatusClassName;
+    }
   | { type: "SHUTDOWN" };
 
 /**
@@ -488,6 +577,7 @@ export interface ExtensionHostSnapshot {
   readonly smokeRunStatusByAlgorithm: SmokeRunStatusByAlgorithm;
   readonly activeSmokeRunAlgorithmPath: string | null;
   readonly runControls: RunControlsSettings;
+  readonly environmentControls: EnvironmentControlsSettings;
 }
 
 /**
@@ -602,5 +692,69 @@ export function createInitialRunControlsSettings(
     cleanArchivesEnabled,
     cleanOptionsStatusText: cleanOptionsStatus.statusText,
     cleanOptionsStatusClassName: cleanOptionsStatus.statusClassName,
+  };
+}
+
+/**
+ * Creates the default environment controls settings.
+ *
+ * @param {InitialEnvironmentControlsSettingsInput} [input] Optional overrides.
+ * @returns {EnvironmentControlsSettings} Initial environment controls state.
+ */
+export function createInitialEnvironmentControlsSettings(
+  input?: InitialEnvironmentControlsSettingsInput
+): EnvironmentControlsSettings {
+  return {
+    profilePath: input?.profilePath ?? "",
+    profilePlaceholder: input?.profilePlaceholder ?? "",
+    effectiveProfilePath: input?.effectiveProfilePath ?? "",
+    copyIconsPath: input?.copyIconsPath ?? "",
+    checkEnvStatusText: "Run Check Environment to validate init.sh dependencies.",
+    checkEnvStatusClassName: "status-muted",
+    checkEnvFilteredOutput: "",
+    checkEnvRawOutput: "",
+    copyIconsStatusText: "Copy icons has not run yet.",
+    copyIconsStatusClassName: "status-muted",
+    routingDockerMapText: input?.routingDockerMapText ?? "",
+    routingSshMapText: input?.routingSshMapText ?? "",
+    routingStatusText: "Routing values are ready to edit.",
+    routingStatusClassName: "status-muted",
+    variables: [
+      {
+        key: "timeout",
+        label: "Timeout",
+        value: "",
+        statusText: "Not set",
+        statusClassName: "status-muted",
+      },
+      {
+        key: "eiffel",
+        label: "Eiffel",
+        value: "",
+        statusText: "Not set",
+        statusClassName: "status-muted",
+      },
+      {
+        key: "gcc13Directory",
+        label: "GCC13 Directory",
+        value: "",
+        statusText: "Not set",
+        statusClassName: "status-muted",
+      },
+      {
+        key: "gcc13Name",
+        label: "GCC13 Name",
+        value: "",
+        statusText: "Not set",
+        statusClassName: "status-muted",
+      },
+      {
+        key: "gxx13Name",
+        label: "GXX13 Name",
+        value: "",
+        statusText: "Not set",
+        statusClassName: "status-muted",
+      },
+    ],
   };
 }

@@ -1,4 +1,5 @@
 import type {
+  EnvironmentVariableKey,
   RunChecksMode,
   RunChecksRoute,
   SmokeStatusClassName,
@@ -58,6 +59,39 @@ export interface RunControlsViewSnapshot {
 }
 
 /**
+ * One environment variable payload sent to the webview.
+ */
+export interface EnvironmentControlsViewVariable {
+  key: EnvironmentVariableKey;
+  label: string;
+  value: string;
+  statusText: string;
+  statusClassName: ViewStatusClassName;
+}
+
+/**
+ * Environment controls snapshot payload shared with webview.
+ */
+export interface EnvironmentControlsViewSnapshot {
+  stateValue: string;
+  profilePath: string;
+  profilePlaceholder: string;
+  effectiveProfilePath: string;
+  copyIconsPath: string;
+  checkEnvStatusText: string;
+  checkEnvStatusClassName: ViewStatusClassName;
+  checkEnvFilteredOutput: string;
+  checkEnvRawOutput: string;
+  copyIconsStatusText: string;
+  copyIconsStatusClassName: ViewStatusClassName;
+  routingDockerMapText: string;
+  routingSshMapText: string;
+  routingStatusText: string;
+  routingStatusClassName: ViewStatusClassName;
+  variables: EnvironmentControlsViewVariable[];
+}
+
+/**
  * Smoke controls intent sent from the webview.
  */
 export type ViewSmokeControlIntent =
@@ -83,6 +117,24 @@ export type ViewRunControlsIntent =
   | { kind: "setCleanArchivesEnabled"; enabled: boolean };
 
 /**
+ * Environment controls intent sent from the webview.
+ */
+export type ViewEnvironmentControlsIntent =
+  | { kind: "setProfilePath"; profilePath: string }
+  | { kind: "setCopyIconsPath"; copyIconsPath: string }
+  | { kind: "runCheckEnvironment" }
+  | { kind: "runCopyIcons" }
+  | {
+      kind: "setVariableValue";
+      key: EnvironmentVariableKey;
+      value: string;
+    }
+  | { kind: "saveVariable"; key: EnvironmentVariableKey }
+  | { kind: "setRoutingDockerMapText"; text: string }
+  | { kind: "setRoutingSshMapText"; text: string }
+  | { kind: "saveRouting" };
+
+/**
  * Message sent from the host runtime to a webview frontend.
  */
 export type HostToViewMessage =
@@ -93,6 +145,10 @@ export type HostToViewMessage =
   | {
       type: "run.snapshot";
       payload: RunControlsViewSnapshot;
+    }
+  | {
+      type: "environment.snapshot";
+      payload: EnvironmentControlsViewSnapshot;
     };
 
 /**
@@ -112,6 +168,13 @@ export type ViewToHostMessage =
   | {
       type: "run.intent";
       payload: ViewRunControlsIntent;
+    }
+  | {
+      type: "environment.ready";
+    }
+  | {
+      type: "environment.intent";
+      payload: ViewEnvironmentControlsIntent;
     };
 
 /**
@@ -174,6 +237,83 @@ function isRunControlsViewSnapshot(value: unknown): value is RunControlsViewSnap
     typeof value.cleanOptionsStatusText === "string" &&
     "cleanOptionsStatusClassName" in value &&
     isStatusClassName(value.cleanOptionsStatusClassName)
+  );
+}
+
+/**
+ * Checks whether one value is an environment-controls variable payload.
+ *
+ * @param {unknown} value Candidate value.
+ * @returns {value is EnvironmentControlsViewVariable} True when the value is valid.
+ */
+function isEnvironmentControlsViewVariable(value: unknown): value is EnvironmentControlsViewVariable {
+  if (typeof value !== "object" || value === null) {
+    return false;
+  }
+
+  return (
+    "key" in value &&
+    (value.key === "timeout" ||
+      value.key === "eiffel" ||
+      value.key === "gcc13Directory" ||
+      value.key === "gcc13Name" ||
+      value.key === "gxx13Name") &&
+    "label" in value &&
+    typeof value.label === "string" &&
+    "value" in value &&
+    typeof value.value === "string" &&
+    "statusText" in value &&
+    typeof value.statusText === "string" &&
+    "statusClassName" in value &&
+    isStatusClassName(value.statusClassName)
+  );
+}
+
+/**
+ * Checks whether one value is an environment controls snapshot payload.
+ *
+ * @param {unknown} value Candidate value.
+ * @returns {value is EnvironmentControlsViewSnapshot} True when the value is valid.
+ */
+function isEnvironmentControlsViewSnapshot(value: unknown): value is EnvironmentControlsViewSnapshot {
+  if (typeof value !== "object" || value === null) {
+    return false;
+  }
+
+  return (
+    "stateValue" in value &&
+    typeof value.stateValue === "string" &&
+    "profilePath" in value &&
+    typeof value.profilePath === "string" &&
+    "profilePlaceholder" in value &&
+    typeof value.profilePlaceholder === "string" &&
+    "effectiveProfilePath" in value &&
+    typeof value.effectiveProfilePath === "string" &&
+    "copyIconsPath" in value &&
+    typeof value.copyIconsPath === "string" &&
+    "checkEnvStatusText" in value &&
+    typeof value.checkEnvStatusText === "string" &&
+    "checkEnvStatusClassName" in value &&
+    isStatusClassName(value.checkEnvStatusClassName) &&
+    "checkEnvFilteredOutput" in value &&
+    typeof value.checkEnvFilteredOutput === "string" &&
+    "checkEnvRawOutput" in value &&
+    typeof value.checkEnvRawOutput === "string" &&
+    "copyIconsStatusText" in value &&
+    typeof value.copyIconsStatusText === "string" &&
+    "copyIconsStatusClassName" in value &&
+    isStatusClassName(value.copyIconsStatusClassName) &&
+    "routingDockerMapText" in value &&
+    typeof value.routingDockerMapText === "string" &&
+    "routingSshMapText" in value &&
+    typeof value.routingSshMapText === "string" &&
+    "routingStatusText" in value &&
+    typeof value.routingStatusText === "string" &&
+    "routingStatusClassName" in value &&
+    isStatusClassName(value.routingStatusClassName) &&
+    "variables" in value &&
+    Array.isArray(value.variables) &&
+    value.variables.every((entry) => isEnvironmentControlsViewVariable(entry))
   );
 }
 
@@ -295,6 +435,62 @@ export function isViewRunControlsIntent(value: unknown): value is ViewRunControl
 }
 
 /**
+ * Checks whether an unknown value is a valid environment controls intent.
+ *
+ * @param {unknown} value Candidate value.
+ * @returns {value is ViewEnvironmentControlsIntent} True when the value is an environment controls intent.
+ */
+export function isViewEnvironmentControlsIntent(
+  value: unknown
+): value is ViewEnvironmentControlsIntent {
+  if (typeof value !== "object" || value === null || !("kind" in value)) {
+    return false;
+  }
+
+  if (value.kind === "setProfilePath") {
+    return "profilePath" in value && typeof value.profilePath === "string";
+  }
+
+  if (value.kind === "setCopyIconsPath") {
+    return "copyIconsPath" in value && typeof value.copyIconsPath === "string";
+  }
+
+  if (value.kind === "runCheckEnvironment" || value.kind === "runCopyIcons") {
+    return true;
+  }
+
+  if (value.kind === "setVariableValue") {
+    return (
+      "key" in value &&
+      (value.key === "timeout" ||
+        value.key === "eiffel" ||
+        value.key === "gcc13Directory" ||
+        value.key === "gcc13Name" ||
+        value.key === "gxx13Name") &&
+      "value" in value &&
+      typeof value.value === "string"
+    );
+  }
+
+  if (value.kind === "saveVariable") {
+    return (
+      "key" in value &&
+      (value.key === "timeout" ||
+        value.key === "eiffel" ||
+        value.key === "gcc13Directory" ||
+        value.key === "gcc13Name" ||
+        value.key === "gxx13Name")
+    );
+  }
+
+  if (value.kind === "setRoutingDockerMapText" || value.kind === "setRoutingSshMapText") {
+    return "text" in value && typeof value.text === "string";
+  }
+
+  return value.kind === "saveRouting";
+}
+
+/**
  * Checks whether an unknown value is a host-to-view message.
  *
  * @param {unknown} value Candidate value.
@@ -307,6 +503,10 @@ export function isHostToViewMessage(value: unknown): value is HostToViewMessage 
 
   if (value.type === "run.snapshot") {
     return "payload" in value && isRunControlsViewSnapshot(value.payload);
+  }
+
+  if (value.type === "environment.snapshot") {
+    return "payload" in value && isEnvironmentControlsViewSnapshot(value.payload);
   }
 
   if (value.type !== "smoke.snapshot") {
@@ -362,8 +562,16 @@ export function isViewToHostMessage(value: unknown): value is ViewToHostMessage 
     return true;
   }
 
+  if (value.type === "environment.ready") {
+    return true;
+  }
+
   if (value.type === "run.intent") {
     return "payload" in value && isViewRunControlsIntent(value.payload);
+  }
+
+  if (value.type === "environment.intent") {
+    return "payload" in value && isViewEnvironmentControlsIntent(value.payload);
   }
 
   if (value.type !== "smoke.intent") {

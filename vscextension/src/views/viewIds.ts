@@ -17,6 +17,15 @@ export function getRunControlsSidebarViewId(): string {
 }
 
 /**
+ * Returns the view ID for the environment controls sidebar webview.
+ *
+ * @returns {string} Environment controls view ID.
+ */
+export function getEnvironmentControlsSidebarViewId(): string {
+  return "algosWorkspaceEnvironmentView";
+}
+
+/**
  * Returns the view ID for the workspace algorithms tree view.
  *
  * @returns {string} Workspace algorithms tree view ID.

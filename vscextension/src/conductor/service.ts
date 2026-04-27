@@ -5,7 +5,6 @@ import type {
   ConductorMarkCompletedInput,
   ConductorMarkFailedInput,
   ConductorMarkProgressInput,
-  ConductorNotificationEffect,
   ConductorRunControlsIntent,
   ConductorRunControlsReaction,
   ConductorRunFileInput,
@@ -25,12 +24,8 @@ import type {
   EnvironmentWriteResult,
 } from "./IConductor";
 import type { ViewToHostMessage } from "../comms/shared/messageTypes";
-import type {
-  IAlgorithmsTerminalRunAdapter,
-  ICommandLine,
-} from "../commandline";
+import type { IAlgorithmsTerminalRunAdapter, ICommandLine } from "../commandline";
 import type { IFilesystem } from "../filesystem";
-import type { IStateMachine } from "../state";
 import {
   createRunControlsIntentReaction,
   createSmokeIntentReaction,
@@ -43,6 +38,7 @@ import {
   executeCopyIcons,
   readEnvironment,
   writeEnvironment,
+  type ApplyConductorReactionDependencies,
 } from "./internal/environment";
 
 const DEFAULT_RUN_STATUS_RETENTION_MS = 120_000;
@@ -56,14 +52,6 @@ export interface CreateConductorServiceInput {
   filesystem?: IFilesystem;
   repositoryRoot?: string;
   runStatusRetentionMs?: number;
-}
-
-/**
- * Dependencies used to apply one conductor reaction to host runtime state.
- */
-export interface ApplyConductorReactionDependencies {
-  stateMachine: IStateMachine;
-  dispatchNotification: (notification: ConductorNotificationEffect) => void;
 }
 
 /**
@@ -97,6 +85,7 @@ export interface CreateRunControlsChannelMessageHandlerInput
   extends ReactAndApplyRunControlsIntentDependencies {
   publishSnapshot: () => void;
 }
+
 
 /**
  * Applies one conductor reaction to host state and notifications.

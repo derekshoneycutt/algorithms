@@ -294,6 +294,23 @@ describe("state — buildBootstrapStatusMessage", () => {
     cleanOptionsStatusText: "Defaults: y|y (stdlib|archive)",
     cleanOptionsStatusClassName: "status-muted" as const,
   };
+  const environmentControls = {
+    profilePath: "",
+    profilePlaceholder: "",
+    effectiveProfilePath: "",
+    copyIconsPath: "",
+    checkEnvStatusText: "",
+    checkEnvStatusClassName: "status-muted" as const,
+    checkEnvFilteredOutput: "",
+    checkEnvRawOutput: "",
+    copyIconsStatusText: "",
+    copyIconsStatusClassName: "status-muted" as const,
+    routingDockerMapText: "",
+    routingSshMapText: "",
+    routingStatusText: "",
+    routingStatusClassName: "status-muted" as const,
+    variables: [],
+  };
 
   it("returns base message when no command has run yet", () => {
     const message = buildBootstrapStatusMessage(config, {
@@ -305,6 +322,7 @@ describe("state — buildBootstrapStatusMessage", () => {
       smokeRunStatusByAlgorithm: {},
       activeSmokeRunAlgorithmPath: null,
       runControls,
+      environmentControls,
     });
 
     assert.match(message, /Test Extension/);
@@ -322,6 +340,7 @@ describe("state — buildBootstrapStatusMessage", () => {
       smokeRunStatusByAlgorithm: {},
       activeSmokeRunAlgorithmPath: null,
       runControls,
+      environmentControls,
     });
 
     assert.match(message, /algos\.showBootstrapStatus/);

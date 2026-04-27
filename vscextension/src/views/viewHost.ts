@@ -7,7 +7,11 @@ import * as vscode from "vscode";
 import type { HostToViewMessage, ViewToHostMessage } from "../comms";
 import { isViewToHostMessage } from "../comms";
 import type { IViewHost } from "./IViewHost";
-import { getRunControlsSidebarViewId, getSmokeControlsSidebarViewId } from "./viewIds";
+import {
+  getEnvironmentControlsSidebarViewId,
+  getRunControlsSidebarViewId,
+  getSmokeControlsSidebarViewId,
+} from "./viewIds";
 
 interface ViewProviderRegistration {
   viewId: string;
@@ -53,6 +57,25 @@ function readSmokeControlsTemplate(context: vscode.ExtensionContext): string {
 function readRunControlsTemplate(context: vscode.ExtensionContext): string {
   const templatePath = context.asAbsolutePath(
     path.join("src", "views", "media", "runControls", "runControlsView.html")
+  );
+  return fs.readFileSync(templatePath, "utf8");
+}
+
+/**
+ * Reads the HTML template for the environment controls webview.
+ *
+ * @param {vscode.ExtensionContext} context Extension activation context.
+ * @returns {string} Template HTML content.
+ */
+function readEnvironmentControlsTemplate(context: vscode.ExtensionContext): string {
+  const templatePath = context.asAbsolutePath(
+    path.join(
+      "src",
+      "views",
+      "media",
+      "environmentControls",
+      "environmentControlsView.html"
+    )
   );
   return fs.readFileSync(templatePath, "utf8");
 }
@@ -174,6 +197,54 @@ function renderRunControlsHtml(
 }
 
 /**
+ * Creates rendered HTML from the environment controls webview template.
+ *
+ * @param {vscode.Webview} webview Webview instance.
+ * @param {vscode.ExtensionContext} context Extension activation context.
+ * @returns {string} Rendered webview HTML.
+ */
+function renderEnvironmentControlsHtml(
+  webview: vscode.Webview,
+  context: vscode.ExtensionContext
+): string {
+  const template = readEnvironmentControlsTemplate(context);
+  const nonce = createNonce();
+
+  const styleUri = webview
+    .asWebviewUri(
+      vscode.Uri.joinPath(
+        context.extensionUri,
+        "src",
+        "views",
+        "media",
+        "environmentControls",
+        "environmentControlsView.css"
+      )
+    )
+    .toString();
+
+  const scriptUri = webview
+    .asWebviewUri(
+      vscode.Uri.joinPath(
+        context.extensionUri,
+        "dist",
+        "views",
+        "environmentControls",
+        "environmentControlsView.js"
+      )
+    )
+    .toString();
+
+  return renderTripleCurlyTemplate(template, {
+    TITLE: "Algorithms Sidebar",
+    CSP_SOURCE: webview.cspSource,
+    NONCE: nonce,
+    STYLE_URI: styleUri,
+    SCRIPT_URI: scriptUri,
+  });
+}
+
+/**
  * Creates the concrete host-side view module implementation.
  *
  * @param {vscode.ExtensionContext} context Extension activation context.
@@ -218,6 +289,25 @@ export function createViewHost(context: vscode.ExtensionContext): IViewHost {
       ),
       renderHtml: (webview: vscode.Webview) => {
         return renderRunControlsHtml(webview, context);
+      },
+    },
+    {
+      viewId: getEnvironmentControlsSidebarViewId(),
+      mediaRoot: vscode.Uri.joinPath(
+        context.extensionUri,
+        "src",
+        "views",
+        "media",
+        "environmentControls"
+      ),
+      webviewDistRoot: vscode.Uri.joinPath(
+        context.extensionUri,
+        "dist",
+        "views",
+        "environmentControls"
+      ),
+      renderHtml: (webview: vscode.Webview) => {
+        return renderEnvironmentControlsHtml(webview, context);
       },
     },
   ];

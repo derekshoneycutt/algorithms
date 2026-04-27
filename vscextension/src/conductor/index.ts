@@ -30,13 +30,16 @@ export type {
   EnvironmentWriteRequest,
   EnvironmentWriteResult,
 } from "./internal/environment";
-export type { ApplyConductorReactionDependencies } from "./service";
+export type { ApplyConductorReactionDependencies } from "./internal/environment";
 export type {
   CreateRunControlsChannelMessageHandlerInput,
   CreateSmokeControlsChannelMessageHandlerInput,
   ReactAndApplyRunControlsIntentDependencies,
   ReactAndApplySmokeIntentDependencies,
 } from "./service";
+export type {
+  CreateEnvironmentControlsChannelMessageHandlerInput,
+} from "./internal/environment";
 export {
   applyConductorReaction,
   createRunControlsChannelMessageHandler,
@@ -45,3 +48,6 @@ export {
   reactAndApplyRunControlsIntent,
   reactAndApplySmokeIntent,
 } from "./service";
+export {
+  createEnvironmentControlsChannelMessageHandler,
+} from "./internal/environment";

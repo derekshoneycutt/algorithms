@@ -121,6 +121,23 @@ function createHostStateStub(runControls: RunControlsSettings): IStateMachine {
     smokeRunStatusByAlgorithm: {},
     activeSmokeRunAlgorithmPath: null,
     runControls,
+    environmentControls: {
+      profilePath: "",
+      profilePlaceholder: "",
+      effectiveProfilePath: "",
+      copyIconsPath: "",
+      checkEnvStatusText: "",
+      checkEnvStatusClassName: "status-muted",
+      checkEnvFilteredOutput: "",
+      checkEnvRawOutput: "",
+      copyIconsStatusText: "",
+      copyIconsStatusClassName: "status-muted",
+      routingDockerMapText: "",
+      routingSshMapText: "",
+      routingStatusText: "",
+      routingStatusClassName: "status-muted",
+      variables: [],
+    },
   };
 
   return {

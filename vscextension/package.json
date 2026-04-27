@@ -62,6 +62,12 @@
           "name": "Standard Library",
           "type": "tree",
           "visibility": "collapsed"
+        },
+        {
+          "id": "algosWorkspaceEnvironmentView",
+          "name": "Environment",
+          "type": "webview",
+          "visibility": "collapsed"
         }
       ]
     },

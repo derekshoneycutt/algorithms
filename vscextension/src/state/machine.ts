@@ -1,9 +1,11 @@
 import { assign, setup } from "xstate";
 
 import {
+  createInitialEnvironmentControlsSettings,
   createInitialRunControlsSettings,
   createInitialSmokeControlsSettings,
   type ExtensionHostContext,
+  type EnvironmentVariableSetting,
   type ExtensionHostEvent,
   type InitialRunControlsSettingsInput,
   type InitialSmokeControlsSettingsInput,
@@ -186,6 +188,28 @@ function clearSmokeRunIdForAlgorithm(
 }
 
 /**
+ * Updates one environment variable entry in-place by key.
+ *
+ * @param {EnvironmentVariableSetting[]} variables Current variable entries.
+ * @param {string} key Variable key.
+ * @param {(variable: EnvironmentVariableSetting) => EnvironmentVariableSetting} mapEntry Entry mapper.
+ * @returns {EnvironmentVariableSetting[]} Updated variable entries.
+ */
+function updateEnvironmentVariable(
+  variables: EnvironmentVariableSetting[],
+  key: string,
+  mapEntry: (variable: EnvironmentVariableSetting) => EnvironmentVariableSetting
+): EnvironmentVariableSetting[] {
+  return variables.map((variable) => {
+    if (variable.key !== key) {
+      return variable;
+    }
+
+    return mapEntry(variable);
+  });
+}
+
+/**
  * XState machine definition for the extension host orchestration layer.
  *
  * States:
@@ -220,6 +244,7 @@ export function createExtensionHostMachine() {
       activeSmokeRunAlgorithmPath: null,
       activeSmokeRunIdByAlgorithm: {},
       runControls: createInitialRunControlsSettings(input.initialRunControls),
+      environmentControls: createInitialEnvironmentControlsSettings(),
     };
   },
   states: {
@@ -516,6 +541,140 @@ export function createExtensionHostMachine() {
                 ...context.runControls,
                 cleanOptionsStatusText: event.statusText,
                 cleanOptionsStatusClassName: event.statusClassName,
+              };
+            },
+          }),
+        },
+        ENV_PROFILE_PATH_SET: {
+          actions: assign({
+            environmentControls: ({ context, event }) => {
+              return {
+                ...context.environmentControls,
+                profilePath: event.profilePath,
+              };
+            },
+          }),
+        },
+        ENV_PROFILE_PLACEHOLDER_SET: {
+          actions: assign({
+            environmentControls: ({ context, event }) => {
+              return {
+                ...context.environmentControls,
+                profilePlaceholder: event.profilePlaceholder,
+              };
+            },
+          }),
+        },
+        ENV_EFFECTIVE_PROFILE_PATH_SET: {
+          actions: assign({
+            environmentControls: ({ context, event }) => {
+              return {
+                ...context.environmentControls,
+                effectiveProfilePath: event.effectiveProfilePath,
+              };
+            },
+          }),
+        },
+        ENV_COPY_ICONS_PATH_SET: {
+          actions: assign({
+            environmentControls: ({ context, event }) => {
+              return {
+                ...context.environmentControls,
+                copyIconsPath: event.copyIconsPath,
+              };
+            },
+          }),
+        },
+        ENV_CHECK_ENV_STATUS_SET: {
+          actions: assign({
+            environmentControls: ({ context, event }) => {
+              return {
+                ...context.environmentControls,
+                checkEnvStatusText: event.statusText,
+                checkEnvStatusClassName: event.statusClassName,
+                checkEnvFilteredOutput: event.filteredOutput,
+                checkEnvRawOutput: event.rawOutput,
+              };
+            },
+          }),
+        },
+        ENV_COPY_ICONS_STATUS_SET: {
+          actions: assign({
+            environmentControls: ({ context, event }) => {
+              return {
+                ...context.environmentControls,
+                copyIconsStatusText: event.statusText,
+                copyIconsStatusClassName: event.statusClassName,
+              };
+            },
+          }),
+        },
+        ENV_VARIABLE_VALUE_SET: {
+          actions: assign({
+            environmentControls: ({ context, event }) => {
+              return {
+                ...context.environmentControls,
+                variables: updateEnvironmentVariable(
+                  context.environmentControls.variables,
+                  event.key,
+                  (variable) => {
+                    return {
+                      ...variable,
+                      value: event.value,
+                    };
+                  }
+                ),
+              };
+            },
+          }),
+        },
+        ENV_VARIABLE_STATUS_SET: {
+          actions: assign({
+            environmentControls: ({ context, event }) => {
+              return {
+                ...context.environmentControls,
+                variables: updateEnvironmentVariable(
+                  context.environmentControls.variables,
+                  event.key,
+                  (variable) => {
+                    return {
+                      ...variable,
+                      statusText: event.statusText,
+                      statusClassName: event.statusClassName,
+                    };
+                  }
+                ),
+              };
+            },
+          }),
+        },
+        ENV_ROUTING_DOCKER_MAP_TEXT_SET: {
+          actions: assign({
+            environmentControls: ({ context, event }) => {
+              return {
+                ...context.environmentControls,
+                routingDockerMapText: event.text,
+              };
+            },
+          }),
+        },
+        ENV_ROUTING_SSH_MAP_TEXT_SET: {
+          actions: assign({
+            environmentControls: ({ context, event }) => {
+              return {
+                ...context.environmentControls,
+                routingSshMapText: event.text,
+              };
+            },
+          }),
+        },
+        ENV_ROUTING_STATUS_SET: {
+          actions: assign({
+            environmentControls: ({ context, event }) => {
+              return {
+                ...context.environmentControls,
+                routingStatusText: event.statusText,
+                routingStatusClassName: event.statusClassName,
               };
             },
           }),
@@ -823,6 +982,140 @@ export function createExtensionHostMachine() {
                 ...context.runControls,
                 cleanOptionsStatusText: event.statusText,
                 cleanOptionsStatusClassName: event.statusClassName,
+              };
+            },
+          }),
+        },
+        ENV_PROFILE_PATH_SET: {
+          actions: assign({
+            environmentControls: ({ context, event }) => {
+              return {
+                ...context.environmentControls,
+                profilePath: event.profilePath,
+              };
+            },
+          }),
+        },
+        ENV_PROFILE_PLACEHOLDER_SET: {
+          actions: assign({
+            environmentControls: ({ context, event }) => {
+              return {
+                ...context.environmentControls,
+                profilePlaceholder: event.profilePlaceholder,
+              };
+            },
+          }),
+        },
+        ENV_EFFECTIVE_PROFILE_PATH_SET: {
+          actions: assign({
+            environmentControls: ({ context, event }) => {
+              return {
+                ...context.environmentControls,
+                effectiveProfilePath: event.effectiveProfilePath,
+              };
+            },
+          }),
+        },
+        ENV_COPY_ICONS_PATH_SET: {
+          actions: assign({
+            environmentControls: ({ context, event }) => {
+              return {
+                ...context.environmentControls,
+                copyIconsPath: event.copyIconsPath,
+              };
+            },
+          }),
+        },
+        ENV_CHECK_ENV_STATUS_SET: {
+          actions: assign({
+            environmentControls: ({ context, event }) => {
+              return {
+                ...context.environmentControls,
+                checkEnvStatusText: event.statusText,
+                checkEnvStatusClassName: event.statusClassName,
+                checkEnvFilteredOutput: event.filteredOutput,
+                checkEnvRawOutput: event.rawOutput,
+              };
+            },
+          }),
+        },
+        ENV_COPY_ICONS_STATUS_SET: {
+          actions: assign({
+            environmentControls: ({ context, event }) => {
+              return {
+                ...context.environmentControls,
+                copyIconsStatusText: event.statusText,
+                copyIconsStatusClassName: event.statusClassName,
+              };
+            },
+          }),
+        },
+        ENV_VARIABLE_VALUE_SET: {
+          actions: assign({
+            environmentControls: ({ context, event }) => {
+              return {
+                ...context.environmentControls,
+                variables: updateEnvironmentVariable(
+                  context.environmentControls.variables,
+                  event.key,
+                  (variable) => {
+                    return {
+                      ...variable,
+                      value: event.value,
+                    };
+                  }
+                ),
+              };
+            },
+          }),
+        },
+        ENV_VARIABLE_STATUS_SET: {
+          actions: assign({
+            environmentControls: ({ context, event }) => {
+              return {
+                ...context.environmentControls,
+                variables: updateEnvironmentVariable(
+                  context.environmentControls.variables,
+                  event.key,
+                  (variable) => {
+                    return {
+                      ...variable,
+                      statusText: event.statusText,
+                      statusClassName: event.statusClassName,
+                    };
+                  }
+                ),
+              };
+            },
+          }),
+        },
+        ENV_ROUTING_DOCKER_MAP_TEXT_SET: {
+          actions: assign({
+            environmentControls: ({ context, event }) => {
+              return {
+                ...context.environmentControls,
+                routingDockerMapText: event.text,
+              };
+            },
+          }),
+        },
+        ENV_ROUTING_SSH_MAP_TEXT_SET: {
+          actions: assign({
+            environmentControls: ({ context, event }) => {
+              return {
+                ...context.environmentControls,
+                routingSshMapText: event.text,
+              };
+            },
+          }),
+        },
+        ENV_ROUTING_STATUS_SET: {
+          actions: assign({
+            environmentControls: ({ context, event }) => {
+              return {
+                ...context.environmentControls,
+                routingStatusText: event.statusText,
+                routingStatusClassName: event.statusClassName,
               };
             },
           }),
