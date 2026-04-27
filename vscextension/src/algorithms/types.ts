@@ -28,6 +28,8 @@ export interface AlgorithmImplementation {
   languageKey: string;
   /** Absolute path to the main implementation file. */
   filePath: string;
+  /** Absolute paths to all implementation files for this language in the algorithm root. */
+  filePaths: string[];
   /** True when the corresponding {languageKey}_include directory exists. */
   hasIncludes: boolean;
   /** Absolute paths to files inside the include directory. */

@@ -3,14 +3,19 @@ import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
 
+import "mocha";
+import * as vscode from "vscode";
+
 import { createFilesystem } from "../../../../src/filesystem";
+import type { IAlgorithmsIndex } from "../../../../src/algorithms";
+import type { AlgorithmCategory, AlgorithmEntry, AlgorithmImplementation, StandardLibEntry } from "../../../../src/algorithms";
 import type { ILanguages } from "../../../../src/languages";
+import type { SidebarViewMode, IViewModeService } from "../../../../src/state/viewMode";
 import {
   createWorkspaceStandardLibraryTreeDataProvider,
   createWorkspaceAlgorithmsTreeDataProvider,
   readRestrictedDirectoryChildren,
-  resolveAlgorithmsTreeRootPath,
-  resolveStandardLibraryTreeRootPath,
+  type WorkspaceTreeNode,
 } from "../../../../src/views/trees";
 
 /**
@@ -25,12 +30,24 @@ function createLanguageStub(): ILanguages {
     [".ts", "typescript"],
   ]);
 
+  const labelsByKey = new Map<string, string>([
+    ["python", "Python"],
+    ["go", "Go"],
+    ["typescript", "TypeScript"],
+  ]);
+
+  const allLanguages = [
+    { key: "python", displayLabel: "Python" },
+    { key: "go", displayLabel: "Go" },
+    { key: "typescript", displayLabel: "TypeScript" },
+  ] as any[];
+
   return {
     getAll() {
-      return [];
+      return allLanguages;
     },
-    getByKey() {
-      return undefined;
+    getByKey(key: string) {
+      return allLanguages.find((language) => language.key === key);
     },
     normalizeLanguageId(languageId: string) {
       return languageId.trim().toLowerCase();
@@ -38,8 +55,8 @@ function createLanguageStub(): ILanguages {
     normalizeFileExtension(filePath: string) {
       return extensionToLanguage.get(path.extname(filePath).toLowerCase());
     },
-    getDisplayLabel() {
-      return undefined;
+    getDisplayLabel(key: string) {
+      return labelsByKey.get(key);
     },
     getDefaultSmokeKeys() {
       return [];
@@ -54,6 +71,59 @@ function createLanguageStub(): ILanguages {
  */
 async function createTempDirectory(): Promise<string> {
   return await fs.mkdtemp(path.join(os.tmpdir(), "vscext-tree-tests-"));
+}
+
+/**
+ * Creates a minimal view mode service stub.
+ *
+ * @param {SidebarViewMode} initialMode Initial mode.
+ * @returns {IViewModeService} View mode stub.
+ */
+function createViewModeServiceStub(initialMode: SidebarViewMode): IViewModeService {
+  let currentMode = initialMode;
+  const emitter = new vscode.EventEmitter<SidebarViewMode>();
+
+  return {
+    getViewMode() {
+      return currentMode;
+    },
+    async setViewMode(mode: SidebarViewMode) {
+      currentMode = mode;
+      emitter.fire(mode);
+    },
+    onDidChangeViewMode: emitter.event,
+  };
+}
+
+/**
+ * Creates a minimal algorithms index stub.
+ *
+ * @param {AlgorithmCategory[]} categories Categories.
+ * @param {AlgorithmEntry[]} algorithms Algorithms.
+ * @param {AlgorithmImplementation[]} implementations Implementations.
+ * @param {StandardLibEntry[]} standardLibraryEntries Standard library entries.
+ * @returns {IAlgorithmsIndex} Index stub.
+ */
+function createAlgorithmsIndexStub(
+  categories: AlgorithmCategory[],
+  algorithms: AlgorithmEntry[],
+  implementations: AlgorithmImplementation[],
+  standardLibraryEntries: StandardLibEntry[] = []
+): IAlgorithmsIndex {
+  return {
+    async getCategories() {
+      return categories;
+    },
+    async getAlgorithms() {
+      return algorithms;
+    },
+    async getImplementations() {
+      return implementations;
+    },
+    async getStandardLibraryEntries() {
+      return standardLibraryEntries;
+    },
+  };
 }
 
 describe("views/trees — restricted tree discovery", () => {
@@ -95,174 +165,141 @@ describe("views/trees — restricted tree discovery", () => {
   });
 });
 
-describe("views/trees — workspace root resolution", () => {
-  it("resolves algorithms root to repo src when workspace opens repo root", async () => {
-    const workspaceRootPath = await createTempDirectory();
-    const filesystem = createFilesystem();
+describe("views/trees — algorithms FILE view", () => {
+  it("shows representative main files plus non-representative files", async () => {
+    const algorithmPath = "/repo/src/numeric/euclidgcd";
+    const categories: AlgorithmCategory[] = [
+      { name: "numeric", path: "/repo/src/numeric" },
+    ];
+    const algorithms: AlgorithmEntry[] = [
+      { name: "euclidgcd", path: algorithmPath, categoryPath: "/repo/src/numeric" },
+    ];
+    const implementations: AlgorithmImplementation[] = [
+      {
+        languageKey: "python",
+        filePath: "/repo/src/numeric/euclidgcd/euclidgcd.py",
+        filePaths: [
+          "/repo/src/numeric/euclidgcd/euclidgcd.py",
+          "/repo/src/numeric/euclidgcd/euclid.py",
+        ],
+        hasIncludes: true,
+        includeFilePaths: [
+          "/repo/src/numeric/euclidgcd/python_include/helper.py",
+        ],
+      },
+      {
+        languageKey: "go",
+        filePath: "/repo/src/numeric/euclidgcd/euclidgcd.go",
+        filePaths: ["/repo/src/numeric/euclidgcd/euclidgcd.go"],
+        hasIncludes: false,
+        includeFilePaths: [],
+      },
+    ];
 
-    try {
-      await fs.mkdir(path.join(workspaceRootPath, "src", "numeric"), {
-        recursive: true,
-      });
+    const provider = createWorkspaceAlgorithmsTreeDataProvider({
+      algorithmsIndex: createAlgorithmsIndexStub(categories, algorithms, implementations),
+      viewModeService: createViewModeServiceStub("files"),
+      languages: createLanguageStub(),
+    });
 
-      const resolvedPath = await resolveAlgorithmsTreeRootPath({
-        filesystem,
-        workspaceFolderPaths: [workspaceRootPath],
-      });
+    const rootChildren = (await provider.getChildren()) ?? [];
+    const categoryNode = rootChildren[0];
+    const algorithmNodes = (await provider.getChildren(categoryNode)) ?? [];
+    const algorithmNode = algorithmNodes[0];
+    const fileRows = (await provider.getChildren(algorithmNode)) ?? [];
 
-      assert.strictEqual(resolvedPath, path.join(workspaceRootPath, "src"));
-    } finally {
-      await fs.rm(workspaceRootPath, { recursive: true, force: true });
-    }
+    assert.strictEqual(fileRows.length, 3);
+    assert.deepStrictEqual(
+      fileRows.map((row) => ({ kind: row.kind, path: row.filePath })),
+      [
+        { kind: "mainFile", path: "/repo/src/numeric/euclidgcd/euclidgcd.py" },
+        { kind: "mainFile", path: "/repo/src/numeric/euclidgcd/euclidgcd.go" },
+        { kind: "file", path: "/repo/src/numeric/euclidgcd/euclid.py" },
+      ]
+    );
+
+    const pythonMain = fileRows.find((row) => row.languageKey === "python") as WorkspaceTreeNode;
+    const includeRows = (await provider.getChildren(pythonMain)) ?? [];
+    assert.deepStrictEqual(includeRows.map((row) => row.filePath), [
+      "/repo/src/numeric/euclidgcd/python_include/helper.py",
+    ]);
   });
+});
 
-  it("resolves algorithms root to the workspace folder when opened inside src", async () => {
-    const workspaceRootPath = await createTempDirectory();
-    const filesystem = createFilesystem();
-    const workspaceFolderPath = path.join(workspaceRootPath, "src", "numeric");
+describe("views/trees — algorithms LANGUAGE view", () => {
+  it("always shows full language catalog with display labels and total counts", async () => {
+    const algorithmPath = "/repo/src/numeric/euclidgcd";
+    const categories: AlgorithmCategory[] = [
+      { name: "numeric", path: "/repo/src/numeric" },
+    ];
+    const algorithms: AlgorithmEntry[] = [
+      { name: "euclidgcd", path: algorithmPath, categoryPath: "/repo/src/numeric" },
+    ];
+    const implementations: AlgorithmImplementation[] = [
+      {
+        languageKey: "python",
+        filePath: "/repo/src/numeric/euclidgcd/euclidgcd.py",
+        filePaths: [
+          "/repo/src/numeric/euclidgcd/euclidgcd.py",
+          "/repo/src/numeric/euclidgcd/euclid.py",
+        ],
+        hasIncludes: true,
+        includeFilePaths: [
+          "/repo/src/numeric/euclidgcd/python_include/helper.py",
+        ],
+      },
+    ];
 
-    try {
-      await fs.mkdir(workspaceFolderPath, { recursive: true });
+    const provider = createWorkspaceAlgorithmsTreeDataProvider({
+      algorithmsIndex: createAlgorithmsIndexStub(categories, algorithms, implementations),
+      viewModeService: createViewModeServiceStub("language"),
+      languages: createLanguageStub(),
+    });
 
-      const resolvedPath = await resolveAlgorithmsTreeRootPath({
-        filesystem,
-        workspaceFolderPaths: [workspaceFolderPath],
-      });
+    const rootChildren = (await provider.getChildren()) ?? [];
+    const categoryNode = rootChildren[0];
+    const algorithmNodes = (await provider.getChildren(categoryNode)) ?? [];
+    const algorithmNode = algorithmNodes[0];
+    const languageRows = (await provider.getChildren(algorithmNode)) ?? [];
 
-      assert.strictEqual(resolvedPath, workspaceFolderPath);
-    } finally {
-      await fs.rm(workspaceRootPath, { recursive: true, force: true });
-    }
-  });
+    assert.deepStrictEqual(languageRows.map((row) => row.languageKey), [
+      "python",
+      "go",
+      "typescript",
+    ]);
 
-  it("resolves standard-library root from src-descendant workspace folders", async () => {
-    const workspaceRootPath = await createTempDirectory();
-    const filesystem = createFilesystem();
-    const workspaceFolderPath = path.join(workspaceRootPath, "src", "numeric");
+    const pythonRow = languageRows.find((row) => row.languageKey === "python") as WorkspaceTreeNode;
+    const pythonTreeItem = await provider.getTreeItem(pythonRow);
+    assert.strictEqual(pythonTreeItem.label as string, "Python");
+    assert.strictEqual(pythonTreeItem.description, "3");
 
-    try {
-      await fs.mkdir(workspaceFolderPath, { recursive: true });
-      await fs.mkdir(path.join(workspaceRootPath, "stdlib", "math"), {
-        recursive: true,
-      });
-
-      const resolvedPath = await resolveStandardLibraryTreeRootPath({
-        filesystem,
-        workspaceFolderPaths: [workspaceFolderPath],
-      });
-
-      assert.strictEqual(resolvedPath, path.join(workspaceRootPath, "stdlib"));
-    } finally {
-      await fs.rm(workspaceRootPath, { recursive: true, force: true });
-    }
+    const goRow = languageRows.find((row) => row.languageKey === "go") as WorkspaceTreeNode;
+    const goTreeItem = await provider.getTreeItem(goRow);
+    assert.strictEqual(goTreeItem.label as string, "Go");
+    assert.strictEqual(goTreeItem.description, "0");
+    assert.strictEqual(goTreeItem.command, undefined);
   });
 });
 
 describe("views/trees — standard-library item context values", () => {
   it("sets directory and file context values for menu targeting", async () => {
-    const workspaceRootPath = await createTempDirectory();
-    const filesystem = createFilesystem();
-    const languages = createLanguageStub();
+    const provider = createWorkspaceStandardLibraryTreeDataProvider({
+      algorithmsIndex: createAlgorithmsIndexStub([], [], [], [
+        { kind: "directory", name: "io", path: "/repo/stdlib/io" },
+        { kind: "file", name: "hello.py", path: "/repo/stdlib/hello.py" },
+      ]),
+    });
 
-    try {
-      const stdlibRootPath = path.join(workspaceRootPath, "stdlib");
-      const folderPath = path.join(stdlibRootPath, "io");
-      const filePath = path.join(stdlibRootPath, "hello.py");
-      const nestedFilePath = path.join(folderPath, "nested.py");
-      await fs.mkdir(folderPath, { recursive: true });
-      await fs.writeFile(filePath, "print('hello')\n");
-      await fs.writeFile(nestedFilePath, "print('nested')\n");
+    const directoryTreeItem = await provider.getTreeItem({
+      kind: "directory",
+      filePath: "/repo/stdlib/io",
+    });
+    const fileTreeItem = await provider.getTreeItem({
+      kind: "file",
+      filePath: "/repo/stdlib/hello.py",
+    });
 
-      const provider = createWorkspaceStandardLibraryTreeDataProvider({
-        filesystem,
-        languages,
-        workspaceFolderPaths: [workspaceRootPath],
-      });
-
-      const rootChildren = (await provider.getChildren()) ?? [];
-      const directoryNode = rootChildren.find((node) => {
-        return node.kind === "directory";
-      });
-      const fileNode = rootChildren.find((node) => {
-        return node.kind === "file";
-      });
-
-      assert.ok(directoryNode, "expected one directory node");
-      assert.ok(fileNode, "expected one file node");
-
-      const directoryTreeItem = await provider.getTreeItem(directoryNode);
-      const fileTreeItem = await provider.getTreeItem(fileNode);
-
-      assert.strictEqual(
-        directoryTreeItem.contextValue,
-        "algos.standardLibraryDirectory"
-      );
-      assert.strictEqual(fileTreeItem.contextValue, "algos.standardLibraryFile");
-    } finally {
-      await fs.rm(workspaceRootPath, { recursive: true, force: true });
-    }
+    assert.strictEqual(directoryTreeItem.contextValue, "algos.standardLibraryDirectory");
+    assert.strictEqual(fileTreeItem.contextValue, "algos.standardLibraryFile");
   });
 });
-
-describe("views/trees — algorithms item context values", () => {
-  it("sets depth-aware context values for algorithms tree menu targeting", async () => {
-    const workspaceRootPath = await createTempDirectory();
-    const filesystem = createFilesystem();
-    const languages = createLanguageStub();
-
-    try {
-      const srcPath = path.join(workspaceRootPath, "src");
-      const firstLevelDirPath = path.join(srcPath, "numeric");
-      const secondLevelDirPath = path.join(firstLevelDirPath, "euclidgcd");
-      const filePath = path.join(secondLevelDirPath, "solution.py");
-
-      await fs.mkdir(secondLevelDirPath, { recursive: true });
-      await fs.writeFile(filePath, "# solution\n");
-
-      const provider = createWorkspaceAlgorithmsTreeDataProvider({
-        filesystem,
-        languages,
-        workspaceFolderPaths: [workspaceRootPath],
-      });
-
-      const rootChildren = (await provider.getChildren()) ?? [];
-      const firstLevelDir = rootChildren.find((node) => {
-        return node.kind === "directory" && path.basename(node.filePath) === "numeric";
-      });
-
-      assert.ok(firstLevelDir, "expected first-level directory");
-
-      const firstLevelTreeItem = await provider.getTreeItem(firstLevelDir);
-      assert.strictEqual(
-        firstLevelTreeItem.contextValue,
-        "algos.algorithmsFirstLevelDirectory"
-      );
-
-      const secondLevelChildren = (await provider.getChildren(firstLevelDir)) ?? [];
-      const secondLevelDir = secondLevelChildren.find((node) => {
-        return node.kind === "directory";
-      });
-
-      assert.ok(secondLevelDir, "expected second-level directory");
-
-      const secondLevelTreeItem = await provider.getTreeItem(secondLevelDir);
-      assert.strictEqual(
-        secondLevelTreeItem.contextValue,
-        "algos.algorithmsSecondLevelDirectory"
-      );
-
-      const fileChildren = (await provider.getChildren(secondLevelDir)) ?? [];
-      const fileNode = fileChildren.find((node) => {
-        return node.kind === "file";
-      });
-
-      assert.ok(fileNode, "expected file node");
-
-      const fileTreeItem = await provider.getTreeItem(fileNode);
-      assert.strictEqual(fileTreeItem.contextValue, "algos.algorithmFile");
-    } finally {
-      await fs.rm(workspaceRootPath, { recursive: true, force: true });
-    }
-  });
-});
-

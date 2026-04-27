@@ -106,8 +106,9 @@ export function createCoordinator(
   });
   const workspaceAlgorithmsTreeProvider: RefreshableWorkspaceTreeDataProvider =
     createWorkspaceAlgorithmsTreeDataProvider({
-    viewModeService,
-    algorithmsIndex,
+      viewModeService,
+      algorithmsIndex,
+      languages,
     });
   const workspaceStandardLibraryTreeProvider: RefreshableWorkspaceTreeDataProvider =
     createWorkspaceStandardLibraryTreeDataProvider({

@@ -38,9 +38,6 @@ export interface IAlgorithmsIndex {
   /**
    * Returns algorithm directories inside one category.
    *
-   * Only directories that contain at least one basename-matching implementation
-   * file are included.
-   *
    * @param {string} categoryPath Absolute path to the category directory.
    * @returns {Promise<AlgorithmEntry[]>} Algorithm entry list sorted by name.
    */
@@ -48,6 +45,9 @@ export interface IAlgorithmsIndex {
 
   /**
    * Returns the per-language implementations inside one algorithm directory.
+    *
+    * Each language entry includes one representative `filePath` plus all root
+    * implementation paths for that language in `filePaths`.
    *
    * @param {string} algorithmPath Absolute path to the algorithm directory.
    * @returns {Promise<AlgorithmImplementation[]>} Implementation list sorted by language key.

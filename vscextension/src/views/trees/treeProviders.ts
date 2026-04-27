@@ -43,11 +43,16 @@ import type { IViewModeService } from "../../state/viewMode";
 export interface WorkspaceTreeNode {
   kind: "directory" | "algorithmDir" | "file" | "mainFile" | "languageSummary";
   filePath: string;
+  filePathsByLanguage?: Record<string, string[]>;
   languageKey?: string;
   parentAlgorithmPath?: string;
   isIncludeFile?: boolean;
   /** True when this node has include files nested under it. Controls collapse arrow. */
   hasIncludes?: boolean;
+  /** Total language file count in the current algorithm (main and include files). */
+  languageFileCount?: number;
+  /** True when this row has a concrete open target file. */
+  hasOpenTarget?: boolean;
 }
 
 /**
@@ -77,6 +82,7 @@ export interface RestrictedTreeDiscoveryDependencies {
 export interface AlgorithmsTreeDataProviderDependencies {
   algorithmsIndex: IAlgorithmsIndex;
   viewModeService: IViewModeService;
+  languages: ILanguages;
 }
 
 /**
@@ -396,16 +402,21 @@ function createTreeItem(
     // then override label with the language key string.
     const treeItem = new vscode.TreeItem(resourceUri, collapsibleState);
     treeItem.label = element.languageKey;
+    if (element.languageFileCount !== undefined) {
+      treeItem.description = String(element.languageFileCount);
+    }
     treeItem.resourceUri = resourceUri;
     if (element.hasIncludes) {
       // Collapsible items would otherwise get a folder icon; force file styling.
       treeItem.iconPath = vscode.ThemeIcon.File;
     }
-    treeItem.command = {
-      command: "vscode.open",
-      title: "Open File",
-      arguments: [resourceUri],
-    };
+    if (element.hasOpenTarget !== false) {
+      treeItem.command = {
+        command: "vscode.open",
+        title: "Open File",
+        arguments: [resourceUri],
+      };
+    }
     if (contextValue !== undefined) {
       treeItem.contextValue = contextValue;
     }
@@ -468,7 +479,7 @@ function createTreeItem(
 export function createWorkspaceAlgorithmsTreeDataProvider(
   dependencies: AlgorithmsTreeDataProviderDependencies
 ): RefreshableWorkspaceTreeDataProvider {
-  const { algorithmsIndex, viewModeService } = dependencies;
+  const { algorithmsIndex, viewModeService, languages } = dependencies;
   const onDidChangeTreeDataEmitter = new vscode.EventEmitter<
     WorkspaceTreeNode | undefined | null | void
   >();
@@ -513,21 +524,52 @@ export function createWorkspaceAlgorithmsTreeDataProvider(
         const implementations = await algorithmsIndex.getImplementations(element.filePath);
 
         if (viewMode === "language") {
-          return implementations.map((impl) => ({
-            kind: "languageSummary" as const,
-            filePath: impl.filePath,
-            languageKey: impl.languageKey,
-            parentAlgorithmPath: element.filePath,
-            hasIncludes: impl.hasIncludes,
-          }));
+          const implementationsByLanguage = new Map(
+            implementations.map((implementation) => {
+              return [implementation.languageKey, implementation] as const;
+            })
+          );
+
+          return languages.getAll().map((languageRecord) => {
+            const implementation = implementationsByLanguage.get(languageRecord.key);
+            return {
+              kind: "languageSummary" as const,
+              filePath: implementation?.filePath ?? element.filePath,
+              filePathsByLanguage: implementation !== undefined
+                ? { [implementation.languageKey]: implementation.filePaths }
+                : undefined,
+              languageKey: languageRecord.key,
+              parentAlgorithmPath: element.filePath,
+              hasIncludes: (implementation?.includeFilePaths.length ?? 0) > 0,
+              languageFileCount: (implementation?.filePaths.length ?? 0)
+                + (implementation?.includeFilePaths.length ?? 0),
+              hasOpenTarget: implementation !== undefined,
+            };
+          });
         } else {
-          return implementations.map((impl) => ({
+          const mainFileNodes = implementations.map((impl) => ({
             kind: "mainFile" as const,
             filePath: impl.filePath,
+            filePathsByLanguage: { [impl.languageKey]: impl.filePaths },
             languageKey: impl.languageKey,
             parentAlgorithmPath: element.filePath,
             hasIncludes: impl.hasIncludes,
           }));
+
+          const representativePathSet = new Set(
+            implementations.map((implementation) => implementation.filePath)
+          );
+          const extraFilePaths = implementations
+            .flatMap((implementation) => implementation.filePaths)
+            .filter((filePath) => !representativePathSet.has(filePath))
+            .sort((leftPath, rightPath) => leftPath.localeCompare(rightPath));
+
+          const extraFileNodes = extraFilePaths.map((filePath) => ({
+            kind: "file" as const,
+            filePath,
+          }));
+
+          return [...mainFileNodes, ...extraFileNodes];
         }
       }
 
@@ -569,7 +611,15 @@ export function createWorkspaceAlgorithmsTreeDataProvider(
         contextValue = "algos.algorithmFile";
       }
 
-      return createTreeItem(element, contextValue);
+      const treeItem = createTreeItem(element, contextValue);
+
+      if (element.kind === "languageSummary" && element.languageKey) {
+        treeItem.label =
+          languages.getDisplayLabel(element.languageKey)
+          ?? element.languageKey;
+      }
+
+      return treeItem;
     },
 
     refresh(): void {

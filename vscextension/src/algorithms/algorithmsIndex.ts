@@ -187,6 +187,109 @@ function isSupportedLanguageFile(languages: ILanguages, filePath: string): boole
 }
 
 /**
+ * Returns a normalized identifier used for fuzzy basename scoring.
+ *
+ * @param {string} value Candidate value.
+ * @returns {string} Lower-cased alphanumeric-only value.
+ */
+function normalizeIdentifier(value: string): string {
+  return value.toLowerCase().replace(/[^a-z0-9]/g, "");
+}
+
+/**
+ * Scores one file basename against one algorithm directory basename.
+ *
+ * Lower scores are better. Scoring mirrors the run.sh/legacy sidebar heuristics.
+ *
+ * @param {string} fileBaseName File base name without extension.
+ * @param {string} algorithmBaseName Algorithm directory base name.
+ * @returns {number} Match score.
+ */
+function scoreFileBasenameForAlgorithmName(
+  fileBaseName: string,
+  algorithmBaseName: string
+): number {
+  if (fileBaseName === algorithmBaseName) {
+    return 0;
+  }
+
+  const normalizedFileLower = fileBaseName.toLowerCase();
+  const normalizedAlgorithmLower = algorithmBaseName.toLowerCase();
+  if (normalizedFileLower === normalizedAlgorithmLower) {
+    return 1;
+  }
+
+  const normalizedFile = normalizeIdentifier(fileBaseName);
+  const normalizedAlgorithm = normalizeIdentifier(algorithmBaseName);
+
+  if (normalizedFile.length === 0 || normalizedAlgorithm.length === 0) {
+    return 99;
+  }
+
+  if (normalizedFile === normalizedAlgorithm) {
+    return 2;
+  }
+
+  if (normalizedAlgorithm.endsWith(normalizedFile)) {
+    return 3;
+  }
+
+  if (normalizedAlgorithm.includes(normalizedFile)) {
+    return 4;
+  }
+
+  if (normalizedFile.includes(normalizedAlgorithm)) {
+    return 5;
+  }
+
+  return 99;
+}
+
+/**
+ * Selects one representative implementation file for an algorithm and language.
+ *
+ * @param {readonly string[]} filePaths Candidate file paths.
+ * @param {string} algorithmBaseName Algorithm directory base name.
+ * @returns {string} Representative file path.
+ */
+function selectRepresentativeFilePath(
+  filePaths: readonly string[],
+  algorithmBaseName: string
+): string {
+  if (filePaths.length === 1) {
+    return filePaths[0];
+  }
+
+  const scoredPaths = filePaths.map((filePath) => {
+    const baseName = path.basename(filePath, path.extname(filePath));
+    return {
+      filePath,
+      score: scoreFileBasenameForAlgorithmName(baseName, algorithmBaseName),
+    };
+  });
+
+  scoredPaths.sort((left, right) => {
+    if (left.score !== right.score) {
+      return left.score - right.score;
+    }
+    return left.filePath.localeCompare(right.filePath);
+  });
+
+  return scoredPaths[0].filePath;
+}
+
+/**
+ * Returns true when one stdlib file should be excluded from display.
+ *
+ * @param {string} fileName File base name.
+ * @returns {boolean} True when excluded.
+ */
+function isExcludedStandardLibraryFileName(fileName: string): boolean {
+  const extension = path.extname(fileName).toLowerCase();
+  return extension === ".md" || extension === ".sh";
+}
+
+/**
  * Reads and sorts Dirent entries from a directory. Returns an empty array when
  * the directory does not exist or cannot be listed.
  *
@@ -286,18 +389,7 @@ export function createAlgorithmsIndex(
           continue;
         }
 
-        const categoryPath = path.join(canonicalRoot, dirent.name);
-
-        // Only include directories that have at least one visible child
-        const children = await listDirents(categoryPath, filesystem);
-        const hasVisibleChildren = children.some((child) => {
-          return !isHiddenName(child.name);
-        });
-        if (!hasVisibleChildren) {
-          continue;
-        }
-
-        categories.push({ name: dirent.name, path: categoryPath });
+        categories.push({ name: dirent.name, path: path.join(canonicalRoot, dirent.name) });
       }
 
       return categories;
@@ -322,25 +414,9 @@ export function createAlgorithmsIndex(
           continue;
         }
 
-        const algorithmPath = path.join(canonicalCategoryPath, dirent.name);
-        const children = await listDirents(algorithmPath, filesystem);
-
-        // Must have at least one file whose base name matches the directory name
-        const hasMainFile = children.some((child) => {
-          if (!child.isFile()) {
-            return false;
-          }
-          const baseName = path.basename(child.name, path.extname(child.name));
-          return baseName === dirent.name && isSupportedLanguageFile(languages, child.name);
-        });
-
-        if (!hasMainFile) {
-          continue;
-        }
-
         algorithms.push({
           name: dirent.name,
-          path: algorithmPath,
+          path: path.join(canonicalCategoryPath, dirent.name),
           categoryPath: canonicalCategoryPath,
         });
       }
@@ -353,33 +429,44 @@ export function createAlgorithmsIndex(
       const algorithmBaseName = path.basename(canonicalAlgorithmPath);
       const dirents = await listDirents(canonicalAlgorithmPath, filesystem);
       const implementations: AlgorithmImplementation[] = [];
-      const seenLanguageKeys = new Set<string>();
+      const filePathsByLanguage = new Map<string, string[]>();
 
       for (const dirent of dirents) {
         if (!dirent.isFile()) {
           continue;
         }
-
-        const baseName = path.basename(dirent.name, path.extname(dirent.name));
-        if (baseName !== algorithmBaseName) {
+        if (isHiddenName(dirent.name)) {
           continue;
         }
 
         const filePath = path.join(canonicalAlgorithmPath, dirent.name);
         const languageKey = languages.normalizeFileExtension(filePath);
-        if (languageKey === undefined || seenLanguageKeys.has(languageKey)) {
+        if (languageKey === undefined) {
           continue;
         }
-        seenLanguageKeys.add(languageKey);
+
+        const filePaths = filePathsByLanguage.get(languageKey) ?? [];
+        filePaths.push(filePath);
+        filePathsByLanguage.set(languageKey, filePaths);
+      }
+
+      const languageKeys = [...filePathsByLanguage.keys()].sort();
+      for (const languageKey of languageKeys) {
+        const filePaths = filePathsByLanguage.get(languageKey) ?? [];
+        filePaths.sort((leftPath, rightPath) => leftPath.localeCompare(rightPath));
+        if (filePaths.length === 0) {
+          continue;
+        }
+
+        const filePath = selectRepresentativeFilePath(filePaths, algorithmBaseName);
 
         const includeDirectoryPath = path.join(
           canonicalAlgorithmPath,
           `${languageKey}_include`
         );
-        const hasIncludes = await filesystem.isDirectory(includeDirectoryPath);
 
         let includeFilePaths: string[] = [];
-        if (hasIncludes) {
+        if (await filesystem.isDirectory(includeDirectoryPath)) {
           const includeEntries = await listDirents(includeDirectoryPath, filesystem);
           includeFilePaths = includeEntries
             .filter((entry) => {
@@ -394,12 +481,14 @@ export function createAlgorithmsIndex(
               return entryLanguageKey === languageKey;
             })
             .map((entry) => path.join(includeDirectoryPath, entry.name));
+          includeFilePaths.sort((leftPath, rightPath) => leftPath.localeCompare(rightPath));
         }
 
         implementations.push({
           languageKey,
           filePath,
-          hasIncludes,
+          filePaths,
+          hasIncludes: includeFilePaths.length > 0,
           includeFilePaths,
         });
       }
@@ -441,6 +530,10 @@ export function createAlgorithmsIndex(
         }
 
         if (!dirent.isFile()) {
+          continue;
+        }
+
+        if (isExcludedStandardLibraryFileName(dirent.name)) {
           continue;
         }
 
