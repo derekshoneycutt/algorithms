@@ -77,7 +77,7 @@ describe("bootstrap extension", () => {
 
     const contributedViews =
       (extension.packageJSON?.contributes?.views?.algosSidebar as
-        | Array<{ id?: string }>
+        | Array<{ id?: string; when?: string }>
         | undefined) ?? [];
 
     const contributedViewIds = contributedViews.map((view) => {
@@ -92,6 +92,15 @@ describe("bootstrap extension", () => {
       contributedViewIds.includes("algos.workspaceStandardLibraryTreeView"),
       "standard-library tree view should be contributed"
     );
+
+    // All sidebar views must be gated on algos.workspaceSupported
+    for (const view of contributedViews) {
+      assert.strictEqual(
+        view.when,
+        "algos.workspaceSupported",
+        `view ${view.id ?? "(unknown)"} should have when: algos.workspaceSupported`
+      );
+    }
   });
 
   it("registers standard-library tree action commands", async () => {

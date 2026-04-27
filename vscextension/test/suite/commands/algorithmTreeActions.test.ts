@@ -250,6 +250,12 @@ describe("commands/algorithmTreeActions — run-file integration", () => {
       copyIcons(): never {
         throw new Error("not used");
       },
+      initWorkspaceSupportedContext(): Promise<void> {
+        return Promise.resolve();
+      },
+      refreshWorkspaceSupportedContext(): Promise<void> {
+        return Promise.resolve();
+      },
     };
 
     const command = createAlgorithmsRunFileCommand({
@@ -386,6 +392,12 @@ describe("commands/algorithmTreeActions — run-file integration", () => {
       copyIcons(): never {
         throw new Error("not used");
       },
+      initWorkspaceSupportedContext(): Promise<void> {
+        return Promise.resolve();
+      },
+      refreshWorkspaceSupportedContext(): Promise<void> {
+        return Promise.resolve();
+      },
     };
 
     const dependencies = {
@@ -490,6 +502,12 @@ describe("commands/algorithmTreeActions — run-file integration", () => {
       },
       copyIcons(): never {
         throw new Error("not used");
+      },
+      initWorkspaceSupportedContext(): Promise<void> {
+        return Promise.resolve();
+      },
+      refreshWorkspaceSupportedContext(): Promise<void> {
+        return Promise.resolve();
       },
     };
 

@@ -194,6 +194,7 @@ export function createCoordinator(
     filesystem,
     repositoryRoot: workspaceFolderPaths[0] ?? "",
   });
+  void conductor.initWorkspaceSupportedContext({ workspaceFolderPaths });
   const notificationRouter: INotificationRouter = createNotificationRouter();
   const notificationDispatcher = createConductorNotificationDispatcher(notificationRouter);
   const viewHost: IViewHost = createViewHost(context);
@@ -253,6 +254,10 @@ export function createCoordinator(
     });
   });
   const workspaceFoldersChangeWatcher = vscode.workspace.onDidChangeWorkspaceFolders(() => {
+    const updatedFolderPaths = (vscode.workspace.workspaceFolders ?? []).map(
+      (workspaceFolder) => workspaceFolder.uri.fsPath
+    );
+    void conductor.refreshWorkspaceSupportedContext({ workspaceFolderPaths: updatedFolderPaths });
     conductor.handleWorkspaceRootsChanged?.({
       filesystem,
       algorithmsIndex,

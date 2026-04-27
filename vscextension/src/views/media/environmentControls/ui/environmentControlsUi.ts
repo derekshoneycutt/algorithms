@@ -42,21 +42,6 @@ function escapeHtml(value: string): string {
     .replaceAll("'", "&#39;");
 }
 
-/**
- * Renders one status block when there is status text.
- *
- * @param {string} statusText Status text.
- * @param {string} statusClassName Status class.
- * @returns {string} Status markup.
- */
-function renderStatus(statusText: string, statusClassName: string): string {
-  if (statusText.trim().length === 0) {
-    return "";
-  }
-
-  return `<div class="status ${escapeHtml(statusClassName)}">${escapeHtml(statusText)}</div>`;
-}
-
 const SECTION_ICON_SVG_BY_NAME: Readonly<Record<string, string>> = Object.freeze({
   profile:
     '<svg class="sectionIcon" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-hidden="true">'
@@ -226,7 +211,6 @@ function renderRoutingLanguageRow(entry: EnvironmentControlsRoutingLanguageEntry
         <div class="buttonRow">
           <button class="button" type="button" data-role="save-language-routing" data-language-key="${escapeHtml(entry.languageKey)}">Save</button>
         </div>
-        ${renderStatus(entry.statusText, entry.statusClassName)}
       </div>
     </details>
   `;
@@ -261,7 +245,6 @@ function renderBatchRoutingSection(batchRouting: EnvironmentControlsBatchRouting
       <div class="buttonRow">
         <button class="button" type="button" data-role="save-batch-routing">Save</button>
       </div>
-      ${renderStatus(batchRouting.statusText, batchRouting.statusClassName)}
     </section>
   `;
 }
@@ -305,7 +288,6 @@ function renderEnvironmentControls(
           "check",
           '<button class="button secondary" type="button" data-role="run-check-env">Check Environment</button>'
         )}
-        ${renderStatus(snapshot.checkEnvStatusText, snapshot.checkEnvStatusClassName)}
         <div class="outputBox">${snapshot.checkEnvFilteredOutput ? escapeHtml(snapshot.checkEnvFilteredOutput) : "No check-environment output yet."}</div>
         <details>
           <summary>Raw Output</summary>
@@ -321,7 +303,6 @@ function renderEnvironmentControls(
         )}
         <input class="input" data-role="copy-icons-path" value="${escapeHtml(snapshot.copyIconsPath)}" placeholder="Optional destination path" />
         <div class="helperText">Skips profile updates.</div>
-        ${renderStatus(snapshot.copyIconsStatusText, snapshot.copyIconsStatusClassName)}
       </section>
 
       <section class="section">

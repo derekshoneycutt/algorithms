@@ -712,6 +712,12 @@ describe("views/trees — run file status projection", () => {
       copyIcons(): never {
         throw new Error("not used");
       },
+      initWorkspaceSupportedContext(): Promise<void> {
+        return Promise.resolve();
+      },
+      refreshWorkspaceSupportedContext(): Promise<void> {
+        return Promise.resolve();
+      },
     };
 
     const provider = createWorkspaceAlgorithmsTreeDataProvider({
@@ -838,6 +844,12 @@ describe("views/trees — run file status projection", () => {
       copyIcons(): never {
         throw new Error("not used");
       },
+      initWorkspaceSupportedContext(): Promise<void> {
+        return Promise.resolve();
+      },
+      refreshWorkspaceSupportedContext(): Promise<void> {
+        return Promise.resolve();
+      },
     };
 
     const provider = createWorkspaceAlgorithmsTreeDataProvider({
@@ -959,6 +971,12 @@ describe("views/trees — run file status projection", () => {
       },
       copyIcons(): never {
         throw new Error("not used");
+      },
+      initWorkspaceSupportedContext(): Promise<void> {
+        return Promise.resolve();
+      },
+      refreshWorkspaceSupportedContext(): Promise<void> {
+        return Promise.resolve();
       },
     };
 

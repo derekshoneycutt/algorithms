@@ -1,5 +1,7 @@
 import * as path from "node:path";
 
+import * as vscode from "vscode";
+
 import type {
   ConductorCancelRunInput,
   ConductorClearRunResultsInput,
@@ -22,6 +24,8 @@ import type {
   ConductorWorkspacePathChangeInput,
   ConductorWorkspaceRootsChangeInput,
   ConductorWorkspaceRootsInvalidationInput,
+  ConductorInitWorkspaceSupportedContextInput,
+  ConductorRefreshWorkspaceSupportedContextInput,
   IConductor,
   CheckEnvResult,
   CopyIconsResult,
@@ -46,6 +50,7 @@ import {
   writeEnvironment,
   type ApplyConductorReactionDependencies,
 } from "./internal/environment";
+import { resolveSidebarState } from "../filesystem/eligibilityResolver";
 
 const DEFAULT_RUN_STATUS_RETENTION_MS = 120_000;
 
@@ -350,6 +355,24 @@ export function createConductorService(
       scheduleTreeRefresh(
         input.refreshAlgorithmsTree,
         input.refreshStandardLibraryTree
+      );
+    },
+
+    async initWorkspaceSupportedContext(input: ConductorInitWorkspaceSupportedContextInput): Promise<void> {
+      const sidebarState = resolveSidebarState(input.workspaceFolderPaths);
+      await vscode.commands.executeCommand(
+        "setContext",
+        "algos.workspaceSupported",
+        sidebarState.supported
+      );
+    },
+
+    async refreshWorkspaceSupportedContext(input: ConductorRefreshWorkspaceSupportedContextInput): Promise<void> {
+      const sidebarState = resolveSidebarState(input.workspaceFolderPaths);
+      await vscode.commands.executeCommand(
+        "setContext",
+        "algos.workspaceSupported",
+        sidebarState.supported
       );
     },
 

@@ -182,6 +182,20 @@ export interface ConductorWorkspacePathInvalidationInput {
 }
 
 /**
+ * Input for initializing the algos.workspaceSupported VS Code context key.
+ */
+export interface ConductorInitWorkspaceSupportedContextInput {
+  workspaceFolderPaths: readonly string[];
+}
+
+/**
+ * Input for refreshing the algos.workspaceSupported VS Code context key.
+ */
+export interface ConductorRefreshWorkspaceSupportedContextInput {
+  workspaceFolderPaths: readonly string[];
+}
+
+/**
  * Input for workspace-root cache invalidation policy.
  */
 export interface ConductorWorkspaceRootsInvalidationInput {
@@ -334,6 +348,24 @@ export interface IConductor {
   subscribeRunTargetStatus(
     listener: (change: ConductorRunTargetStatusChange) => void
   ): ConductorSubscription;
+
+  /**
+   * Initializes the algos.workspaceSupported VS Code context key on extension startup.
+   *
+   * @param {ConductorInitWorkspaceSupportedContextInput} input Workspace folder paths.
+   * @returns {Promise<void>} Resolves when context has been set.
+   */
+  initWorkspaceSupportedContext(input: ConductorInitWorkspaceSupportedContextInput): Promise<void>;
+
+  /**
+   * Recomputes and refreshes the algos.workspaceSupported context key.
+   *
+   * Should be called when workspace folders change.
+   *
+   * @param {ConductorRefreshWorkspaceSupportedContextInput} input Updated workspace folder paths.
+   * @returns {Promise<void>} Resolves when context has been updated.
+   */
+  refreshWorkspaceSupportedContext(input: ConductorRefreshWorkspaceSupportedContextInput): Promise<void>;
 
   /**
    * Applies conductor-owned cache invalidation policy for one changed path.

@@ -17,6 +17,7 @@
     "Other"
   ],
   "activationEvents": [
+    "onStartupFinished",
     "onCommand:algos.showBootstrapStatus",
     "onCommand:algos.standardLibraryCreateFile",
     "onCommand:algos.standardLibraryCreateFolder",
@@ -43,30 +44,35 @@
           "id": "algos.smokeControlsSidebarView",
           "name": "Smoke Controls",
           "type": "webview",
+          "when": "algos.workspaceSupported",
           "visibility": "collapsed"
         },
         {
           "id": "algos.runControlsSidebarView",
           "name": "Run Controls",
           "type": "webview",
+          "when": "algos.workspaceSupported",
           "visibility": "collapsed"
         },
         {
           "id": "algos.workspaceAlgorithmsTreeView",
           "name": "Algorithms",
           "type": "tree",
+          "when": "algos.workspaceSupported",
           "visibility": "visible"
         },
         {
           "id": "algos.workspaceStandardLibraryTreeView",
           "name": "Standard Library",
           "type": "tree",
+          "when": "algos.workspaceSupported",
           "visibility": "collapsed"
         },
         {
           "id": "algosWorkspaceEnvironmentView",
           "name": "Environment",
           "type": "webview",
+          "when": "algos.workspaceSupported",
           "visibility": "collapsed"
         }
       ]

@@ -13,6 +13,8 @@ export type {
   ConductorWorkspacePathInvalidationInput,
   ConductorWorkspaceRootsChangeInput,
   ConductorWorkspaceRootsInvalidationInput,
+  ConductorInitWorkspaceSupportedContextInput,
+  ConductorRefreshWorkspaceSupportedContextInput,
   ConductorRunTargetRef,
   ConductorRunTargetStatusChange,
   ConductorSubscription,
