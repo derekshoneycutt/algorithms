@@ -1,0 +1,94 @@
+import * as vscode from "vscode";
+
+import type { IFilesystem } from "../../filesystem";
+import type { ILanguages } from "../../languages";
+import type { IAlgorithmsIndex } from "../../algorithms";
+import type { IFilterModeService } from "../../state/filterMode";
+import type { IViewModeService } from "../../state/viewMode";
+
+/**
+ * One tree node rendered in the workspace tree panels.
+ *
+ * Node kinds:
+ * - "directory": generic folder (category-level dir, stdlib dir)
+ * - "algorithmDir": algorithm directory (second-level in algorithms tree, has implementations)
+ * - "file": plain file (non-collapsible)
+ * - "mainFile": algorithm main file (collapsible, may have includes)
+ * - "languageSummary": language grouping row for LANGUAGE view (collapsible)
+ *
+ * Algorithm directories have:
+ * - kind: "algorithmDir"
+ * - filePath: the algorithm directory path
+ *
+ * Main files (in FILES view) have:
+ * - kind: "mainFile"
+ * - filePath: the main file path
+ * - languageKey: the language of this main file
+ * - parentAlgorithmPath: the algorithm directory
+ *
+ * Language summary rows (in LANGUAGE view) have:
+ * - kind: "languageSummary"
+ * - filePath: the main file path (for opening)
+ * - languageKey: the language key (for label display)
+ * - parentAlgorithmPath: the algorithm directory
+ *
+ * Include files have:
+ * - kind: "file"
+ * - filePath: the include file path
+ * - languageKey: the language of the include file
+ * - isIncludeFile: true
+ */
+export interface WorkspaceTreeNode {
+  kind: "directory" | "algorithmDir" | "file" | "mainFile" | "languageSummary";
+  filePath: string;
+  filePathsByLanguage?: Record<string, string[]>;
+  languageKey?: string;
+  parentAlgorithmPath?: string;
+  isIncludeFile?: boolean;
+  isFlagged?: boolean;
+  isMissing?: boolean;
+  /** True when this node has include files nested under it. Controls collapse arrow. */
+  hasIncludes?: boolean;
+  /** Total language file count in the current algorithm (main and include files). */
+  languageFileCount?: number;
+  /** True when this row has a concrete open target file. */
+  hasOpenTarget?: boolean;
+}
+
+/**
+ * Tree data provider contract with explicit refresh support.
+ */
+export interface RefreshableWorkspaceTreeDataProvider
+  extends vscode.TreeDataProvider<WorkspaceTreeNode> {
+  /**
+   * Triggers a tree refresh.
+   *
+   * @returns {void}
+   */
+  refresh(): void;
+}
+
+/**
+ * Dependencies for restricted tree node discovery.
+ */
+export interface RestrictedTreeDiscoveryDependencies {
+  filesystem: IFilesystem;
+  languages: ILanguages;
+}
+
+/**
+ * Dependencies for creating one algorithms tree data provider.
+ */
+export interface AlgorithmsTreeDataProviderDependencies {
+  algorithmsIndex: IAlgorithmsIndex;
+  viewModeService: IViewModeService;
+  filterModeService: IFilterModeService;
+  languages: ILanguages;
+}
+
+/**
+ * Dependencies for creating one standard-library tree data provider.
+ */
+export interface StandardLibraryTreeDataProviderDependencies {
+  algorithmsIndex: IAlgorithmsIndex;
+}

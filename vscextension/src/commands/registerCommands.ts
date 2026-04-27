@@ -17,6 +17,7 @@ import {
   getAlgorithmsDeleteCommandId,
   getAlgorithmsFlagLanguageCommandId,
   getAlgorithmsUnflagLanguageCommandId,
+  getAlgorithmsRunFileCommandId,
 } from "./commandIds";
 
 /**
@@ -88,6 +89,10 @@ export function registerCommands(
     vscode.commands.registerCommand(
       getAlgorithmsUnflagLanguageCommandId(),
       commands.algorithmsUnflagLanguage
+    ),
+    vscode.commands.registerCommand(
+      getAlgorithmsRunFileCommandId(),
+      commands.algorithmsRunFile
     )
   );
 }

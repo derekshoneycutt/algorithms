@@ -132,3 +132,12 @@ export function getAlgorithmsFlagLanguageCommandId(): string {
 export function getAlgorithmsUnflagLanguageCommandId(): string {
   return "algos.algorithmsUnflagLanguage";
 }
+
+/**
+ * Command identifier for running one Algorithms file from the tree.
+ *
+ * @returns {string} Command identifier.
+ */
+export function getAlgorithmsRunFileCommandId(): string {
+  return "algos.algorithmsRunFile";
+}

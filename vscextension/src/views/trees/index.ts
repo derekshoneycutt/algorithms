@@ -1,14 +1,21 @@
 export type {
-  AlgorithmsTreeDataProviderDependencies,
-  RefreshableWorkspaceTreeDataProvider,
-  RestrictedTreeDiscoveryDependencies,
-  StandardLibraryTreeDataProviderDependencies,
   WorkspaceTreeNode,
-} from "./treeProviders";
+  RefreshableWorkspaceTreeDataProvider,
+  AlgorithmsTreeDataProviderDependencies,
+  StandardLibraryTreeDataProviderDependencies,
+  RestrictedTreeDiscoveryDependencies,
+} from "./types";
 
 export {
   createWorkspaceAlgorithmsTreeDataProvider,
+} from "./algorithmsTreeDataProvider";
+
+export {
   createWorkspaceStandardLibraryTreeDataProvider,
+} from "./standardLibraryTreeDataProvider";
+
+export {
+  createLanguageStatusDecorationProvider,
   isLanguageIncludeDirectoryName,
   readIncludeFiles,
   readRestrictedDirectoryChildren,

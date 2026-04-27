@@ -15,6 +15,7 @@ export {
 	getAlgorithmsDeleteCommandId,
 	getAlgorithmsFlagLanguageCommandId,
 	getAlgorithmsUnflagLanguageCommandId,
+	getAlgorithmsRunFileCommandId,
 } from "./commandIds";
 export { registerCommands } from "./registerCommands";
 export { createShowBootstrapStatusCommand } from "./showBootstrapStatus";
@@ -35,4 +36,5 @@ export {
 	createAlgorithmsDeleteCommand,
 	createAlgorithmsFlagLanguageCommand,
 	createAlgorithmsUnflagLanguageCommand,
+	createAlgorithmsRunFileCommand,
 } from "./algorithmTreeActions";

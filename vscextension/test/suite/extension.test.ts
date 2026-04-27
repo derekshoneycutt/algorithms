@@ -12,6 +12,7 @@ import {
   getAlgorithmsDeleteCommandId,
   getAlgorithmsFlagLanguageCommandId,
   getAlgorithmsUnflagLanguageCommandId,
+  getAlgorithmsRunFileCommandId,
   getAlgorithmsSidebarShowAllRowsCommandId,
   getAlgorithmsSidebarShowProblemRowsCommandId,
 } from "../../src/commands/commandIds";
@@ -136,6 +137,10 @@ describe("bootstrap extension", () => {
     assert.ok(
       availableCommands.includes(getAlgorithmsSidebarShowProblemRowsCommandId()),
       "algorithms show-problem-rows command should be registered"
+    );
+    assert.ok(
+      availableCommands.includes(getAlgorithmsRunFileCommandId()),
+      "algorithms run-file command should be registered"
     );
   });
 });

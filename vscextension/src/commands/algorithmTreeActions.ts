@@ -13,6 +13,9 @@ import {
 } from "../algorithms";
 import type { IFlaggedLanguagesService } from "../algorithms";
 
+const ALGORITHMS_RUNNER_TERMINAL_NAME = "Algorithms Runner";
+let algorithmsRunnerTerminal: vscode.Terminal | null = null;
+
 /**
  * Dependencies for Algorithms tree action commands.
  */
@@ -99,6 +102,69 @@ function resolveLanguageKeyFromNode(
   }
 
   return resolvedLanguageKey.trim().toLowerCase();
+}
+
+/**
+ * Returns true when one node kind can be run directly as a file target.
+ *
+ * @param {WorkspaceTreeNode["kind"]} nodeKind Candidate node kind.
+ * @returns {boolean} True when supported by Run File.
+ */
+function isRunnableNodeKind(nodeKind: WorkspaceTreeNode["kind"]): boolean {
+  return nodeKind === "file" || nodeKind === "mainFile" || nodeKind === "languageSummary";
+}
+
+/**
+ * Resolves the repository root from an algorithms-root-like path.
+ *
+ * @param {string} algorithmsRootPath Canonical algorithms root path.
+ * @returns {string | null} Repository root or null when src segment is unavailable.
+ */
+function resolveRepositoryRootFromAlgorithmsRootPath(
+  algorithmsRootPath: string
+): string | null {
+  let cursor = path.resolve(algorithmsRootPath);
+
+  while (true) {
+    if (path.basename(cursor) === "src") {
+      return path.dirname(cursor);
+    }
+
+    const parentPath = path.dirname(cursor);
+    if (parentPath === cursor) {
+      return null;
+    }
+
+    cursor = parentPath;
+  }
+}
+
+/**
+ * Returns one cached extension-owned terminal for run commands.
+ *
+ * @returns {vscode.Terminal} Reused or newly-created terminal instance.
+ */
+function getAlgorithmsRunnerTerminal(): vscode.Terminal {
+  if (algorithmsRunnerTerminal !== null && !algorithmsRunnerTerminal.exitStatus) {
+    return algorithmsRunnerTerminal;
+  }
+
+  const terminal = vscode.window.createTerminal({
+    name: ALGORITHMS_RUNNER_TERMINAL_NAME,
+  });
+  algorithmsRunnerTerminal = terminal;
+
+  return terminal;
+}
+
+/**
+ * Quotes one shell token for safe terminal command composition.
+ *
+ * @param {string} token Raw token.
+ * @returns {string} Shell-quoted token.
+ */
+function quoteShellToken(token: string): string {
+  return `'${token.replace(/'/g, `'"'"'`)}'`;
 }
 
 /**
@@ -813,5 +879,107 @@ export function createAlgorithmsUnflagLanguageCommand(
       const errorMessage = error instanceof Error ? error.message : String(error);
       await dependencies.notificationRouter.error(`Failed to unflag language: ${errorMessage}`);
     }
+  };
+}
+
+/**
+ * Creates one command to run the hovered Algorithms file/language target.
+ *
+ * This bootstrap implementation runs `run.sh <arg>` inside the resolved
+ * algorithm directory using an extension-owned terminal.
+ *
+ * - LANGUAGE view (`languageSummary`): sends the language key (for example, `cpp`).
+ * - FILES view (`file`/`mainFile`): sends the selected filename.
+ *
+ * @param {AlgorithmTreeActionDependencies} dependencies Action dependencies.
+ * @returns {(treeNode?: WorkspaceTreeNode) => Promise<void>} Command handler.
+ */
+export function createAlgorithmsRunFileCommand(
+  dependencies: AlgorithmTreeActionDependencies
+): (treeNode?: WorkspaceTreeNode) => Promise<void> {
+  return async (treeNode?: WorkspaceTreeNode): Promise<void> => {
+    if (treeNode === undefined || !isRunnableNodeKind(treeNode.kind)) {
+      await dependencies.notificationRouter.warn("Select an algorithm file or language row to run.");
+      return;
+    }
+
+    if (treeNode.kind === "languageSummary" && treeNode.hasOpenTarget === false) {
+      await dependencies.notificationRouter.warn("Cannot run a missing language row.");
+      return;
+    }
+
+    const algorithmsRootPath = await getAlgorithmsRootPathForCurrentWorkspace(
+      dependencies.filesystem
+    );
+
+    if (algorithmsRootPath === null) {
+      await dependencies.notificationRouter.warn("Algorithms root is unavailable.");
+      return;
+    }
+
+    const repositoryRootPath = resolveRepositoryRootFromAlgorithmsRootPath(
+      algorithmsRootPath
+    );
+
+    if (repositoryRootPath === null) {
+      await dependencies.notificationRouter.warn("Repository root is unavailable.");
+      return;
+    }
+
+    const runScriptPath = path.join(repositoryRootPath, "run.sh");
+    if (!(await dependencies.filesystem.isFile(runScriptPath))) {
+      await dependencies.notificationRouter.error("run.sh is unavailable.");
+      return;
+    }
+
+    const targetFilePath = treeNode.filePath;
+    if (!(await dependencies.filesystem.isFile(targetFilePath))) {
+      await dependencies.notificationRouter.warn("Target file no longer exists.");
+      dependencies.refreshAlgorithmsTree();
+      return;
+    }
+
+    const canonicalAlgorithmsRoot = await dependencies.filesystem.realpath(algorithmsRootPath);
+    const canonicalTargetFilePath = await dependencies.filesystem.realpath(targetFilePath);
+    const isWithinAlgorithmsRoot = await dependencies.filesystem.isPathWithinRoot(
+      canonicalAlgorithmsRoot,
+      canonicalTargetFilePath
+    );
+
+    if (!isWithinAlgorithmsRoot) {
+      await dependencies.notificationRouter.warn("Run target must stay inside the Algorithms root.");
+      return;
+    }
+
+    const algorithmDirectoryPath = resolveAlgorithmDirectoryPath(treeNode);
+    if (!(await dependencies.filesystem.isDirectory(algorithmDirectoryPath))) {
+      await dependencies.notificationRouter.warn("Algorithm directory is unavailable.");
+      return;
+    }
+
+    const languageKey = resolveLanguageKeyFromNode(treeNode, dependencies.languages);
+    if (languageKey === null) {
+      await dependencies.notificationRouter.warn("Language could not be determined.");
+      return;
+    }
+
+    const terminal = getAlgorithmsRunnerTerminal();
+    const runTargetArgument = treeNode.kind === "languageSummary"
+      ? languageKey
+      : path.basename(canonicalTargetFilePath);
+    const command = [
+      "cd",
+      quoteShellToken(algorithmDirectoryPath),
+      "&&",
+      quoteShellToken(runScriptPath),
+      quoteShellToken(runTargetArgument),
+    ].join(" ");
+
+    terminal.show(false);
+    terminal.sendText(command);
+
+    await dependencies.notificationRouter.info(
+      `Run File started for ${runTargetArgument} (${languageKey}) in ${ALGORITHMS_RUNNER_TERMINAL_NAME}.`
+    );
   };
 }

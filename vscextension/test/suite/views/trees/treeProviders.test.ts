@@ -18,6 +18,7 @@ import type { SidebarViewMode, IViewModeService } from "../../../../src/state/vi
 import {
   createWorkspaceStandardLibraryTreeDataProvider,
   createWorkspaceAlgorithmsTreeDataProvider,
+  createLanguageStatusDecorationProvider,
   readRestrictedDirectoryChildren,
   type WorkspaceTreeNode,
 } from "../../../../src/views/trees";
@@ -465,5 +466,99 @@ describe("views/trees — flag and problems behavior", () => {
     } finally {
       await fs.rm(workspaceRootPath, { recursive: true, force: true });
     }
+  });
+});
+
+describe("views/trees — URI fragments and FileDecoration provider", () => {
+  it("assigns correct URI fragments based on isFlagged and isMissing state", async () => {
+    const workspaceRootPath = await createTempDirectory();
+    const filesystem = createFilesystem();
+    const languages = createLanguageStub();
+
+    try {
+      const euclidPath = path.join(
+        workspaceRootPath,
+        "src",
+        "numeric",
+        "euclidgcd"
+      );
+      await fs.mkdir(euclidPath, { recursive: true });
+      await fs.writeFile(path.join(euclidPath, "euclidgcd.py"), "");
+      await fs.writeFile(path.join(euclidPath, "euclidgcd.go"), "");
+      await fs.writeFile(path.join(euclidPath, ".flag-lang"), "python\n");
+
+      const algorithmsIndex = createAlgorithmsIndex({
+        filesystem,
+        languages,
+        workspaceFolderPaths: [workspaceRootPath],
+      });
+
+      const languageProvider = createWorkspaceAlgorithmsTreeDataProvider({
+        algorithmsIndex,
+        viewModeService: createViewModeServiceStub("language"),
+        filterModeService: createFilterModeServiceStub("all"),
+        languages,
+      });
+
+      const languageRoot = (await languageProvider.getChildren()) ?? [];
+      const languageCategory = languageRoot[0];
+      const languageAlgorithms = (await languageProvider.getChildren(languageCategory)) ?? [];
+      const euclidNode = languageAlgorithms.find((node) => {
+        return path.basename(node.filePath) === "euclidgcd";
+      }) as WorkspaceTreeNode;
+      const languageRows = (await languageProvider.getChildren(euclidNode)) ?? [];
+
+      // Language present + flagged → algos-language-flagged fragment
+      const pythonRow = languageRows.find((row) => row.languageKey === "python") as WorkspaceTreeNode;
+      const pythonItem = await languageProvider.getTreeItem(pythonRow);
+      assert.strictEqual(pythonItem.resourceUri?.fragment, "algos-language-flagged");
+
+      // Language present + not flagged → no fragment
+      const goRow = languageRows.find((row) => row.languageKey === "go") as WorkspaceTreeNode;
+      const goItem = await languageProvider.getTreeItem(goRow);
+      assert.strictEqual(goItem.resourceUri?.fragment, "");
+
+      // Language missing + flagged → algos-language-flagged-absent fragment
+      const typescriptRow = languageRows.find((row) => row.languageKey === "typescript") as WorkspaceTreeNode;
+      assert.strictEqual(typescriptRow.isMissing, true);
+      assert.strictEqual(typescriptRow.isFlagged, false);
+      const typescriptItem = await languageProvider.getTreeItem(typescriptRow);
+      assert.strictEqual(typescriptItem.resourceUri?.fragment, "algos-language-absent");
+    } finally {
+      await fs.rm(workspaceRootPath, { recursive: true, force: true });
+    }
+  });
+
+  it("FileDecoration provider returns correct badge and color for each fragment", () => {
+    const provider = createLanguageStatusDecorationProvider();
+
+    // algos-language-flagged → red badge
+    const flaggedUri = vscode.Uri.file("/test/file.py").with({ fragment: "algos-language-flagged" });
+    const flaggedDecoration = provider.provideFileDecoration(flaggedUri, {} as any) as vscode.FileDecoration | undefined;
+    assert.ok(flaggedDecoration !== undefined && flaggedDecoration !== null);
+    assert.strictEqual(flaggedDecoration.badge, "\u25cf");
+    assert.deepStrictEqual(flaggedDecoration.color, new vscode.ThemeColor("testing.iconFailed"));
+    assert.ok(flaggedDecoration.tooltip?.includes("flagged in .flag-lang"));
+
+    // algos-language-flagged-absent → red badge
+    const flaggedAbsentUri = vscode.Uri.file("/test/file.py").with({ fragment: "algos-language-flagged-absent" });
+    const flaggedAbsentDecoration = provider.provideFileDecoration(flaggedAbsentUri, {} as any) as vscode.FileDecoration | undefined;
+    assert.ok(flaggedAbsentDecoration !== undefined && flaggedAbsentDecoration !== null);
+    assert.strictEqual(flaggedAbsentDecoration.badge, "\u25cf");
+    assert.deepStrictEqual(flaggedAbsentDecoration.color, new vscode.ThemeColor("testing.iconFailed"));
+    assert.ok(flaggedAbsentDecoration.tooltip?.includes("not present in algorithm"));
+
+    // algos-language-absent → gray badge
+    const absentUri = vscode.Uri.file("/test/file.py").with({ fragment: "algos-language-absent" });
+    const absentDecoration = provider.provideFileDecoration(absentUri, {} as any) as vscode.FileDecoration | undefined;
+    assert.ok(absentDecoration !== undefined && absentDecoration !== null);
+    assert.strictEqual(absentDecoration.badge, "\u25cf");
+    assert.deepStrictEqual(absentDecoration.color, new vscode.ThemeColor("testing.iconQueued"));
+    assert.ok(absentDecoration.tooltip?.includes("not present in algorithm"));
+
+    // No fragment → undefined
+    const noUri = vscode.Uri.file("/test/file.py");
+    const noDecoration = provider.provideFileDecoration(noUri, {} as any);
+    assert.strictEqual(noDecoration, undefined);
   });
 });

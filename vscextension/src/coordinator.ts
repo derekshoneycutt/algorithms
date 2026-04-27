@@ -15,6 +15,7 @@ import {
   createAlgorithmsDeleteCommand,
   createAlgorithmsFlagLanguageCommand,
   createAlgorithmsUnflagLanguageCommand,
+  createAlgorithmsRunFileCommand,
   createShowBootstrapStatusCommand,
   registerCommands,
 } from "./commands";
@@ -70,6 +71,7 @@ import type {
 import {
   createWorkspaceAlgorithmsTreeDataProvider,
   createWorkspaceStandardLibraryTreeDataProvider,
+  createLanguageStatusDecorationProvider,
   createViewHost,
   getRunControlsSidebarViewId,
   getSmokeControlsSidebarViewId,
@@ -142,6 +144,10 @@ export function createCoordinator(
   const workspaceStandardLibraryTreeRegistration = viewHost.registerTreeDataProvider(
     workspaceStandardLibraryTreeViewId,
     workspaceStandardLibraryTreeProvider
+  );
+  const languageStatusDecorationProvider = createLanguageStatusDecorationProvider();
+  const languageStatusDecorationRegistration = vscode.window.registerFileDecorationProvider(
+    languageStatusDecorationProvider
   );
   const resolveSmokeLanguageIconUri = createSmokeLanguageIconUriResolver({
     languages,
@@ -263,6 +269,12 @@ export function createCoordinator(
       notificationRouter,
       refreshAlgorithmsTree: workspaceAlgorithmsTreeProvider.refresh,
     }),
+    algorithmsRunFile: createAlgorithmsRunFileCommand({
+      filesystem,
+      languages,
+      notificationRouter,
+      refreshAlgorithmsTree: workspaceAlgorithmsTreeProvider.refresh,
+    }),
   };
 
   return vscode.Disposable.from(
@@ -272,6 +284,7 @@ export function createCoordinator(
     runControlsChannel,
     workspaceAlgorithmsTreeRegistration,
     workspaceStandardLibraryTreeRegistration,
+    languageStatusDecorationRegistration,
     viewHost,
     viewsRegistration,
     registerCommands(commands)

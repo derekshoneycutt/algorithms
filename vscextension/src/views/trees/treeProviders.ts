@@ -5,96 +5,7 @@ import * as vscode from "vscode";
 
 import type { IFilesystem } from "../../filesystem";
 import type { ILanguages } from "../../languages";
-import type { IAlgorithmsIndex } from "../../algorithms";
-import type { IFilterModeService } from "../../state/filterMode";
-import type { IViewModeService } from "../../state/viewMode";
-
-/**
- * One tree node rendered in the workspace tree panels.
- *
- * Node kinds:
- * - "directory": generic folder (category-level dir, stdlib dir)
- * - "algorithmDir": algorithm directory (second-level in algorithms tree, has implementations)
- * - "file": plain file (non-collapsible)
- * - "mainFile": algorithm main file (collapsible, may have includes)
- * - "languageSummary": language grouping row for LANGUAGE view (collapsible)
- *
- * Algorithm directories have:
- * - kind: "algorithmDir"
- * - filePath: the algorithm directory path
- *
- * Main files (in FILES view) have:
- * - kind: "mainFile"
- * - filePath: the main file path
- * - languageKey: the language of this main file
- * - parentAlgorithmPath: the algorithm directory
- *
- * Language summary rows (in LANGUAGE view) have:
- * - kind: "languageSummary"
- * - filePath: the main file path (for opening)
- * - languageKey: the language key (for label display)
- * - parentAlgorithmPath: the algorithm directory
- *
- * Include files have:
- * - kind: "file"
- * - filePath: the include file path
- * - languageKey: the language of the include file
- * - isIncludeFile: true
- */
-export interface WorkspaceTreeNode {
-  kind: "directory" | "algorithmDir" | "file" | "mainFile" | "languageSummary";
-  filePath: string;
-  filePathsByLanguage?: Record<string, string[]>;
-  languageKey?: string;
-  parentAlgorithmPath?: string;
-  isIncludeFile?: boolean;
-  isFlagged?: boolean;
-  isMissing?: boolean;
-  /** True when this node has include files nested under it. Controls collapse arrow. */
-  hasIncludes?: boolean;
-  /** Total language file count in the current algorithm (main and include files). */
-  languageFileCount?: number;
-  /** True when this row has a concrete open target file. */
-  hasOpenTarget?: boolean;
-}
-
-/**
- * Tree data provider contract with explicit refresh support.
- */
-export interface RefreshableWorkspaceTreeDataProvider
-  extends vscode.TreeDataProvider<WorkspaceTreeNode> {
-  /**
-   * Triggers a tree refresh.
-   *
-   * @returns {void}
-   */
-  refresh(): void;
-}
-
-/**
- * Dependencies for restricted tree node discovery.
- */
-export interface RestrictedTreeDiscoveryDependencies {
-  filesystem: IFilesystem;
-  languages: ILanguages;
-}
-
-/**
- * Dependencies for creating one algorithms tree data provider.
- */
-export interface AlgorithmsTreeDataProviderDependencies {
-  algorithmsIndex: IAlgorithmsIndex;
-  viewModeService: IViewModeService;
-  filterModeService: IFilterModeService;
-  languages: ILanguages;
-}
-
-/**
- * Dependencies for creating one standard-library tree data provider.
- */
-export interface StandardLibraryTreeDataProviderDependencies {
-  algorithmsIndex: IAlgorithmsIndex;
-}
+import type { RestrictedTreeDiscoveryDependencies, WorkspaceTreeNode } from "./types";
 
 /**
  * Returns true when a path segment should be hidden from tree views.
@@ -310,45 +221,6 @@ function isDirentEntry(entry: string | Dirent): entry is Dirent {
 }
 
 /**
- * Returns true when one algorithm has missing or flagged language rows.
- *
- * @param {IAlgorithmsIndex} algorithmsIndex Algorithms index dependency.
- * @param {ILanguages} languages Languages dependency.
- * @param {string} algorithmPath Algorithm path.
- * @returns {Promise<boolean>} True when the algorithm has at least one problem row.
- */
-async function hasProblemRowsForAlgorithm(
-  algorithmsIndex: IAlgorithmsIndex,
-  languages: ILanguages,
-  algorithmPath: string,
-  viewMode: "files" | "language"
-): Promise<boolean> {
-  const implementations = await algorithmsIndex.getImplementations(algorithmPath);
-  const implementationsByLanguage = new Map(
-    implementations.map((implementation) => {
-      return [implementation.languageKey, implementation] as const;
-    })
-  );
-
-  if (viewMode === "files") {
-    return implementations.some((implementation) => {
-      return implementation.isFlagged;
-    });
-  }
-
-  for (const languageRecord of languages.getAll()) {
-    const implementation = implementationsByLanguage.get(languageRecord.key);
-    const isMissing = implementation === undefined;
-    const isFlagged = implementation?.isFlagged === true;
-    if (isMissing || isFlagged) {
-      return true;
-    }
-  }
-
-  return false;
-}
-
-/**
  * Reads visible child nodes for one directory with restricted filtering.
  *
  * @param {string} directoryPath Directory path to inspect.
@@ -425,16 +297,33 @@ export async function readRestrictedDirectoryChildren(
 }
 
 /**
+ * URI fragments for FileDecoration provider.
+ */
+const URI_FRAGMENT_FLAGGED = "algos-language-flagged";
+const URI_FRAGMENT_FLAGGED_ABSENT = "algos-language-flagged-absent";
+const URI_FRAGMENT_ABSENT = "algos-language-absent";
+
+/**
  * Creates one TreeItem for the given node.
  *
  * @param {WorkspaceTreeNode} element Tree element.
  * @returns {vscode.TreeItem} Tree item instance.
  */
-function createTreeItem(
+export function createTreeItem(
   element: WorkspaceTreeNode,
   contextValue?: string
 ): vscode.TreeItem {
-  const resourceUri = vscode.Uri.file(element.filePath);
+  let resourceUri = vscode.Uri.file(element.filePath);
+
+  // Apply URI fragment based on isFlagged and isMissing state.
+  // This allows the FileDecoration provider to style problem rows.
+  if (element.isFlagged === true && element.isMissing === true) {
+    resourceUri = resourceUri.with({ fragment: URI_FRAGMENT_FLAGGED_ABSENT });
+  } else if (element.isFlagged === true && element.isMissing !== true) {
+    resourceUri = resourceUri.with({ fragment: URI_FRAGMENT_FLAGGED });
+  } else if (element.isFlagged !== true && element.isMissing === true) {
+    resourceUri = resourceUri.with({ fragment: URI_FRAGMENT_ABSENT });
+  }
 
   // Handle language summary rows
   if (element.kind === "languageSummary" && element.languageKey) {
@@ -514,295 +403,39 @@ function createTreeItem(
 }
 
 /**
- * Creates one algorithms tree data provider.
+ * Creates a FileDecoration provider for problem row styling.
+ * Returns a provider that decorates flagged rows with a red badge (●).
  *
- * @param {AlgorithmsTreeDataProviderDependencies} dependencies Provider dependencies.
- * @returns {vscode.TreeDataProvider<WorkspaceTreeNode>} Algorithms tree provider.
+ * @returns {vscode.FileDecorationProvider} The FileDecoration provider.
  */
-export function createWorkspaceAlgorithmsTreeDataProvider(
-  dependencies: AlgorithmsTreeDataProviderDependencies
-): RefreshableWorkspaceTreeDataProvider {
-  const {
-    algorithmsIndex,
-    filterModeService,
-    viewModeService,
-    languages,
-  } = dependencies;
-  const onDidChangeTreeDataEmitter = new vscode.EventEmitter<
-    WorkspaceTreeNode | undefined | null | void
-  >();
-
-  // Refresh the tree whenever the user switches view modes
-  viewModeService.onDidChangeViewMode(() => {
-    onDidChangeTreeDataEmitter.fire();
-  });
-
-  filterModeService.onDidChangeFilterMode(() => {
-    onDidChangeTreeDataEmitter.fire();
-  });
-
+export function createLanguageStatusDecorationProvider(): vscode.FileDecorationProvider {
   return {
-    onDidChangeTreeData: onDidChangeTreeDataEmitter.event,
-
-    async getChildren(element?: WorkspaceTreeNode): Promise<WorkspaceTreeNode[]> {
-      const viewMode = viewModeService.getViewMode();
-      const filterMode = filterModeService.getFilterMode();
-
-      // Include file parents: return include files from precomputed paths
-      if (
-        element !== undefined &&
-        (element.kind === "languageSummary" || element.kind === "mainFile") &&
-        element.languageKey &&
-        element.parentAlgorithmPath
-      ) {
-        const implementations = await algorithmsIndex.getImplementations(
-          element.parentAlgorithmPath
-        );
-        const impl = implementations.find(
-          (i) => i.languageKey === element.languageKey
-        );
-        if (impl === undefined) {
-          return [];
-        }
-        return impl.includeFilePaths.map((filePath) => ({
-          kind: "file" as const,
-          filePath,
-          languageKey: element.languageKey,
-          isIncludeFile: true,
-        }));
+    provideFileDecoration(uri: vscode.Uri): vscode.FileDecoration | undefined {
+      if (uri.fragment === URI_FRAGMENT_FLAGGED) {
+        return {
+          badge: "●",
+          color: new vscode.ThemeColor("testing.iconFailed"),
+          tooltip: "Language flagged in .flag-lang",
+        };
       }
 
-      // Algorithm directory: return mainFile or languageSummary nodes
-      if (element !== undefined && element.kind === "algorithmDir") {
-        const implementations = await algorithmsIndex.getImplementations(element.filePath);
-        const implementationsByLanguage = new Map(
-          implementations.map((implementation) => {
-            return [implementation.languageKey, implementation] as const;
-          })
-        );
-
-        if (viewMode === "language") {
-          const languageRows = languages.getAll().map((languageRecord) => {
-            const implementation = implementationsByLanguage.get(languageRecord.key);
-            const isMissing = implementation === undefined;
-            const isFlagged = implementation?.isFlagged === true;
-            return {
-              kind: "languageSummary" as const,
-              filePath: implementation?.filePath ?? element.filePath,
-              filePathsByLanguage: implementation !== undefined
-                ? { [implementation.languageKey]: implementation.filePaths }
-                : undefined,
-              languageKey: languageRecord.key,
-              parentAlgorithmPath: element.filePath,
-              hasIncludes: (implementation?.includeFilePaths.length ?? 0) > 0,
-              languageFileCount: (implementation?.filePaths.length ?? 0)
-                + (implementation?.includeFilePaths.length ?? 0),
-              isFlagged,
-              isMissing,
-              hasOpenTarget: implementation !== undefined,
-            };
-          });
-
-          if (filterMode === "problems") {
-            return languageRows.filter((row) => {
-              return row.isMissing === true || row.isFlagged === true;
-            });
-          }
-
-          return languageRows;
-        } else {
-          const mainFileNodes = implementations.map((impl) => ({
-            kind: "mainFile" as const,
-            filePath: impl.filePath,
-            filePathsByLanguage: { [impl.languageKey]: impl.filePaths },
-            languageKey: impl.languageKey,
-            parentAlgorithmPath: element.filePath,
-            isFlagged: impl.isFlagged,
-            hasIncludes: impl.hasIncludes,
-          }));
-
-          const representativePathSet = new Set(
-            implementations.map((implementation) => implementation.filePath)
-          );
-          const extraFilePaths = implementations
-            .flatMap((implementation) => implementation.filePaths)
-            .filter((filePath) => !representativePathSet.has(filePath))
-            .sort((leftPath, rightPath) => leftPath.localeCompare(rightPath));
-
-          const extraFileNodes = extraFilePaths.map((filePath) => ({
-            kind: "file" as const,
-            filePath,
-            languageKey: languages.normalizeFileExtension(filePath),
-            isFlagged: (() => {
-              const languageKey = languages.normalizeFileExtension(filePath);
-              if (languageKey === undefined) {
-                return false;
-              }
-              return implementationsByLanguage.get(languageKey)?.isFlagged === true;
-            })(),
-          }));
-
-          const fileRows = [...mainFileNodes, ...extraFileNodes];
-
-          if (filterMode === "problems") {
-            return fileRows.filter((row) => row.isFlagged === true);
-          }
-
-          return fileRows;
-        }
+      if (uri.fragment === URI_FRAGMENT_FLAGGED_ABSENT) {
+        return {
+          badge: "●",
+          color: new vscode.ThemeColor("testing.iconFailed"),
+          tooltip: "Language flagged in .flag-lang and not present in algorithm",
+        };
       }
 
-      // Category directory: return algorithm dirs
-      if (element !== undefined && element.kind === "directory") {
-        const algorithms = await algorithmsIndex.getAlgorithms(element.filePath);
-        const algorithmRows = algorithms.map((algo) => ({
-          kind: "algorithmDir" as const,
-          filePath: algo.path,
-        }));
-
-        if (filterMode === "problems") {
-          const problemRows: WorkspaceTreeNode[] = [];
-          for (const row of algorithmRows) {
-            if (await hasProblemRowsForAlgorithm(
-              algorithmsIndex,
-              languages,
-              row.filePath,
-              viewMode
-            )) {
-              problemRows.push(row);
-            }
-          }
-          return problemRows;
-        }
-
-        return algorithmRows;
+      if (uri.fragment === URI_FRAGMENT_ABSENT) {
+        return {
+          badge: "●",
+          color: new vscode.ThemeColor("testing.iconQueued"),
+          tooltip: "Language not present in algorithm",
+        };
       }
 
-      if (element !== undefined) {
-        return [];
-      }
-
-      // Root: return categories
-      const categories = await algorithmsIndex.getCategories();
-      const categoryRows = categories.map((category) => ({
-        kind: "directory" as const,
-        filePath: category.path,
-      }));
-
-      if (filterMode === "problems") {
-        const problemRows: WorkspaceTreeNode[] = [];
-        for (const row of categoryRows) {
-          const algorithms = await algorithmsIndex.getAlgorithms(row.filePath);
-          let hasProblems = false;
-
-          for (const algorithm of algorithms) {
-            if (await hasProblemRowsForAlgorithm(
-              algorithmsIndex,
-              languages,
-              algorithm.path,
-              viewMode
-            )) {
-              hasProblems = true;
-              break;
-            }
-          }
-
-          if (hasProblems) {
-            problemRows.push(row);
-          }
-        }
-
-        return problemRows;
-      }
-
-      return categoryRows;
-    },
-
-    getTreeItem(element: WorkspaceTreeNode): vscode.TreeItem {
-      let contextValue: string | undefined;
-
-      if (element.kind === "languageSummary" && element.languageKey) {
-        contextValue = element.hasOpenTarget === false
-          ? "algos.algorithmsLanguageSummaryAbsent"
-          : element.isFlagged === true
-            ? "algos.algorithmsLanguageSummaryFlagged"
-            : "algos.algorithmsLanguageSummaryUnflagged";
-      } else if (element.kind === "mainFile") {
-        contextValue = element.isFlagged === true
-          ? "algos.algorithmsMainFileFlagged"
-          : "algos.algorithmsMainFileUnflagged";
-      } else if (element.isIncludeFile) {
-        contextValue = "algos.algorithmsIncludeFile";
-      } else if (element.kind === "algorithmDir") {
-        contextValue = "algos.algorithmsSecondLevelDirectory";
-      } else if (element.kind === "directory") {
-        contextValue = "algos.algorithmsFirstLevelDirectory";
-      } else if (element.kind === "file") {
-        contextValue = element.isFlagged === true
-          ? "algos.algorithmFileFlagged"
-          : "algos.algorithmFileUnflagged";
-      }
-
-      const treeItem = createTreeItem(element, contextValue);
-
-      if (element.kind === "languageSummary" && element.languageKey) {
-        treeItem.label =
-          languages.getDisplayLabel(element.languageKey)
-          ?? element.languageKey;
-      }
-
-      return treeItem;
-    },
-
-    refresh(): void {
-      onDidChangeTreeDataEmitter.fire();
-    },
-  };
-}
-
-/**
- * Creates one standard-library tree data provider.
- *
- * @param {StandardLibraryTreeDataProviderDependencies} dependencies Provider dependencies.
- * @returns {vscode.TreeDataProvider<WorkspaceTreeNode>} Standard-library tree provider.
- */
-export function createWorkspaceStandardLibraryTreeDataProvider(
-  dependencies: StandardLibraryTreeDataProviderDependencies
-): RefreshableWorkspaceTreeDataProvider {
-  const { algorithmsIndex } = dependencies;
-  const onDidChangeTreeDataEmitter = new vscode.EventEmitter<
-    WorkspaceTreeNode | undefined | null | void
-  >();
-
-  return {
-    onDidChangeTreeData: onDidChangeTreeDataEmitter.event,
-
-    async getChildren(element?: WorkspaceTreeNode): Promise<WorkspaceTreeNode[]> {
-      const dirPath = element !== undefined
-        ? (element.kind === "directory" ? element.filePath : undefined)
-        : undefined;
-
-      if (element !== undefined && element.kind !== "directory") {
-        return [];
-      }
-
-      const entries = await algorithmsIndex.getStandardLibraryEntries(dirPath);
-      return entries.map((entry) => ({
-        kind: entry.kind === "directory" ? "directory" as const : "file" as const,
-        filePath: entry.path,
-      }));
-    },
-
-    getTreeItem(element: WorkspaceTreeNode): vscode.TreeItem {
-      if (element.kind === "directory") {
-        return createTreeItem(element, "algos.standardLibraryDirectory");
-      }
-
-      return createTreeItem(element, "algos.standardLibraryFile");
-    },
-
-    refresh(): void {
-      onDidChangeTreeDataEmitter.fire();
+      return undefined;
     },
   };
 }

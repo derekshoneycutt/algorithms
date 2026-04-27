@@ -121,4 +121,12 @@ export interface IExtensionCommands {
    * @returns {Promise<void>}
    */
   algorithmsUnflagLanguage: (treeNode?: WorkspaceTreeNode) => Promise<void>;
+
+  /**
+   * Runs one Algorithms source file from a hovered file/language row.
+   *
+   * @param {WorkspaceTreeNode} [treeNode] Hovered tree node.
+   * @returns {Promise<void>}
+   */
+  algorithmsRunFile: (treeNode?: WorkspaceTreeNode) => Promise<void>;
 }

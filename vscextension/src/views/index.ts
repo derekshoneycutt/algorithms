@@ -7,6 +7,7 @@ export { getWorkspaceStandardLibraryTreeViewId } from "./viewIds";
 export {
 	createWorkspaceAlgorithmsTreeDataProvider,
 	createWorkspaceStandardLibraryTreeDataProvider,
+	createLanguageStatusDecorationProvider,
 } from "./trees";
 export type {
 	RefreshableWorkspaceTreeDataProvider,
