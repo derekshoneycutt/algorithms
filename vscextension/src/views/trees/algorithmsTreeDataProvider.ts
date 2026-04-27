@@ -12,6 +12,7 @@ import {
   getChildrenLanguageOrMainFile,
 } from "./algorithmChildren";
 import { createTreeItem } from "./treeProviders";
+import type { IConductor } from "../../conductor";
 
 /**
  * Returns true when one tree node kind can project Run File status.
@@ -28,6 +29,47 @@ function isRunStatusNode(element: WorkspaceTreeNode): element is RunStatusNode {
     || element.kind === "mainFile"
     || element.kind === "languageSummary"
     || element.kind === "algorithmDir";
+}
+
+/**
+ * Resolves equivalent run-target kinds that may represent the same file row.
+ *
+ * @param {RunStatusNode["kind"]} kind Tree row kind.
+ * @returns {RunStatusNode["kind"][]} Equivalent lookup order.
+ */
+function getEquivalentRunTargetKinds(kind: RunStatusNode["kind"]): RunStatusNode["kind"][] {
+  if (kind === "algorithmDir") {
+    return [kind];
+  }
+
+  return [kind, "mainFile", "languageSummary", "file"];
+}
+
+/**
+ * Resolves one run snapshot for a tree row using equivalent target kinds.
+ *
+ * @param {IConductor} conductor Conductor dependency.
+ * @param {RunStatusNode} element Tree row.
+ * @returns {import("../../conductor").ConductorRunSnapshot | null} Snapshot if present.
+ */
+function getRunSnapshotForElement(
+  conductor: IConductor,
+  element: RunStatusNode
+): import("../../conductor").ConductorRunSnapshot | null {
+  const targetKinds = getEquivalentRunTargetKinds(element.kind);
+
+  for (const targetKind of targetKinds) {
+    const snapshot = conductor.getRunForTarget({
+      filePath: element.filePath,
+      nodeKind: targetKind,
+    });
+
+    if (snapshot !== null) {
+      return snapshot;
+    }
+  }
+
+  return null;
 }
 
 /**
@@ -267,10 +309,7 @@ export function createWorkspaceAlgorithmsTreeDataProvider(
     let resolvedElement = element;
 
     if (conductor !== undefined && isRunStatusNode(element)) {
-      const runSnapshot = conductor.getRunForTarget({
-        filePath: element.filePath,
-        nodeKind: element.kind,
-      });
+      const runSnapshot = getRunSnapshotForElement(conductor, element);
 
       if (runSnapshot !== null) {
         resolvedElement = {
