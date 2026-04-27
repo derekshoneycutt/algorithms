@@ -20,7 +20,9 @@ import {
   getAlgorithmsRunFileCommandId,
   getAlgorithmsEditorTitleRunFileCommandId,
   getAlgorithmsCompileOnlyCommandId,
-  getAlgorithmsCheckOnlyCommandId,
+  getAlgorithmsCheckOnlyNativeCommandId,
+  getAlgorithmsCheckOnlyDockerCommandId,
+  getAlgorithmsCheckOnlySshCommandId,
   getAlgorithmsCleanCommandId,
   getAlgorithmsLocalCleanCommandId,
   getAlgorithmsSmokeTestCommandId,
@@ -29,7 +31,9 @@ import {
   getAlgorithmsClearRunResultsCommandId,
     getExplorerRunFileCommandId,
     getExplorerCompileOnlyCommandId,
-    getExplorerCheckOnlyCommandId,
+    getExplorerCheckOnlyNativeCommandId,
+    getExplorerCheckOnlyDockerCommandId,
+    getExplorerCheckOnlySshCommandId,
     getExplorerCleanCommandId,
     getExplorerLocalCleanCommandId,
 } from "./commandIds";
@@ -117,8 +121,16 @@ export function registerCommands(
       commands.algorithmsCompileOnly
     ),
     vscode.commands.registerCommand(
-      getAlgorithmsCheckOnlyCommandId(),
-      commands.algorithmsCheckOnly
+      getAlgorithmsCheckOnlyNativeCommandId(),
+      commands.algorithmsCheckOnlyNative
+    ),
+    vscode.commands.registerCommand(
+      getAlgorithmsCheckOnlyDockerCommandId(),
+      commands.algorithmsCheckOnlyDocker
+    ),
+    vscode.commands.registerCommand(
+      getAlgorithmsCheckOnlySshCommandId(),
+      commands.algorithmsCheckOnlySsh
     ),
     vscode.commands.registerCommand(
       getAlgorithmsCleanCommandId(),
@@ -153,8 +165,16 @@ export function registerCommands(
         commands.explorerCompileOnly
       ),
       vscode.commands.registerCommand(
-        getExplorerCheckOnlyCommandId(),
-        commands.explorerCheckOnly
+        getExplorerCheckOnlyNativeCommandId(),
+        commands.explorerCheckOnlyNative
+      ),
+      vscode.commands.registerCommand(
+        getExplorerCheckOnlyDockerCommandId(),
+        commands.explorerCheckOnlyDocker
+      ),
+      vscode.commands.registerCommand(
+        getExplorerCheckOnlySshCommandId(),
+        commands.explorerCheckOnlySsh
       ),
       vscode.commands.registerCommand(
         getExplorerCleanCommandId(),

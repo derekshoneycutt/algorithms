@@ -14,7 +14,9 @@ import {
   getAlgorithmsUnflagLanguageCommandId,
   getAlgorithmsRunFileCommandId,
   getAlgorithmsCompileOnlyCommandId,
-  getAlgorithmsCheckOnlyCommandId,
+  getAlgorithmsCheckOnlyNativeCommandId,
+  getAlgorithmsCheckOnlyDockerCommandId,
+  getAlgorithmsCheckOnlySshCommandId,
   getAlgorithmsCleanCommandId,
   getAlgorithmsLocalCleanCommandId,
   getAlgorithmsSmokeTestCommandId,
@@ -164,8 +166,16 @@ describe("bootstrap extension", () => {
       "algorithms compile-only command should be registered"
     );
     assert.ok(
-      availableCommands.includes(getAlgorithmsCheckOnlyCommandId()),
-      "algorithms check-only command should be registered"
+      availableCommands.includes(getAlgorithmsCheckOnlyNativeCommandId()),
+      "algorithms check-only-native command should be registered"
+    );
+    assert.ok(
+      availableCommands.includes(getAlgorithmsCheckOnlyDockerCommandId()),
+      "algorithms check-only-docker command should be registered"
+    );
+    assert.ok(
+      availableCommands.includes(getAlgorithmsCheckOnlySshCommandId()),
+      "algorithms check-only-ssh command should be registered"
     );
     assert.ok(
       availableCommands.includes(getAlgorithmsCleanCommandId()),

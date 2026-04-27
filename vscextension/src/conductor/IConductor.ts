@@ -229,6 +229,7 @@ export interface ConductorWorkspaceRootsChangeInput {
  */
 export interface ConductorRunFileInput {
   actionKind?: ConductorRunActionKind;
+  checkOnlyRouteOverride?: "native" | "docker" | "ssh";
   filesystem: IFilesystem;
   hostState: IStateMachine;
   languages: ILanguages;

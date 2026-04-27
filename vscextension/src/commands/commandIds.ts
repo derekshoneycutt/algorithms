@@ -161,12 +161,30 @@ export function getAlgorithmsCompileOnlyCommandId(): string {
 }
 
 /**
- * Command identifier for check-only execution from the tree.
+ * Command identifier for check-only native execution from the tree.
  *
  * @returns {string} Command identifier.
  */
-export function getAlgorithmsCheckOnlyCommandId(): string {
-  return "algos.algorithmsCheckOnly";
+export function getAlgorithmsCheckOnlyNativeCommandId(): string {
+  return "algos.algorithmsCheckOnlyNative";
+}
+
+/**
+ * Command identifier for check-only docker execution from the tree.
+ *
+ * @returns {string} Command identifier.
+ */
+export function getAlgorithmsCheckOnlyDockerCommandId(): string {
+  return "algos.algorithmsCheckOnlyDocker";
+}
+
+/**
+ * Command identifier for check-only ssh execution from the tree.
+ *
+ * @returns {string} Command identifier.
+ */
+export function getAlgorithmsCheckOnlySshCommandId(): string {
+  return "algos.algorithmsCheckOnlySsh";
 }
 
 /**
@@ -242,12 +260,30 @@ export function getExplorerCompileOnlyCommandId(): string {
 }
 
 /**
- * Command identifier for check-only execution from the Explorer context menu.
+ * Command identifier for check-only native execution from the Explorer context menu.
  *
  * @returns {string} Command identifier.
  */
-export function getExplorerCheckOnlyCommandId(): string {
-  return "algos.explorerCheckOnly";
+export function getExplorerCheckOnlyNativeCommandId(): string {
+  return "algos.explorerCheckOnlyNative";
+}
+
+/**
+ * Command identifier for check-only docker execution from the Explorer context menu.
+ *
+ * @returns {string} Command identifier.
+ */
+export function getExplorerCheckOnlyDockerCommandId(): string {
+  return "algos.explorerCheckOnlyDocker";
+}
+
+/**
+ * Command identifier for check-only ssh execution from the Explorer context menu.
+ *
+ * @returns {string} Command identifier.
+ */
+export function getExplorerCheckOnlySshCommandId(): string {
+  return "algos.explorerCheckOnlySsh";
 }
 
 /**

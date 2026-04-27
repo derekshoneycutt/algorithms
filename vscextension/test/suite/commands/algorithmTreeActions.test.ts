@@ -3,7 +3,7 @@ import * as assert from "node:assert";
 import {
   createAlgorithmsRunFileCommand,
   createAlgorithmsCompileOnlyCommand,
-  createAlgorithmsCheckOnlyCommand,
+  createAlgorithmsCheckOnlyNativeCommand,
   createAlgorithmsCleanCommand,
   createAlgorithmsLocalCleanCommand,
   createAlgorithmsSmokeTestCommand,
@@ -201,6 +201,9 @@ describe("commands/algorithmTreeActions — run-file integration", () => {
       async runFile(input: ConductorRunFileInput): Promise<void> {
         runInputs.push(input);
       },
+      async runAlgorithmFile(): Promise<void> {
+        return;
+      },
       getRunForTarget() {
         return null;
       },
@@ -343,6 +346,9 @@ describe("commands/algorithmTreeActions — run-file integration", () => {
       async runFile(input: ConductorRunFileInput): Promise<void> {
         runInputs.push(input);
       },
+      async runAlgorithmFile(): Promise<void> {
+        return;
+      },
       getRunForTarget() {
         return null;
       },
@@ -417,7 +423,7 @@ describe("commands/algorithmTreeActions — run-file integration", () => {
     };
 
     await createAlgorithmsCompileOnlyCommand(dependencies)(treeNode);
-    await createAlgorithmsCheckOnlyCommand(dependencies)(treeNode);
+    await createAlgorithmsCheckOnlyNativeCommand(dependencies)(treeNode);
     await createAlgorithmsCleanCommand(dependencies)(treeNode);
     await createAlgorithmsLocalCleanCommand(dependencies)(treeNode);
     await createAlgorithmsSmokeTestCommand(dependencies)({
@@ -446,6 +452,9 @@ describe("commands/algorithmTreeActions — run-file integration", () => {
         throw new Error("not used");
       },
       async runFile(): Promise<void> {
+        throw new Error("not used");
+      },
+      async runAlgorithmFile(): Promise<void> {
         throw new Error("not used");
       },
       async stopSmokeTest(input): Promise<boolean> {

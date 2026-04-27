@@ -29,6 +29,8 @@ export interface AlgorithmTreeActionDependencies {
   refreshAlgorithmsTree: () => void;
 }
 
+type CheckOnlyRoute = "native" | "docker" | "ssh";
+
 /**
  * Returns currently opened workspace folder paths.
  *
@@ -858,15 +860,53 @@ export function createAlgorithmsCompileOnlyCommand(
 }
 
 /**
- * Creates one command to check-only the hovered Algorithms target.
+ * Creates one command to check-only the hovered Algorithms target for one route.
+ *
+ * @param {AlgorithmTreeActionDependencies} dependencies Action dependencies.
+ * @param {CheckOnlyRoute} route Requested check-only route.
+ * @returns {(treeNode?: WorkspaceTreeNode) => Promise<void>} Command handler.
+ */
+export function createAlgorithmsCheckOnlyCommand(
+  dependencies: AlgorithmTreeActionDependencies,
+  route: CheckOnlyRoute
+): (treeNode?: WorkspaceTreeNode) => Promise<void> {
+  return createAlgorithmsRunCommandForAction(dependencies, "check-only", route);
+}
+
+/**
+ * Creates one command to check-only (native route) the hovered Algorithms target.
  *
  * @param {AlgorithmTreeActionDependencies} dependencies Action dependencies.
  * @returns {(treeNode?: WorkspaceTreeNode) => Promise<void>} Command handler.
  */
-export function createAlgorithmsCheckOnlyCommand(
+export function createAlgorithmsCheckOnlyNativeCommand(
   dependencies: AlgorithmTreeActionDependencies
 ): (treeNode?: WorkspaceTreeNode) => Promise<void> {
-  return createAlgorithmsRunCommandForAction(dependencies, "check-only");
+  return createAlgorithmsCheckOnlyCommand(dependencies, "native");
+}
+
+/**
+ * Creates one command to check-only (docker route) the hovered Algorithms target.
+ *
+ * @param {AlgorithmTreeActionDependencies} dependencies Action dependencies.
+ * @returns {(treeNode?: WorkspaceTreeNode) => Promise<void>} Command handler.
+ */
+export function createAlgorithmsCheckOnlyDockerCommand(
+  dependencies: AlgorithmTreeActionDependencies
+): (treeNode?: WorkspaceTreeNode) => Promise<void> {
+  return createAlgorithmsCheckOnlyCommand(dependencies, "docker");
+}
+
+/**
+ * Creates one command to check-only (ssh route) the hovered Algorithms target.
+ *
+ * @param {AlgorithmTreeActionDependencies} dependencies Action dependencies.
+ * @returns {(treeNode?: WorkspaceTreeNode) => Promise<void>} Command handler.
+ */
+export function createAlgorithmsCheckOnlySshCommand(
+  dependencies: AlgorithmTreeActionDependencies
+): (treeNode?: WorkspaceTreeNode) => Promise<void> {
+  return createAlgorithmsCheckOnlyCommand(dependencies, "ssh");
 }
 
 /**
@@ -1030,7 +1070,8 @@ export function createAlgorithmsClearRunResultsCommand(
  */
 function createAlgorithmsRunCommandForAction(
   dependencies: AlgorithmTreeActionDependencies,
-  actionKind: ConductorRunActionKind
+  actionKind: ConductorRunActionKind,
+  checkOnlyRouteOverride?: CheckOnlyRoute
 ): (treeNode?: WorkspaceTreeNode) => Promise<void> {
   return async (treeNode?: WorkspaceTreeNode): Promise<void> => {
     if (dependencies.conductor === undefined) {
@@ -1053,6 +1094,7 @@ function createAlgorithmsRunCommandForAction(
 
     await dependencies.conductor.runFile({
       actionKind,
+      checkOnlyRouteOverride,
       filesystem: dependencies.filesystem,
       hostState: dependencies.hostState,
       languages: dependencies.languages,

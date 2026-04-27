@@ -149,12 +149,28 @@ export interface IExtensionCommands {
   algorithmsCompileOnly: (treeNode?: WorkspaceTreeNode) => Promise<void>;
 
   /**
-   * Performs one check-only pass for the hovered Algorithms target.
+   * Performs one check-only (native route) pass for the hovered Algorithms target.
    *
    * @param {WorkspaceTreeNode} [treeNode] Hovered tree node.
    * @returns {Promise<void>}
    */
-  algorithmsCheckOnly: (treeNode?: WorkspaceTreeNode) => Promise<void>;
+  algorithmsCheckOnlyNative: (treeNode?: WorkspaceTreeNode) => Promise<void>;
+
+  /**
+   * Performs one check-only (docker route) pass for the hovered Algorithms target.
+   *
+   * @param {WorkspaceTreeNode} [treeNode] Hovered tree node.
+   * @returns {Promise<void>}
+   */
+  algorithmsCheckOnlyDocker: (treeNode?: WorkspaceTreeNode) => Promise<void>;
+
+  /**
+   * Performs one check-only (ssh route) pass for the hovered Algorithms target.
+   *
+   * @param {WorkspaceTreeNode} [treeNode] Hovered tree node.
+   * @returns {Promise<void>}
+   */
+  algorithmsCheckOnlySsh: (treeNode?: WorkspaceTreeNode) => Promise<void>;
 
   /**
    * Cleans run output plus optional stdlib/archive artifacts.
@@ -221,12 +237,28 @@ export interface IExtensionCommands {
     explorerCompileOnly: (clickedUri?: Uri) => Promise<void>;
 
     /**
-     * Check-only execution from the Explorer context menu.
+     * Check-only (native route) execution from the Explorer context menu.
      *
      * @param {Uri} [clickedUri] Clicked file URI from Explorer.
      * @returns {Promise<void>}
      */
-    explorerCheckOnly: (clickedUri?: Uri) => Promise<void>;
+    explorerCheckOnlyNative: (clickedUri?: Uri) => Promise<void>;
+
+    /**
+     * Check-only (docker route) execution from the Explorer context menu.
+     *
+     * @param {Uri} [clickedUri] Clicked file URI from Explorer.
+     * @returns {Promise<void>}
+     */
+    explorerCheckOnlyDocker: (clickedUri?: Uri) => Promise<void>;
+
+    /**
+     * Check-only (ssh route) execution from the Explorer context menu.
+     *
+     * @param {Uri} [clickedUri] Clicked file URI from Explorer.
+     * @returns {Promise<void>}
+     */
+    explorerCheckOnlySsh: (clickedUri?: Uri) => Promise<void>;
 
     /**
      * Full clean execution from the Explorer context menu.

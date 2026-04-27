@@ -246,7 +246,8 @@ function buildCleanDefaultsOptionToken(runControls: RunControlsSettings): string
  */
 function buildRunControlOptionTokens(
   runControls: RunControlsSettings,
-  actionKind: ConductorRunActionKind
+  actionKind: ConductorRunActionKind,
+  checkOnlyRouteOverride?: "native" | "docker" | "ssh"
 ): string[] {
   const optionTokens: string[] = [];
 
@@ -257,7 +258,7 @@ function buildRunControlOptionTokens(
   if (actionKind === "compile-only") {
     optionTokens.push("--compile-only");
   } else if (actionKind === "check-only") {
-    optionTokens.push(`--check-only=${runControls.runChecksRoute}`);
+    optionTokens.push(`--check-only=${checkOnlyRouteOverride ?? runControls.runChecksRoute}`);
   } else if (actionKind === "clean") {
     optionTokens.push(buildCleanDefaultsOptionToken(runControls));
   } else if (runControls.runChecksMode === "compile-only") {
@@ -516,7 +517,7 @@ export async function orchestrateRunFile(
 
   const runControlOptionTokens = actionKind === "smoke-test"
     ? smokeTestOptions.tokens
-    : buildRunControlOptionTokens(runControls, actionKind);
+    : buildRunControlOptionTokens(runControls, actionKind, input.checkOnlyRouteOverride);
   const runControlPassthrough = actionSupportsPassthroughArguments(actionKind)
     ? buildRunControlPassthroughTokens(runControls)
     : { ok: true, tokens: [], reason: null };

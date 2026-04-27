@@ -19,6 +19,8 @@ export interface ExplorerRunCommandDependencies {
   refreshAlgorithmsTree: () => void;
 }
 
+type CheckOnlyRoute = "native" | "docker" | "ssh";
+
 /**
  * Returns currently opened workspace folder paths.
  *
@@ -39,7 +41,8 @@ function getWorkspaceFolderPaths(): readonly string[] {
  */
 function createExplorerRunCommandForAction(
   dependencies: ExplorerRunCommandDependencies,
-  actionKind: ConductorRunActionKind
+  actionKind: ConductorRunActionKind,
+  checkOnlyRouteOverride?: CheckOnlyRoute
 ): (clickedUri?: vscode.Uri) => Promise<void> {
   return async (clickedUri?: vscode.Uri): Promise<void> => {
     if (clickedUri === undefined || clickedUri.fsPath.trim().length === 0) {
@@ -57,6 +60,7 @@ function createExplorerRunCommandForAction(
     // Convert URI to a tree node-like object for conductor.runFile()
     await dependencies.conductor.runFile({
       actionKind,
+      checkOnlyRouteOverride,
       filesystem: dependencies.filesystem,
       hostState: dependencies.hostState,
       languages: dependencies.languages,
@@ -82,14 +86,18 @@ export function createAlgorithmsExplorerRunCommands(
 ): {
   runFile: (clickedUri?: vscode.Uri) => Promise<void>;
   compileOnly: (clickedUri?: vscode.Uri) => Promise<void>;
-  checkOnly: (clickedUri?: vscode.Uri) => Promise<void>;
+  checkOnlyNative: (clickedUri?: vscode.Uri) => Promise<void>;
+  checkOnlyDocker: (clickedUri?: vscode.Uri) => Promise<void>;
+  checkOnlySsh: (clickedUri?: vscode.Uri) => Promise<void>;
   clean: (clickedUri?: vscode.Uri) => Promise<void>;
   localClean: (clickedUri?: vscode.Uri) => Promise<void>;
 } {
   return {
     runFile: createExplorerRunCommandForAction(dependencies, "run-file"),
     compileOnly: createExplorerRunCommandForAction(dependencies, "compile-only"),
-    checkOnly: createExplorerRunCommandForAction(dependencies, "check-only"),
+    checkOnlyNative: createExplorerRunCommandForAction(dependencies, "check-only", "native"),
+    checkOnlyDocker: createExplorerRunCommandForAction(dependencies, "check-only", "docker"),
+    checkOnlySsh: createExplorerRunCommandForAction(dependencies, "check-only", "ssh"),
     clean: createExplorerRunCommandForAction(dependencies, "clean"),
     localClean: createExplorerRunCommandForAction(dependencies, "localclean"),
   };
