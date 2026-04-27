@@ -42,6 +42,30 @@ It focuses on quality, readability, and consistency across TypeScript, Markdown,
 4. Keep normalization logic isolated to a single maintainable location.
 5. Apply existing normalization rules consistently where relevant: whitespace-to-space conversion, collapse repeated spaces, trim ends.
 
+## 3.1 Tree-Action Pattern Conventions
+
+Tree-based file actions (create, delete) follow a strict ownership boundary:
+
+1. **View layer (tree providers in `src/views/trees/`):**
+   - Assigns context values to tree items based on item properties (node depth, type).
+   - Context value names follow pattern: `algos.<featureName><depthOrType>` (e.g., `algos.algorithmsFirstLevelDirectory`).
+   - Does not implement or invoke file-system operations.
+   - Does not decide whether an action is available; that decision is delegated to `when` clauses in `package.json` menus.
+   - Exposes a `refresh()` method on tree providers to allow commands to request refresh after mutations.
+
+2. **Command layer (`src/commands/`):**
+   - Implements file-action handlers (create file, create folder, delete).
+   - Each handler receives an optional `WorkspaceTreeNode` parameter to determine action target context.
+   - Handlers resolve canonical root paths, validate target paths (non-empty, relative, within-root bounds), and invoke filesystem operations.
+   - Delete handlers always show a confirmation modal before attempting deletion; use `vscode.workspace.fs.delete` with `useTrash: true` first, then fall back to `filesystem.deletePath` if trash is unavailable.
+   - Exposes command ID getter functions in `src/commands/commandIds.ts` for stable ID mapping.
+   - Does not assign context values or modify tree item metadata; only filesystem operations and notifications.
+
+3. **Menu contributions (`package.json`):**
+   - Commands are contributed with icon artifacts and stable IDs.
+   - Menu `when` clauses use `view == <viewId> && viewItem == <contextValue>` pattern to gate action visibility.
+   - Context values from tree items enable precise action targeting (e.g., first-level directories show only specific actions).
+
 ## 4. Test Code Standards
 
 1. Prefer deterministic test setup and assertions.

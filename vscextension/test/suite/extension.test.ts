@@ -6,6 +6,10 @@ import {
   getStandardLibraryCreateFileCommandId,
   getStandardLibraryCreateFolderCommandId,
   getStandardLibraryDeleteCommandId,
+  getAlgorithmsCreateFolderAtRootCommandId,
+  getAlgorithmsCreateFolderCommandId,
+  getAlgorithmsCreateFileCommandId,
+  getAlgorithmsDeleteCommandId,
 } from "../../src/commands/commandIds";
 
 describe("bootstrap extension", () => {
@@ -91,6 +95,27 @@ describe("bootstrap extension", () => {
     assert.ok(
       availableCommands.includes(getStandardLibraryDeleteCommandId()),
       "standard-library delete command should be registered"
+    );
+  });
+
+  it("registers algorithms tree action commands", async () => {
+    const availableCommands = await vscode.commands.getCommands(true);
+
+    assert.ok(
+      availableCommands.includes(getAlgorithmsCreateFolderAtRootCommandId()),
+      "algorithms create-folder-at-root command should be registered"
+    );
+    assert.ok(
+      availableCommands.includes(getAlgorithmsCreateFolderCommandId()),
+      "algorithms create-folder command should be registered"
+    );
+    assert.ok(
+      availableCommands.includes(getAlgorithmsCreateFileCommandId()),
+      "algorithms create-file command should be registered"
+    );
+    assert.ok(
+      availableCommands.includes(getAlgorithmsDeleteCommandId()),
+      "algorithms delete command should be registered"
     );
   });
 });

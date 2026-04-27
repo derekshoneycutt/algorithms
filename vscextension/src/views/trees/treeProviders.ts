@@ -253,6 +253,40 @@ export async function resolveStandardLibraryTreeRootPath(
 }
 
 /**
+ * Resolves a context value for an Algorithms tree element based on its depth relative to tree root.
+ *
+ * Rules:
+ * 1. First-level directory (e.g., src/numeric): "algos.algorithmsFirstLevelDirectory"
+ * 2. Second-level directory (e.g., src/numeric/euclidgcd): "algos.algorithmsSecondLevelDirectory"
+ * 3. File at any level: "algos.algorithmFile"
+ *
+ * @param {WorkspaceTreeNode} element Tree element.
+ * @param {string} treeRootPath Canonical algorithms tree root path (e.g., src/).
+ * @returns {string | undefined} Context value for the element or undefined for no context assignment.
+ */
+function resolveAlgorithmsElementContextValue(
+  element: WorkspaceTreeNode,
+  treeRootPath: string
+): string | undefined {
+  if (element.kind === "file") {
+    return "algos.algorithmFile";
+  }
+
+  const relativePath = path.relative(treeRootPath, element.filePath);
+  const depthSegments = relativePath.split(path.sep).filter((segment) => segment.length > 0);
+
+  if (depthSegments.length === 1) {
+    return "algos.algorithmsFirstLevelDirectory";
+  }
+
+  if (depthSegments.length === 2) {
+    return "algos.algorithmsSecondLevelDirectory";
+  }
+
+  return undefined;
+}
+
+/**
  * Returns true when one file is mapped to a supported language key.
  *
  * @param {ILanguages} languages Languages dependency.
@@ -417,6 +451,7 @@ export function createWorkspaceAlgorithmsTreeDataProvider(
   const onDidChangeTreeDataEmitter = new vscode.EventEmitter<
     WorkspaceTreeNode | undefined | null | void
   >();
+  let cachedTreeRootPath: string | null | undefined = undefined;
 
   return {
     onDidChangeTreeData: onDidChangeTreeDataEmitter.event,
@@ -433,23 +468,30 @@ export function createWorkspaceAlgorithmsTreeDataProvider(
         });
       }
 
-      const workspaceRootPath = await resolveAlgorithmsTreeRootPath({
-        filesystem,
-        workspaceFolderPaths: getWorkspaceFolderPaths(dependencies.workspaceFolderPaths),
-      });
+      if (cachedTreeRootPath === undefined) {
+        cachedTreeRootPath = await resolveAlgorithmsTreeRootPath({
+          filesystem,
+          workspaceFolderPaths: getWorkspaceFolderPaths(dependencies.workspaceFolderPaths),
+        });
+      }
 
-      if (workspaceRootPath === null) {
+      if (cachedTreeRootPath === null) {
         return [];
       }
 
-      return await readRestrictedDirectoryChildren(workspaceRootPath, {
+      return await readRestrictedDirectoryChildren(cachedTreeRootPath, {
         filesystem,
         languages,
       });
     },
 
     getTreeItem(element: WorkspaceTreeNode): vscode.TreeItem {
-      return createTreeItem(element);
+      if (cachedTreeRootPath === null || cachedTreeRootPath === undefined) {
+        return createTreeItem(element);
+      }
+
+      const contextValue = resolveAlgorithmsElementContextValue(element, cachedTreeRootPath);
+      return createTreeItem(element, contextValue);
     },
 
     refresh(): void {

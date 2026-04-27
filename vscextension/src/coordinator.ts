@@ -4,6 +4,10 @@ import {
   createStandardLibraryCreateFileCommand,
   createStandardLibraryCreateFolderCommand,
   createStandardLibraryDeleteCommand,
+  createAlgorithmsCreateFolderAtRootCommand,
+  createAlgorithmsCreateFolderCommand,
+  createAlgorithmsCreateFileCommand,
+  createAlgorithmsDeleteCommand,
   createShowBootstrapStatusCommand,
   registerCommands,
 } from "./commands";
@@ -165,6 +169,26 @@ export function createCoordinator(
       filesystem,
       notificationRouter,
       refreshStandardLibraryTree: workspaceStandardLibraryTreeProvider.refresh,
+    }),
+    algorithmsCreateFolderAtRoot: createAlgorithmsCreateFolderAtRootCommand({
+      filesystem,
+      notificationRouter,
+      refreshAlgorithmsTree: workspaceAlgorithmsTreeProvider.refresh,
+    }),
+    algorithmsCreateFolder: createAlgorithmsCreateFolderCommand({
+      filesystem,
+      notificationRouter,
+      refreshAlgorithmsTree: workspaceAlgorithmsTreeProvider.refresh,
+    }),
+    algorithmsCreateFile: createAlgorithmsCreateFileCommand({
+      filesystem,
+      notificationRouter,
+      refreshAlgorithmsTree: workspaceAlgorithmsTreeProvider.refresh,
+    }),
+    algorithmsDelete: createAlgorithmsDeleteCommand({
+      filesystem,
+      notificationRouter,
+      refreshAlgorithmsTree: workspaceAlgorithmsTreeProvider.refresh,
     }),
   };
 

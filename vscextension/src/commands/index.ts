@@ -4,6 +4,10 @@ export {
 	getStandardLibraryCreateFileCommandId,
 	getStandardLibraryCreateFolderCommandId,
 	getStandardLibraryDeleteCommandId,
+	getAlgorithmsCreateFolderAtRootCommandId,
+	getAlgorithmsCreateFolderCommandId,
+	getAlgorithmsCreateFileCommandId,
+	getAlgorithmsDeleteCommandId,
 } from "./commandIds";
 export { registerCommands } from "./registerCommands";
 export { createShowBootstrapStatusCommand } from "./showBootstrapStatus";
@@ -12,3 +16,9 @@ export {
 	createStandardLibraryCreateFolderCommand,
 	createStandardLibraryDeleteCommand,
 } from "./standardLibraryTreeActions";
+export {
+	createAlgorithmsCreateFolderAtRootCommand,
+	createAlgorithmsCreateFolderCommand,
+	createAlgorithmsCreateFileCommand,
+	createAlgorithmsDeleteCommand,
+} from "./algorithmTreeActions";

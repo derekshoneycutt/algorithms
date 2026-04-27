@@ -7,6 +7,7 @@ import { createFilesystem } from "../../../../src/filesystem";
 import type { ILanguages } from "../../../../src/languages";
 import {
   createWorkspaceStandardLibraryTreeDataProvider,
+  createWorkspaceAlgorithmsTreeDataProvider,
   readRestrictedDirectoryChildren,
   resolveAlgorithmsTreeRootPath,
   resolveStandardLibraryTreeRootPath,
@@ -202,3 +203,66 @@ describe("views/trees — standard-library item context values", () => {
     }
   });
 });
+
+describe("views/trees — algorithms item context values", () => {
+  it("sets depth-aware context values for algorithms tree menu targeting", async () => {
+    const workspaceRootPath = await createTempDirectory();
+    const filesystem = createFilesystem();
+    const languages = createLanguageStub();
+
+    try {
+      const srcPath = path.join(workspaceRootPath, "src");
+      const firstLevelDirPath = path.join(srcPath, "numeric");
+      const secondLevelDirPath = path.join(firstLevelDirPath, "euclidgcd");
+      const filePath = path.join(secondLevelDirPath, "solution.py");
+
+      await fs.mkdir(secondLevelDirPath, { recursive: true });
+      await fs.writeFile(filePath, "# solution\n");
+
+      const provider = createWorkspaceAlgorithmsTreeDataProvider({
+        filesystem,
+        languages,
+        workspaceFolderPaths: [workspaceRootPath],
+      });
+
+      const rootChildren = (await provider.getChildren()) ?? [];
+      const firstLevelDir = rootChildren.find((node) => {
+        return node.kind === "directory" && path.basename(node.filePath) === "numeric";
+      });
+
+      assert.ok(firstLevelDir, "expected first-level directory");
+
+      const firstLevelTreeItem = await provider.getTreeItem(firstLevelDir);
+      assert.strictEqual(
+        firstLevelTreeItem.contextValue,
+        "algos.algorithmsFirstLevelDirectory"
+      );
+
+      const secondLevelChildren = (await provider.getChildren(firstLevelDir)) ?? [];
+      const secondLevelDir = secondLevelChildren.find((node) => {
+        return node.kind === "directory";
+      });
+
+      assert.ok(secondLevelDir, "expected second-level directory");
+
+      const secondLevelTreeItem = await provider.getTreeItem(secondLevelDir);
+      assert.strictEqual(
+        secondLevelTreeItem.contextValue,
+        "algos.algorithmsSecondLevelDirectory"
+      );
+
+      const fileChildren = (await provider.getChildren(secondLevelDir)) ?? [];
+      const fileNode = fileChildren.find((node) => {
+        return node.kind === "file";
+      });
+
+      assert.ok(fileNode, "expected file node");
+
+      const fileTreeItem = await provider.getTreeItem(fileNode);
+      assert.strictEqual(fileTreeItem.contextValue, "algos.algorithmFile");
+    } finally {
+      await fs.rm(workspaceRootPath, { recursive: true, force: true });
+    }
+  });
+});
+

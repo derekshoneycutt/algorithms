@@ -38,4 +38,35 @@ export interface IExtensionCommands {
    * @returns {Promise<void>}
    */
   standardLibraryDelete: (treeNode?: WorkspaceTreeNode) => Promise<void>;
+
+  /**
+   * Creates one Algorithms folder at the src root.
+   *
+   * @returns {Promise<void>}
+   */
+  algorithmsCreateFolderAtRoot: () => Promise<void>;
+
+  /**
+   * Creates one Algorithms folder inside the selected first-level directory.
+   *
+   * @param {WorkspaceTreeNode} [treeNode] Hovered tree node.
+   * @returns {Promise<void>}
+   */
+  algorithmsCreateFolder: (treeNode?: WorkspaceTreeNode) => Promise<void>;
+
+  /**
+   * Creates one Algorithms file inside the selected second-level directory.
+   *
+   * @param {WorkspaceTreeNode} [treeNode] Hovered tree node.
+   * @returns {Promise<void>}
+   */
+  algorithmsCreateFile: (treeNode?: WorkspaceTreeNode) => Promise<void>;
+
+  /**
+   * Deletes one Algorithms tree item.
+   *
+   * @param {WorkspaceTreeNode} [treeNode] Hovered tree node.
+   * @returns {Promise<void>}
+   */
+  algorithmsDelete: (treeNode?: WorkspaceTreeNode) => Promise<void>;
 }

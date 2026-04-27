@@ -88,6 +88,30 @@
         "title": "Delete",
         "category": "Derek's Algorithms",
         "icon": "$(trash)"
+      },
+      {
+        "command": "algos.algorithmsCreateFolderAtRoot",
+        "title": "Create Folder",
+        "category": "Derek's Algorithms",
+        "icon": "$(new-folder)"
+      },
+      {
+        "command": "algos.algorithmsCreateFolder",
+        "title": "Create Folder",
+        "category": "Derek's Algorithms",
+        "icon": "$(new-folder)"
+      },
+      {
+        "command": "algos.algorithmsCreateFile",
+        "title": "Create File",
+        "category": "Derek's Algorithms",
+        "icon": "$(new-file)"
+      },
+      {
+        "command": "algos.algorithmsDelete",
+        "title": "Delete",
+        "category": "Derek's Algorithms",
+        "icon": "$(trash)"
       }
     ],
     "menus": {
@@ -101,6 +125,11 @@
           "command": "algos.standardLibraryCreateFolder",
           "when": "view == algos.workspaceStandardLibraryTreeView",
           "group": "navigation@20"
+        },
+        {
+          "command": "algos.algorithmsCreateFolderAtRoot",
+          "when": "view == algos.workspaceAlgorithmsTreeView",
+          "group": "navigation@10"
         }
       ],
       "view/item/context": [
@@ -122,6 +151,31 @@
         {
           "command": "algos.standardLibraryDelete",
           "when": "view == algos.workspaceStandardLibraryTreeView && viewItem == algos.standardLibraryFile",
+          "group": "inline@10"
+        },
+        {
+          "command": "algos.algorithmsCreateFolder",
+          "when": "view == algos.workspaceAlgorithmsTreeView && viewItem == algos.algorithmsFirstLevelDirectory",
+          "group": "inline@10"
+        },
+        {
+          "command": "algos.algorithmsDelete",
+          "when": "view == algos.workspaceAlgorithmsTreeView && viewItem == algos.algorithmsFirstLevelDirectory",
+          "group": "inline@20"
+        },
+        {
+          "command": "algos.algorithmsCreateFile",
+          "when": "view == algos.workspaceAlgorithmsTreeView && viewItem == algos.algorithmsSecondLevelDirectory",
+          "group": "inline@10"
+        },
+        {
+          "command": "algos.algorithmsDelete",
+          "when": "view == algos.workspaceAlgorithmsTreeView && viewItem == algos.algorithmsSecondLevelDirectory",
+          "group": "inline@20"
+        },
+        {
+          "command": "algos.algorithmsDelete",
+          "when": "view == algos.workspaceAlgorithmsTreeView && viewItem == algos.algorithmFile",
           "group": "inline@10"
         }
       ]

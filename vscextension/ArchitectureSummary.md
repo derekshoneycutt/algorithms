@@ -74,7 +74,7 @@ Modules: `commands`, `conductor`, `languages`, `state`.
 
 Purpose: adapt domain behavior to runtime concerns.
 
-Responsibilities: typed transport adaptation, view lifecycle integration, filesystem/process boundaries, and notification routing.
+Responsibilities: typed transport adaptation, view lifecycle integration, filesystem/process boundaries, notification routing, and view classification for command dispatch.
 
 Modules: `comms`, `views`, `notifications`, `filesystem`, `commandline`.
 
@@ -106,7 +106,7 @@ Surfaces: `src/views/media/shared/`, `test/`.
 | `languages` | Canonical language catalog and lookup behavior | `src/languages/`, generated data adaptation, language lookup/normalization, smoke selection rules | Command execution ownership, transport ownership, UI rendering ownership | `ILanguages` |
 | `notifications` | Host notification policy and routing | `src/notifications/`, notification adaptation and routing | Product domain decisions | `INotificationRouter` |
 | `state` | Canonical host state | `src/state/`, XState machine/actor lifecycle and snapshot selectors | Asset I/O, transport ownership, UI rendering ownership | `IStateMachine` |
-| `views` | Webview provider, tree provider, template, and frontend runtime | `src/views/`, `src/views/media/`, `src/views/trees/` | Canonical workflow state, orchestration policy | `IViewHost` |
+| `views` | Webview provider, tree provider, template, and frontend runtime | `src/views/`, `src/views/media/`, `src/views/trees/` | Canonical workflow state, orchestration policy, filesystem I/O presentation & triggering | `IViewHost` |
 | `coordinator` | Composition root | `src/coordinator.ts` | Deep domain logic | Composition wiring and concrete construction |
 
 ## 6. Runtime Flow
@@ -141,7 +141,7 @@ These internals are intentionally layered. Each row documents one layer's respon
 | `views` | Shared frontend base | `src/views/media/shared/` | Shared webview runtime, typed frontend comms facade, and Lit UI support. | No host policy ownership or canonical host state ownership. |
 | `views` | Smoke Controls panel | `src/views/media/smokeControls/` | Smoke panel bridge and UI rendering. | No canonical host state ownership or cross-panel policy ownership. |
 | `views` | Run Controls panel | `src/views/media/runControls/` | Run panel bridge and UI rendering. | No canonical host state ownership or cross-panel policy ownership. |
-| `views` | Tree providers | `src/views/trees/` | Algorithms and standard-library tree data providers and restricted file shaping. | No canonical host state ownership or cross-panel policy ownership. |
+| `views` | Tree providers | `src/views/trees/` | Algorithms and standard-library tree data providers, restricted file shaping, and context value assignment for command dispatch. | No canonical host state ownership or cross-panel policy ownership. Context values are derived from tree item properties (depth, type) and keyed to enable menu-driven command routing via `when` clauses. |
 | `conductor` | Orchestration service | `src/conductor/service.ts` | Own intent reactions, effect application, and host-side channel handling. | No direct transport implementation ownership. |
 | `comms` | Shared protocol | `src/comms/shared/` | Define transport-agnostic message contracts and guards. | No host/frontend runtime side effects. |
 | `comms` | Transport hub | `src/comms/communicationHub.ts`, `src/comms/ICommunicationHub.ts` | Deliver subscribed messages and outbound transport posting. | No workflow/domain policy ownership. |

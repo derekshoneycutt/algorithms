@@ -6,6 +6,10 @@ import {
   getStandardLibraryCreateFileCommandId,
   getStandardLibraryCreateFolderCommandId,
   getStandardLibraryDeleteCommandId,
+  getAlgorithmsCreateFolderAtRootCommandId,
+  getAlgorithmsCreateFolderCommandId,
+  getAlgorithmsCreateFileCommandId,
+  getAlgorithmsDeleteCommandId,
 } from "./commandIds";
 
 /**
@@ -33,6 +37,22 @@ export function registerCommands(
     vscode.commands.registerCommand(
       getStandardLibraryDeleteCommandId(),
       commands.standardLibraryDelete
+    ),
+    vscode.commands.registerCommand(
+      getAlgorithmsCreateFolderAtRootCommandId(),
+      commands.algorithmsCreateFolderAtRoot
+    ),
+    vscode.commands.registerCommand(
+      getAlgorithmsCreateFolderCommandId(),
+      commands.algorithmsCreateFolder
+    ),
+    vscode.commands.registerCommand(
+      getAlgorithmsCreateFileCommandId(),
+      commands.algorithmsCreateFile
+    ),
+    vscode.commands.registerCommand(
+      getAlgorithmsDeleteCommandId(),
+      commands.algorithmsDelete
     )
   );
 }
