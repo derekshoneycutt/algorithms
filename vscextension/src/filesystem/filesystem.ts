@@ -1,4 +1,5 @@
 import * as fs from "node:fs/promises";
+import * as os from "node:os";
 import * as path from "node:path";
 
 import type { IFilesystem } from "./IFilesystem";
@@ -17,6 +18,16 @@ import type {
  */
 function toNormalizedAbsolutePath(targetPath: string): string {
   return path.resolve(String(targetPath));
+}
+
+/**
+ * Joins one filename or relative path onto the current home directory.
+ *
+ * @param {string} relativePath Relative path under the home directory.
+ * @returns {string} Absolute path within the home directory.
+ */
+export function joinHomePath(relativePath: string): string {
+  return path.join(os.homedir(), String(relativePath || ""));
 }
 
 /**

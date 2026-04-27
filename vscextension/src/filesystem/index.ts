@@ -1,5 +1,5 @@
 export type { IFilesystem } from "./IFilesystem";
-export { createFilesystem } from "./filesystem";
+export { createFilesystem, joinHomePath } from "./filesystem";
 export type {
   DeletePathOptions,
   FilesystemTextEncoding,
