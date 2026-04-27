@@ -148,6 +148,44 @@ function clearSmokeRunStatusForAlgorithm(
 }
 
 /**
+ * Sets the active smoke run id for one algorithm path.
+ *
+ * @param {ExtensionHostContext} context Current machine context.
+ * @param {string} algorithmPath Algorithm path key.
+ * @param {string} runId Active run id.
+ * @returns {Record<string, string>} Updated run-id map.
+ */
+function setSmokeRunIdForAlgorithm(
+  context: ExtensionHostContext,
+  algorithmPath: string,
+  runId: string
+): Record<string, string> {
+  return {
+    ...context.activeSmokeRunIdByAlgorithm,
+    [algorithmPath]: runId,
+  };
+}
+
+/**
+ * Clears the active smoke run id for one algorithm path.
+ *
+ * @param {ExtensionHostContext} context Current machine context.
+ * @param {string} algorithmPath Algorithm path key.
+ * @returns {Record<string, string>} Updated run-id map.
+ */
+function clearSmokeRunIdForAlgorithm(
+  context: ExtensionHostContext,
+  algorithmPath: string
+): Record<string, string> {
+  const nextByAlgorithm = {
+    ...context.activeSmokeRunIdByAlgorithm,
+  };
+
+  delete nextByAlgorithm[algorithmPath];
+  return nextByAlgorithm;
+}
+
+/**
  * XState machine definition for the extension host orchestration layer.
  *
  * States:
@@ -180,6 +218,7 @@ export function createExtensionHostMachine() {
       smokeControls: createInitialSmokeControlsSettings(input.initialSmokeControls),
       smokeRunStatusByAlgorithm: {},
       activeSmokeRunAlgorithmPath: null,
+      activeSmokeRunIdByAlgorithm: {},
       runControls: createInitialRunControlsSettings(input.initialRunControls),
     };
   },
@@ -276,6 +315,9 @@ export function createExtensionHostMachine() {
             smokeRunStatusByAlgorithm: ({ context, event }) => {
               return setSmokeRunStarted(context, event.algorithmPath, event.languageKeys);
             },
+            activeSmokeRunIdByAlgorithm: ({ context, event }) => {
+              return setSmokeRunIdForAlgorithm(context, event.algorithmPath, event.runId);
+            },
             activeSmokeRunAlgorithmPath: ({ event }) => event.algorithmPath,
           }),
         },
@@ -293,15 +335,32 @@ export function createExtensionHostMachine() {
         },
         SMOKE_RUN_FINISHED: {
           actions: assign({
-            smokeRunStatusByAlgorithm: ({ context, event }) => {
-              return clearSmokeRunStatusForAlgorithm(context, event.algorithmPath);
-            },
             activeSmokeRunAlgorithmPath: ({ context, event }) => {
               if (context.activeSmokeRunAlgorithmPath !== event.algorithmPath) {
                 return context.activeSmokeRunAlgorithmPath;
               }
 
               return null;
+            },
+          }),
+        },
+        SMOKE_RUN_STATUS_CLEARED: {
+          actions: assign({
+            smokeRunStatusByAlgorithm: ({ context, event }) => {
+              const activeRunId = context.activeSmokeRunIdByAlgorithm[event.algorithmPath];
+              if (activeRunId !== event.runId) {
+                return context.smokeRunStatusByAlgorithm;
+              }
+
+              return clearSmokeRunStatusForAlgorithm(context, event.algorithmPath);
+            },
+            activeSmokeRunIdByAlgorithm: ({ context, event }) => {
+              const activeRunId = context.activeSmokeRunIdByAlgorithm[event.algorithmPath];
+              if (activeRunId !== event.runId) {
+                return context.activeSmokeRunIdByAlgorithm;
+              }
+
+              return clearSmokeRunIdForAlgorithm(context, event.algorithmPath);
             },
           }),
         },
@@ -563,6 +622,9 @@ export function createExtensionHostMachine() {
             smokeRunStatusByAlgorithm: ({ context, event }) => {
               return setSmokeRunStarted(context, event.algorithmPath, event.languageKeys);
             },
+            activeSmokeRunIdByAlgorithm: ({ context, event }) => {
+              return setSmokeRunIdForAlgorithm(context, event.algorithmPath, event.runId);
+            },
             activeSmokeRunAlgorithmPath: ({ event }) => event.algorithmPath,
           }),
         },
@@ -580,15 +642,32 @@ export function createExtensionHostMachine() {
         },
         SMOKE_RUN_FINISHED: {
           actions: assign({
-            smokeRunStatusByAlgorithm: ({ context, event }) => {
-              return clearSmokeRunStatusForAlgorithm(context, event.algorithmPath);
-            },
             activeSmokeRunAlgorithmPath: ({ context, event }) => {
               if (context.activeSmokeRunAlgorithmPath !== event.algorithmPath) {
                 return context.activeSmokeRunAlgorithmPath;
               }
 
               return null;
+            },
+          }),
+        },
+        SMOKE_RUN_STATUS_CLEARED: {
+          actions: assign({
+            smokeRunStatusByAlgorithm: ({ context, event }) => {
+              const activeRunId = context.activeSmokeRunIdByAlgorithm[event.algorithmPath];
+              if (activeRunId !== event.runId) {
+                return context.smokeRunStatusByAlgorithm;
+              }
+
+              return clearSmokeRunStatusForAlgorithm(context, event.algorithmPath);
+            },
+            activeSmokeRunIdByAlgorithm: ({ context, event }) => {
+              const activeRunId = context.activeSmokeRunIdByAlgorithm[event.algorithmPath];
+              if (activeRunId !== event.runId) {
+                return context.activeSmokeRunIdByAlgorithm;
+              }
+
+              return clearSmokeRunIdForAlgorithm(context, event.algorithmPath);
             },
           }),
         },

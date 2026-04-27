@@ -134,6 +134,19 @@ interface RunFileStatusLifecycle {
 }
 
 /**
+ * Deferred smoke status retention operations.
+ */
+interface SmokeStatusRetentionLifecycle {
+  markStarted(algorithmPath: string, runId: string): void;
+  markFinished(
+    algorithmPath: string,
+    runId: string,
+    hostState: IStateMachine,
+    refreshAlgorithmsTree: () => void
+  ): void;
+}
+
+/**
  * Dependencies required to create the conductor service.
  */
 export interface CreateConductorServiceInput {
@@ -654,7 +667,8 @@ async function runAlgorithmsFile(
   input: ConductorRunFileInput,
   runAdapter: IAlgorithmsTerminalRunAdapter | undefined,
   commandLine: ICommandLine | undefined,
-  runLifecycle: RunFileStatusLifecycle
+  runLifecycle: RunFileStatusLifecycle,
+  smokeStatusRetentionLifecycle: SmokeStatusRetentionLifecycle
 ): Promise<void> {
   const actionKind = resolveRunActionKind(input);
   const actionLabel = getActionLabel(actionKind);
@@ -810,6 +824,7 @@ async function runAlgorithmsFile(
           return languageKey.length > 0;
         })
     : [];
+  let activeSmokeRunId: string | null = null;
   try {
     const startedRunSnapshot = runLifecycle.start(
       runTarget,
@@ -835,6 +850,12 @@ async function runAlgorithmsFile(
         type: "SMOKE_RUN_FINISHED",
         algorithmPath: algorithmDirectoryPath,
       });
+      smokeStatusRetentionLifecycle.markFinished(
+        algorithmDirectoryPath,
+        startedRunId,
+        input.hostState,
+        input.refreshAlgorithmsTree
+      );
       input.refreshAlgorithmsTree();
     }
 
@@ -866,11 +887,14 @@ async function runAlgorithmsFile(
     }
 
     if (actionKind === "smoke-test") {
+      activeSmokeRunId = startedRunId;
       input.hostState.send({
         type: "SMOKE_RUN_STARTED",
         algorithmPath: algorithmDirectoryPath,
         languageKeys: smokeSelectedLanguageKeys,
+        runId: startedRunId,
       });
+      smokeStatusRetentionLifecycle.markStarted(algorithmDirectoryPath, startedRunId);
       smokeRunStarted = true;
       input.refreshAlgorithmsTree();
     }
@@ -969,6 +993,14 @@ async function runAlgorithmsFile(
         type: "SMOKE_RUN_FINISHED",
         algorithmPath: algorithmDirectoryPath,
       });
+      if (activeSmokeRunId !== null) {
+        smokeStatusRetentionLifecycle.markFinished(
+          algorithmDirectoryPath,
+          activeSmokeRunId,
+          input.hostState,
+          input.refreshAlgorithmsTree
+        );
+      }
       input.refreshAlgorithmsTree();
     }
 
@@ -1496,10 +1528,13 @@ export function createConductorService(
   const runAdapter = input?.algorithmsTerminalRunAdapter;
   const commandLine = input?.commandLine;
   const runStatusRetentionMs = input?.runStatusRetentionMs ?? DEFAULT_RUN_STATUS_RETENTION_MS;
+  const smokeStatusRetentionMs = runStatusRetentionMs;
   const runTargetByRunId = new Map<string, string>();
   const runSnapshotsById = new Map<string, ConductorRunSnapshot>();
   const runSnapshotsByTarget = new Map<string, ConductorRunSnapshot>();
   const runStatusClearTimersByTarget = new Map<string, NodeJS.Timeout>();
+  const smokeStatusClearTimersByAlgorithm = new Map<string, NodeJS.Timeout>();
+  const latestSmokeRunIdByAlgorithm = new Map<string, string>();
   const runTargetListeners = new Set<
     (change: ConductorRunTargetStatusChange) => void
   >();
@@ -1749,6 +1784,59 @@ export function createConductorService(
     },
   };
 
+  const smokeStatusRetentionLifecycle: SmokeStatusRetentionLifecycle = {
+    markStarted(algorithmPath, runId): void {
+      latestSmokeRunIdByAlgorithm.set(algorithmPath, runId);
+
+      const existingTimer = smokeStatusClearTimersByAlgorithm.get(algorithmPath);
+      if (existingTimer !== undefined) {
+        clearTimeout(existingTimer);
+        smokeStatusClearTimersByAlgorithm.delete(algorithmPath);
+      }
+    },
+
+    markFinished(
+      algorithmPath,
+      runId,
+      hostState,
+      refreshAlgorithmsTree
+    ): void {
+      if (smokeStatusRetentionMs <= 0) {
+        hostState.send({
+          type: "SMOKE_RUN_STATUS_CLEARED",
+          algorithmPath,
+          runId,
+        });
+        refreshAlgorithmsTree();
+        return;
+      }
+
+      const existingTimer = smokeStatusClearTimersByAlgorithm.get(algorithmPath);
+      if (existingTimer !== undefined) {
+        clearTimeout(existingTimer);
+      }
+
+      const timeoutHandle = setTimeout(() => {
+        smokeStatusClearTimersByAlgorithm.delete(algorithmPath);
+
+        const latestRunId = latestSmokeRunIdByAlgorithm.get(algorithmPath);
+        if (latestRunId !== runId) {
+          return;
+        }
+
+        latestSmokeRunIdByAlgorithm.delete(algorithmPath);
+        hostState.send({
+          type: "SMOKE_RUN_STATUS_CLEARED",
+          algorithmPath,
+          runId,
+        });
+        refreshAlgorithmsTree();
+      }, smokeStatusRetentionMs);
+
+      smokeStatusClearTimersByAlgorithm.set(algorithmPath, timeoutHandle);
+    },
+  };
+
   return {
     reactToSmokeIntent(input) {
       return createSmokeIntentReaction(input.intent, input.snapshot.smokeControls);
@@ -1759,7 +1847,13 @@ export function createConductorService(
     },
 
     async runFile(input: ConductorRunFileInput): Promise<void> {
-      await runAlgorithmsFile(input, runAdapter, commandLine, runLifecycle);
+      await runAlgorithmsFile(
+        input,
+        runAdapter,
+        commandLine,
+        runLifecycle,
+        smokeStatusRetentionLifecycle
+      );
     },
 
     getRunForTarget(target: ConductorRunTargetRef): ConductorRunSnapshot | null {

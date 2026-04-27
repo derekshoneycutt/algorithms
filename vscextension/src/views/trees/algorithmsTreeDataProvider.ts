@@ -252,7 +252,7 @@ export function createWorkspaceAlgorithmsTreeDataProvider(
 
     if (
       hostState !== undefined
-      && element.kind === "languageSummary"
+      && (element.kind === "languageSummary" || element.kind === "mainFile")
       && element.languageKey !== undefined
       && element.parentAlgorithmPath !== undefined
     ) {

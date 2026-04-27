@@ -921,6 +921,264 @@ describe("conductor — createConductorService", () => {
     }
   });
 
+  it("retains smoke language statuses until retention timeout", async () => {
+    const adapter: IAlgorithmsTerminalRunAdapter = {
+      run(input): void {
+        input.onExit?.(0);
+      },
+      getTerminalName(): string {
+        return "Algorithms Runner";
+      },
+    };
+
+    const conductor = createConductorService({
+      algorithmsTerminalRunAdapter: adapter,
+      runStatusRetentionMs: 10,
+    });
+    const stateMachine = createHostStateService({
+      initialSmokeControls: {
+        languages: [
+          {
+            languageKey: "cpp",
+            label: "C++",
+            selected: true,
+            disabled: false,
+            disabledReason: "",
+          },
+        ],
+      },
+    });
+
+    try {
+      await conductor.runFile({
+        actionKind: "smoke-test",
+        filesystem: {
+          async realpath(targetPath: string): Promise<string> {
+            return targetPath;
+          },
+          async isFile(filePath: string): Promise<boolean> {
+            return filePath.endsWith("run.sh");
+          },
+          async isDirectory(): Promise<boolean> {
+            return true;
+          },
+          async readText(): Promise<string | null> {
+            return null;
+          },
+          async writeText(): Promise<void> {
+            return;
+          },
+          async listDirectory(): Promise<null> {
+            return null;
+          },
+          async ensureDirectory(): Promise<void> {
+            return;
+          },
+          async deletePath(): Promise<void> {
+            return;
+          },
+          async isPathWithinRoot(): Promise<boolean> {
+            return true;
+          },
+        },
+        hostState: stateMachine,
+        languages: {
+          getAll() {
+            return [];
+          },
+          getByKey() {
+            return undefined;
+          },
+          normalizeLanguageId(languageId: string) {
+            return languageId;
+          },
+          normalizeFileExtension() {
+            return undefined;
+          },
+          getDisplayLabel() {
+            return undefined;
+          },
+          getDefaultSmokeKeys() {
+            return [];
+          },
+        },
+        notificationRouter: {
+          info() {
+            return Promise.resolve(undefined);
+          },
+          warn() {
+            return Promise.resolve(undefined);
+          },
+          error() {
+            return Promise.resolve(undefined);
+          },
+        },
+        refreshAlgorithmsTree(): void {
+          return;
+        },
+        treeNode: {
+          kind: "algorithmDir",
+          filePath: "/repo/src/numeric/max",
+        },
+        workspaceFolderPaths: ["/repo"],
+      });
+
+      const immediateSnapshot = stateMachine.getSnapshot();
+      assert.deepStrictEqual(immediateSnapshot.smokeRunStatusByAlgorithm["/repo/src/numeric/max"], {
+        cpp: "queued",
+      });
+
+      await new Promise<void>((resolve) => {
+        setTimeout(() => {
+          resolve();
+        }, 30);
+      });
+
+      const retainedClearedSnapshot = stateMachine.getSnapshot();
+      assert.strictEqual(retainedClearedSnapshot.smokeRunStatusByAlgorithm["/repo/src/numeric/max"], undefined);
+    } finally {
+      stateMachine.dispose();
+    }
+  });
+
+  it("ignores stale smoke clear timers after a newer smoke run starts", async () => {
+    const adapter: IAlgorithmsTerminalRunAdapter = {
+      run(input): void {
+        input.onExit?.(0);
+      },
+      getTerminalName(): string {
+        return "Algorithms Runner";
+      },
+    };
+
+    const conductor = createConductorService({
+      algorithmsTerminalRunAdapter: adapter,
+      runStatusRetentionMs: 10,
+    });
+    const stateMachine = createHostStateService({
+      initialSmokeControls: {
+        languages: [
+          {
+            languageKey: "cpp",
+            label: "C++",
+            selected: true,
+            disabled: false,
+            disabledReason: "",
+          },
+        ],
+      },
+    });
+
+    const runSmoke = async (): Promise<void> => {
+      await conductor.runFile({
+        actionKind: "smoke-test",
+        filesystem: {
+          async realpath(targetPath: string): Promise<string> {
+            return targetPath;
+          },
+          async isFile(filePath: string): Promise<boolean> {
+            return filePath.endsWith("run.sh");
+          },
+          async isDirectory(): Promise<boolean> {
+            return true;
+          },
+          async readText(): Promise<string | null> {
+            return null;
+          },
+          async writeText(): Promise<void> {
+            return;
+          },
+          async listDirectory(): Promise<null> {
+            return null;
+          },
+          async ensureDirectory(): Promise<void> {
+            return;
+          },
+          async deletePath(): Promise<void> {
+            return;
+          },
+          async isPathWithinRoot(): Promise<boolean> {
+            return true;
+          },
+        },
+        hostState: stateMachine,
+        languages: {
+          getAll() {
+            return [];
+          },
+          getByKey() {
+            return undefined;
+          },
+          normalizeLanguageId(languageId: string) {
+            return languageId;
+          },
+          normalizeFileExtension() {
+            return undefined;
+          },
+          getDisplayLabel() {
+            return undefined;
+          },
+          getDefaultSmokeKeys() {
+            return [];
+          },
+        },
+        notificationRouter: {
+          info() {
+            return Promise.resolve(undefined);
+          },
+          warn() {
+            return Promise.resolve(undefined);
+          },
+          error() {
+            return Promise.resolve(undefined);
+          },
+        },
+        refreshAlgorithmsTree(): void {
+          return;
+        },
+        treeNode: {
+          kind: "algorithmDir",
+          filePath: "/repo/src/numeric/max",
+        },
+        workspaceFolderPaths: ["/repo"],
+      });
+    };
+
+    try {
+      await runSmoke();
+
+      await new Promise<void>((resolve) => {
+        setTimeout(() => {
+          resolve();
+        }, 5);
+      });
+
+      await runSmoke();
+
+      await new Promise<void>((resolve) => {
+        setTimeout(() => {
+          resolve();
+        }, 7);
+      });
+
+      const stillPresentAfterStaleTimer = stateMachine.getSnapshot();
+      assert.deepStrictEqual(stillPresentAfterStaleTimer.smokeRunStatusByAlgorithm["/repo/src/numeric/max"], {
+        cpp: "queued",
+      });
+
+      await new Promise<void>((resolve) => {
+        setTimeout(() => {
+          resolve();
+        }, 15);
+      });
+
+      const finallyClearedSnapshot = stateMachine.getSnapshot();
+      assert.strictEqual(finallyClearedSnapshot.smokeRunStatusByAlgorithm["/repo/src/numeric/max"], undefined);
+    } finally {
+      stateMachine.dispose();
+    }
+  });
+
   it("publishes run-target status changes to subscribers", async () => {
     const adapter: IAlgorithmsTerminalRunAdapter = {
       run(): void {

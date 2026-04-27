@@ -399,6 +399,7 @@ export interface ExtensionHostContext {
   smokeControls: SmokeControlsSettings;
   smokeRunStatusByAlgorithm: SmokeRunStatusByAlgorithm;
   activeSmokeRunAlgorithmPath: string | null;
+  activeSmokeRunIdByAlgorithm: Record<string, string>;
   runControls: RunControlsSettings;
 }
 
@@ -416,7 +417,12 @@ export type ExtensionHostEvent =
   | { type: "SMOKE_LANGUAGE_TOGGLED"; languageKey: string }
   | { type: "SMOKE_ALL_LANGUAGES_SELECTED" }
   | { type: "SMOKE_ALL_LANGUAGES_DESELECTED" }
-  | { type: "SMOKE_RUN_STARTED"; algorithmPath: string; languageKeys: string[] }
+  | {
+      type: "SMOKE_RUN_STARTED";
+      algorithmPath: string;
+      languageKeys: string[];
+      runId: string;
+    }
   | {
       type: "SMOKE_LANGUAGE_RUN_STATUS_SET";
       algorithmPath: string;
@@ -424,6 +430,11 @@ export type ExtensionHostEvent =
       status: SmokeLanguageRunStatus;
     }
   | { type: "SMOKE_RUN_FINISHED"; algorithmPath: string }
+  | {
+      type: "SMOKE_RUN_STATUS_CLEARED";
+      algorithmPath: string;
+      runId: string;
+    }
   | {
       type: "SMOKE_REPORT_STATUS_SET";
       statusText: string;

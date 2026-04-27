@@ -15,6 +15,7 @@ import {
 import type { IConductor } from "../../../../src/conductor";
 import type { ILanguages } from "../../../../src/languages";
 import type { IFilterModeService } from "../../../../src/state";
+import { createHostStateService } from "../../../../src/state";
 import type { SidebarViewMode, IViewModeService } from "../../../../src/state/viewMode";
 import {
   createWorkspaceStandardLibraryTreeDataProvider,
@@ -689,5 +690,80 @@ describe("views/trees — run file status projection", () => {
     assert.ok(String(pythonItem.tooltip).includes("Run Action: Running"));
     assert.ok(String(pythonItem.tooltip).includes("dispatched to terminal"));
     assert.strictEqual(goItem.resourceUri?.fragment, "");
+  });
+
+  it("projects smoke status onto FILES main-file rows", async () => {
+    const algorithmPath = "/repo/src/numeric/euclidgcd";
+    const categories: AlgorithmCategory[] = [
+      { name: "numeric", path: "/repo/src/numeric" },
+    ];
+    const algorithms: AlgorithmEntry[] = [
+      { name: "euclidgcd", path: algorithmPath, categoryPath: "/repo/src/numeric" },
+    ];
+    const implementations: AlgorithmImplementation[] = [
+      {
+        languageKey: "python",
+        isFlagged: false,
+        filePath: "/repo/src/numeric/euclidgcd/euclidgcd.py",
+        filePaths: ["/repo/src/numeric/euclidgcd/euclidgcd.py"],
+        hasIncludes: false,
+        includeFilePaths: [],
+      },
+      {
+        languageKey: "go",
+        isFlagged: false,
+        filePath: "/repo/src/numeric/euclidgcd/euclidgcd.go",
+        filePaths: ["/repo/src/numeric/euclidgcd/euclidgcd.go"],
+        hasIncludes: false,
+        includeFilePaths: [],
+      },
+    ];
+
+    const hostState = createHostStateService();
+
+    try {
+      hostState.send({
+        type: "SMOKE_RUN_STARTED",
+        algorithmPath,
+        languageKeys: ["python", "go"],
+        runId: "run-smoke-1",
+      });
+      hostState.send({
+        type: "SMOKE_LANGUAGE_RUN_STATUS_SET",
+        algorithmPath,
+        languageKey: "python",
+        status: "running",
+      });
+
+      const provider = createWorkspaceAlgorithmsTreeDataProvider({
+        algorithmsIndex: createAlgorithmsIndexStub(categories, algorithms, implementations),
+        viewModeService: createViewModeServiceStub("files"),
+        filterModeService: createFilterModeServiceStub("all"),
+        hostState,
+        languages: createLanguageStub(),
+      });
+
+      const rootChildren = (await provider.getChildren()) ?? [];
+      const categoryNode = rootChildren[0];
+      const algorithmNodes = (await provider.getChildren(categoryNode)) ?? [];
+      const algorithmNode = algorithmNodes[0];
+      const fileRows = (await provider.getChildren(algorithmNode)) ?? [];
+      const pythonMain = fileRows.find((row) => {
+        return row.filePath.endsWith("euclidgcd.py");
+      }) as WorkspaceTreeNode;
+      const goMain = fileRows.find((row) => {
+        return row.filePath.endsWith("euclidgcd.go");
+      }) as WorkspaceTreeNode;
+
+      const pythonItem = await provider.getTreeItem(pythonMain);
+      const goItem = await provider.getTreeItem(goMain);
+
+      assert.strictEqual(pythonItem.resourceUri?.fragment, "algos-smoke-running");
+      assert.ok(String(pythonItem.tooltip).includes("Smoke Test: Running"));
+      assert.strictEqual(goItem.resourceUri?.fragment, "algos-smoke-queued");
+      assert.ok(String(goItem.tooltip).includes("Smoke Test: Queued"));
+    } finally {
+      hostState.dispose();
+    }
   });
 });

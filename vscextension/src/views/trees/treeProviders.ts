@@ -399,7 +399,7 @@ export function createTreeItem(
   // is active so flagged/missing diagnostics keep icon precedence.
   if (resourceUri.fragment.length === 0) {
     const smokeStatusFragment =
-      element.kind === "languageSummary"
+      (element.kind === "languageSummary" || element.kind === "mainFile")
         ? getSmokeStatusUriFragment(element.smokeStatus)
         : undefined;
     if (smokeStatusFragment !== undefined) {
@@ -466,6 +466,9 @@ export function createTreeItem(
     };
     if (contextValue !== undefined) {
       treeItem.contextValue = contextValue;
+    }
+    if (element.smokeStatusTooltip !== undefined) {
+      treeItem.tooltip = element.smokeStatusTooltip;
     }
     if (element.runStatusTooltip !== undefined) {
       treeItem.tooltip = element.runStatusTooltip;
