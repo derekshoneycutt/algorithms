@@ -1,5 +1,6 @@
 import * as assert from "assert";
 
+import type { IAlgorithmsTerminalRunAdapter } from "../../../src/commandline";
 import { createConductorService } from "../../../src/conductor";
 import { createHostStateService } from "../../../src/state";
 
@@ -213,6 +214,233 @@ describe("conductor — createConductorService", () => {
         statusText: "Run args contain an unclosed quote.",
         statusClassName: "status-error",
       });
+    } finally {
+      stateMachine.dispose();
+    }
+  });
+
+  it("runs file targets through terminal adapter and records lifecycle success", async () => {
+    const runCalls: Parameters<IAlgorithmsTerminalRunAdapter["run"]>[] = [];
+
+    const adapter: IAlgorithmsTerminalRunAdapter = {
+      run(input): void {
+        runCalls.push([input]);
+      },
+      getTerminalName(): string {
+        return "Algorithms Runner";
+      },
+    };
+
+    const conductor = createConductorService({
+      algorithmsTerminalRunAdapter: adapter,
+    });
+    const stateMachine = createHostStateService();
+    const infos: string[] = [];
+    const warnings: string[] = [];
+    const errors: string[] = [];
+
+    try {
+      await conductor.runFile({
+        filesystem: {
+          async realpath(targetPath: string): Promise<string> {
+            return targetPath;
+          },
+          async isFile(_filePath: string): Promise<boolean> {
+            return true;
+          },
+          async isDirectory(_directoryPath: string): Promise<boolean> {
+            return true;
+          },
+          async readText(): Promise<string | null> {
+            return null;
+          },
+          async writeText(): Promise<void> {
+            return;
+          },
+          async listDirectory(): Promise<null> {
+            return null;
+          },
+          async ensureDirectory(): Promise<void> {
+            return;
+          },
+          async deletePath(): Promise<void> {
+            return;
+          },
+          async isPathWithinRoot(): Promise<boolean> {
+            return true;
+          },
+        },
+        hostState: stateMachine,
+        languages: {
+          getAll() {
+            return [];
+          },
+          getByKey() {
+            return undefined;
+          },
+          normalizeLanguageId(languageId: string) {
+            return languageId;
+          },
+          normalizeFileExtension(filePath: string) {
+            if (filePath.endsWith(".cpp")) {
+              return "cpp";
+            }
+            return undefined;
+          },
+          getDisplayLabel() {
+            return undefined;
+          },
+          getDefaultSmokeKeys() {
+            return [];
+          },
+        },
+        notificationRouter: {
+          info(message: string) {
+            infos.push(message);
+            return Promise.resolve(undefined);
+          },
+          warn(message: string) {
+            warnings.push(message);
+            return Promise.resolve(undefined);
+          },
+          error(message: string) {
+            errors.push(message);
+            return Promise.resolve(undefined);
+          },
+        },
+        refreshAlgorithmsTree(): void {
+          return;
+        },
+        treeNode: {
+          kind: "languageSummary",
+          filePath: "/repo/src/numeric/max/max.cpp",
+          languageKey: "cpp",
+          parentAlgorithmPath: "/repo/src/numeric/max",
+          hasOpenTarget: true,
+        },
+        workspaceFolderPaths: ["/repo"],
+      });
+
+      assert.strictEqual(runCalls.length, 1);
+      assert.deepStrictEqual(runCalls[0][0].optionTokens, []);
+      assert.strictEqual(runCalls[0][0].targetToken, "cpp");
+      assert.strictEqual(runCalls[0][0].workingDirectoryPath, "/repo/src/numeric/max");
+
+      const snapshot = stateMachine.getSnapshot();
+      assert.strictEqual(snapshot.lastCommandId, "algorithms.run-file");
+      assert.ok(snapshot.lastResult?.includes("Run File started for cpp (cpp)"));
+      assert.strictEqual(snapshot.lastFailure, null);
+      assert.strictEqual(warnings.length, 0);
+      assert.strictEqual(errors.length, 0);
+      assert.strictEqual(infos.length, 1);
+    } finally {
+      stateMachine.dispose();
+    }
+  });
+
+  it("blocks malformed run args and records lifecycle failure", async () => {
+    const runCalls: Parameters<IAlgorithmsTerminalRunAdapter["run"]>[] = [];
+
+    const adapter: IAlgorithmsTerminalRunAdapter = {
+      run(input): void {
+        runCalls.push([input]);
+      },
+      getTerminalName(): string {
+        return "Algorithms Runner";
+      },
+    };
+
+    const conductor = createConductorService({
+      algorithmsTerminalRunAdapter: adapter,
+    });
+    const stateMachine = createHostStateService({
+      initialRunControls: {
+        runArgsEnabled: true,
+        runArgsText: '"unterminated',
+      },
+    });
+    const warnings: string[] = [];
+
+    try {
+      await conductor.runFile({
+        filesystem: {
+          async realpath(targetPath: string): Promise<string> {
+            return targetPath;
+          },
+          async isFile(_filePath: string): Promise<boolean> {
+            return true;
+          },
+          async isDirectory(_directoryPath: string): Promise<boolean> {
+            return true;
+          },
+          async readText(): Promise<string | null> {
+            return null;
+          },
+          async writeText(): Promise<void> {
+            return;
+          },
+          async listDirectory(): Promise<null> {
+            return null;
+          },
+          async ensureDirectory(): Promise<void> {
+            return;
+          },
+          async deletePath(): Promise<void> {
+            return;
+          },
+          async isPathWithinRoot(): Promise<boolean> {
+            return true;
+          },
+        },
+        hostState: stateMachine,
+        languages: {
+          getAll() {
+            return [];
+          },
+          getByKey() {
+            return undefined;
+          },
+          normalizeLanguageId(languageId: string) {
+            return languageId;
+          },
+          normalizeFileExtension() {
+            return "python";
+          },
+          getDisplayLabel() {
+            return undefined;
+          },
+          getDefaultSmokeKeys() {
+            return [];
+          },
+        },
+        notificationRouter: {
+          info() {
+            return Promise.resolve(undefined);
+          },
+          warn(message: string) {
+            warnings.push(message);
+            return Promise.resolve(undefined);
+          },
+          error() {
+            return Promise.resolve(undefined);
+          },
+        },
+        refreshAlgorithmsTree(): void {
+          return;
+        },
+        treeNode: {
+          kind: "file",
+          filePath: "/repo/src/numeric/max/max.py",
+        },
+        workspaceFolderPaths: ["/repo"],
+      });
+
+      assert.strictEqual(runCalls.length, 0);
+      assert.ok(warnings[0].includes("unclosed quote"));
+
+      const snapshot = stateMachine.getSnapshot();
+      assert.strictEqual(snapshot.lastCommandId, "algorithms.run-file");
+      assert.ok(snapshot.lastFailure?.includes("unclosed quote"));
     } finally {
       stateMachine.dispose();
     }

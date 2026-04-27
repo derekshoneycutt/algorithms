@@ -1,4 +1,9 @@
 import type { ExtensionHostEvent, ExtensionHostSnapshot } from "../state";
+import type { IFilesystem } from "../filesystem";
+import type { ILanguages } from "../languages";
+import type { INotificationRouter } from "../notifications";
+import type { IStateMachine } from "../state";
+import type { WorkspaceTreeNode } from "../views";
 
 /**
  * Lifecycle status for one conductor run snapshot.
@@ -112,6 +117,19 @@ export interface ConductorReactToRunControlsIntentInput {
 }
 
 /**
+ * Input for conductor-owned run-file orchestration.
+ */
+export interface ConductorRunFileInput {
+  filesystem: IFilesystem;
+  hostState: IStateMachine;
+  languages: ILanguages;
+  notificationRouter: INotificationRouter;
+  refreshAlgorithmsTree: () => void;
+  treeNode?: WorkspaceTreeNode;
+  workspaceFolderPaths: readonly string[];
+}
+
+/**
  * One host notification emitted by conductor policy.
  */
 export interface ConductorNotificationEffect {
@@ -160,6 +178,14 @@ export interface IConductor {
   reactToRunControlsIntent(
     input: ConductorReactToRunControlsIntentInput
   ): ConductorRunControlsReaction;
+
+  /**
+   * Runs one Algorithms target using state-owned run controls.
+   *
+   * @param {ConductorRunFileInput} input Run-file orchestration input.
+   * @returns {Promise<void>} Resolves when orchestration finishes.
+   */
+  runFile(input: ConductorRunFileInput): Promise<void>;
 
   /**
    * Starts one run and returns its first snapshot.

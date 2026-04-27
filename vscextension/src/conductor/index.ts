@@ -5,6 +5,7 @@ export type {
   ConductorMarkProgressInput,
   ConductorNotificationEffect,
   ConductorRunControlsReaction,
+  ConductorRunFileInput,
   ConductorReactToRunControlsIntentInput,
   ConductorReactToSmokeIntentInput,
   ConductorRunControlsIntent,

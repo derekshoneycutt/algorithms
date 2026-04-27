@@ -1,3 +1,5 @@
+import * as path from "node:path";
+
 import type {
   ConductorCancelRunInput,
   ConductorMarkCompletedInput,
@@ -6,6 +8,7 @@ import type {
   ConductorNotificationEffect,
   ConductorRunControlsIntent,
   ConductorRunControlsReaction,
+  ConductorRunFileInput,
   ConductorSmokeReaction,
   ConductorRunSnapshot,
   ConductorSmokeIntent,
@@ -13,6 +16,8 @@ import type {
   IConductor,
 } from "./IConductor";
 import type { ViewToHostMessage } from "../comms/shared/messageTypes";
+import type { IAlgorithmsTerminalRunAdapter } from "../commandline";
+import { resolveAlgorithmsRootPath } from "../algorithms";
 import type {
   IStateMachine,
   RunControlsSettings,
@@ -21,10 +26,20 @@ import type {
 } from "../state";
 import {
   createCleanOptionsStatus,
+  parseRunArgumentsText,
   createRunArgsStatus,
   createRunChecksStatus,
   createSourceProfileStatus,
 } from "../state";
+
+const RUN_FILE_COMMAND_ID = "algorithms.run-file";
+
+/**
+ * Dependencies required to create the conductor service.
+ */
+export interface CreateConductorServiceInput {
+  algorithmsTerminalRunAdapter?: IAlgorithmsTerminalRunAdapter;
+}
 
 /**
  * Dependencies used to apply one conductor reaction to host runtime state.
@@ -181,6 +196,284 @@ export function createRunControlsChannelMessageHandler(
 }
 
 let nextRunSequence = 1;
+
+/**
+ * Returns true when one node kind can be run directly as a file target.
+ *
+ * @param {ConductorRunFileInput["treeNode"]} treeNode Candidate node.
+ * @returns {boolean} True when supported by Run File.
+ */
+function isRunnableTreeNode(
+  treeNode: ConductorRunFileInput["treeNode"]
+): treeNode is NonNullable<ConductorRunFileInput["treeNode"]> {
+  if (treeNode === undefined) {
+    return false;
+  }
+
+  return treeNode.kind === "file" || treeNode.kind === "mainFile" || treeNode.kind === "languageSummary";
+}
+
+/**
+ * Resolves the algorithm directory path for one tree node.
+ *
+ * @param {NonNullable<ConductorRunFileInput["treeNode"]>} treeNode Source node.
+ * @returns {string} Algorithm directory path.
+ */
+function resolveAlgorithmDirectoryPath(
+  treeNode: NonNullable<ConductorRunFileInput["treeNode"]>
+): string {
+  if (treeNode.parentAlgorithmPath !== undefined) {
+    return treeNode.parentAlgorithmPath;
+  }
+
+  if (treeNode.kind === "languageSummary" || treeNode.kind === "algorithmDir") {
+    return treeNode.filePath;
+  }
+
+  return path.dirname(treeNode.filePath);
+}
+
+/**
+ * Resolves a language key from one tree node.
+ *
+ * @param {NonNullable<ConductorRunFileInput["treeNode"]>} treeNode Source node.
+ * @param {ConductorRunFileInput} input Run-file orchestration input.
+ * @returns {string | null} Normalized language key or null when unavailable.
+ */
+function resolveLanguageKeyFromNode(
+  treeNode: NonNullable<ConductorRunFileInput["treeNode"]>,
+  input: ConductorRunFileInput
+): string | null {
+  if (treeNode.languageKey !== undefined && treeNode.languageKey.trim().length > 0) {
+    return treeNode.languageKey.trim().toLowerCase();
+  }
+
+  const resolvedLanguageKey = input.languages.normalizeFileExtension(treeNode.filePath);
+  if (resolvedLanguageKey === undefined) {
+    return null;
+  }
+
+  return resolvedLanguageKey.trim().toLowerCase();
+}
+
+/**
+ * Resolves the repository root from an algorithms-root-like path.
+ *
+ * @param {string} algorithmsRootPath Canonical algorithms root path.
+ * @returns {string | null} Repository root or null when src segment is unavailable.
+ */
+function resolveRepositoryRootFromAlgorithmsRootPath(
+  algorithmsRootPath: string
+): string | null {
+  let cursor = path.resolve(algorithmsRootPath);
+
+  while (true) {
+    if (path.basename(cursor) === "src") {
+      return path.dirname(cursor);
+    }
+
+    const parentPath = path.dirname(cursor);
+    if (parentPath === cursor) {
+      return null;
+    }
+
+    cursor = parentPath;
+  }
+}
+
+/**
+ * Resolves run-control option tokens for run.sh.
+ *
+ * These are run.sh option flags and must appear before the target argument.
+ *
+ * @param {RunControlsSettings} runControls Snapshot run controls.
+ * @returns {string[]} run.sh option tokens.
+ */
+function buildRunControlOptionTokens(runControls: RunControlsSettings): string[] {
+  const optionTokens: string[] = [];
+
+  if (runControls.sourceProfileEnabled) {
+    optionTokens.push(`--source-profile=${runControls.sourceProfileText}`);
+  }
+
+  if (runControls.runChecksMode === "compile-only") {
+    optionTokens.push("--compile-only");
+  } else if (runControls.runChecksMode === "check-only") {
+    optionTokens.push(`--check-only=${runControls.runChecksRoute}`);
+  }
+
+  return optionTokens;
+}
+
+/**
+ * Resolves trailing run arguments tokens for run.sh.
+ *
+ * These are passthrough args and must appear after the target argument.
+ *
+ * @param {RunControlsSettings} runControls Snapshot run controls.
+ * @returns {{ok: boolean, tokens: string[], reason: string | null}} Parse result.
+ */
+function buildRunControlPassthroughTokens(
+  runControls: RunControlsSettings
+): { ok: boolean; tokens: string[]; reason: string | null } {
+  if (!runControls.runArgsEnabled) {
+    return {
+      ok: true,
+      tokens: [],
+      reason: null,
+    };
+  }
+
+  const parsedRunArguments = parseRunArgumentsText(runControls.runArgsText);
+  if (!parsedRunArguments.ok) {
+    return {
+      ok: false,
+      tokens: [],
+      reason: parsedRunArguments.reason,
+    };
+  }
+
+  return {
+    ok: true,
+    tokens: parsedRunArguments.tokens,
+    reason: null,
+  };
+}
+
+/**
+ * Records one run-file launch failure in the central state machine.
+ *
+ * @param {ConductorRunFileInput} input Run-file orchestration input.
+ * @param {string} errorMessage Failure message.
+ * @returns {void}
+ */
+function recordRunFileFailure(input: ConductorRunFileInput, errorMessage: string): void {
+  input.hostState.send({ type: "COMMAND_REQUESTED", commandId: RUN_FILE_COMMAND_ID });
+  input.hostState.send({ type: "COMMAND_FAILED", error: errorMessage });
+}
+
+/**
+ * Runs one Algorithms target by delegating terminal dispatch to commandline adapter.
+ *
+ * @param {ConductorRunFileInput} input Run-file orchestration input.
+ * @param {IAlgorithmsTerminalRunAdapter | undefined} runAdapter Terminal run adapter.
+ * @returns {Promise<void>} Resolves after orchestration completes.
+ */
+async function runAlgorithmsFile(
+  input: ConductorRunFileInput,
+  runAdapter: IAlgorithmsTerminalRunAdapter | undefined
+): Promise<void> {
+  if (!isRunnableTreeNode(input.treeNode)) {
+    await input.notificationRouter.warn("Select an algorithm file or language row to run.");
+    return;
+  }
+
+  const treeNode = input.treeNode;
+
+  if (treeNode.kind === "languageSummary" && treeNode.hasOpenTarget === false) {
+    await input.notificationRouter.warn("Cannot run a missing language row.");
+    return;
+  }
+
+  if (runAdapter === undefined) {
+    const errorMessage = "Run adapter is not configured.";
+    recordRunFileFailure(input, errorMessage);
+    await input.notificationRouter.error(errorMessage);
+    return;
+  }
+
+  const algorithmsRootPath = await resolveAlgorithmsRootPath({
+    filesystem: input.filesystem,
+    workspaceFolderPaths: input.workspaceFolderPaths,
+  });
+
+  if (algorithmsRootPath === null) {
+    await input.notificationRouter.warn("Algorithms root is unavailable.");
+    return;
+  }
+
+  const repositoryRootPath = resolveRepositoryRootFromAlgorithmsRootPath(algorithmsRootPath);
+
+  if (repositoryRootPath === null) {
+    await input.notificationRouter.warn("Repository root is unavailable.");
+    return;
+  }
+
+  const runScriptPath = path.join(repositoryRootPath, "run.sh");
+  if (!(await input.filesystem.isFile(runScriptPath))) {
+    const errorMessage = "run.sh is unavailable.";
+    recordRunFileFailure(input, errorMessage);
+    await input.notificationRouter.error(errorMessage);
+    return;
+  }
+
+  const targetFilePath = treeNode.filePath;
+  if (!(await input.filesystem.isFile(targetFilePath))) {
+    await input.notificationRouter.warn("Target file no longer exists.");
+    input.refreshAlgorithmsTree();
+    return;
+  }
+
+  const canonicalAlgorithmsRoot = await input.filesystem.realpath(algorithmsRootPath);
+  const canonicalTargetFilePath = await input.filesystem.realpath(targetFilePath);
+  const isWithinAlgorithmsRoot = await input.filesystem.isPathWithinRoot(
+    canonicalAlgorithmsRoot,
+    canonicalTargetFilePath
+  );
+
+  if (!isWithinAlgorithmsRoot) {
+    await input.notificationRouter.warn("Run target must stay inside the Algorithms root.");
+    return;
+  }
+
+  const algorithmDirectoryPath = resolveAlgorithmDirectoryPath(treeNode);
+  if (!(await input.filesystem.isDirectory(algorithmDirectoryPath))) {
+    await input.notificationRouter.warn("Algorithm directory is unavailable.");
+    return;
+  }
+
+  const languageKey = resolveLanguageKeyFromNode(treeNode, input);
+  if (languageKey === null) {
+    const errorMessage = "Language could not be determined.";
+    recordRunFileFailure(input, errorMessage);
+    await input.notificationRouter.warn(errorMessage);
+    return;
+  }
+
+  const runControls = input.hostState.getSnapshot().runControls;
+  const runControlOptionTokens = buildRunControlOptionTokens(runControls);
+  const runControlPassthrough = buildRunControlPassthroughTokens(runControls);
+  if (!runControlPassthrough.ok) {
+    const errorMessage = runControlPassthrough.reason ?? "Run args are invalid.";
+    recordRunFileFailure(input, errorMessage);
+    await input.notificationRouter.warn(errorMessage);
+    return;
+  }
+
+  const runTargetToken = treeNode.kind === "languageSummary"
+    ? languageKey
+    : path.basename(canonicalTargetFilePath);
+
+  try {
+    input.hostState.send({ type: "COMMAND_REQUESTED", commandId: RUN_FILE_COMMAND_ID });
+
+    runAdapter.run({
+      executablePath: runScriptPath,
+      optionTokens: runControlOptionTokens,
+      passthroughTokens: runControlPassthrough.tokens,
+      targetToken: runTargetToken,
+      workingDirectoryPath: algorithmDirectoryPath,
+    });
+
+    const successMessage = `Run File started for ${runTargetToken} (${languageKey}) in ${runAdapter.getTerminalName()}.`;
+    input.hostState.send({ type: "COMMAND_SUCCEEDED", result: successMessage });
+    await input.notificationRouter.info(successMessage);
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    input.hostState.send({ type: "COMMAND_FAILED", error: errorMessage });
+    await input.notificationRouter.error(`Failed to run target: ${errorMessage}`);
+  }
+}
 
 /**
  * Creates one bootstrap run snapshot.
@@ -668,9 +961,14 @@ function createRunControlsIntentReaction(
  * This is an interface-stable skeleton that intentionally defers full
  * run-registry and orchestration behavior to later slices.
  *
+ * @param {CreateConductorServiceInput} [input] Optional conductor dependencies.
  * @returns {IConductor} Conductor implementation.
  */
-export function createConductorService(): IConductor {
+export function createConductorService(
+  input?: CreateConductorServiceInput
+): IConductor {
+  const runAdapter = input?.algorithmsTerminalRunAdapter;
+
   return {
     reactToSmokeIntent(input) {
       return createSmokeIntentReaction(input.intent, input.snapshot.smokeControls);
@@ -678,6 +976,10 @@ export function createConductorService(): IConductor {
 
     reactToRunControlsIntent(input) {
       return createRunControlsIntentReaction(input.intent, input.snapshot.runControls);
+    },
+
+    async runFile(input: ConductorRunFileInput): Promise<void> {
+      await runAlgorithmsFile(input, runAdapter);
     },
 
     startRun(input: ConductorStartRunInput): ConductorRunSnapshot {

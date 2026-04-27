@@ -30,6 +30,9 @@ import {
 } from "./comms";
 import type { ICommunicationHub } from "./comms";
 import {
+  createAlgorithmsTerminalRunAdapter,
+} from "./commandline";
+import {
   createConductorService,
   createRunControlsChannelMessageHandler,
   createSmokeControlsChannelMessageHandler,
@@ -102,6 +105,7 @@ export function createCoordinator(
 
   const filesystem: IFilesystem = createFilesystem();
   const languages: ILanguages = createLanguages(GENERATED_LANGUAGE_DATA);
+  const algorithmsTerminalRunAdapter = createAlgorithmsTerminalRunAdapter();
   const stateMachine: IStateMachine = createHostStateService({
     initialSmokeControls: {
       languages: buildSmokeLanguageSelections(languages),
@@ -109,7 +113,9 @@ export function createCoordinator(
   });
   const viewModeService: IViewModeService = createViewModeService();
   const filterModeService: IFilterModeService = createFilterModeService();
-  const conductor: IConductor = createConductorService();
+  const conductor: IConductor = createConductorService({
+    algorithmsTerminalRunAdapter,
+  });
   const notificationRouter: INotificationRouter = createNotificationRouter();
   const notificationDispatcher = createConductorNotificationDispatcher(notificationRouter);
   const viewHost: IViewHost = createViewHost(context);
@@ -270,7 +276,9 @@ export function createCoordinator(
       refreshAlgorithmsTree: workspaceAlgorithmsTreeProvider.refresh,
     }),
     algorithmsRunFile: createAlgorithmsRunFileCommand({
+      conductor,
       filesystem,
+      hostState: stateMachine,
       languages,
       notificationRouter,
       refreshAlgorithmsTree: workspaceAlgorithmsTreeProvider.refresh,
