@@ -61,7 +61,7 @@ function compareTreeNames(
  * @param {string} workspaceFolderPath Workspace folder path.
  * @returns {Promise<string | null>} Canonical src root path when present.
  */
-async function resolveSourceRootForWorkspaceFolder(
+async function _resolveSourceRootForWorkspaceFolder(
   filesystem: IFilesystem,
   workspaceFolderPath: string
 ): Promise<string | null> {
@@ -81,7 +81,7 @@ async function resolveSourceRootForWorkspaceFolder(
  * @param {string} inputPath Candidate path.
  * @returns {boolean} True when the path contains src as one segment.
  */
-function hasSourceSegment(inputPath: string): boolean {
+function _hasSourceSegment(inputPath: string): boolean {
   const parsedPath = path.parse(inputPath);
   const rootLength = parsedPath.root.length;
   const relativePath = inputPath.slice(rootLength);
@@ -95,7 +95,7 @@ function hasSourceSegment(inputPath: string): boolean {
  * @param {string} sourcePath Path that may include src.
  * @returns {string | null} Repository root when src is found.
  */
-function resolveRepositoryRootFromSourcePath(sourcePath: string): string | null {
+function _resolveRepositoryRootFromSourcePath(sourcePath: string): string | null {
   let cursor = path.resolve(sourcePath);
 
   while (true) {

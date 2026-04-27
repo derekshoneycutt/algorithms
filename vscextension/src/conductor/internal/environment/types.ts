@@ -1,5 +1,4 @@
 import type {
-  AlgorithmsProfileValues,
   AlgorithmsProfileWritableValues,
   ShellProfileLoadResult,
   ShellProfileWriteResult,

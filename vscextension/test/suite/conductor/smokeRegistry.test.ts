@@ -55,7 +55,7 @@ describe("conductor/internal — createSmokeRegistry smoke retention lifecycle",
         algorithmPath: "/repo/src/algo",
         handle: {
           kill: () => ({ ok: true }),
-        } as any,
+        } as unknown as never,
         result: new Promise(() => {}),
         runId: "run-1",
         stopRequested: false,
@@ -92,7 +92,7 @@ describe("conductor/internal — createSmokeRegistry smoke retention lifecycle",
       resolveResult = resolve;
     });
 
-    const stub: any = {
+    const stub: unknown = {
       algorithmPath: "/repo/src/algo",
       handle: {
         kill: (signal: string) => {

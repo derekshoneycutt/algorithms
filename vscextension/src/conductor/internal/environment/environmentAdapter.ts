@@ -79,7 +79,7 @@ export async function executeCheckEnv(
       cwd: input.repositoryRoot,
     });
 
-    const { errors, filteredOutput, rawOutput } = parseCheckEnvOutput(
+    const { errors: _errors, filteredOutput, rawOutput } = parseCheckEnvOutput(
       (result.stdout || "") + (result.stderr || "")
     );
 

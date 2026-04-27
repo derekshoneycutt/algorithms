@@ -139,7 +139,6 @@ function renderVariableCard(variable: EnvironmentControlsViewVariable): string {
         <input class="input" data-role="variable-value" data-variable-key="${escapeHtml(variable.key)}" value="${escapeHtml(variable.value)}" />
         <button class="button" type="button" data-role="save-variable" data-variable-key="${escapeHtml(variable.key)}">Save</button>
       </div>
-      ${renderStatus(variable.statusText, variable.statusClassName)}
     </div>
   `;
 }

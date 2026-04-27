@@ -5,16 +5,16 @@ describe("conductor/internal — environment routing integration", () => {
     it("blocks save when docker enabled with empty value", () => {
       const dockerEnabled = true;
       const dockerValue = "";
-      const sshEnabled = false;
-      const sshValue = "";
+      const _sshEnabled = false;
+      const _sshValue = "";
 
       const hasError = dockerEnabled && !dockerValue;
       assert.equal(hasError, true);
     });
 
     it("blocks save when ssh enabled with empty value", () => {
-      const dockerEnabled = false;
-      const dockerValue = "";
+      const _dockerEnabled = false;
+      const _dockerValue = "";
       const sshEnabled = true;
       const sshValue = "";
 
@@ -24,9 +24,9 @@ describe("conductor/internal — environment routing integration", () => {
 
     it("blocks save when both docker and ssh are enabled (conflict)", () => {
       const dockerEnabled = true;
-      const dockerValue = "ubuntu:latest";
+      const _dockerValue = "ubuntu:latest";
       const sshEnabled = true;
-      const sshValue = "user@host";
+      const _sshValue = "user@host";
 
       const hasConflict = dockerEnabled && sshEnabled;
       assert.equal(hasConflict, true);
@@ -67,16 +67,16 @@ describe("conductor/internal — environment routing integration", () => {
     it("blocks save when docker enabled with empty value on batch", () => {
       const batchDockerEnabled = true;
       const batchDockerValue = "";
-      const batchSshEnabled = false;
-      const batchSshValue = "";
+      const _batchSshEnabled = false;
+      const _batchSshValue = "";
 
       const hasError = batchDockerEnabled && !batchDockerValue;
       assert.equal(hasError, true);
     });
 
     it("blocks save when ssh enabled with empty value on batch", () => {
-      const batchDockerEnabled = false;
-      const batchDockerValue = "";
+      const _batchDockerEnabled = false;
+      const _batchDockerValue = "";
       const batchSshEnabled = true;
       const batchSshValue = "";
 
@@ -86,9 +86,9 @@ describe("conductor/internal — environment routing integration", () => {
 
     it("blocks save when both docker and ssh enabled on batch (conflict)", () => {
       const batchDockerEnabled = true;
-      const batchDockerValue = "ubuntu:latest";
+      const _batchDockerValue = "ubuntu:latest";
       const batchSshEnabled = true;
-      const batchSshValue = "user@host";
+      const _batchSshValue = "user@host";
 
       const hasConflict = batchDockerEnabled && batchSshEnabled;
       assert.equal(hasConflict, true);
@@ -97,8 +97,8 @@ describe("conductor/internal — environment routing integration", () => {
     it("allows batch save when docker enabled with value", () => {
       const batchDockerEnabled = true;
       const batchDockerValue = "ubuntu:latest";
-      const batchSshEnabled = false;
-      const batchSshValue = "";
+      const _batchSshEnabled = false;
+      const _batchSshValue = "";
 
       const hasError = (batchDockerEnabled && !batchDockerValue) || (batchSshEnabled && !batchSshValue) || (batchDockerEnabled && batchSshEnabled);
       assert.equal(hasError, false);
@@ -204,7 +204,7 @@ describe("conductor/internal — environment routing integration", () => {
 
     it("clears entries from map when disabled", () => {
       // Start with entry enabled
-      let entries = [
+      const entries = [
         {
           languageKey: "python",
           dockerEnabled: true,
@@ -280,7 +280,7 @@ describe("conductor/internal — environment routing integration", () => {
       ];
 
       // After batch save applies docker to all languages
-      const batchDockerValue = "ubuntu:latest";
+      const _batchDockerValue = "ubuntu:latest";
       entries.forEach((e) => {
         e.statusText = "batch save applied";
       });

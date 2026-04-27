@@ -36,6 +36,14 @@ module.exports = tseslint.config(
       "no-undef": "off",
       "no-var": "error",
       "prefer-const": "error",
+      "@typescript-eslint/no-unused-vars": [
+        "error",
+        {
+          argsIgnorePattern: "^_",
+          varsIgnorePattern: "^_",
+          caughtErrorsIgnorePattern: "^_",
+        },
+      ],
     },
   },
   {

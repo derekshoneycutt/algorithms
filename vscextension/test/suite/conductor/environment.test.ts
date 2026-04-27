@@ -183,9 +183,9 @@ describe("conductor/internal — environment operations", () => {
   describe("Environment routing validation", () => {
     it("detects conflict when both docker and ssh enabled for same language", () => {
       const dockerEnabled = true;
-      const dockerValue = "ubuntu:latest";
+      const _dockerValue = "ubuntu:latest";
       const sshEnabled = true;
-      const sshValue = "user@host";
+      const _sshValue = "user@host";
 
       const hasConflict = dockerEnabled && sshEnabled;
       assert.equal(hasConflict, true);
@@ -193,9 +193,9 @@ describe("conductor/internal — environment operations", () => {
 
     it("detects no conflict when only docker enabled", () => {
       const dockerEnabled = true;
-      const dockerValue = "ubuntu:latest";
+      const _dockerValue = "ubuntu:latest";
       const sshEnabled = false;
-      const sshValue = "";
+      const _sshValue = "";
 
       const hasConflict = dockerEnabled && sshEnabled;
       assert.equal(hasConflict, false);
@@ -203,9 +203,9 @@ describe("conductor/internal — environment operations", () => {
 
     it("detects no conflict when only ssh enabled", () => {
       const dockerEnabled = false;
-      const dockerValue = "";
+      const _dockerValue = "";
       const sshEnabled = true;
-      const sshValue = "user@host";
+      const _sshValue = "user@host";
 
       const hasConflict = dockerEnabled && sshEnabled;
       assert.equal(hasConflict, false);
@@ -213,9 +213,9 @@ describe("conductor/internal — environment operations", () => {
 
     it("detects no conflict when neither docker nor ssh enabled", () => {
       const dockerEnabled = false;
-      const dockerValue = "";
+      const _dockerValue = "";
       const sshEnabled = false;
-      const sshValue = "";
+      const _sshValue = "";
 
       const hasConflict = dockerEnabled && sshEnabled;
       assert.equal(hasConflict, false);
@@ -238,10 +238,10 @@ describe("conductor/internal — environment operations", () => {
     });
 
     it("allows empty values when disabled", () => {
-      const dockerEnabled = false;
-      const dockerValue = "";
-      const sshEnabled = false;
-      const sshValue = "";
+      const _dockerEnabled = false;
+      const _dockerValue = "";
+      const _sshEnabled = false;
+      const _sshValue = "";
 
       const isValid = true;
       assert.equal(isValid, true);

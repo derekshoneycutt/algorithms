@@ -47,7 +47,7 @@ function createLanguageStub(): ILanguages {
     { key: "python", displayLabel: "Python" },
     { key: "go", displayLabel: "Go" },
     { key: "typescript", displayLabel: "TypeScript" },
-  ] as any[];
+  ] as Array<{ key: string; displayLabel: string }>;
 
   return {
     getAll() {
@@ -536,7 +536,7 @@ describe("views/trees — URI fragments and FileDecoration provider", () => {
 
     // algos-language-flagged → red badge
     const flaggedUri = vscode.Uri.file("/test/file.py").with({ fragment: "algos-language-flagged" });
-    const flaggedDecoration = provider.provideFileDecoration(flaggedUri, {} as any) as vscode.FileDecoration | undefined;
+    const flaggedDecoration = provider.provideFileDecoration(flaggedUri, {} as vscode.CancellationToken) as vscode.FileDecoration | undefined;
     assert.ok(flaggedDecoration !== undefined && flaggedDecoration !== null);
     assert.strictEqual(flaggedDecoration.badge, "\u25cf");
     assert.deepStrictEqual(flaggedDecoration.color, new vscode.ThemeColor("testing.iconFailed"));
@@ -544,7 +544,7 @@ describe("views/trees — URI fragments and FileDecoration provider", () => {
 
     // algos-language-flagged-absent → red badge
     const flaggedAbsentUri = vscode.Uri.file("/test/file.py").with({ fragment: "algos-language-flagged-absent" });
-    const flaggedAbsentDecoration = provider.provideFileDecoration(flaggedAbsentUri, {} as any) as vscode.FileDecoration | undefined;
+    const flaggedAbsentDecoration = provider.provideFileDecoration(flaggedAbsentUri, {} as vscode.CancellationToken) as vscode.FileDecoration | undefined;
     assert.ok(flaggedAbsentDecoration !== undefined && flaggedAbsentDecoration !== null);
     assert.strictEqual(flaggedAbsentDecoration.badge, "\u25cf");
     assert.deepStrictEqual(flaggedAbsentDecoration.color, new vscode.ThemeColor("testing.iconFailed"));
@@ -552,7 +552,7 @@ describe("views/trees — URI fragments and FileDecoration provider", () => {
 
     // algos-language-absent → gray badge
     const absentUri = vscode.Uri.file("/test/file.py").with({ fragment: "algos-language-absent" });
-    const absentDecoration = provider.provideFileDecoration(absentUri, {} as any) as vscode.FileDecoration | undefined;
+    const absentDecoration = provider.provideFileDecoration(absentUri, {} as vscode.CancellationToken) as vscode.FileDecoration | undefined;
     assert.ok(absentDecoration !== undefined && absentDecoration !== null);
     assert.strictEqual(absentDecoration.badge, "\u25cf");
     assert.deepStrictEqual(absentDecoration.color, new vscode.ThemeColor("testing.iconQueued"));
@@ -560,20 +560,20 @@ describe("views/trees — URI fragments and FileDecoration provider", () => {
 
     // run fragments
     const runRunningUri = vscode.Uri.file("/test/file.py").with({ fragment: "algos-runfile-running" });
-    const runRunningDecoration = provider.provideFileDecoration(runRunningUri, {} as any) as vscode.FileDecoration | undefined;
+    const runRunningDecoration = provider.provideFileDecoration(runRunningUri, {} as vscode.CancellationToken) as vscode.FileDecoration | undefined;
     assert.ok(runRunningDecoration !== undefined && runRunningDecoration !== null);
     assert.strictEqual(runRunningDecoration.badge, "▶");
     assert.deepStrictEqual(runRunningDecoration.color, new vscode.ThemeColor("testing.iconQueued"));
 
     const runFailedUri = vscode.Uri.file("/test/file.py").with({ fragment: "algos-runfile-failed" });
-    const runFailedDecoration = provider.provideFileDecoration(runFailedUri, {} as any) as vscode.FileDecoration | undefined;
+    const runFailedDecoration = provider.provideFileDecoration(runFailedUri, {} as vscode.CancellationToken) as vscode.FileDecoration | undefined;
     assert.ok(runFailedDecoration !== undefined && runFailedDecoration !== null);
     assert.strictEqual(runFailedDecoration.badge, "✕");
     assert.deepStrictEqual(runFailedDecoration.color, new vscode.ThemeColor("testing.iconFailed"));
 
     // No fragment → undefined
     const noUri = vscode.Uri.file("/test/file.py");
-    const noDecoration = provider.provideFileDecoration(noUri, {} as any);
+    const noDecoration = provider.provideFileDecoration(noUri, {} as vscode.CancellationToken);
     assert.strictEqual(noDecoration, undefined);
   });
 });

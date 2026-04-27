@@ -2,7 +2,6 @@ import * as path from "node:path";
 
 import type { ConductorRunActionKind, ConductorRunFileInput, ConductorRunTargetRef } from "../IConductor";
 import type {
-  CommandLineResult,
   IAlgorithmsTerminalRunAdapter,
   ICommandLine,
 } from "../../commandline";
