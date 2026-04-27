@@ -308,6 +308,14 @@ export interface IConductor {
   runFile(input: ConductorRunFileInput): Promise<void>;
 
   /**
+   * Runs one algorithm file directly via run.sh without state machine.
+   *
+   * @param {vscode.Uri} resourceUri File URI to run.
+   * @returns {Promise<void>} Resolves when execution completes.
+   */
+  runAlgorithmFile(resourceUri: { fsPath: string }): Promise<void>;
+
+  /**
    * Stops one active smoke test.
    *
    * @param {ConductorStopSmokeTestInput} input Stop input.

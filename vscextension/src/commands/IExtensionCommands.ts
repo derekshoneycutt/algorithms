@@ -1,3 +1,5 @@
+import type { Uri } from "vscode";
+
 import type { WorkspaceTreeNode } from "../views";
 
 /**
@@ -131,6 +133,14 @@ export interface IExtensionCommands {
   algorithmsRunFile: (treeNode?: WorkspaceTreeNode) => Promise<void>;
 
   /**
+   * Runs one Algorithms source file from the editor title bar.
+   *
+   * @param {Uri} [resourceUri] Resource shown in the active editor.
+   * @returns {Promise<void>}
+   */
+  algorithmsEditorTitleRunFile: (resourceUri?: Uri) => Promise<void>;
+
+  /**
    * Compiles one Algorithms source target without running it.
    *
    * @param {WorkspaceTreeNode} [treeNode] Hovered tree node.
@@ -193,4 +203,44 @@ export interface IExtensionCommands {
    * @returns {Promise<void>}
    */
   algorithmsClearRunResults: (treeNode?: WorkspaceTreeNode) => Promise<void>;
+
+    /**
+     * Runs an algorithm file from the Explorer context menu.
+     *
+     * @param {Uri} [clickedUri] Clicked file URI from Explorer.
+     * @returns {Promise<void>}
+     */
+    explorerRunFile: (clickedUri?: Uri) => Promise<void>;
+
+    /**
+     * Compile-only execution from the Explorer context menu.
+     *
+     * @param {Uri} [clickedUri] Clicked file URI from Explorer.
+     * @returns {Promise<void>}
+     */
+    explorerCompileOnly: (clickedUri?: Uri) => Promise<void>;
+
+    /**
+     * Check-only execution from the Explorer context menu.
+     *
+     * @param {Uri} [clickedUri] Clicked file URI from Explorer.
+     * @returns {Promise<void>}
+     */
+    explorerCheckOnly: (clickedUri?: Uri) => Promise<void>;
+
+    /**
+     * Full clean execution from the Explorer context menu.
+     *
+     * @param {Uri} [clickedUri] Clicked file URI from Explorer.
+     * @returns {Promise<void>}
+     */
+    explorerClean: (clickedUri?: Uri) => Promise<void>;
+
+    /**
+     * Local clean execution from the Explorer context menu.
+     *
+     * @param {Uri} [clickedUri] Clicked file URI from Explorer.
+     * @returns {Promise<void>}
+     */
+    explorerLocalClean: (clickedUri?: Uri) => Promise<void>;
 }

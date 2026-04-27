@@ -16,6 +16,7 @@ export {
 	getAlgorithmsFlagLanguageCommandId,
 	getAlgorithmsUnflagLanguageCommandId,
 	getAlgorithmsRunFileCommandId,
+	getAlgorithmsEditorTitleRunFileCommandId,
 	getAlgorithmsCompileOnlyCommandId,
 	getAlgorithmsCheckOnlyCommandId,
 	getAlgorithmsCleanCommandId,
@@ -24,6 +25,11 @@ export {
 	getAlgorithmsStopSmokeTestCommandId,
 	getAlgorithmsClearSmokeResultsCommandId,
 	getAlgorithmsClearRunResultsCommandId,
+	getExplorerRunFileCommandId,
+	getExplorerCompileOnlyCommandId,
+	getExplorerCheckOnlyCommandId,
+	getExplorerCleanCommandId,
+	getExplorerLocalCleanCommandId,
 } from "./commandIds";
 export { registerCommands } from "./registerCommands";
 export { createShowBootstrapStatusCommand } from "./showBootstrapStatus";
@@ -54,3 +60,5 @@ export {
 	createAlgorithmsClearSmokeResultsCommand,
 	createAlgorithmsClearRunResultsCommand,
 } from "./algorithmTreeActions";
+export { createAlgorithmsEditorTitleRunFileCommand } from "./editorTitleRunCommand";
+export { createAlgorithmsExplorerRunCommands } from "./explorerRunCommand";

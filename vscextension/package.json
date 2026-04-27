@@ -174,6 +174,12 @@
         "icon": "$(play)"
       },
       {
+        "command": "algos.algorithmsEditorTitleRunFile",
+        "title": "Run File",
+        "category": "Derek's Algorithms",
+        "icon": "$(play)"
+      },
+      {
         "command": "algos.algorithmsCompileOnly",
         "title": "Compile Only",
         "category": "Derek's Algorithms",
@@ -220,6 +226,36 @@
         "title": "Clear Run Results",
         "category": "Derek's Algorithms",
         "icon": "$(clear-all)"
+      },
+      {
+        "command": "algos.explorerRunFile",
+        "title": "Run File",
+        "category": "Derek's Algorithms",
+        "icon": "$(play)"
+      },
+      {
+        "command": "algos.explorerCompileOnly",
+        "title": "Compile Only",
+        "category": "Derek's Algorithms",
+        "icon": "$(tools)"
+      },
+      {
+        "command": "algos.explorerCheckOnly",
+        "title": "Check Only",
+        "category": "Derek's Algorithms",
+        "icon": "$(pass)"
+      },
+      {
+        "command": "algos.explorerClean",
+        "title": "Clean",
+        "category": "Derek's Algorithms",
+        "icon": "$(clear-all)"
+      },
+      {
+        "command": "algos.explorerLocalClean",
+        "title": "Local Clean",
+        "category": "Derek's Algorithms",
+        "icon": "$(trash)"
       }
     ],
     "submenus": [
@@ -227,9 +263,21 @@
         "id": "algos.algorithmsRunActionsSubmenu",
         "label": "Run Actions",
         "icon": "$(kebab-vertical)"
+      },
+      {
+        "id": "algos.explorerRunSubmenu",
+        "label": "Run",
+        "icon": "$(play)"
       }
     ],
     "menus": {
+      "editor/title": [
+        {
+          "command": "algos.algorithmsEditorTitleRunFile",
+          "when": "resourceScheme == file && resourcePath =~ /[\\\\/]src[\\\\/][^\\\\/]+[\\\\/][^\\\\/]+[\\\\/][^\\\\/]+$/",
+          "group": "navigation"
+        }
+      ],
       "view/title": [
         {
           "command": "algos.standardLibraryCreateFile",
@@ -433,6 +481,40 @@
         {
           "command": "algos.algorithmsLocalClean",
           "when": "view == algos.workspaceAlgorithmsTreeView && (viewItem == algos.algorithmFileUnflagged || viewItem == algos.algorithmFileFlagged || viewItem == algos.algorithmFileRunResultsUnflagged || viewItem == algos.algorithmFileRunResultsFlagged || viewItem == algos.algorithmsMainFileUnflagged || viewItem == algos.algorithmsMainFileFlagged || viewItem == algos.algorithmsMainFileRunResultsUnflagged || viewItem == algos.algorithmsMainFileRunResultsFlagged || viewItem == algos.algorithmsLanguageSummaryUnflagged || viewItem == algos.algorithmsLanguageSummaryFlagged || viewItem == algos.algorithmsLanguageSummaryRunResultsUnflagged || viewItem == algos.algorithmsLanguageSummaryRunResultsFlagged)",
+          "group": "navigation@5"
+        }
+      ],
+      "explorer/context": [
+        {
+          "submenu": "algos.explorerRunSubmenu",
+          "when": "resourceScheme == file && resourcePath =~ /[\\\\/]src[\\\\/][^\\\\/]+[\\\\/][^\\\\/]+[\\\\/][^\\\\/]+$/",
+          "group": "navigation@50"
+        }
+      ],
+      "algos.explorerRunSubmenu": [
+        {
+          "command": "algos.explorerRunFile",
+          "when": "resourceScheme == file && resourcePath =~ /[\\\\/]src[\\\\/][^\\\\/]+[\\\\/][^\\\\/]+[\\\\/][^\\\\/]+$/",
+          "group": "navigation@1"
+        },
+        {
+          "command": "algos.explorerCompileOnly",
+          "when": "resourceScheme == file && resourcePath =~ /[\\\\/]src[\\\\/][^\\\\/]+[\\\\/][^\\\\/]+[\\\\/][^\\\\/]+$/",
+          "group": "navigation@2"
+        },
+        {
+          "command": "algos.explorerCheckOnly",
+          "when": "resourceScheme == file && resourcePath =~ /[\\\\/]src[\\\\/][^\\\\/]+[\\\\/][^\\\\/]+[\\\\/][^\\\\/]+$/",
+          "group": "navigation@3"
+        },
+        {
+          "command": "algos.explorerClean",
+          "when": "resourceScheme == file && resourcePath =~ /[\\\\/]src[\\\\/][^\\\\/]+[\\\\/][^\\\\/]+[\\\\/][^\\\\/]+$/",
+          "group": "navigation@4"
+        },
+        {
+          "command": "algos.explorerLocalClean",
+          "when": "resourceScheme == file && resourcePath =~ /[\\\\/]src[\\\\/][^\\\\/]+[\\\\/][^\\\\/]+[\\\\/][^\\\\/]+$/",
           "group": "navigation@5"
         }
       ]

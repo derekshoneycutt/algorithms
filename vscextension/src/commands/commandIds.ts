@@ -143,6 +143,15 @@ export function getAlgorithmsRunFileCommandId(): string {
 }
 
 /**
+ * Command identifier for running one Algorithms file from the editor title bar.
+ *
+ * @returns {string} Command identifier.
+ */
+export function getAlgorithmsEditorTitleRunFileCommandId(): string {
+  return "algos.algorithmsEditorTitleRunFile";
+}
+
+/**
  * Command identifier for compile-only execution from the tree.
  *
  * @returns {string} Command identifier.
@@ -212,4 +221,49 @@ export function getAlgorithmsClearSmokeResultsCommandId(): string {
  */
 export function getAlgorithmsClearRunResultsCommandId(): string {
   return "algos.algorithmsClearRunResults";
+}
+
+/**
+ * Command identifier for running an Algorithms file from the Explorer context menu.
+ *
+ * @returns {string} Command identifier.
+ */
+export function getExplorerRunFileCommandId(): string {
+  return "algos.explorerRunFile";
+}
+
+/**
+ * Command identifier for compile-only execution from the Explorer context menu.
+ *
+ * @returns {string} Command identifier.
+ */
+export function getExplorerCompileOnlyCommandId(): string {
+  return "algos.explorerCompileOnly";
+}
+
+/**
+ * Command identifier for check-only execution from the Explorer context menu.
+ *
+ * @returns {string} Command identifier.
+ */
+export function getExplorerCheckOnlyCommandId(): string {
+  return "algos.explorerCheckOnly";
+}
+
+/**
+ * Command identifier for full clean execution from the Explorer context menu.
+ *
+ * @returns {string} Command identifier.
+ */
+export function getExplorerCleanCommandId(): string {
+  return "algos.explorerClean";
+}
+
+/**
+ * Command identifier for local clean execution from the Explorer context menu.
+ *
+ * @returns {string} Command identifier.
+ */
+export function getExplorerLocalCleanCommandId(): string {
+  return "algos.explorerLocalClean";
 }

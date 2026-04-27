@@ -1033,7 +1033,20 @@ function createAlgorithmsRunCommandForAction(
   actionKind: ConductorRunActionKind
 ): (treeNode?: WorkspaceTreeNode) => Promise<void> {
   return async (treeNode?: WorkspaceTreeNode): Promise<void> => {
-    if (dependencies.conductor === undefined || dependencies.hostState === undefined) {
+    if (dependencies.conductor === undefined) {
+      await dependencies.notificationRouter.error("Run File orchestration is not configured.");
+      return;
+    }
+
+    // For simple run-file action, use direct dispatch; for other actions, use conductor's full orchestration
+    if (actionKind === "run-file" && treeNode?.filePath !== undefined) {
+      const fileUri = vscode.Uri.file(treeNode.filePath);
+      await dependencies.conductor.runAlgorithmFile(fileUri);
+      return;
+    }
+
+    // For other actions (compile-only, check-only, clean, localclean, smoke-test), use full conductor orchestration
+    if (dependencies.hostState === undefined) {
       await dependencies.notificationRouter.error("Run File orchestration is not configured.");
       return;
     }

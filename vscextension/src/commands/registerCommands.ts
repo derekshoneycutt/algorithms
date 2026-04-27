@@ -18,6 +18,7 @@ import {
   getAlgorithmsFlagLanguageCommandId,
   getAlgorithmsUnflagLanguageCommandId,
   getAlgorithmsRunFileCommandId,
+  getAlgorithmsEditorTitleRunFileCommandId,
   getAlgorithmsCompileOnlyCommandId,
   getAlgorithmsCheckOnlyCommandId,
   getAlgorithmsCleanCommandId,
@@ -26,6 +27,11 @@ import {
   getAlgorithmsStopSmokeTestCommandId,
   getAlgorithmsClearSmokeResultsCommandId,
   getAlgorithmsClearRunResultsCommandId,
+    getExplorerRunFileCommandId,
+    getExplorerCompileOnlyCommandId,
+    getExplorerCheckOnlyCommandId,
+    getExplorerCleanCommandId,
+    getExplorerLocalCleanCommandId,
 } from "./commandIds";
 
 /**
@@ -103,6 +109,10 @@ export function registerCommands(
       commands.algorithmsRunFile
     ),
     vscode.commands.registerCommand(
+      getAlgorithmsEditorTitleRunFileCommandId(),
+      commands.algorithmsEditorTitleRunFile
+    ),
+    vscode.commands.registerCommand(
       getAlgorithmsCompileOnlyCommandId(),
       commands.algorithmsCompileOnly
     ),
@@ -133,6 +143,26 @@ export function registerCommands(
     vscode.commands.registerCommand(
       getAlgorithmsClearRunResultsCommandId(),
       commands.algorithmsClearRunResults
-    )
+      ),
+      vscode.commands.registerCommand(
+        getExplorerRunFileCommandId(),
+        commands.explorerRunFile
+      ),
+      vscode.commands.registerCommand(
+        getExplorerCompileOnlyCommandId(),
+        commands.explorerCompileOnly
+      ),
+      vscode.commands.registerCommand(
+        getExplorerCheckOnlyCommandId(),
+        commands.explorerCheckOnly
+      ),
+      vscode.commands.registerCommand(
+        getExplorerCleanCommandId(),
+        commands.explorerClean
+      ),
+      vscode.commands.registerCommand(
+        getExplorerLocalCleanCommandId(),
+        commands.explorerLocalClean
+      )
   );
 }

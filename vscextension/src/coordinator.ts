@@ -16,6 +16,7 @@ import {
   createAlgorithmsFlagLanguageCommand,
   createAlgorithmsUnflagLanguageCommand,
   createAlgorithmsRunFileCommand,
+  createAlgorithmsEditorTitleRunFileCommand,
   createAlgorithmsCompileOnlyCommand,
   createAlgorithmsCheckOnlyCommand,
   createAlgorithmsCleanCommand,
@@ -25,6 +26,7 @@ import {
   createAlgorithmsClearSmokeResultsCommand,
   createAlgorithmsClearRunResultsCommand,
   createShowBootstrapStatusCommand,
+    createAlgorithmsExplorerRunCommands,
   registerCommands,
 } from "./commands";
 import type { IExtensionCommands } from "./commands";
@@ -143,14 +145,15 @@ export function createCoordinator(
   const algorithmsTerminalRunAdapter = createAlgorithmsTerminalRunAdapter();
   const viewModeService: IViewModeService = createViewModeService();
   const filterModeService: IFilterModeService = createFilterModeService();
+  const notificationRouter: INotificationRouter = createNotificationRouter();
   const conductor: IConductor = createConductorService({
     algorithmsTerminalRunAdapter,
     commandLine,
     filesystem,
+    notificationRouter,
     repositoryRoot: workspaceFolderPaths[0] ?? "",
   });
   void conductor.initWorkspaceSupportedContext({ workspaceFolderPaths });
-  const notificationRouter: INotificationRouter = createNotificationRouter();
   const notificationDispatcher = createConductorNotificationDispatcher(notificationRouter);
   const viewHost: IViewHost = createViewHost(context);
   const communicationHub: ICommunicationHub = createCommunicationHub(viewHost);
@@ -175,6 +178,14 @@ export function createCoordinator(
   const runStatusTreeRefreshSubscription = conductor.subscribeRunTargetStatus(() => {
     workspaceAlgorithmsTreeProvider.refresh();
   });
+    const explorerRunCommands = createAlgorithmsExplorerRunCommands({
+      conductor,
+      filesystem,
+      hostState: stateMachine,
+      languages,
+      notificationRouter,
+      refreshAlgorithmsTree: workspaceAlgorithmsTreeProvider.refresh,
+    });
   const workspaceStandardLibraryTreeProvider: RefreshableWorkspaceTreeDataProvider =
     createWorkspaceStandardLibraryTreeDataProvider({
       algorithmsIndex,
@@ -359,6 +370,9 @@ export function createCoordinator(
       notificationRouter,
       refreshAlgorithmsTree: workspaceAlgorithmsTreeProvider.refresh,
     }),
+    algorithmsEditorTitleRunFile: createAlgorithmsEditorTitleRunFileCommand({
+      conductor,
+    }),
     algorithmsCompileOnly: createAlgorithmsCompileOnlyCommand({
       conductor,
       filesystem,
@@ -423,6 +437,11 @@ export function createCoordinator(
       notificationRouter,
       refreshAlgorithmsTree: workspaceAlgorithmsTreeProvider.refresh,
     }),
+        explorerRunFile: explorerRunCommands.runFile,
+        explorerCompileOnly: explorerRunCommands.compileOnly,
+        explorerCheckOnly: explorerRunCommands.checkOnly,
+        explorerClean: explorerRunCommands.clean,
+        explorerLocalClean: explorerRunCommands.localClean,
   };
 
   const conductorDisposer = {

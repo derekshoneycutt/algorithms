@@ -13,6 +13,8 @@ export {
   resolveEligibilityState,
   resolveSidebarState,
 } from "./eligibilityResolver";
+export type { AlgorithmFileInfo } from "./algorithmFileResolver";
+export { resolveAlgorithmFile, quoteForShell } from "./algorithmFileResolver";
 export type {
   CreateFilesystemInput,
   DeletePathOptions,
