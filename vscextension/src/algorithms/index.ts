@@ -9,6 +9,14 @@ export type {
   StandardLibEntry,
 } from "./types";
 export { createAlgorithmsIndex } from "./algorithmsIndex";
+export {
+  FLAGGED_LANGUAGES_FILE_NAME,
+  createFlaggedLanguagesService,
+  readFlaggedLanguageKeys,
+  resolveFlaggedLanguagesFilePath,
+  writeFlaggedLanguageKeys,
+} from "./flaggedLanguages";
+export type { IFlaggedLanguagesService } from "./flaggedLanguages";
 
 // ---------------------------------------------------------------------------
 // Root path resolvers – helpers for command actions

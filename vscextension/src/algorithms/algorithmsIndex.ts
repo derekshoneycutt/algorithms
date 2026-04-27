@@ -10,6 +10,7 @@ import type {
   AlgorithmImplementation,
   StandardLibEntry,
 } from "./types";
+import { readFlaggedLanguageKeys } from "./flaggedLanguages";
 
 // ---------------------------------------------------------------------------
 // Private helpers – root resolution (repo layout domain knowledge)
@@ -430,6 +431,10 @@ export function createAlgorithmsIndex(
       const dirents = await listDirents(canonicalAlgorithmPath, filesystem);
       const implementations: AlgorithmImplementation[] = [];
       const filePathsByLanguage = new Map<string, string[]>();
+      const flaggedLanguageKeys = await readFlaggedLanguageKeys(
+        filesystem,
+        canonicalAlgorithmPath
+      );
 
       for (const dirent of dirents) {
         if (!dirent.isFile()) {
@@ -486,6 +491,7 @@ export function createAlgorithmsIndex(
 
         implementations.push({
           languageKey,
+          isFlagged: flaggedLanguageKeys.has(languageKey),
           filePath,
           filePaths,
           hasIncludes: includeFilePaths.length > 0,

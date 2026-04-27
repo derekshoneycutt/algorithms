@@ -126,6 +126,7 @@ describe("algorithms — domain index discovery", () => {
       await fs.writeFile(path.join(algorithmPath, "euclidgcd.go"), "");
       await fs.writeFile(path.join(algorithmPath, "README.md"), "ignored");
       await fs.writeFile(path.join(algorithmPath, "python_include", "helper.py"), "");
+      await fs.writeFile(path.join(algorithmPath, ".flag-lang"), "python\n");
 
       const algorithmsIndex = createAlgorithmsIndex({
         filesystem,
@@ -142,6 +143,7 @@ describe("algorithms — domain index discovery", () => {
 
       const python = implementations.find((implementation) => implementation.languageKey === "python");
       assert.ok(python, "expected python implementation");
+      assert.strictEqual(python.isFlagged, true);
       assert.strictEqual(python.filePath, path.join(algorithmPath, "euclidgcd.py"));
       assert.deepStrictEqual(python.filePaths, [
         path.join(algorithmPath, "euclid.py"),
@@ -151,6 +153,10 @@ describe("algorithms — domain index discovery", () => {
         path.join(algorithmPath, "python_include", "helper.py"),
       ]);
       assert.strictEqual(python.hasIncludes, true);
+
+      const go = implementations.find((implementation) => implementation.languageKey === "go");
+      assert.ok(go, "expected go implementation");
+      assert.strictEqual(go.isFlagged, false);
     } finally {
       await fs.rm(workspaceRootPath, { recursive: true, force: true });
     }

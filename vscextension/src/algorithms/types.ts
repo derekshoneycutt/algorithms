@@ -26,6 +26,8 @@ export interface AlgorithmEntry {
 export interface AlgorithmImplementation {
   /** Language key (e.g. "go", "python"). */
   languageKey: string;
+  /** True when this language key is present in the algorithm .flag-lang file. */
+  isFlagged: boolean;
   /** Absolute path to the main implementation file. */
   filePath: string;
   /** Absolute paths to all implementation files for this language in the algorithm root. */

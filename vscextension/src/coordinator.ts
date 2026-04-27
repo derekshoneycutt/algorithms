@@ -10,7 +10,11 @@ import {
   createAlgorithmsAddIncludeFileCommand,
   createAlgorithmsSidebarShowFileViewCommand,
   createAlgorithmsSidebarShowLanguageViewCommand,
+  createAlgorithmsSidebarShowAllRowsCommand,
+  createAlgorithmsSidebarShowProblemRowsCommand,
   createAlgorithmsDeleteCommand,
+  createAlgorithmsFlagLanguageCommand,
+  createAlgorithmsUnflagLanguageCommand,
   createShowBootstrapStatusCommand,
   registerCommands,
 } from "./commands";
@@ -36,8 +40,12 @@ import {
 import type { IFilesystem } from "./filesystem";
 import {
   createAlgorithmsIndex,
+  createFlaggedLanguagesService,
 } from "./algorithms";
-import type { IAlgorithmsIndex } from "./algorithms";
+import type {
+  IAlgorithmsIndex,
+  IFlaggedLanguagesService,
+} from "./algorithms";
 import {
   buildSmokeLanguageSelections,
   createLanguages,
@@ -49,8 +57,16 @@ import {
   createConductorNotificationDispatcher,
 } from "./notifications";
 import type { INotificationRouter } from "./notifications";
-import { createHostStateService, createViewModeService } from "./state";
-import type { IStateMachine, IViewModeService } from "./state";
+import {
+  createFilterModeService,
+  createHostStateService,
+  createViewModeService,
+} from "./state";
+import type {
+  IFilterModeService,
+  IStateMachine,
+  IViewModeService,
+} from "./state";
 import {
   createWorkspaceAlgorithmsTreeDataProvider,
   createWorkspaceStandardLibraryTreeDataProvider,
@@ -90,6 +106,7 @@ export function createCoordinator(
     },
   });
   const viewModeService: IViewModeService = createViewModeService();
+  const filterModeService: IFilterModeService = createFilterModeService();
   const conductor: IConductor = createConductorService();
   const notificationRouter: INotificationRouter = createNotificationRouter();
   const notificationDispatcher = createConductorNotificationDispatcher(notificationRouter);
@@ -104,9 +121,13 @@ export function createCoordinator(
     languages,
     workspaceFolderPaths,
   });
+  const flaggedLanguages: IFlaggedLanguagesService = createFlaggedLanguagesService(
+    filesystem
+  );
   const workspaceAlgorithmsTreeProvider: RefreshableWorkspaceTreeDataProvider =
     createWorkspaceAlgorithmsTreeDataProvider({
       viewModeService,
+      filterModeService,
       algorithmsIndex,
       languages,
     });
@@ -222,6 +243,26 @@ export function createCoordinator(
     algorithmsSidebarShowLanguageView: createAlgorithmsSidebarShowLanguageViewCommand(
       viewModeService
     ),
+    algorithmsSidebarShowAllRows: createAlgorithmsSidebarShowAllRowsCommand(
+      filterModeService
+    ),
+    algorithmsSidebarShowProblemRows: createAlgorithmsSidebarShowProblemRowsCommand(
+      filterModeService
+    ),
+    algorithmsFlagLanguage: createAlgorithmsFlagLanguageCommand({
+      filesystem,
+      flaggedLanguages,
+      languages,
+      notificationRouter,
+      refreshAlgorithmsTree: workspaceAlgorithmsTreeProvider.refresh,
+    }),
+    algorithmsUnflagLanguage: createAlgorithmsUnflagLanguageCommand({
+      filesystem,
+      flaggedLanguages,
+      languages,
+      notificationRouter,
+      refreshAlgorithmsTree: workspaceAlgorithmsTreeProvider.refresh,
+    }),
   };
 
   return vscode.Disposable.from(

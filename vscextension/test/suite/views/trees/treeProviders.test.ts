@@ -9,7 +9,11 @@ import * as vscode from "vscode";
 import { createFilesystem } from "../../../../src/filesystem";
 import type { IAlgorithmsIndex } from "../../../../src/algorithms";
 import type { AlgorithmCategory, AlgorithmEntry, AlgorithmImplementation, StandardLibEntry } from "../../../../src/algorithms";
+import {
+  createAlgorithmsIndex,
+} from "../../../../src/algorithms";
 import type { ILanguages } from "../../../../src/languages";
+import type { IFilterModeService } from "../../../../src/state";
 import type { SidebarViewMode, IViewModeService } from "../../../../src/state/viewMode";
 import {
   createWorkspaceStandardLibraryTreeDataProvider,
@@ -96,6 +100,28 @@ function createViewModeServiceStub(initialMode: SidebarViewMode): IViewModeServi
 }
 
 /**
+ * Creates a minimal filter mode service stub.
+ *
+ * @param {"all" | "problems"} initialMode Initial filter mode.
+ * @returns {IFilterModeService} Filter mode stub.
+ */
+function createFilterModeServiceStub(initialMode: "all" | "problems"): IFilterModeService {
+  let currentMode = initialMode;
+  const emitter = new vscode.EventEmitter<"all" | "problems">();
+
+  return {
+    getFilterMode() {
+      return currentMode;
+    },
+    async setFilterMode(mode: "all" | "problems") {
+      currentMode = mode;
+      emitter.fire(mode);
+    },
+    onDidChangeFilterMode: emitter.event,
+  };
+}
+
+/**
  * Creates a minimal algorithms index stub.
  *
  * @param {AlgorithmCategory[]} categories Categories.
@@ -177,6 +203,7 @@ describe("views/trees — algorithms FILE view", () => {
     const implementations: AlgorithmImplementation[] = [
       {
         languageKey: "python",
+        isFlagged: false,
         filePath: "/repo/src/numeric/euclidgcd/euclidgcd.py",
         filePaths: [
           "/repo/src/numeric/euclidgcd/euclidgcd.py",
@@ -189,6 +216,7 @@ describe("views/trees — algorithms FILE view", () => {
       },
       {
         languageKey: "go",
+        isFlagged: false,
         filePath: "/repo/src/numeric/euclidgcd/euclidgcd.go",
         filePaths: ["/repo/src/numeric/euclidgcd/euclidgcd.go"],
         hasIncludes: false,
@@ -199,6 +227,7 @@ describe("views/trees — algorithms FILE view", () => {
     const provider = createWorkspaceAlgorithmsTreeDataProvider({
       algorithmsIndex: createAlgorithmsIndexStub(categories, algorithms, implementations),
       viewModeService: createViewModeServiceStub("files"),
+      filterModeService: createFilterModeServiceStub("all"),
       languages: createLanguageStub(),
     });
 
@@ -238,6 +267,7 @@ describe("views/trees — algorithms LANGUAGE view", () => {
     const implementations: AlgorithmImplementation[] = [
       {
         languageKey: "python",
+        isFlagged: false,
         filePath: "/repo/src/numeric/euclidgcd/euclidgcd.py",
         filePaths: [
           "/repo/src/numeric/euclidgcd/euclidgcd.py",
@@ -253,6 +283,7 @@ describe("views/trees — algorithms LANGUAGE view", () => {
     const provider = createWorkspaceAlgorithmsTreeDataProvider({
       algorithmsIndex: createAlgorithmsIndexStub(categories, algorithms, implementations),
       viewModeService: createViewModeServiceStub("language"),
+      filterModeService: createFilterModeServiceStub("all"),
       languages: createLanguageStub(),
     });
 
@@ -316,6 +347,7 @@ describe("views/trees — algorithms item context values", () => {
     const implementations: AlgorithmImplementation[] = [
       {
         languageKey: "python",
+        isFlagged: false,
         filePath: "/repo/src/numeric/euclidgcd/euclidgcd.py",
         filePaths: ["/repo/src/numeric/euclidgcd/euclidgcd.py"],
         hasIncludes: true,
@@ -326,6 +358,7 @@ describe("views/trees — algorithms item context values", () => {
     const fileProvider = createWorkspaceAlgorithmsTreeDataProvider({
       algorithmsIndex: createAlgorithmsIndexStub(categories, algorithms, implementations),
       viewModeService: createViewModeServiceStub("files"),
+      filterModeService: createFilterModeServiceStub("all"),
       languages: createLanguageStub(),
     });
 
@@ -335,7 +368,7 @@ describe("views/trees — algorithms item context values", () => {
     const fileRows = (await fileProvider.getChildren(fileAlgorithm)) ?? [];
     const mainRow = fileRows.find((row) => row.kind === "mainFile") as WorkspaceTreeNode;
     const mainItem = await fileProvider.getTreeItem(mainRow);
-    assert.strictEqual(mainItem.contextValue, "algos.algorithmsMainFile");
+    assert.strictEqual(mainItem.contextValue, "algos.algorithmsMainFileUnflagged");
 
     const includeRows = (await fileProvider.getChildren(mainRow)) ?? [];
     const includeItem = await fileProvider.getTreeItem(includeRows[0]);
@@ -344,6 +377,7 @@ describe("views/trees — algorithms item context values", () => {
     const languageProvider = createWorkspaceAlgorithmsTreeDataProvider({
       algorithmsIndex: createAlgorithmsIndexStub(categories, algorithms, implementations),
       viewModeService: createViewModeServiceStub("language"),
+      filterModeService: createFilterModeServiceStub("all"),
       languages: createLanguageStub(),
     });
 
@@ -354,10 +388,82 @@ describe("views/trees — algorithms item context values", () => {
 
     const presentLanguageRow = languageRows.find((row) => row.languageKey === "python") as WorkspaceTreeNode;
     const presentLanguageItem = await languageProvider.getTreeItem(presentLanguageRow);
-    assert.strictEqual(presentLanguageItem.contextValue, "algos.algorithmsLanguageSummary");
+    assert.strictEqual(presentLanguageItem.contextValue, "algos.algorithmsLanguageSummaryUnflagged");
 
     const absentLanguageRow = languageRows.find((row) => row.languageKey === "go") as WorkspaceTreeNode;
     const absentLanguageItem = await languageProvider.getTreeItem(absentLanguageRow);
     assert.strictEqual(absentLanguageItem.contextValue, "algos.algorithmsLanguageSummaryAbsent");
+  });
+});
+
+describe("views/trees — flag and problems behavior", () => {
+  it("shows flagged contexts and filters FILE view to flagged rows in problems mode", async () => {
+    const workspaceRootPath = await createTempDirectory();
+    const filesystem = createFilesystem();
+    const languages = createLanguageStub();
+
+    try {
+      const euclidPath = path.join(
+        workspaceRootPath,
+        "src",
+        "numeric",
+        "euclidgcd"
+      );
+      const maxPath = path.join(workspaceRootPath, "src", "numeric", "max");
+      await fs.mkdir(euclidPath, { recursive: true });
+      await fs.mkdir(maxPath, { recursive: true });
+
+      await fs.writeFile(path.join(euclidPath, "euclidgcd.py"), "");
+      await fs.writeFile(path.join(maxPath, "max.py"), "");
+      await fs.writeFile(path.join(euclidPath, ".flag-lang"), "python\n");
+
+      const algorithmsIndex = createAlgorithmsIndex({
+        filesystem,
+        languages,
+        workspaceFolderPaths: [workspaceRootPath],
+      });
+
+      const fileProblemsProvider = createWorkspaceAlgorithmsTreeDataProvider({
+        algorithmsIndex,
+        viewModeService: createViewModeServiceStub("files"),
+        filterModeService: createFilterModeServiceStub("problems"),
+        languages,
+      });
+
+      const fileRoot = (await fileProblemsProvider.getChildren()) ?? [];
+      assert.strictEqual(fileRoot.length, 1);
+      const fileCategory = fileRoot[0];
+      const fileAlgorithms = (await fileProblemsProvider.getChildren(fileCategory)) ?? [];
+      assert.strictEqual(fileAlgorithms.length, 1);
+      assert.strictEqual(path.basename(fileAlgorithms[0].filePath), "euclidgcd");
+
+      const fileRows = (await fileProblemsProvider.getChildren(fileAlgorithms[0])) ?? [];
+      assert.strictEqual(fileRows.length, 1);
+      const mainItem = await fileProblemsProvider.getTreeItem(fileRows[0]);
+      assert.strictEqual(mainItem.contextValue, "algos.algorithmsMainFileFlagged");
+
+      const languageProvider = createWorkspaceAlgorithmsTreeDataProvider({
+        algorithmsIndex,
+        viewModeService: createViewModeServiceStub("language"),
+        filterModeService: createFilterModeServiceStub("all"),
+        languages,
+      });
+
+      const languageRoot = (await languageProvider.getChildren()) ?? [];
+      const languageCategory = languageRoot[0];
+      const languageAlgorithms = (await languageProvider.getChildren(languageCategory)) ?? [];
+      const euclidNode = languageAlgorithms.find((node) => {
+        return path.basename(node.filePath) === "euclidgcd";
+      }) as WorkspaceTreeNode;
+      const languageRows = (await languageProvider.getChildren(euclidNode)) ?? [];
+      const pythonRow = languageRows.find((row) => row.languageKey === "python") as WorkspaceTreeNode;
+      const pythonItem = await languageProvider.getTreeItem(pythonRow);
+      assert.strictEqual(
+        pythonItem.contextValue,
+        "algos.algorithmsLanguageSummaryFlagged"
+      );
+    } finally {
+      await fs.rm(workspaceRootPath, { recursive: true, force: true });
+    }
   });
 });

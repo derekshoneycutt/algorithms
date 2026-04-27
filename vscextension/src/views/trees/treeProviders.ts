@@ -6,6 +6,7 @@ import * as vscode from "vscode";
 import type { IFilesystem } from "../../filesystem";
 import type { ILanguages } from "../../languages";
 import type { IAlgorithmsIndex } from "../../algorithms";
+import type { IFilterModeService } from "../../state/filterMode";
 import type { IViewModeService } from "../../state/viewMode";
 
 /**
@@ -47,6 +48,8 @@ export interface WorkspaceTreeNode {
   languageKey?: string;
   parentAlgorithmPath?: string;
   isIncludeFile?: boolean;
+  isFlagged?: boolean;
+  isMissing?: boolean;
   /** True when this node has include files nested under it. Controls collapse arrow. */
   hasIncludes?: boolean;
   /** Total language file count in the current algorithm (main and include files). */
@@ -82,6 +85,7 @@ export interface RestrictedTreeDiscoveryDependencies {
 export interface AlgorithmsTreeDataProviderDependencies {
   algorithmsIndex: IAlgorithmsIndex;
   viewModeService: IViewModeService;
+  filterModeService: IFilterModeService;
   languages: ILanguages;
 }
 
@@ -306,6 +310,45 @@ function isDirentEntry(entry: string | Dirent): entry is Dirent {
 }
 
 /**
+ * Returns true when one algorithm has missing or flagged language rows.
+ *
+ * @param {IAlgorithmsIndex} algorithmsIndex Algorithms index dependency.
+ * @param {ILanguages} languages Languages dependency.
+ * @param {string} algorithmPath Algorithm path.
+ * @returns {Promise<boolean>} True when the algorithm has at least one problem row.
+ */
+async function hasProblemRowsForAlgorithm(
+  algorithmsIndex: IAlgorithmsIndex,
+  languages: ILanguages,
+  algorithmPath: string,
+  viewMode: "files" | "language"
+): Promise<boolean> {
+  const implementations = await algorithmsIndex.getImplementations(algorithmPath);
+  const implementationsByLanguage = new Map(
+    implementations.map((implementation) => {
+      return [implementation.languageKey, implementation] as const;
+    })
+  );
+
+  if (viewMode === "files") {
+    return implementations.some((implementation) => {
+      return implementation.isFlagged;
+    });
+  }
+
+  for (const languageRecord of languages.getAll()) {
+    const implementation = implementationsByLanguage.get(languageRecord.key);
+    const isMissing = implementation === undefined;
+    const isFlagged = implementation?.isFlagged === true;
+    if (isMissing || isFlagged) {
+      return true;
+    }
+  }
+
+  return false;
+}
+
+/**
  * Reads visible child nodes for one directory with restricted filtering.
  *
  * @param {string} directoryPath Directory path to inspect.
@@ -479,7 +522,12 @@ function createTreeItem(
 export function createWorkspaceAlgorithmsTreeDataProvider(
   dependencies: AlgorithmsTreeDataProviderDependencies
 ): RefreshableWorkspaceTreeDataProvider {
-  const { algorithmsIndex, viewModeService, languages } = dependencies;
+  const {
+    algorithmsIndex,
+    filterModeService,
+    viewModeService,
+    languages,
+  } = dependencies;
   const onDidChangeTreeDataEmitter = new vscode.EventEmitter<
     WorkspaceTreeNode | undefined | null | void
   >();
@@ -489,11 +537,16 @@ export function createWorkspaceAlgorithmsTreeDataProvider(
     onDidChangeTreeDataEmitter.fire();
   });
 
+  filterModeService.onDidChangeFilterMode(() => {
+    onDidChangeTreeDataEmitter.fire();
+  });
+
   return {
     onDidChangeTreeData: onDidChangeTreeDataEmitter.event,
 
     async getChildren(element?: WorkspaceTreeNode): Promise<WorkspaceTreeNode[]> {
       const viewMode = viewModeService.getViewMode();
+      const filterMode = filterModeService.getFilterMode();
 
       // Include file parents: return include files from precomputed paths
       if (
@@ -522,16 +575,17 @@ export function createWorkspaceAlgorithmsTreeDataProvider(
       // Algorithm directory: return mainFile or languageSummary nodes
       if (element !== undefined && element.kind === "algorithmDir") {
         const implementations = await algorithmsIndex.getImplementations(element.filePath);
+        const implementationsByLanguage = new Map(
+          implementations.map((implementation) => {
+            return [implementation.languageKey, implementation] as const;
+          })
+        );
 
         if (viewMode === "language") {
-          const implementationsByLanguage = new Map(
-            implementations.map((implementation) => {
-              return [implementation.languageKey, implementation] as const;
-            })
-          );
-
-          return languages.getAll().map((languageRecord) => {
+          const languageRows = languages.getAll().map((languageRecord) => {
             const implementation = implementationsByLanguage.get(languageRecord.key);
+            const isMissing = implementation === undefined;
+            const isFlagged = implementation?.isFlagged === true;
             return {
               kind: "languageSummary" as const,
               filePath: implementation?.filePath ?? element.filePath,
@@ -543,9 +597,19 @@ export function createWorkspaceAlgorithmsTreeDataProvider(
               hasIncludes: (implementation?.includeFilePaths.length ?? 0) > 0,
               languageFileCount: (implementation?.filePaths.length ?? 0)
                 + (implementation?.includeFilePaths.length ?? 0),
+              isFlagged,
+              isMissing,
               hasOpenTarget: implementation !== undefined,
             };
           });
+
+          if (filterMode === "problems") {
+            return languageRows.filter((row) => {
+              return row.isMissing === true || row.isFlagged === true;
+            });
+          }
+
+          return languageRows;
         } else {
           const mainFileNodes = implementations.map((impl) => ({
             kind: "mainFile" as const,
@@ -553,6 +617,7 @@ export function createWorkspaceAlgorithmsTreeDataProvider(
             filePathsByLanguage: { [impl.languageKey]: impl.filePaths },
             languageKey: impl.languageKey,
             parentAlgorithmPath: element.filePath,
+            isFlagged: impl.isFlagged,
             hasIncludes: impl.hasIncludes,
           }));
 
@@ -567,19 +632,50 @@ export function createWorkspaceAlgorithmsTreeDataProvider(
           const extraFileNodes = extraFilePaths.map((filePath) => ({
             kind: "file" as const,
             filePath,
+            languageKey: languages.normalizeFileExtension(filePath),
+            isFlagged: (() => {
+              const languageKey = languages.normalizeFileExtension(filePath);
+              if (languageKey === undefined) {
+                return false;
+              }
+              return implementationsByLanguage.get(languageKey)?.isFlagged === true;
+            })(),
           }));
 
-          return [...mainFileNodes, ...extraFileNodes];
+          const fileRows = [...mainFileNodes, ...extraFileNodes];
+
+          if (filterMode === "problems") {
+            return fileRows.filter((row) => row.isFlagged === true);
+          }
+
+          return fileRows;
         }
       }
 
       // Category directory: return algorithm dirs
       if (element !== undefined && element.kind === "directory") {
         const algorithms = await algorithmsIndex.getAlgorithms(element.filePath);
-        return algorithms.map((algo) => ({
+        const algorithmRows = algorithms.map((algo) => ({
           kind: "algorithmDir" as const,
           filePath: algo.path,
         }));
+
+        if (filterMode === "problems") {
+          const problemRows: WorkspaceTreeNode[] = [];
+          for (const row of algorithmRows) {
+            if (await hasProblemRowsForAlgorithm(
+              algorithmsIndex,
+              languages,
+              row.filePath,
+              viewMode
+            )) {
+              problemRows.push(row);
+            }
+          }
+          return problemRows;
+        }
+
+        return algorithmRows;
       }
 
       if (element !== undefined) {
@@ -588,10 +684,38 @@ export function createWorkspaceAlgorithmsTreeDataProvider(
 
       // Root: return categories
       const categories = await algorithmsIndex.getCategories();
-      return categories.map((category) => ({
+      const categoryRows = categories.map((category) => ({
         kind: "directory" as const,
         filePath: category.path,
       }));
+
+      if (filterMode === "problems") {
+        const problemRows: WorkspaceTreeNode[] = [];
+        for (const row of categoryRows) {
+          const algorithms = await algorithmsIndex.getAlgorithms(row.filePath);
+          let hasProblems = false;
+
+          for (const algorithm of algorithms) {
+            if (await hasProblemRowsForAlgorithm(
+              algorithmsIndex,
+              languages,
+              algorithm.path,
+              viewMode
+            )) {
+              hasProblems = true;
+              break;
+            }
+          }
+
+          if (hasProblems) {
+            problemRows.push(row);
+          }
+        }
+
+        return problemRows;
+      }
+
+      return categoryRows;
     },
 
     getTreeItem(element: WorkspaceTreeNode): vscode.TreeItem {
@@ -600,9 +724,13 @@ export function createWorkspaceAlgorithmsTreeDataProvider(
       if (element.kind === "languageSummary" && element.languageKey) {
         contextValue = element.hasOpenTarget === false
           ? "algos.algorithmsLanguageSummaryAbsent"
-          : "algos.algorithmsLanguageSummary";
+          : element.isFlagged === true
+            ? "algos.algorithmsLanguageSummaryFlagged"
+            : "algos.algorithmsLanguageSummaryUnflagged";
       } else if (element.kind === "mainFile") {
-        contextValue = "algos.algorithmsMainFile";
+        contextValue = element.isFlagged === true
+          ? "algos.algorithmsMainFileFlagged"
+          : "algos.algorithmsMainFileUnflagged";
       } else if (element.isIncludeFile) {
         contextValue = "algos.algorithmsIncludeFile";
       } else if (element.kind === "algorithmDir") {
@@ -610,7 +738,9 @@ export function createWorkspaceAlgorithmsTreeDataProvider(
       } else if (element.kind === "directory") {
         contextValue = "algos.algorithmsFirstLevelDirectory";
       } else if (element.kind === "file") {
-        contextValue = "algos.algorithmFile";
+        contextValue = element.isFlagged === true
+          ? "algos.algorithmFileFlagged"
+          : "algos.algorithmFileUnflagged";
       }
 
       const treeItem = createTreeItem(element, contextValue);

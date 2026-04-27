@@ -130,6 +130,30 @@
         "title": "Show Language View",
         "category": "Derek's Algorithms",
         "icon": "$(symbol-keyword)"
+      },
+      {
+        "command": "algos.algorithmsSidebarShowAllRows",
+        "title": "Show All Rows",
+        "category": "Derek's Algorithms",
+        "icon": "$(clear-all)"
+      },
+      {
+        "command": "algos.algorithmsSidebarShowProblemRows",
+        "title": "Show Problem Rows",
+        "category": "Derek's Algorithms",
+        "icon": "$(filter)"
+      },
+      {
+        "command": "algos.algorithmsFlagLanguage",
+        "title": "Flag Language",
+        "category": "Derek's Algorithms",
+        "icon": "$(bookmark)"
+      },
+      {
+        "command": "algos.algorithmsUnflagLanguage",
+        "title": "Unflag Language",
+        "category": "Derek's Algorithms",
+        "icon": "$(close)"
       }
     ],
     "menus": {
@@ -158,6 +182,16 @@
           "command": "algos.algorithmsSidebarShowFileView",
           "when": "view == algos.workspaceAlgorithmsTreeView && algos.sidebarViewMode == language",
           "group": "navigation@20"
+        },
+        {
+          "command": "algos.algorithmsSidebarShowProblemRows",
+          "when": "view == algos.workspaceAlgorithmsTreeView && algos.sidebarFilterMode == all",
+          "group": "navigation@30"
+        },
+        {
+          "command": "algos.algorithmsSidebarShowAllRows",
+          "when": "view == algos.workspaceAlgorithmsTreeView && algos.sidebarFilterMode == problems",
+          "group": "navigation@30"
         }
       ],
       "view/item/context": [
@@ -202,39 +236,49 @@
           "group": "inline@20"
         },
         {
-          "command": "algos.algorithmsDelete",
-          "when": "view == algos.workspaceAlgorithmsTreeView && viewItem == algos.algorithmFile",
-          "group": "inline@10"
-        },
-        {
-          "command": "algos.algorithmsDelete",
-          "when": "view == algos.workspaceAlgorithmsTreeView && viewItem == algos.algorithmsMainFile",
-          "group": "inline@10"
+          "command": "algos.algorithmsAddIncludeFile",
+          "when": "view == algos.workspaceAlgorithmsTreeView && (viewItem == algos.algorithmFileUnflagged || viewItem == algos.algorithmFileFlagged)",
+          "group": "inline@2"
         },
         {
           "command": "algos.algorithmsAddIncludeFile",
-          "when": "view == algos.workspaceAlgorithmsTreeView && viewItem == algos.algorithmFile",
-          "group": "inline@20"
+          "when": "view == algos.workspaceAlgorithmsTreeView && (viewItem == algos.algorithmsMainFileUnflagged || viewItem == algos.algorithmsMainFileFlagged)",
+          "group": "inline@2"
         },
         {
           "command": "algos.algorithmsAddIncludeFile",
-          "when": "view == algos.workspaceAlgorithmsTreeView && viewItem == algos.algorithmsMainFile",
-          "group": "inline@20"
+          "when": "view == algos.workspaceAlgorithmsTreeView && (viewItem == algos.algorithmsLanguageSummaryUnflagged || viewItem == algos.algorithmsLanguageSummaryFlagged)",
+          "group": "inline@2"
         },
         {
           "command": "algos.algorithmsDelete",
-          "when": "view == algos.workspaceAlgorithmsTreeView && viewItem == algos.algorithmsLanguageSummary",
-          "group": "inline@10"
+          "when": "view == algos.workspaceAlgorithmsTreeView && (viewItem == algos.algorithmFileUnflagged || viewItem == algos.algorithmFileFlagged)",
+          "group": "inline@3"
         },
         {
-          "command": "algos.algorithmsAddIncludeFile",
-          "when": "view == algos.workspaceAlgorithmsTreeView && viewItem == algos.algorithmsLanguageSummary",
-          "group": "inline@20"
+          "command": "algos.algorithmsDelete",
+          "when": "view == algos.workspaceAlgorithmsTreeView && (viewItem == algos.algorithmsMainFileUnflagged || viewItem == algos.algorithmsMainFileFlagged)",
+          "group": "inline@3"
+        },
+        {
+          "command": "algos.algorithmsDelete",
+          "when": "view == algos.workspaceAlgorithmsTreeView && (viewItem == algos.algorithmsLanguageSummaryUnflagged || viewItem == algos.algorithmsLanguageSummaryFlagged)",
+          "group": "inline@3"
         },
         {
           "command": "algos.algorithmsDelete",
           "when": "view == algos.workspaceAlgorithmsTreeView && viewItem == algos.algorithmsIncludeFile",
-          "group": "inline@10"
+          "group": "inline@3"
+        },
+        {
+          "command": "algos.algorithmsFlagLanguage",
+          "when": "view == algos.workspaceAlgorithmsTreeView && (viewItem == algos.algorithmFileUnflagged || viewItem == algos.algorithmsMainFileUnflagged || viewItem == algos.algorithmsLanguageSummaryUnflagged)",
+          "group": "inline@4"
+        },
+        {
+          "command": "algos.algorithmsUnflagLanguage",
+          "when": "view == algos.workspaceAlgorithmsTreeView && (viewItem == algos.algorithmFileFlagged || viewItem == algos.algorithmsMainFileFlagged || viewItem == algos.algorithmsLanguageSummaryFlagged)",
+          "group": "inline@4"
         }
       ]
     },
@@ -242,6 +286,10 @@
       {
         "key": "algos.sidebarViewMode",
         "description": "Algorithms sidebar view mode (files or language)"
+      },
+      {
+        "key": "algos.sidebarFilterMode",
+        "description": "Algorithms sidebar filter mode (all or problems)"
       }
     ]
   },

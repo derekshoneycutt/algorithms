@@ -89,10 +89,46 @@ export function getAlgorithmsSidebarShowLanguageViewCommandId(): string {
 }
 
 /**
+ * Command identifier for showing all rows in the algorithms sidebar.
+ *
+ * @returns {string} Command identifier.
+ */
+export function getAlgorithmsSidebarShowAllRowsCommandId(): string {
+  return "algos.algorithmsSidebarShowAllRows";
+}
+
+/**
+ * Command identifier for showing problem rows in the algorithms sidebar.
+ *
+ * @returns {string} Command identifier.
+ */
+export function getAlgorithmsSidebarShowProblemRowsCommandId(): string {
+  return "algos.algorithmsSidebarShowProblemRows";
+}
+
+/**
  * Command identifier for deleting one Algorithms item.
  *
  * @returns {string} Command identifier.
  */
 export function getAlgorithmsDeleteCommandId(): string {
   return "algos.algorithmsDelete";
+}
+
+/**
+ * Command identifier for flagging one Algorithms language row.
+ *
+ * @returns {string} Command identifier.
+ */
+export function getAlgorithmsFlagLanguageCommandId(): string {
+  return "algos.algorithmsFlagLanguage";
+}
+
+/**
+ * Command identifier for unflagging one Algorithms language row.
+ *
+ * @returns {string} Command identifier.
+ */
+export function getAlgorithmsUnflagLanguageCommandId(): string {
+  return "algos.algorithmsUnflagLanguage";
 }

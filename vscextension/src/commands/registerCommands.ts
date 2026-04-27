@@ -12,7 +12,11 @@ import {
   getAlgorithmsAddIncludeFileCommandId,
   getAlgorithmsSidebarShowFileViewCommandId,
   getAlgorithmsSidebarShowLanguageViewCommandId,
+  getAlgorithmsSidebarShowAllRowsCommandId,
+  getAlgorithmsSidebarShowProblemRowsCommandId,
   getAlgorithmsDeleteCommandId,
+  getAlgorithmsFlagLanguageCommandId,
+  getAlgorithmsUnflagLanguageCommandId,
 } from "./commandIds";
 
 /**
@@ -66,8 +70,24 @@ export function registerCommands(
       commands.algorithmsSidebarShowLanguageView
     ),
     vscode.commands.registerCommand(
+      getAlgorithmsSidebarShowAllRowsCommandId(),
+      commands.algorithmsSidebarShowAllRows
+    ),
+    vscode.commands.registerCommand(
+      getAlgorithmsSidebarShowProblemRowsCommandId(),
+      commands.algorithmsSidebarShowProblemRows
+    ),
+    vscode.commands.registerCommand(
       getAlgorithmsDeleteCommandId(),
       commands.algorithmsDelete
+    ),
+    vscode.commands.registerCommand(
+      getAlgorithmsFlagLanguageCommandId(),
+      commands.algorithmsFlagLanguage
+    ),
+    vscode.commands.registerCommand(
+      getAlgorithmsUnflagLanguageCommandId(),
+      commands.algorithmsUnflagLanguage
     )
   );
 }

@@ -5,15 +5,20 @@ import * as vscode from "vscode";
 import type { IFilesystem } from "../filesystem";
 import type { ILanguages } from "../languages";
 import type { INotificationRouter } from "../notifications";
+import type { IFilterModeService } from "../state/filterMode";
 import type { IViewModeService } from "../state/viewMode";
 import type { WorkspaceTreeNode } from "../views";
-import { resolveAlgorithmsRootPath } from "../algorithms";
+import {
+  resolveAlgorithmsRootPath,
+} from "../algorithms";
+import type { IFlaggedLanguagesService } from "../algorithms";
 
 /**
  * Dependencies for Algorithms tree action commands.
  */
 export interface AlgorithmTreeActionDependencies {
   filesystem: IFilesystem;
+  flaggedLanguages?: IFlaggedLanguagesService;
   languages: ILanguages;
   notificationRouter: INotificationRouter;
   refreshAlgorithmsTree: () => void;
@@ -43,6 +48,57 @@ async function getAlgorithmsRootPathForCurrentWorkspace(
     filesystem,
     workspaceFolderPaths: getWorkspaceFolderPaths(),
   });
+}
+
+/**
+ * Returns true when one node kind can represent an algorithm language row.
+ *
+ * @param {WorkspaceTreeNode["kind"]} nodeKind Candidate node kind.
+ * @returns {boolean} True when supported by flag/unflag actions.
+ */
+function isFlaggableNodeKind(nodeKind: WorkspaceTreeNode["kind"]): boolean {
+  return nodeKind === "file" || nodeKind === "mainFile" || nodeKind === "languageSummary";
+}
+
+/**
+ * Resolves the algorithm directory path for one tree node.
+ *
+ * @param {WorkspaceTreeNode} treeNode Source node.
+ * @returns {string} Algorithm directory path.
+ */
+function resolveAlgorithmDirectoryPath(treeNode: WorkspaceTreeNode): string {
+  if (treeNode.parentAlgorithmPath !== undefined) {
+    return treeNode.parentAlgorithmPath;
+  }
+
+  if (treeNode.kind === "languageSummary" || treeNode.kind === "algorithmDir") {
+    return treeNode.filePath;
+  }
+
+  return path.dirname(treeNode.filePath);
+}
+
+/**
+ * Resolves a language key from one tree node.
+ *
+ * @param {WorkspaceTreeNode} treeNode Source node.
+ * @param {ILanguages} languages Languages dependency.
+ * @returns {string | null} Normalized language key or null when unavailable.
+ */
+function resolveLanguageKeyFromNode(
+  treeNode: WorkspaceTreeNode,
+  languages: ILanguages
+): string | null {
+  if (treeNode.languageKey !== undefined && treeNode.languageKey.trim().length > 0) {
+    return treeNode.languageKey.trim().toLowerCase();
+  }
+
+  const resolvedLanguageKey = languages.normalizeFileExtension(treeNode.filePath);
+  if (resolvedLanguageKey === undefined) {
+    return null;
+  }
+
+  return resolvedLanguageKey.trim().toLowerCase();
 }
 
 /**
@@ -631,5 +687,131 @@ export function createAlgorithmsSidebarShowLanguageViewCommand(
 ): () => Promise<void> {
   return async (): Promise<void> => {
     await viewModeService.setViewMode("language");
+  };
+}
+
+/**
+ * Creates one command to switch to all-rows filter mode in the algorithms sidebar.
+ *
+ * @param {IFilterModeService} filterModeService Filter mode service dependency.
+ * @returns {() => Promise<void>} Command handler.
+ */
+export function createAlgorithmsSidebarShowAllRowsCommand(
+  filterModeService: IFilterModeService
+): () => Promise<void> {
+  return async (): Promise<void> => {
+    await filterModeService.setFilterMode("all");
+  };
+}
+
+/**
+ * Creates one command to switch to problems-only filter mode in the algorithms sidebar.
+ *
+ * @param {IFilterModeService} filterModeService Filter mode service dependency.
+ * @returns {() => Promise<void>} Command handler.
+ */
+export function createAlgorithmsSidebarShowProblemRowsCommand(
+  filterModeService: IFilterModeService
+): () => Promise<void> {
+  return async (): Promise<void> => {
+    await filterModeService.setFilterMode("problems");
+  };
+}
+
+/**
+ * Creates one command to flag the hovered language row in the algorithms tree.
+ *
+ * @param {AlgorithmTreeActionDependencies} dependencies Action dependencies.
+ * @returns {(treeNode?: WorkspaceTreeNode) => Promise<void>} Command handler.
+ */
+export function createAlgorithmsFlagLanguageCommand(
+  dependencies: AlgorithmTreeActionDependencies
+): (treeNode?: WorkspaceTreeNode) => Promise<void> {
+  return async (treeNode?: WorkspaceTreeNode): Promise<void> => {
+    const flaggedLanguages = dependencies.flaggedLanguages;
+    if (flaggedLanguages === undefined) {
+      await dependencies.notificationRouter.error(
+        "Flagged-language service is not configured."
+      );
+      return;
+    }
+
+    if (treeNode === undefined || !isFlaggableNodeKind(treeNode.kind)) {
+      await dependencies.notificationRouter.warn("Select an algorithm language row to flag.");
+      return;
+    }
+
+    const algorithmDirectoryPath = resolveAlgorithmDirectoryPath(treeNode);
+    const languageKey = resolveLanguageKeyFromNode(treeNode, dependencies.languages);
+    if (languageKey === null) {
+      await dependencies.notificationRouter.warn("Language could not be determined.");
+      return;
+    }
+
+    const flaggedLanguageKeys = await flaggedLanguages.readFlaggedLanguageKeys(
+      algorithmDirectoryPath
+    );
+    flaggedLanguageKeys.add(languageKey);
+
+    try {
+      await flaggedLanguages.writeFlaggedLanguageKeys(
+        algorithmDirectoryPath,
+        flaggedLanguageKeys
+      );
+      dependencies.refreshAlgorithmsTree();
+      await dependencies.notificationRouter.info(`Flagged language: ${languageKey}`);
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      await dependencies.notificationRouter.error(`Failed to flag language: ${errorMessage}`);
+    }
+  };
+}
+
+/**
+ * Creates one command to clear a language flag for the hovered algorithms row.
+ *
+ * @param {AlgorithmTreeActionDependencies} dependencies Action dependencies.
+ * @returns {(treeNode?: WorkspaceTreeNode) => Promise<void>} Command handler.
+ */
+export function createAlgorithmsUnflagLanguageCommand(
+  dependencies: AlgorithmTreeActionDependencies
+): (treeNode?: WorkspaceTreeNode) => Promise<void> {
+  return async (treeNode?: WorkspaceTreeNode): Promise<void> => {
+    const flaggedLanguages = dependencies.flaggedLanguages;
+    if (flaggedLanguages === undefined) {
+      await dependencies.notificationRouter.error(
+        "Flagged-language service is not configured."
+      );
+      return;
+    }
+
+    if (treeNode === undefined || !isFlaggableNodeKind(treeNode.kind)) {
+      await dependencies.notificationRouter.warn("Select an algorithm language row to unflag.");
+      return;
+    }
+
+    const algorithmDirectoryPath = resolveAlgorithmDirectoryPath(treeNode);
+    const languageKey = resolveLanguageKeyFromNode(treeNode, dependencies.languages);
+    if (languageKey === null) {
+      await dependencies.notificationRouter.warn("Language could not be determined.");
+      return;
+    }
+
+    const flaggedLanguageKeys = await flaggedLanguages.readFlaggedLanguageKeys(
+      algorithmDirectoryPath
+    );
+    flaggedLanguageKeys.delete(languageKey);
+
+    try {
+      await flaggedLanguages.writeFlaggedLanguageKeys(
+        algorithmDirectoryPath,
+        flaggedLanguageKeys
+      );
+      dependencies.refreshAlgorithmsTree();
+      await dependencies.notificationRouter.info(`Unflagged language: ${languageKey}`);
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      await dependencies.notificationRouter.error(`Failed to unflag language: ${errorMessage}`);
+    }
   };
 }

@@ -91,4 +91,34 @@ export interface IExtensionCommands {
    * @returns {Promise<void>}
    */
   algorithmsSidebarShowLanguageView: () => Promise<void>;
+
+  /**
+   * Switches the algorithms sidebar to show all rows.
+   *
+   * @returns {Promise<void>}
+   */
+  algorithmsSidebarShowAllRows: () => Promise<void>;
+
+  /**
+   * Switches the algorithms sidebar to show only problem rows.
+   *
+   * @returns {Promise<void>}
+   */
+  algorithmsSidebarShowProblemRows: () => Promise<void>;
+
+  /**
+   * Flags one language for the hovered algorithm row.
+   *
+   * @param {WorkspaceTreeNode} [treeNode] Hovered tree node.
+   * @returns {Promise<void>}
+   */
+  algorithmsFlagLanguage: (treeNode?: WorkspaceTreeNode) => Promise<void>;
+
+  /**
+   * Clears one language flag for the hovered algorithm row.
+   *
+   * @param {WorkspaceTreeNode} [treeNode] Hovered tree node.
+   * @returns {Promise<void>}
+   */
+  algorithmsUnflagLanguage: (treeNode?: WorkspaceTreeNode) => Promise<void>;
 }

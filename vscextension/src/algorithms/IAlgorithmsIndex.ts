@@ -46,8 +46,10 @@ export interface IAlgorithmsIndex {
   /**
    * Returns the per-language implementations inside one algorithm directory.
     *
-    * Each language entry includes one representative `filePath` plus all root
-    * implementation paths for that language in `filePaths`.
+    * Each language entry includes:
+    * - `isFlagged`: whether that language is flagged in `.flag-lang`
+    * - one representative `filePath`
+    * - all root implementation paths for that language in `filePaths`
    *
    * @param {string} algorithmPath Absolute path to the algorithm directory.
    * @returns {Promise<AlgorithmImplementation[]>} Implementation list sorted by language key.

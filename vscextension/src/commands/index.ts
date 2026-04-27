@@ -10,7 +10,11 @@ export {
 	getAlgorithmsAddIncludeFileCommandId,
 	getAlgorithmsSidebarShowFileViewCommandId,
 	getAlgorithmsSidebarShowLanguageViewCommandId,
+	getAlgorithmsSidebarShowAllRowsCommandId,
+	getAlgorithmsSidebarShowProblemRowsCommandId,
 	getAlgorithmsDeleteCommandId,
+	getAlgorithmsFlagLanguageCommandId,
+	getAlgorithmsUnflagLanguageCommandId,
 } from "./commandIds";
 export { registerCommands } from "./registerCommands";
 export { createShowBootstrapStatusCommand } from "./showBootstrapStatus";
@@ -26,5 +30,9 @@ export {
 	createAlgorithmsAddIncludeFileCommand,
 	createAlgorithmsSidebarShowFileViewCommand,
 	createAlgorithmsSidebarShowLanguageViewCommand,
+	createAlgorithmsSidebarShowAllRowsCommand,
+	createAlgorithmsSidebarShowProblemRowsCommand,
 	createAlgorithmsDeleteCommand,
+	createAlgorithmsFlagLanguageCommand,
+	createAlgorithmsUnflagLanguageCommand,
 } from "./algorithmTreeActions";

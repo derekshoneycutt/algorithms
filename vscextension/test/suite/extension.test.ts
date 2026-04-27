@@ -10,6 +10,10 @@ import {
   getAlgorithmsCreateFolderCommandId,
   getAlgorithmsCreateFileCommandId,
   getAlgorithmsDeleteCommandId,
+  getAlgorithmsFlagLanguageCommandId,
+  getAlgorithmsUnflagLanguageCommandId,
+  getAlgorithmsSidebarShowAllRowsCommandId,
+  getAlgorithmsSidebarShowProblemRowsCommandId,
 } from "../../src/commands/commandIds";
 
 describe("bootstrap extension", () => {
@@ -116,6 +120,22 @@ describe("bootstrap extension", () => {
     assert.ok(
       availableCommands.includes(getAlgorithmsDeleteCommandId()),
       "algorithms delete command should be registered"
+    );
+    assert.ok(
+      availableCommands.includes(getAlgorithmsFlagLanguageCommandId()),
+      "algorithms flag-language command should be registered"
+    );
+    assert.ok(
+      availableCommands.includes(getAlgorithmsUnflagLanguageCommandId()),
+      "algorithms unflag-language command should be registered"
+    );
+    assert.ok(
+      availableCommands.includes(getAlgorithmsSidebarShowAllRowsCommandId()),
+      "algorithms show-all-rows command should be registered"
+    );
+    assert.ok(
+      availableCommands.includes(getAlgorithmsSidebarShowProblemRowsCommandId()),
+      "algorithms show-problem-rows command should be registered"
     );
   });
 });
