@@ -1,4 +1,5 @@
 import type {
+  DeletePathOptions,
   ListDirectoryOptions,
   ListDirectoryResult,
   ReadTextOptions,
@@ -42,6 +43,20 @@ export interface IFilesystem {
   readText(filePath: string, options?: ReadTextOptions): Promise<string | null>;
 
   /**
+   * Writes text content to a file.
+   *
+   * @param {string} filePath Path to write.
+   * @param {string} content Text content.
+   * @param {ReadTextOptions} [options] Write options.
+   * @returns {Promise<void>}
+   */
+  writeText(
+    filePath: string,
+    content: string,
+    options?: ReadTextOptions
+  ): Promise<void>;
+
+  /**
    * Lists directory entries.
    *
    * @param {string} directoryPath Directory path to list.
@@ -60,6 +75,15 @@ export interface IFilesystem {
    * @returns {Promise<void>}
    */
   ensureDirectory(directoryPath: string): Promise<void>;
+
+  /**
+   * Deletes a path.
+   *
+   * @param {string} targetPath Path to delete.
+   * @param {DeletePathOptions} [options] Delete options.
+   * @returns {Promise<void>}
+   */
+  deletePath(targetPath: string, options?: DeletePathOptions): Promise<void>;
 
   /**
    * Checks whether a candidate path is within a root path.

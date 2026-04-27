@@ -1,6 +1,7 @@
 export type {
   AlgorithmsTreeDataProviderDependencies,
   AlgorithmsTreeRootDependencies,
+  RefreshableWorkspaceTreeDataProvider,
   RestrictedTreeDiscoveryDependencies,
   StandardLibraryTreeDataProviderDependencies,
   StandardLibraryTreeRootDependencies,

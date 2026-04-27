@@ -6,6 +6,7 @@ import * as path from "node:path";
 import { createFilesystem } from "../../../../src/filesystem";
 import type { ILanguages } from "../../../../src/languages";
 import {
+  createWorkspaceStandardLibraryTreeDataProvider,
   readRestrictedDirectoryChildren,
   resolveAlgorithmsTreeRootPath,
   resolveStandardLibraryTreeRootPath,
@@ -150,6 +151,52 @@ describe("views/trees — workspace root resolution", () => {
       });
 
       assert.strictEqual(resolvedPath, path.join(workspaceRootPath, "stdlib"));
+    } finally {
+      await fs.rm(workspaceRootPath, { recursive: true, force: true });
+    }
+  });
+});
+
+describe("views/trees — standard-library item context values", () => {
+  it("sets directory and file context values for menu targeting", async () => {
+    const workspaceRootPath = await createTempDirectory();
+    const filesystem = createFilesystem();
+    const languages = createLanguageStub();
+
+    try {
+      const stdlibRootPath = path.join(workspaceRootPath, "stdlib");
+      const folderPath = path.join(stdlibRootPath, "io");
+      const filePath = path.join(stdlibRootPath, "hello.py");
+      const nestedFilePath = path.join(folderPath, "nested.py");
+      await fs.mkdir(folderPath, { recursive: true });
+      await fs.writeFile(filePath, "print('hello')\n");
+      await fs.writeFile(nestedFilePath, "print('nested')\n");
+
+      const provider = createWorkspaceStandardLibraryTreeDataProvider({
+        filesystem,
+        languages,
+        workspaceFolderPaths: [workspaceRootPath],
+      });
+
+      const rootChildren = (await provider.getChildren()) ?? [];
+      const directoryNode = rootChildren.find((node) => {
+        return node.kind === "directory";
+      });
+      const fileNode = rootChildren.find((node) => {
+        return node.kind === "file";
+      });
+
+      assert.ok(directoryNode, "expected one directory node");
+      assert.ok(fileNode, "expected one file node");
+
+      const directoryTreeItem = await provider.getTreeItem(directoryNode);
+      const fileTreeItem = await provider.getTreeItem(fileNode);
+
+      assert.strictEqual(
+        directoryTreeItem.contextValue,
+        "algos.standardLibraryDirectory"
+      );
+      assert.strictEqual(fileTreeItem.contextValue, "algos.standardLibraryFile");
     } finally {
       await fs.rm(workspaceRootPath, { recursive: true, force: true });
     }

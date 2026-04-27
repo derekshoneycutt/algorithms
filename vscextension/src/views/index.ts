@@ -7,5 +7,9 @@ export { getWorkspaceStandardLibraryTreeViewId } from "./viewIds";
 export {
 	createWorkspaceAlgorithmsTreeDataProvider,
 	createWorkspaceStandardLibraryTreeDataProvider,
+	resolveStandardLibraryTreeRootPath,
 } from "./trees";
-export type { WorkspaceTreeNode } from "./trees";
+export type {
+	RefreshableWorkspaceTreeDataProvider,
+	WorkspaceTreeNode,
+} from "./trees";

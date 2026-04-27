@@ -18,6 +18,9 @@
   ],
   "activationEvents": [
     "onCommand:algos.showBootstrapStatus",
+    "onCommand:algos.standardLibraryCreateFile",
+    "onCommand:algos.standardLibraryCreateFolder",
+    "onCommand:algos.standardLibraryDelete",
     "onView:algos.smokeControlsSidebarView",
     "onView:algos.runControlsSidebarView",
     "onView:algos.workspaceAlgorithmsTreeView",
@@ -67,8 +70,62 @@
         "command": "algos.showBootstrapStatus",
         "title": "Show Bootstrap Status",
         "category": "Derek's Algorithms"
+      },
+      {
+        "command": "algos.standardLibraryCreateFile",
+        "title": "Create File",
+        "category": "Derek's Algorithms",
+        "icon": "$(new-file)"
+      },
+      {
+        "command": "algos.standardLibraryCreateFolder",
+        "title": "Create Folder",
+        "category": "Derek's Algorithms",
+        "icon": "$(new-folder)"
+      },
+      {
+        "command": "algos.standardLibraryDelete",
+        "title": "Delete",
+        "category": "Derek's Algorithms",
+        "icon": "$(trash)"
       }
-    ]
+    ],
+    "menus": {
+      "view/title": [
+        {
+          "command": "algos.standardLibraryCreateFile",
+          "when": "view == algos.workspaceStandardLibraryTreeView",
+          "group": "navigation@10"
+        },
+        {
+          "command": "algos.standardLibraryCreateFolder",
+          "when": "view == algos.workspaceStandardLibraryTreeView",
+          "group": "navigation@20"
+        }
+      ],
+      "view/item/context": [
+        {
+          "command": "algos.standardLibraryCreateFile",
+          "when": "view == algos.workspaceStandardLibraryTreeView && viewItem == algos.standardLibraryDirectory",
+          "group": "inline@10"
+        },
+        {
+          "command": "algos.standardLibraryCreateFolder",
+          "when": "view == algos.workspaceStandardLibraryTreeView && viewItem == algos.standardLibraryDirectory",
+          "group": "inline@20"
+        },
+        {
+          "command": "algos.standardLibraryDelete",
+          "when": "view == algos.workspaceStandardLibraryTreeView && viewItem == algos.standardLibraryDirectory",
+          "group": "inline@30"
+        },
+        {
+          "command": "algos.standardLibraryDelete",
+          "when": "view == algos.workspaceStandardLibraryTreeView && viewItem == algos.standardLibraryFile",
+          "group": "inline@10"
+        }
+      ]
+    }
   },
   "scripts": {
     "build": "node ./esbuild.js",

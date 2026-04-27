@@ -1,6 +1,12 @@
 import * as vscode from "vscode";
 
 import type { IExtensionCommands } from "./IExtensionCommands";
+import {
+  getShowBootstrapStatusCommandId,
+  getStandardLibraryCreateFileCommandId,
+  getStandardLibraryCreateFolderCommandId,
+  getStandardLibraryDeleteCommandId,
+} from "./commandIds";
 
 /**
  * Registers the full extension command set using the provided commands interface.
@@ -11,8 +17,22 @@ import type { IExtensionCommands } from "./IExtensionCommands";
 export function registerCommands(
   commands: IExtensionCommands
 ): vscode.Disposable {
-  return vscode.commands.registerCommand(
-    "algos.showBootstrapStatus",
-    commands.showBootstrapStatus
+  return vscode.Disposable.from(
+    vscode.commands.registerCommand(
+      getShowBootstrapStatusCommandId(),
+      commands.showBootstrapStatus
+    ),
+    vscode.commands.registerCommand(
+      getStandardLibraryCreateFileCommandId(),
+      commands.standardLibraryCreateFile
+    ),
+    vscode.commands.registerCommand(
+      getStandardLibraryCreateFolderCommandId(),
+      commands.standardLibraryCreateFolder
+    ),
+    vscode.commands.registerCommand(
+      getStandardLibraryDeleteCommandId(),
+      commands.standardLibraryDelete
+    )
   );
 }

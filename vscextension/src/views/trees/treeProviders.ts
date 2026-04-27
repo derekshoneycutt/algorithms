@@ -15,6 +15,19 @@ export interface WorkspaceTreeNode {
 }
 
 /**
+ * Tree data provider contract with explicit refresh support.
+ */
+export interface RefreshableWorkspaceTreeDataProvider
+  extends vscode.TreeDataProvider<WorkspaceTreeNode> {
+  /**
+   * Triggers a tree refresh.
+   *
+   * @returns {void}
+   */
+  refresh(): void;
+}
+
+/**
  * Dependencies for restricted tree node discovery.
  */
 export interface RestrictedTreeDiscoveryDependencies {
@@ -360,7 +373,10 @@ function getWorkspaceFolderPaths(
  * @param {WorkspaceTreeNode} element Tree element.
  * @returns {vscode.TreeItem} Tree item instance.
  */
-function createTreeItem(element: WorkspaceTreeNode): vscode.TreeItem {
+function createTreeItem(
+  element: WorkspaceTreeNode,
+  contextValue?: string
+): vscode.TreeItem {
   const label = path.basename(element.filePath);
 
   if (element.kind === "directory") {
@@ -369,6 +385,9 @@ function createTreeItem(element: WorkspaceTreeNode): vscode.TreeItem {
       vscode.TreeItemCollapsibleState.Collapsed
     );
     treeItem.resourceUri = vscode.Uri.file(element.filePath);
+    if (contextValue !== undefined) {
+      treeItem.contextValue = contextValue;
+    }
     return treeItem;
   }
 
@@ -379,6 +398,9 @@ function createTreeItem(element: WorkspaceTreeNode): vscode.TreeItem {
     title: "Open File",
     arguments: [vscode.Uri.file(element.filePath)],
   };
+  if (contextValue !== undefined) {
+    treeItem.contextValue = contextValue;
+  }
   return treeItem;
 }
 
@@ -390,7 +412,7 @@ function createTreeItem(element: WorkspaceTreeNode): vscode.TreeItem {
  */
 export function createWorkspaceAlgorithmsTreeDataProvider(
   dependencies: AlgorithmsTreeDataProviderDependencies
-): vscode.TreeDataProvider<WorkspaceTreeNode> {
+): RefreshableWorkspaceTreeDataProvider {
   const { filesystem, languages } = dependencies;
   const onDidChangeTreeDataEmitter = new vscode.EventEmitter<
     WorkspaceTreeNode | undefined | null | void
@@ -429,6 +451,10 @@ export function createWorkspaceAlgorithmsTreeDataProvider(
     getTreeItem(element: WorkspaceTreeNode): vscode.TreeItem {
       return createTreeItem(element);
     },
+
+    refresh(): void {
+      onDidChangeTreeDataEmitter.fire();
+    },
   };
 }
 
@@ -440,7 +466,7 @@ export function createWorkspaceAlgorithmsTreeDataProvider(
  */
 export function createWorkspaceStandardLibraryTreeDataProvider(
   dependencies: StandardLibraryTreeDataProviderDependencies
-): vscode.TreeDataProvider<WorkspaceTreeNode> {
+): RefreshableWorkspaceTreeDataProvider {
   const { filesystem, languages } = dependencies;
   const onDidChangeTreeDataEmitter = new vscode.EventEmitter<
     WorkspaceTreeNode | undefined | null | void
@@ -477,7 +503,15 @@ export function createWorkspaceStandardLibraryTreeDataProvider(
     },
 
     getTreeItem(element: WorkspaceTreeNode): vscode.TreeItem {
-      return createTreeItem(element);
+      if (element.kind === "directory") {
+        return createTreeItem(element, "algos.standardLibraryDirectory");
+      }
+
+      return createTreeItem(element, "algos.standardLibraryFile");
+    },
+
+    refresh(): void {
+      onDidChangeTreeDataEmitter.fire();
     },
   };
 }

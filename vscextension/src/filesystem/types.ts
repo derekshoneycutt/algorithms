@@ -20,6 +20,14 @@ export interface ListDirectoryOptions {
 }
 
 /**
+ * Options for deleting files or directories.
+ */
+export interface DeletePathOptions {
+  recursive?: boolean;
+  useTrash?: boolean;
+}
+
+/**
  * Directory listing result when `withFileTypes` is true.
  */
 export type ListDirectoryDirentResult = Dirent[];

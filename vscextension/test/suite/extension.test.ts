@@ -1,7 +1,12 @@
 import * as assert from "node:assert/strict";
 import * as vscode from "vscode";
 
-import { getShowBootstrapStatusCommandId } from "../../src/commands/commandIds";
+import {
+  getShowBootstrapStatusCommandId,
+  getStandardLibraryCreateFileCommandId,
+  getStandardLibraryCreateFolderCommandId,
+  getStandardLibraryDeleteCommandId,
+} from "../../src/commands/commandIds";
 
 describe("bootstrap extension", () => {
   it("activates the standalone TypeScript extension", async () => {
@@ -69,6 +74,23 @@ describe("bootstrap extension", () => {
     assert.ok(
       contributedViewIds.includes("algos.workspaceStandardLibraryTreeView"),
       "standard-library tree view should be contributed"
+    );
+  });
+
+  it("registers standard-library tree action commands", async () => {
+    const availableCommands = await vscode.commands.getCommands(true);
+
+    assert.ok(
+      availableCommands.includes(getStandardLibraryCreateFileCommandId()),
+      "standard-library create-file command should be registered"
+    );
+    assert.ok(
+      availableCommands.includes(getStandardLibraryCreateFolderCommandId()),
+      "standard-library create-folder command should be registered"
+    );
+    assert.ok(
+      availableCommands.includes(getStandardLibraryDeleteCommandId()),
+      "standard-library delete command should be registered"
     );
   });
 });

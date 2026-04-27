@@ -1,6 +1,9 @@
 import * as vscode from "vscode";
 
 import {
+  createStandardLibraryCreateFileCommand,
+  createStandardLibraryCreateFolderCommand,
+  createStandardLibraryDeleteCommand,
   createShowBootstrapStatusCommand,
   registerCommands,
 } from "./commands";
@@ -46,7 +49,7 @@ import {
   getWorkspaceAlgorithmsTreeViewId,
   getWorkspaceStandardLibraryTreeViewId,
 } from "./views";
-import type { IViewHost } from "./views";
+import type { IViewHost, RefreshableWorkspaceTreeDataProvider } from "./views";
 
 /**
  * Creates the coordinator for the bootstrap extension runtime.
@@ -81,11 +84,12 @@ export function createCoordinator(
   const viewHost: IViewHost = createViewHost(context);
   const communicationHub: ICommunicationHub = createCommunicationHub(viewHost);
   const viewsRegistration = viewHost.register();
-  const workspaceAlgorithmsTreeProvider = createWorkspaceAlgorithmsTreeDataProvider({
+  const workspaceAlgorithmsTreeProvider: RefreshableWorkspaceTreeDataProvider =
+    createWorkspaceAlgorithmsTreeDataProvider({
     filesystem,
     languages,
-  });
-  const workspaceStandardLibraryTreeProvider =
+    });
+  const workspaceStandardLibraryTreeProvider: RefreshableWorkspaceTreeDataProvider =
     createWorkspaceStandardLibraryTreeDataProvider({
       filesystem,
       languages,
@@ -146,6 +150,21 @@ export function createCoordinator(
       extensionVersion: String(context.extension.packageJSON.version ?? "0.0.0"),
       hostState: stateMachine,
       showStatusMessage: notificationRouter.info,
+    }),
+    standardLibraryCreateFile: createStandardLibraryCreateFileCommand({
+      filesystem,
+      notificationRouter,
+      refreshStandardLibraryTree: workspaceStandardLibraryTreeProvider.refresh,
+    }),
+    standardLibraryCreateFolder: createStandardLibraryCreateFolderCommand({
+      filesystem,
+      notificationRouter,
+      refreshStandardLibraryTree: workspaceStandardLibraryTreeProvider.refresh,
+    }),
+    standardLibraryDelete: createStandardLibraryDeleteCommand({
+      filesystem,
+      notificationRouter,
+      refreshStandardLibraryTree: workspaceStandardLibraryTreeProvider.refresh,
     }),
   };
 

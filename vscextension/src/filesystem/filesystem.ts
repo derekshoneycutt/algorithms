@@ -3,6 +3,7 @@ import * as path from "node:path";
 
 import type { IFilesystem } from "./IFilesystem";
 import type {
+  DeletePathOptions,
   ListDirectoryOptions,
   ListDirectoryResult,
   ReadTextOptions,
@@ -70,6 +71,16 @@ export function createFilesystem(): IFilesystem {
       }
     },
 
+    async writeText(
+      filePath: string,
+      content: string,
+      options?: ReadTextOptions
+    ): Promise<void> {
+      const normalizedPath = toNormalizedAbsolutePath(filePath);
+      const encoding = options?.encoding ?? "utf8";
+      await fs.writeFile(normalizedPath, content, { encoding });
+    },
+
     async listDirectory(
       directoryPath: string,
       options?: ListDirectoryOptions
@@ -90,6 +101,18 @@ export function createFilesystem(): IFilesystem {
     async ensureDirectory(directoryPath: string): Promise<void> {
       const normalizedPath = toNormalizedAbsolutePath(directoryPath);
       await fs.mkdir(normalizedPath, { recursive: true });
+    },
+
+    async deletePath(
+      targetPath: string,
+      options?: DeletePathOptions
+    ): Promise<void> {
+      const normalizedPath = toNormalizedAbsolutePath(targetPath);
+      const recursive = options?.recursive ?? false;
+      await fs.rm(normalizedPath, {
+        recursive,
+        force: false,
+      });
     },
 
     async isPathWithinRoot(
