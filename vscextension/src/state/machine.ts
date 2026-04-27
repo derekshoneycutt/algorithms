@@ -268,7 +268,134 @@ export function createExtensionHostMachine() {
       activeSmokeRunIdByAlgorithm: {},
       runControls: createInitialRunControlsSettings(input.initialRunControls),
       environmentControls: createInitialEnvironmentControlsSettings(),
+      filesystemCacheTtlMs: 2000,
+      filesystemStatCacheByPath: {},
+      filesystemDirectoryCacheByPath: {},
+      filesystemPendingOperationById: {},
+      filesystemOperationErrorByPath: {},
     };
+  },
+  on: {
+    FILESYSTEM_CACHE_TTL_SET: {
+      actions: assign({
+        filesystemCacheTtlMs: ({ context, event }) => {
+          const numericTtl = Number(event.ttlMs);
+
+          if (!Number.isFinite(numericTtl) || numericTtl < 0) {
+            return context.filesystemCacheTtlMs;
+          }
+
+          return Math.floor(numericTtl);
+        },
+      }),
+    },
+    FILESYSTEM_CACHE_CLEARED: {
+      actions: assign({
+        filesystemStatCacheByPath: ({ context, event }) => {
+          if (
+            typeof event.targetPath === "string"
+            && event.targetPath.trim().length > 0
+          ) {
+            const nextByPath = {
+              ...context.filesystemStatCacheByPath,
+            };
+
+            delete nextByPath[event.targetPath];
+            return nextByPath;
+          }
+
+          return {};
+        },
+        filesystemDirectoryCacheByPath: ({ context, event }) => {
+          if (
+            typeof event.targetPath === "string"
+            && event.targetPath.trim().length > 0
+          ) {
+            const nextByPath = {
+              ...context.filesystemDirectoryCacheByPath,
+            };
+
+            delete nextByPath[event.targetPath];
+            return nextByPath;
+          }
+
+          return {};
+        },
+      }),
+    },
+    FILESYSTEM_STAT_CACHE_ENTRY_SET: {
+      actions: assign({
+        filesystemStatCacheByPath: ({ context, event }) => {
+          return {
+            ...context.filesystemStatCacheByPath,
+            [event.targetPath]: {
+              exists: event.exists,
+              kind: event.kind,
+              updatedAt: event.updatedAt,
+            },
+          };
+        },
+      }),
+    },
+    FILESYSTEM_DIRECTORY_CACHE_ENTRY_SET: {
+      actions: assign({
+        filesystemDirectoryCacheByPath: ({ context, event }) => {
+          return {
+            ...context.filesystemDirectoryCacheByPath,
+            [event.targetPath]: {
+              entryCount: event.entryCount,
+              updatedAt: event.updatedAt,
+            },
+          };
+        },
+      }),
+    },
+    FILESYSTEM_PENDING_OPERATION_SET: {
+      actions: assign({
+        filesystemPendingOperationById: ({ context, event }) => {
+          return {
+            ...context.filesystemPendingOperationById,
+            [event.operationId]: {
+              operationType: event.operationType,
+              targetPath: event.targetPath,
+              status: event.status,
+              updatedAt: event.updatedAt,
+            },
+          };
+        },
+      }),
+    },
+    FILESYSTEM_PENDING_OPERATION_CLEARED: {
+      actions: assign({
+        filesystemPendingOperationById: ({ context, event }) => {
+          const nextById = {
+            ...context.filesystemPendingOperationById,
+          };
+
+          delete nextById[event.operationId];
+          return nextById;
+        },
+      }),
+    },
+    FILESYSTEM_OPERATION_ERROR_SET: {
+      actions: assign({
+        filesystemOperationErrorByPath: ({ context, event }) => {
+          if (event.message.trim().length === 0) {
+            const nextByPath = {
+              ...context.filesystemOperationErrorByPath,
+            };
+
+            delete nextByPath[event.targetPath];
+            return nextByPath;
+          }
+
+          return {
+            ...context.filesystemOperationErrorByPath,
+            [event.targetPath]: event.message,
+          };
+        },
+      }),
+    },
   },
   states: {
     ready: {

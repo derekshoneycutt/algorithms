@@ -329,6 +329,11 @@ describe("state — buildBootstrapStatusMessage", () => {
       activeSmokeRunAlgorithmPath: null,
       runControls,
       environmentControls,
+      filesystemCacheTtlMs: 2000,
+      filesystemStatCacheByPath: {},
+      filesystemDirectoryCacheByPath: {},
+      filesystemPendingOperationById: {},
+      filesystemOperationErrorByPath: {},
     });
 
     assert.match(message, /Test Extension/);
@@ -347,6 +352,11 @@ describe("state — buildBootstrapStatusMessage", () => {
       activeSmokeRunAlgorithmPath: null,
       runControls,
       environmentControls,
+      filesystemCacheTtlMs: 2000,
+      filesystemStatCacheByPath: {},
+      filesystemDirectoryCacheByPath: {},
+      filesystemPendingOperationById: {},
+      filesystemOperationErrorByPath: {},
     });
 
     assert.match(message, /algos\.showBootstrapStatus/);

@@ -120,16 +120,72 @@ export function createCoordinator(
   const workspaceFolderPaths = (vscode.workspace.workspaceFolders ?? []).map(
     (workspaceFolder) => workspaceFolder.uri.fsPath
   );
-
-  const filesystem: IFilesystem = createFilesystem();
   const languages: ILanguages = createLanguages(GENERATED_LANGUAGE_DATA);
-  const commandLine = createCommandLine();
-  const algorithmsTerminalRunAdapter = createAlgorithmsTerminalRunAdapter();
+
   const stateMachine: IStateMachine = createHostStateService({
     initialSmokeControls: {
       languages: buildSmokeLanguageSelections(languages),
     },
   });
+  const filesystem: IFilesystem = createFilesystem({
+    cacheTtlMs: stateMachine.getSnapshot().filesystemCacheTtlMs,
+    stateBridge: {
+      onCacheTtlSet(ttlMs) {
+        stateMachine.send({
+          type: "FILESYSTEM_CACHE_TTL_SET",
+          ttlMs,
+        });
+      },
+      onCacheCleared(targetPath) {
+        stateMachine.send({
+          type: "FILESYSTEM_CACHE_CLEARED",
+          targetPath,
+        });
+      },
+      onStatCacheEntrySet(targetPath, exists, kind, updatedAt) {
+        stateMachine.send({
+          type: "FILESYSTEM_STAT_CACHE_ENTRY_SET",
+          targetPath,
+          exists,
+          kind,
+          updatedAt,
+        });
+      },
+      onDirectoryCacheEntrySet(targetPath, entryCount, updatedAt) {
+        stateMachine.send({
+          type: "FILESYSTEM_DIRECTORY_CACHE_ENTRY_SET",
+          targetPath,
+          entryCount,
+          updatedAt,
+        });
+      },
+      onPendingOperationSet(operationId, operationType, targetPath, status, updatedAt) {
+        stateMachine.send({
+          type: "FILESYSTEM_PENDING_OPERATION_SET",
+          operationId,
+          operationType,
+          targetPath,
+          status,
+          updatedAt,
+        });
+      },
+      onPendingOperationCleared(operationId) {
+        stateMachine.send({
+          type: "FILESYSTEM_PENDING_OPERATION_CLEARED",
+          operationId,
+        });
+      },
+      onOperationErrorSet(targetPath, message) {
+        stateMachine.send({
+          type: "FILESYSTEM_OPERATION_ERROR_SET",
+          targetPath,
+          message,
+        });
+      },
+    },
+  });
+  const commandLine = createCommandLine();
+  const algorithmsTerminalRunAdapter = createAlgorithmsTerminalRunAdapter();
   const viewModeService: IViewModeService = createViewModeService();
   const filterModeService: IFilterModeService = createFilterModeService();
   const conductor: IConductor = createConductorService({
@@ -167,6 +223,44 @@ export function createCoordinator(
     createWorkspaceStandardLibraryTreeDataProvider({
       algorithmsIndex,
     });
+
+  const workspaceWatcher = vscode.workspace.createFileSystemWatcher("**/*");
+  const workspaceCreateWatcher = workspaceWatcher.onDidCreate((uri) => {
+    conductor.handleWorkspacePathChanged?.({
+      targetPath: uri.fsPath,
+      filesystem,
+      algorithmsIndex,
+      refreshAlgorithmsTree: workspaceAlgorithmsTreeProvider.refresh,
+      refreshStandardLibraryTree: workspaceStandardLibraryTreeProvider.refresh,
+    });
+  });
+  const workspaceChangeWatcher = workspaceWatcher.onDidChange((uri) => {
+    conductor.handleWorkspacePathChanged?.({
+      targetPath: uri.fsPath,
+      filesystem,
+      algorithmsIndex,
+      refreshAlgorithmsTree: workspaceAlgorithmsTreeProvider.refresh,
+      refreshStandardLibraryTree: workspaceStandardLibraryTreeProvider.refresh,
+    });
+  });
+  const workspaceDeleteWatcher = workspaceWatcher.onDidDelete((uri) => {
+    conductor.handleWorkspacePathChanged?.({
+      targetPath: uri.fsPath,
+      filesystem,
+      algorithmsIndex,
+      refreshAlgorithmsTree: workspaceAlgorithmsTreeProvider.refresh,
+      refreshStandardLibraryTree: workspaceStandardLibraryTreeProvider.refresh,
+    });
+  });
+  const workspaceFoldersChangeWatcher = vscode.workspace.onDidChangeWorkspaceFolders(() => {
+    conductor.handleWorkspaceRootsChanged?.({
+      filesystem,
+      algorithmsIndex,
+      refreshAlgorithmsTree: workspaceAlgorithmsTreeProvider.refresh,
+      refreshStandardLibraryTree: workspaceStandardLibraryTreeProvider.refresh,
+    });
+  });
+
   const workspaceAlgorithmsTreeRegistration = viewHost.registerTreeDataProvider(
     workspaceAlgorithmsTreeViewId,
     workspaceAlgorithmsTreeProvider
@@ -397,6 +491,12 @@ export function createCoordinator(
     }),
   };
 
+  const conductorDisposer = {
+    dispose(): void {
+      conductor.dispose?.();
+    },
+  };
+
   return vscode.Disposable.from(
     stateMachine,
     communicationHub,
@@ -405,7 +505,13 @@ export function createCoordinator(
     environmentControlsChannel,
     workspaceAlgorithmsTreeRegistration,
     workspaceStandardLibraryTreeRegistration,
+    workspaceWatcher,
+    workspaceCreateWatcher,
+    workspaceChangeWatcher,
+    workspaceDeleteWatcher,
+    workspaceFoldersChangeWatcher,
     runStatusTreeRefreshSubscription,
+    conductorDisposer,
     languageStatusDecorationRegistration,
     viewHost,
     viewsRegistration,

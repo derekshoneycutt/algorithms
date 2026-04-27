@@ -97,8 +97,8 @@ describe("conductor/internal — environment routing integration", () => {
     it("allows batch save when docker enabled with value", () => {
       const batchDockerEnabled = true;
       const batchDockerValue = "ubuntu:latest";
-      const _batchSshEnabled = false;
-      const _batchSshValue = "";
+      const batchSshEnabled = false;
+      const batchSshValue = "";
 
       const hasError = (batchDockerEnabled && !batchDockerValue) || (batchSshEnabled && !batchSshValue) || (batchDockerEnabled && batchSshEnabled);
       assert.equal(hasError, false);

@@ -343,6 +343,24 @@ export function createAlgorithmsIndex(
   // Lazy-resolved roots. undefined = not yet resolved; null = not found.
   let cachedAlgorithmsRoot: string | null | undefined = undefined;
   let cachedStdlibRoot: string | null | undefined = undefined;
+  const categoriesByRoot = new Map<string, AlgorithmCategory[]>();
+  const algorithmsByCategoryPath = new Map<string, AlgorithmEntry[]>();
+  const implementationsByAlgorithmPath = new Map<string, AlgorithmImplementation[]>();
+  const standardLibraryEntriesByPath = new Map<string, StandardLibEntry[]>();
+
+  /**
+   * Clears cached root and discovery data.
+   *
+   * @returns {void}
+   */
+  function clearAllCaches(): void {
+    cachedAlgorithmsRoot = undefined;
+    cachedStdlibRoot = undefined;
+    categoriesByRoot.clear();
+    algorithmsByCategoryPath.clear();
+    implementationsByAlgorithmPath.clear();
+    standardLibraryEntriesByPath.clear();
+  }
 
   /**
    * Returns the algorithms source root, resolving it on first call.
@@ -369,6 +387,10 @@ export function createAlgorithmsIndex(
   }
 
   return {
+    clearCache(_targetPath?: string): void {
+      clearAllCaches();
+    },
+
     async getCategories(): Promise<AlgorithmCategory[]> {
       const root = await getAlgorithmsRoot();
       if (root === null) {
@@ -376,6 +398,14 @@ export function createAlgorithmsIndex(
       }
 
       const canonicalRoot = await filesystem.realpath(root);
+      const cachedCategories = categoriesByRoot.get(canonicalRoot);
+
+      if (cachedCategories !== undefined) {
+        return cachedCategories.map((category) => ({
+          ...category,
+        }));
+      }
+
       const dirents = await listDirents(canonicalRoot, filesystem);
       const categories: AlgorithmCategory[] = [];
 
@@ -393,11 +423,23 @@ export function createAlgorithmsIndex(
         categories.push({ name: dirent.name, path: path.join(canonicalRoot, dirent.name) });
       }
 
-      return categories;
+      categoriesByRoot.set(canonicalRoot, categories);
+
+      return categories.map((category) => ({
+        ...category,
+      }));
     },
 
     async getAlgorithms(categoryPath: string): Promise<AlgorithmEntry[]> {
       const canonicalCategoryPath = await filesystem.realpath(categoryPath);
+      const cachedAlgorithms = algorithmsByCategoryPath.get(canonicalCategoryPath);
+
+      if (cachedAlgorithms !== undefined) {
+        return cachedAlgorithms.map((algorithm) => ({
+          ...algorithm,
+        }));
+      }
+
       const dirents = await listDirents(canonicalCategoryPath, filesystem);
       const algorithms: AlgorithmEntry[] = [];
 
@@ -422,11 +464,25 @@ export function createAlgorithmsIndex(
         });
       }
 
-      return algorithms;
+      algorithmsByCategoryPath.set(canonicalCategoryPath, algorithms);
+
+      return algorithms.map((algorithm) => ({
+        ...algorithm,
+      }));
     },
 
     async getImplementations(algorithmPath: string): Promise<AlgorithmImplementation[]> {
       const canonicalAlgorithmPath = await filesystem.realpath(algorithmPath);
+      const cachedImplementations = implementationsByAlgorithmPath.get(canonicalAlgorithmPath);
+
+      if (cachedImplementations !== undefined) {
+        return cachedImplementations.map((implementation) => ({
+          ...implementation,
+          filePaths: [...implementation.filePaths],
+          includeFilePaths: [...implementation.includeFilePaths],
+        }));
+      }
+
       const algorithmBaseName = path.basename(canonicalAlgorithmPath);
       const dirents = await listDirents(canonicalAlgorithmPath, filesystem);
       const implementations: AlgorithmImplementation[] = [];
@@ -500,7 +556,13 @@ export function createAlgorithmsIndex(
       }
 
       implementations.sort((left, right) => left.languageKey.localeCompare(right.languageKey));
-      return implementations;
+      implementationsByAlgorithmPath.set(canonicalAlgorithmPath, implementations);
+
+      return implementations.map((implementation) => ({
+        ...implementation,
+        filePaths: [...implementation.filePaths],
+        includeFilePaths: [...implementation.includeFilePaths],
+      }));
     },
 
     async getStandardLibraryEntries(dirPath?: string): Promise<StandardLibEntry[]> {
@@ -517,6 +579,14 @@ export function createAlgorithmsIndex(
       }
 
       const canonicalPath = await filesystem.realpath(targetPath);
+      const cachedEntries = standardLibraryEntriesByPath.get(canonicalPath);
+
+      if (cachedEntries !== undefined) {
+        return cachedEntries.map((entry) => ({
+          ...entry,
+        }));
+      }
+
       const dirents = await listDirents(canonicalPath, filesystem);
       const entries: StandardLibEntry[] = [];
 
@@ -550,7 +620,11 @@ export function createAlgorithmsIndex(
         entries.push({ kind: "file", name: dirent.name, path: entryPath });
       }
 
-      return entries;
+      standardLibraryEntriesByPath.set(canonicalPath, entries);
+
+      return entries.map((entry) => ({
+        ...entry,
+      }));
     },
   };
 }

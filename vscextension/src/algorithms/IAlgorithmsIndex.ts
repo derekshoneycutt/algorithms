@@ -29,6 +29,17 @@ export interface AlgorithmsIndexDependencies {
  */
 export interface IAlgorithmsIndex {
   /**
+   * Clears cached index results.
+   *
+   * When targetPath is provided, implementations may clear only affected
+   * subsets; full clear is always allowed.
+   *
+   * @param {string} [targetPath] Optional changed path used for scoped invalidation.
+   * @returns {void}
+   */
+  clearCache(targetPath?: string): void;
+
+  /**
    * Returns the top-level category directories under the algorithms source root.
    *
    * @returns {Promise<AlgorithmCategory[]>} Category list sorted by name.

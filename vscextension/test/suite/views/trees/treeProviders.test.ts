@@ -44,10 +44,37 @@ function createLanguageStub(): ILanguages {
   ]);
 
   const allLanguages = [
-    { key: "python", displayLabel: "Python" },
-    { key: "go", displayLabel: "Go" },
-    { key: "typescript", displayLabel: "TypeScript" },
-  ] as Array<{ key: string; displayLabel: string }>;
+    {
+      key: "python",
+      extension: ".py",
+      displayLabel: "Python",
+      icon: { fileName: "python.svg" },
+      sampleOutputTemplate: "",
+      smoke: { defaultEnabled: true },
+      constraints: { canRun: [] },
+      aliases: { languageIds: ["python"], fileExtensions: [".py"] },
+    },
+    {
+      key: "go",
+      extension: ".go",
+      displayLabel: "Go",
+      icon: { fileName: "go.svg" },
+      sampleOutputTemplate: "",
+      smoke: { defaultEnabled: true },
+      constraints: { canRun: [] },
+      aliases: { languageIds: ["go"], fileExtensions: [".go"] },
+    },
+    {
+      key: "typescript",
+      extension: ".ts",
+      displayLabel: "TypeScript",
+      icon: { fileName: "typescript.svg" },
+      sampleOutputTemplate: "",
+      smoke: { defaultEnabled: true },
+      constraints: { canRun: [] },
+      aliases: { languageIds: ["typescript"], fileExtensions: [".ts"] },
+    },
+  ];
 
   return {
     getAll() {
@@ -140,6 +167,9 @@ function createAlgorithmsIndexStub(
   standardLibraryEntries: StandardLibEntry[] = []
 ): IAlgorithmsIndex {
   return {
+    clearCache(): void {
+      return;
+    },
     async getCategories() {
       return categories;
     },

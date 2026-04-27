@@ -152,6 +152,38 @@ export type SmokeRunStatusByLanguage = Record<string, SmokeLanguageRunStatus>;
 export type SmokeRunStatusByAlgorithm = Record<string, SmokeRunStatusByLanguage>;
 
 /**
+ * Known filesystem stat kinds tracked in state summaries.
+ */
+export type FilesystemStatKind = "file" | "directory" | "other" | "missing";
+
+/**
+ * One filesystem stat cache summary entry.
+ */
+export interface FilesystemStatCacheEntry {
+  exists: boolean;
+  kind: FilesystemStatKind;
+  updatedAt: number;
+}
+
+/**
+ * One filesystem directory cache summary entry.
+ */
+export interface FilesystemDirectoryCacheEntry {
+  entryCount: number;
+  updatedAt: number;
+}
+
+/**
+ * One tracked pending filesystem operation.
+ */
+export interface FilesystemPendingOperation {
+  operationType: string;
+  targetPath: string;
+  status: "pending";
+  updatedAt: number;
+}
+
+/**
  * Parsed run-arguments result.
  */
 export interface ParsedRunArgumentsResult {
@@ -478,6 +510,11 @@ export interface ExtensionHostContext {
   activeSmokeRunIdByAlgorithm: Record<string, string>;
   runControls: RunControlsSettings;
   environmentControls: EnvironmentControlsSettings;
+  filesystemCacheTtlMs: number;
+  filesystemStatCacheByPath: Record<string, FilesystemStatCacheEntry>;
+  filesystemDirectoryCacheByPath: Record<string, FilesystemDirectoryCacheEntry>;
+  filesystemPendingOperationById: Record<string, FilesystemPendingOperation>;
+  filesystemOperationErrorByPath: Record<string, string>;
 }
 
 /**
@@ -610,6 +647,35 @@ export type ExtensionHostEvent =
       sshEnabled: boolean;
       sshValue: string;
     }
+  | { type: "FILESYSTEM_CACHE_TTL_SET"; ttlMs: number }
+  | { type: "FILESYSTEM_CACHE_CLEARED"; targetPath?: string }
+  | {
+      type: "FILESYSTEM_STAT_CACHE_ENTRY_SET";
+      targetPath: string;
+      exists: boolean;
+      kind: FilesystemStatKind;
+      updatedAt: number;
+    }
+  | {
+      type: "FILESYSTEM_DIRECTORY_CACHE_ENTRY_SET";
+      targetPath: string;
+      entryCount: number;
+      updatedAt: number;
+    }
+  | {
+      type: "FILESYSTEM_PENDING_OPERATION_SET";
+      operationId: string;
+      operationType: string;
+      targetPath: string;
+      status: "pending";
+      updatedAt: number;
+    }
+  | { type: "FILESYSTEM_PENDING_OPERATION_CLEARED"; operationId: string }
+  | {
+      type: "FILESYSTEM_OPERATION_ERROR_SET";
+      targetPath: string;
+      message: string;
+    }
   | { type: "SHUTDOWN" };
 
 /**
@@ -625,6 +691,11 @@ export interface ExtensionHostSnapshot {
   readonly activeSmokeRunAlgorithmPath: string | null;
   readonly runControls: RunControlsSettings;
   readonly environmentControls: EnvironmentControlsSettings;
+  readonly filesystemCacheTtlMs: number;
+  readonly filesystemStatCacheByPath: Record<string, FilesystemStatCacheEntry>;
+  readonly filesystemDirectoryCacheByPath: Record<string, FilesystemDirectoryCacheEntry>;
+  readonly filesystemPendingOperationById: Record<string, FilesystemPendingOperation>;
+  readonly filesystemOperationErrorByPath: Record<string, string>;
 }
 
 /**

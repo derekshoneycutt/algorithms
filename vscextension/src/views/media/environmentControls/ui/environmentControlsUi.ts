@@ -645,7 +645,7 @@ export function createEnvironmentControlsUi(): IEnvironmentControlsUi {
       sshValue: "",
       isConflict: false,
       statusText: "",
-      statusClassName: "",
+      statusClassName: "status-muted",
     },
     variables: [],
   });

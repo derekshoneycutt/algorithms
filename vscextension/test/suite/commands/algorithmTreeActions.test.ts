@@ -144,6 +144,11 @@ function createHostStateStub(runControls: RunControlsSettings): IStateMachine {
       batchRoutingConflict: false,
       variables: [],
     },
+    filesystemCacheTtlMs: 2000,
+    filesystemStatCacheByPath: {},
+    filesystemDirectoryCacheByPath: {},
+    filesystemPendingOperationById: {},
+    filesystemOperationErrorByPath: {},
   };
 
   return {

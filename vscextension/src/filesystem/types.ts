@@ -6,16 +6,30 @@ import type { Dirent } from "node:fs";
 export type FilesystemTextEncoding = BufferEncoding;
 
 /**
+ * Shared cache-control options for filesystem reads.
+ */
+export interface FilesystemCacheOptions {
+  useCache?: boolean;
+}
+
+/**
  * Options for reading text files.
  */
 export interface ReadTextOptions {
   encoding?: FilesystemTextEncoding;
+  useCache?: boolean;
+}
+
+/**
+ * Options for checking one path type.
+ */
+export interface PathLookupOptions extends FilesystemCacheOptions {
 }
 
 /**
  * Options for directory listing.
  */
-export interface ListDirectoryOptions {
+export interface ListDirectoryOptions extends FilesystemCacheOptions {
   withFileTypes?: boolean;
 }
 
@@ -25,6 +39,42 @@ export interface ListDirectoryOptions {
 export interface DeletePathOptions {
   recursive?: boolean;
   useTrash?: boolean;
+}
+
+/**
+ * Optional host-state bridge for filesystem cache and operation metadata.
+ */
+export interface FilesystemStateBridge {
+  onCacheTtlSet?(ttlMs: number): void;
+  onCacheCleared?(targetPath?: string): void;
+  onStatCacheEntrySet?(
+    targetPath: string,
+    exists: boolean,
+    kind: "file" | "directory" | "other" | "missing",
+    updatedAt: number
+  ): void;
+  onDirectoryCacheEntrySet?(
+    targetPath: string,
+    entryCount: number,
+    updatedAt: number
+  ): void;
+  onPendingOperationSet?(
+    operationId: string,
+    operationType: string,
+    targetPath: string,
+    status: "pending",
+    updatedAt: number
+  ): void;
+  onPendingOperationCleared?(operationId: string): void;
+  onOperationErrorSet?(targetPath: string, message: string): void;
+}
+
+/**
+ * Optional construction input for filesystem module behavior.
+ */
+export interface CreateFilesystemInput {
+  cacheTtlMs?: number;
+  stateBridge?: FilesystemStateBridge;
 }
 
 /**

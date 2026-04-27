@@ -98,6 +98,46 @@ export function createHostStateService(
             };
           }),
         },
+        filesystemCacheTtlMs: snapshot.context.filesystemCacheTtlMs,
+        filesystemStatCacheByPath: Object.fromEntries(
+          Object.entries(snapshot.context.filesystemStatCacheByPath).map(
+            ([targetPath, cacheEntry]) => {
+              return [
+                targetPath,
+                {
+                  ...cacheEntry,
+                },
+              ];
+            }
+          )
+        ),
+        filesystemDirectoryCacheByPath: Object.fromEntries(
+          Object.entries(snapshot.context.filesystemDirectoryCacheByPath).map(
+            ([targetPath, cacheEntry]) => {
+              return [
+                targetPath,
+                {
+                  ...cacheEntry,
+                },
+              ];
+            }
+          )
+        ),
+        filesystemPendingOperationById: Object.fromEntries(
+          Object.entries(snapshot.context.filesystemPendingOperationById).map(
+            ([operationId, operation]) => {
+              return [
+                operationId,
+                {
+                  ...operation,
+                },
+              ];
+            }
+          )
+        ),
+        filesystemOperationErrorByPath: {
+          ...snapshot.context.filesystemOperationErrorByPath,
+        },
       };
     },
 

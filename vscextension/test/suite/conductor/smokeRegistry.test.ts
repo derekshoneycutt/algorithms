@@ -1,6 +1,8 @@
 import * as assert from "assert";
 
 import { createSmokeRegistry } from "../../../src/conductor/internal/smokeRegistry";
+import type { ActiveSmokeExecution } from "../../../src/conductor/internal/smokeRegistry";
+import type { CommandLineResult } from "../../../src/commandline";
 import { createHostStateService } from "../../../src/state";
 
 describe("conductor/internal — createSmokeRegistry smoke retention lifecycle", () => {
@@ -87,19 +89,21 @@ describe("conductor/internal — createSmokeRegistry smoke retention lifecycle",
     const active = registry.getActiveSmokeExecutionByAlgorithm();
 
     let killCalled = false;
-    let resolveResult!: (result: { ok: boolean; exitCode: number | null }) => void;
-    const resultPromise = new Promise<{ ok: boolean; exitCode: number | null }>((resolve) => {
+    let resolveResult!: (result: CommandLineResult) => void;
+    const resultPromise = new Promise<CommandLineResult>((resolve) => {
       resolveResult = resolve;
     });
 
-    const stub: unknown = {
+    const stub: ActiveSmokeExecution = {
       algorithmPath: "/repo/src/algo",
       handle: {
-        kill: (signal: string) => {
+        isRunning: () => true,
+        kill: (signal?: NodeJS.Signals | number) => {
           killCalled = true;
           assert.strictEqual(signal, "SIGTERM");
-          return { ok: true };
+          return { ok: true, reason: null };
         },
+        pid: 42,
       },
       result: resultPromise,
       runId: "run-1",
@@ -109,7 +113,15 @@ describe("conductor/internal — createSmokeRegistry smoke retention lifecycle",
     active.set("/repo/src/algo", stub);
 
     const stopPromise = registry.stopSmokeTest({ algorithmPath: "/repo/src/algo" });
-    resolveResult({ ok: true, exitCode: 0 });
+    resolveResult({
+      ok: true,
+      exitCode: 0,
+      stdout: "",
+      stderr: "",
+      combinedOutput: "",
+      reason: null,
+      errorMessage: null,
+    });
 
     const stopped = await stopPromise;
     assert.strictEqual(stopped, true);

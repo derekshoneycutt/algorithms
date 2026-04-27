@@ -1,5 +1,6 @@
 import type { ExtensionHostEvent, ExtensionHostSnapshot } from "../state";
 import type { IFilesystem } from "../filesystem";
+import type { IAlgorithmsIndex } from "../algorithms";
 import type { ILanguages } from "../languages";
 import type { INotificationRouter } from "../notifications";
 import type { IStateMachine } from "../state";
@@ -172,6 +173,44 @@ export interface ConductorClearRunResultsInput {
 }
 
 /**
+ * Input for workspace-path cache invalidation policy.
+ */
+export interface ConductorWorkspacePathInvalidationInput {
+  targetPath: string;
+  filesystem: IFilesystem;
+  algorithmsIndex: IAlgorithmsIndex;
+}
+
+/**
+ * Input for workspace-root cache invalidation policy.
+ */
+export interface ConductorWorkspaceRootsInvalidationInput {
+  filesystem: IFilesystem;
+  algorithmsIndex: IAlgorithmsIndex;
+}
+
+/**
+ * Input for one workspace-path change orchestration request.
+ */
+export interface ConductorWorkspacePathChangeInput {
+  targetPath: string;
+  filesystem: IFilesystem;
+  algorithmsIndex: IAlgorithmsIndex;
+  refreshAlgorithmsTree: () => void;
+  refreshStandardLibraryTree: () => void;
+}
+
+/**
+ * Input for one workspace-roots change orchestration request.
+ */
+export interface ConductorWorkspaceRootsChangeInput {
+  filesystem: IFilesystem;
+  algorithmsIndex: IAlgorithmsIndex;
+  refreshAlgorithmsTree: () => void;
+  refreshStandardLibraryTree: () => void;
+}
+
+/**
  * Input for conductor-owned run-file orchestration.
  */
 export interface ConductorRunFileInput {
@@ -297,6 +336,42 @@ export interface IConductor {
   ): ConductorSubscription;
 
   /**
+   * Applies conductor-owned cache invalidation policy for one changed path.
+   *
+   * @param {ConductorWorkspacePathInvalidationInput} input Changed path input.
+   * @returns {boolean} True when caches were invalidated.
+   */
+  invalidateWorkspacePath?(
+    input: ConductorWorkspacePathInvalidationInput
+  ): boolean;
+
+  /**
+   * Applies conductor-owned cache invalidation policy for workspace-root changes.
+   *
+   * @param {ConductorWorkspaceRootsInvalidationInput} input Workspace roots input.
+   * @returns {void}
+   */
+  invalidateWorkspaceRoots?(input: ConductorWorkspaceRootsInvalidationInput): void;
+
+  /**
+   * Handles one workspace path change using conductor-owned policy.
+   *
+   * This includes invalidation and debounced tree refresh behavior.
+   *
+   * @param {ConductorWorkspacePathChangeInput} input Path change input.
+   * @returns {void}
+   */
+  handleWorkspacePathChanged?(input: ConductorWorkspacePathChangeInput): void;
+
+  /**
+   * Handles workspace roots change using conductor-owned policy.
+   *
+   * @param {ConductorWorkspaceRootsChangeInput} input Roots change input.
+   * @returns {void}
+   */
+  handleWorkspaceRootsChanged?(input: ConductorWorkspaceRootsChangeInput): void;
+
+  /**
    * Starts one run and returns its first snapshot.
    *
    * @param {ConductorStartRunInput} input Start input.
@@ -335,6 +410,13 @@ export interface IConductor {
    * @returns {ConductorRunSnapshot | null} Updated snapshot or null in bootstrap mode.
    */
   cancelRun(input: ConductorCancelRunInput): ConductorRunSnapshot | null;
+
+  /**
+   * Disposes conductor-owned resources.
+   *
+   * @returns {void}
+   */
+  dispose?(): void;
 
   /**
    * Gets one run snapshot.

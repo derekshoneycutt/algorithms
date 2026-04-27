@@ -1,3 +1,5 @@
+import * as path from "node:path";
+
 import type {
   ConductorCancelRunInput,
   ConductorClearRunResultsInput,
@@ -16,6 +18,10 @@ import type {
   ConductorStartRunInput,
   ConductorStopSmokeTestInput,
   ConductorSubscription,
+  ConductorWorkspacePathInvalidationInput,
+  ConductorWorkspacePathChangeInput,
+  ConductorWorkspaceRootsChangeInput,
+  ConductorWorkspaceRootsInvalidationInput,
   IConductor,
   CheckEnvResult,
   CopyIconsResult,
@@ -42,6 +48,19 @@ import {
 } from "./internal/environment";
 
 const DEFAULT_RUN_STATUS_RETENTION_MS = 120_000;
+
+/**
+ * Returns true when one path segment exists in the candidate path.
+ *
+ * @param {string} candidatePath Path to inspect.
+ * @param {string} segment Segment name to match.
+ * @returns {boolean} True when candidatePath contains segment.
+ */
+function hasPathSegment(candidatePath: string, segment: string): boolean {
+  const normalizedPath = candidatePath.replace(/\\/g, "/");
+  const segments = normalizedPath.split("/").filter(Boolean);
+  return segments.includes(segment);
+}
 
 /**
  * Dependencies required to create the conductor service.
@@ -220,6 +239,29 @@ export function createConductorService(
   });
   const activeSmokeExecutionByAlgorithm = smokeRegistry.getActiveSmokeExecutionByAlgorithm();
   const smokeStatusRetentionLifecycle = smokeRegistry.getSmokeStatusRetentionLifecycle();
+  let refreshTreeViewsTimer: ReturnType<typeof setTimeout> | null = null;
+
+  /**
+   * Schedules one debounced refresh for both tree providers.
+   *
+   * @param {() => void} refreshAlgorithmsTree Algorithms tree refresh callback.
+   * @param {() => void} refreshStandardLibraryTree Standard library tree refresh callback.
+   * @returns {void}
+   */
+  function scheduleTreeRefresh(
+    refreshAlgorithmsTree: () => void,
+    refreshStandardLibraryTree: () => void
+  ): void {
+    if (refreshTreeViewsTimer !== null) {
+      clearTimeout(refreshTreeViewsTimer);
+    }
+
+    refreshTreeViewsTimer = setTimeout(() => {
+      refreshTreeViewsTimer = null;
+      refreshAlgorithmsTree();
+      refreshStandardLibraryTree();
+    }, 75);
+  }
 
   return {
     reactToSmokeIntent(input) {
@@ -265,6 +307,50 @@ export function createConductorService(
       listener: (change: ConductorRunTargetStatusChange) => void
     ): ConductorSubscription {
       return runRegistry.subscribeRunTargetStatus(listener);
+    },
+
+    invalidateWorkspacePath(input: ConductorWorkspacePathInvalidationInput): boolean {
+      const canonicalPath = input.targetPath;
+
+      if (!hasPathSegment(canonicalPath, "src") && !hasPathSegment(canonicalPath, "stdlib")) {
+        return false;
+      }
+
+      input.filesystem.clearCache?.(canonicalPath);
+      input.filesystem.clearCache?.(path.dirname(canonicalPath));
+      input.algorithmsIndex.clearCache(canonicalPath);
+      return true;
+    },
+
+    invalidateWorkspaceRoots(input: ConductorWorkspaceRootsInvalidationInput): void {
+      input.filesystem.clearCache?.();
+      input.algorithmsIndex.clearCache();
+    },
+
+    handleWorkspacePathChanged(input: ConductorWorkspacePathChangeInput): void {
+      const wasInvalidated = this.invalidateWorkspacePath?.({
+        targetPath: input.targetPath,
+        filesystem: input.filesystem,
+        algorithmsIndex: input.algorithmsIndex,
+      });
+
+      if (wasInvalidated) {
+        scheduleTreeRefresh(
+          input.refreshAlgorithmsTree,
+          input.refreshStandardLibraryTree
+        );
+      }
+    },
+
+    handleWorkspaceRootsChanged(input: ConductorWorkspaceRootsChangeInput): void {
+      this.invalidateWorkspaceRoots?.({
+        filesystem: input.filesystem,
+        algorithmsIndex: input.algorithmsIndex,
+      });
+      scheduleTreeRefresh(
+        input.refreshAlgorithmsTree,
+        input.refreshStandardLibraryTree
+      );
     },
 
     startRun(input: ConductorStartRunInput): ConductorRunSnapshot {
@@ -350,6 +436,13 @@ export function createConductorService(
         profilePath,
         iconsPath
       );
+    },
+
+    dispose(): void {
+      if (refreshTreeViewsTimer !== null) {
+        clearTimeout(refreshTreeViewsTimer);
+        refreshTreeViewsTimer = null;
+      }
     },
   };
 }

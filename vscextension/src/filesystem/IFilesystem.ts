@@ -2,6 +2,7 @@ import type {
   DeletePathOptions,
   ListDirectoryOptions,
   ListDirectoryResult,
+  PathLookupOptions,
   ReadTextOptions,
 } from "./types";
 
@@ -23,7 +24,7 @@ export interface IFilesystem {
    * @param {string} filePath Path to check.
    * @returns {Promise<boolean>} True when the path is a file.
    */
-  isFile(filePath: string): Promise<boolean>;
+  isFile(filePath: string, options?: PathLookupOptions): Promise<boolean>;
 
   /**
    * Checks whether a path exists and is a directory.
@@ -31,7 +32,10 @@ export interface IFilesystem {
    * @param {string} directoryPath Path to check.
    * @returns {Promise<boolean>} True when the path is a directory.
    */
-  isDirectory(directoryPath: string): Promise<boolean>;
+  isDirectory(
+    directoryPath: string,
+    options?: PathLookupOptions
+  ): Promise<boolean>;
 
   /**
    * Reads a text file.
@@ -67,6 +71,31 @@ export interface IFilesystem {
     directoryPath: string,
     options?: ListDirectoryOptions
   ): Promise<ListDirectoryResult | null>;
+
+  /**
+   * Returns the current filesystem cache TTL in milliseconds.
+   *
+   * @returns {number} Cache TTL in milliseconds.
+   */
+  getCacheTtlMs?(): number;
+
+  /**
+   * Sets the filesystem cache TTL in milliseconds.
+   *
+   * Invalid values are ignored and the current TTL is returned unchanged.
+   *
+   * @param {number} nextTtlMs Candidate cache TTL in milliseconds.
+   * @returns {number} Effective cache TTL in milliseconds.
+   */
+  setCacheTtlMs?(nextTtlMs: number): number;
+
+  /**
+   * Clears cached filesystem metadata for one path or for all paths.
+   *
+   * @param {string} [targetPath] Canonical path to invalidate.
+   * @returns {void}
+   */
+  clearCache?(targetPath?: string): void;
 
   /**
    * Ensures a directory exists.
