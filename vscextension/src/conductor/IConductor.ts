@@ -4,6 +4,14 @@ import type { ILanguages } from "../languages";
 import type { INotificationRouter } from "../notifications";
 import type { IStateMachine } from "../state";
 import type { WorkspaceTreeNode } from "../views";
+import type {
+  CheckEnvResult,
+  CopyIconsResult,
+  EnvironmentReadResult,
+  EnvironmentWriteRequest,
+  EnvironmentWriteResult,
+} from "./internal/environment";
+
 
 /**
  * Lifecycle status for one conductor run snapshot.
@@ -335,4 +343,48 @@ export interface IConductor {
    * @returns {ConductorRunSnapshot | null} Snapshot or null when unavailable.
    */
   getRun(runId: string): ConductorRunSnapshot | null;
+
+  /**
+   * Reads the managed DEREKALGOS environment profile.
+   *
+   * @param {string} [profilePath] Optional profile path override.
+   * @returns {Promise<EnvironmentReadResult>} Parsed profile result.
+   */
+  readEnvironment(profilePath?: string): Promise<EnvironmentReadResult>;
+
+  /**
+   * Writes managed DEREKALGOS environment variables to the profile.
+   *
+   * @param {EnvironmentWriteRequest} request Write request with values.
+   * @returns {Promise<EnvironmentWriteResult>} Written profile result.
+   */
+  writeEnvironment(request: EnvironmentWriteRequest): Promise<EnvironmentWriteResult>;
+
+  /**
+   * Executes the check-environment diagnostics operation.
+   *
+   * @param {string} [profilePath] Optional profile path override.
+   * @returns {Promise<CheckEnvResult>} Check-environment result.
+   */
+  checkEnvironment(profilePath?: string): Promise<CheckEnvResult>;
+
+  /**
+   * Executes the copy-icons operation.
+   *
+   * @param {string} [profilePath] Optional profile path override.
+   * @param {string} [iconsPath] Optional destination path for icons.
+   * @returns {Promise<CopyIconsResult>} Copy-icons result.
+   */
+  copyIcons(profilePath?: string, iconsPath?: string): Promise<CopyIconsResult>;
 }
+
+/**
+ * Environment operation result types re-exported from internal/environment module.
+ */
+export type {
+  CheckEnvResult,
+  CopyIconsResult,
+  EnvironmentReadResult,
+  EnvironmentWriteRequest,
+  EnvironmentWriteResult,
+} from "./internal/environment";

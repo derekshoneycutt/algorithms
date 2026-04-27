@@ -18,12 +18,18 @@ import type {
   ConductorStopSmokeTestInput,
   ConductorSubscription,
   IConductor,
+  CheckEnvResult,
+  CopyIconsResult,
+  EnvironmentReadResult,
+  EnvironmentWriteRequest,
+  EnvironmentWriteResult,
 } from "./IConductor";
 import type { ViewToHostMessage } from "../comms/shared/messageTypes";
 import type {
   IAlgorithmsTerminalRunAdapter,
   ICommandLine,
 } from "../commandline";
+import type { IFilesystem } from "../filesystem";
 import type { IStateMachine } from "../state";
 import {
   createRunControlsIntentReaction,
@@ -32,6 +38,12 @@ import {
 import { createRunRegistry } from "./internal/runRegistry";
 import { createSmokeRegistry } from "./internal/smokeRegistry";
 import { orchestrateRunFile } from "./internal/runFile";
+import {
+  executeCheckEnv,
+  executeCopyIcons,
+  readEnvironment,
+  writeEnvironment,
+} from "./internal/environment";
 
 const DEFAULT_RUN_STATUS_RETENTION_MS = 120_000;
 
@@ -41,6 +53,8 @@ const DEFAULT_RUN_STATUS_RETENTION_MS = 120_000;
 export interface CreateConductorServiceInput {
   algorithmsTerminalRunAdapter?: IAlgorithmsTerminalRunAdapter;
   commandLine?: ICommandLine;
+  filesystem?: IFilesystem;
+  repositoryRoot?: string;
   runStatusRetentionMs?: number;
 }
 
@@ -286,6 +300,67 @@ export function createConductorService(
 
     getRun(runId: string): ConductorRunSnapshot | null {
       return runRegistry.getRun(runId);
+    },
+
+    async readEnvironment(profilePath?: string): Promise<EnvironmentReadResult> {
+      if (!commandLine || !input?.filesystem) {
+        throw new Error("Environment operations require commandLine and filesystem dependencies");
+      }
+
+      return readEnvironment(
+        {
+          filesystem: input.filesystem,
+          commandLine,
+          repositoryRoot: input.repositoryRoot || "",
+        },
+        profilePath
+      );
+    },
+
+    async writeEnvironment(request: EnvironmentWriteRequest): Promise<EnvironmentWriteResult> {
+      if (!commandLine || !input?.filesystem) {
+        throw new Error("Environment operations require commandLine and filesystem dependencies");
+      }
+
+      return writeEnvironment(
+        {
+          filesystem: input.filesystem,
+          commandLine,
+          repositoryRoot: input.repositoryRoot || "",
+        },
+        request
+      );
+    },
+
+    async checkEnvironment(profilePath?: string): Promise<CheckEnvResult> {
+      if (!commandLine || !input?.filesystem) {
+        throw new Error("Environment operations require commandLine and filesystem dependencies");
+      }
+
+      return executeCheckEnv(
+        {
+          filesystem: input.filesystem,
+          commandLine,
+          repositoryRoot: input.repositoryRoot || "",
+        },
+        profilePath
+      );
+    },
+
+    async copyIcons(profilePath?: string, iconsPath?: string): Promise<CopyIconsResult> {
+      if (!commandLine || !input?.filesystem) {
+        throw new Error("Environment operations require commandLine and filesystem dependencies");
+      }
+
+      return executeCopyIcons(
+        {
+          filesystem: input.filesystem,
+          commandLine,
+          repositoryRoot: input.repositoryRoot || "",
+        },
+        profilePath,
+        iconsPath
+      );
     },
   };
 }

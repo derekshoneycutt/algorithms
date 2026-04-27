@@ -23,6 +23,13 @@ export type {
   ConductorStartRunInput,
   IConductor,
 } from "./IConductor";
+export type {
+  CheckEnvResult,
+  CopyIconsResult,
+  EnvironmentReadResult,
+  EnvironmentWriteRequest,
+  EnvironmentWriteResult,
+} from "./internal/environment";
 export type { ApplyConductorReactionDependencies } from "./service";
 export type {
   CreateRunControlsChannelMessageHandlerInput,

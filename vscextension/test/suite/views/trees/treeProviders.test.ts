@@ -670,6 +670,18 @@ describe("views/trees — run file status projection", () => {
       getRun(): never {
         throw new Error("not used");
       },
+      readEnvironment(): never {
+        throw new Error("not used");
+      },
+      writeEnvironment(): never {
+        throw new Error("not used");
+      },
+      checkEnvironment(): never {
+        throw new Error("not used");
+      },
+      copyIcons(): never {
+        throw new Error("not used");
+      },
     };
 
     const provider = createWorkspaceAlgorithmsTreeDataProvider({
@@ -784,6 +796,18 @@ describe("views/trees — run file status projection", () => {
       getRun(): never {
         throw new Error("not used");
       },
+      readEnvironment(): never {
+        throw new Error("not used");
+      },
+      writeEnvironment(): never {
+        throw new Error("not used");
+      },
+      checkEnvironment(): never {
+        throw new Error("not used");
+      },
+      copyIcons(): never {
+        throw new Error("not used");
+      },
     };
 
     const provider = createWorkspaceAlgorithmsTreeDataProvider({
@@ -892,6 +916,18 @@ describe("views/trees — run file status projection", () => {
         throw new Error("not used");
       },
       getRun(): never {
+        throw new Error("not used");
+      },
+      readEnvironment(): never {
+        throw new Error("not used");
+      },
+      writeEnvironment(): never {
+        throw new Error("not used");
+      },
+      checkEnvironment(): never {
+        throw new Error("not used");
+      },
+      copyIcons(): never {
         throw new Error("not used");
       },
     };

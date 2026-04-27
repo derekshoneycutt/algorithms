@@ -210,6 +210,18 @@ describe("commands/algorithmTreeActions — run-file integration", () => {
       getRun(): never {
         throw new Error("not used");
       },
+      readEnvironment(): never {
+        throw new Error("not used");
+      },
+      writeEnvironment(): never {
+        throw new Error("not used");
+      },
+      checkEnvironment(): never {
+        throw new Error("not used");
+      },
+      copyIcons(): never {
+        throw new Error("not used");
+      },
     };
 
     const command = createAlgorithmsRunFileCommand({
@@ -334,6 +346,18 @@ describe("commands/algorithmTreeActions — run-file integration", () => {
       getRun(): never {
         throw new Error("not used");
       },
+      readEnvironment(): never {
+        throw new Error("not used");
+      },
+      writeEnvironment(): never {
+        throw new Error("not used");
+      },
+      checkEnvironment(): never {
+        throw new Error("not used");
+      },
+      copyIcons(): never {
+        throw new Error("not used");
+      },
     };
 
     const dependencies = {
@@ -425,6 +449,18 @@ describe("commands/algorithmTreeActions — run-file integration", () => {
         throw new Error("not used");
       },
       getRun(): never {
+        throw new Error("not used");
+      },
+      readEnvironment(): never {
+        throw new Error("not used");
+      },
+      writeEnvironment(): never {
+        throw new Error("not used");
+      },
+      checkEnvironment(): never {
+        throw new Error("not used");
+      },
+      copyIcons(): never {
         throw new Error("not used");
       },
     };
