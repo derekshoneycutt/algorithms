@@ -112,6 +112,24 @@
         "title": "Delete",
         "category": "Derek's Algorithms",
         "icon": "$(trash)"
+      },
+      {
+        "command": "algos.algorithmsAddIncludeFile",
+        "title": "Add Include File",
+        "category": "Derek's Algorithms",
+        "icon": "$(new-file)"
+      },
+      {
+        "command": "algos.algorithmsSidebarShowFileView",
+        "title": "Show File View",
+        "category": "Derek's Algorithms",
+        "icon": "$(files)"
+      },
+      {
+        "command": "algos.algorithmsSidebarShowLanguageView",
+        "title": "Show Language View",
+        "category": "Derek's Algorithms",
+        "icon": "$(symbol-keyword)"
       }
     ],
     "menus": {
@@ -130,6 +148,16 @@
           "command": "algos.algorithmsCreateFolderAtRoot",
           "when": "view == algos.workspaceAlgorithmsTreeView",
           "group": "navigation@10"
+        },
+        {
+          "command": "algos.algorithmsSidebarShowLanguageView",
+          "when": "view == algos.workspaceAlgorithmsTreeView && algos.sidebarViewMode == files",
+          "group": "navigation@20"
+        },
+        {
+          "command": "algos.algorithmsSidebarShowFileView",
+          "when": "view == algos.workspaceAlgorithmsTreeView && algos.sidebarViewMode == language",
+          "group": "navigation@20"
         }
       ],
       "view/item/context": [
@@ -177,9 +205,20 @@
           "command": "algos.algorithmsDelete",
           "when": "view == algos.workspaceAlgorithmsTreeView && viewItem == algos.algorithmFile",
           "group": "inline@10"
+        },
+        {
+          "command": "algos.algorithmsAddIncludeFile",
+          "when": "view == algos.workspaceAlgorithmsTreeView && viewItem == algos.algorithmFile",
+          "group": "inline@20"
         }
       ]
-    }
+    },
+    "contexts": [
+      {
+        "key": "algos.sidebarViewMode",
+        "description": "Algorithms sidebar view mode (files or language)"
+      }
+    ]
   },
   "scripts": {
     "build": "node ./esbuild.js",

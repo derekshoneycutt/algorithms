@@ -62,6 +62,33 @@ export function getAlgorithmsCreateFileCommandId(): string {
 }
 
 /**
+ * Command identifier for adding one Algorithms include file.
+ *
+ * @returns {string} Command identifier.
+ */
+export function getAlgorithmsAddIncludeFileCommandId(): string {
+  return "algos.algorithmsAddIncludeFile";
+}
+
+/**
+ * Command identifier for showing file view in algorithms sidebar.
+ *
+ * @returns {string} Command identifier.
+ */
+export function getAlgorithmsSidebarShowFileViewCommandId(): string {
+  return "algos.algorithmsSidebarShowFileView";
+}
+
+/**
+ * Command identifier for showing language view in algorithms sidebar.
+ *
+ * @returns {string} Command identifier.
+ */
+export function getAlgorithmsSidebarShowLanguageViewCommandId(): string {
+  return "algos.algorithmsSidebarShowLanguageView";
+}
+
+/**
  * Command identifier for deleting one Algorithms item.
  *
  * @returns {string} Command identifier.

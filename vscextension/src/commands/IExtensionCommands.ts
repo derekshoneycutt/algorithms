@@ -69,4 +69,26 @@ export interface IExtensionCommands {
    * @returns {Promise<void>}
    */
   algorithmsDelete: (treeNode?: WorkspaceTreeNode) => Promise<void>;
+
+  /**
+   * Adds one Algorithms include file to a selected algorithm source file.
+   *
+   * @param {WorkspaceTreeNode} [treeNode] Hovered tree node (algorithm file).
+   * @returns {Promise<void>}
+   */
+  algorithmsAddIncludeFile: (treeNode?: WorkspaceTreeNode) => Promise<void>;
+
+  /**
+   * Switches the algorithms sidebar to file view.
+   *
+   * @returns {Promise<void>}
+   */
+  algorithmsSidebarShowFileView: () => Promise<void>;
+
+  /**
+   * Switches the algorithms sidebar to language view.
+   *
+   * @returns {Promise<void>}
+   */
+  algorithmsSidebarShowLanguageView: () => Promise<void>;
 }

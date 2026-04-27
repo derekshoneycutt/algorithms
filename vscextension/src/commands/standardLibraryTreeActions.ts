@@ -5,7 +5,7 @@ import * as vscode from "vscode";
 import type { IFilesystem } from "../filesystem";
 import type { INotificationRouter } from "../notifications";
 import type { WorkspaceTreeNode } from "../views";
-import { resolveStandardLibraryTreeRootPath } from "../views";
+import { resolveStdlibRootPath } from "../algorithms";
 
 /**
  * Dependencies for Standard Library tree action commands.
@@ -28,15 +28,15 @@ function getWorkspaceFolderPaths(): readonly string[] {
 }
 
 /**
- * Resolves the standard-library root path for the current workspace.
+ * Resolves the standard-library root path for the current workspace context.
  *
  * @param {IFilesystem} filesystem Filesystem dependency.
  * @returns {Promise<string | null>} Canonical stdlib root path.
  */
-async function resolveStandardLibraryRootPath(
+async function getStdlibRootPathForCurrentWorkspace(
   filesystem: IFilesystem
 ): Promise<string | null> {
-  return await resolveStandardLibraryTreeRootPath({
+  return await resolveStdlibRootPath({
     filesystem,
     workspaceFolderPaths: getWorkspaceFolderPaths(),
   });
@@ -148,7 +148,7 @@ export function createStandardLibraryCreateFileCommand(
   dependencies: StandardLibraryTreeActionDependencies
 ): (treeNode?: WorkspaceTreeNode) => Promise<void> {
   return async (treeNode?: WorkspaceTreeNode): Promise<void> => {
-    const standardLibraryRootPath = await resolveStandardLibraryRootPath(
+    const standardLibraryRootPath = await getStdlibRootPathForCurrentWorkspace(
       dependencies.filesystem
     );
 
@@ -210,7 +210,7 @@ export function createStandardLibraryCreateFolderCommand(
   dependencies: StandardLibraryTreeActionDependencies
 ): (treeNode?: WorkspaceTreeNode) => Promise<void> {
   return async (treeNode?: WorkspaceTreeNode): Promise<void> => {
-    const standardLibraryRootPath = await resolveStandardLibraryRootPath(
+    const standardLibraryRootPath = await getStdlibRootPathForCurrentWorkspace(
       dependencies.filesystem
     );
 
@@ -276,7 +276,7 @@ export function createStandardLibraryDeleteCommand(
       return;
     }
 
-    const standardLibraryRootPath = await resolveStandardLibraryRootPath(
+    const standardLibraryRootPath = await getStdlibRootPathForCurrentWorkspace(
       dependencies.filesystem
     );
 

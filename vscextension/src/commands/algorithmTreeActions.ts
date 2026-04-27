@@ -3,15 +3,18 @@ import * as path from "node:path";
 import * as vscode from "vscode";
 
 import type { IFilesystem } from "../filesystem";
+import type { ILanguages } from "../languages";
 import type { INotificationRouter } from "../notifications";
+import type { IViewModeService } from "../state/viewMode";
 import type { WorkspaceTreeNode } from "../views";
-import { resolveAlgorithmsTreeRootPath } from "../views/trees";
+import { resolveAlgorithmsRootPath } from "../algorithms";
 
 /**
  * Dependencies for Algorithms tree action commands.
  */
 export interface AlgorithmTreeActionDependencies {
   filesystem: IFilesystem;
+  languages: ILanguages;
   notificationRouter: INotificationRouter;
   refreshAlgorithmsTree: () => void;
 }
@@ -28,15 +31,15 @@ function getWorkspaceFolderPaths(): readonly string[] {
 }
 
 /**
- * Resolves the algorithms root path for the current workspace.
+ * Resolves the algorithms root path for the current workspace context.
  *
  * @param {IFilesystem} filesystem Filesystem dependency.
  * @returns {Promise<string | null>} Canonical algorithms root path.
  */
-async function resolveAlgorithmsRootPath(
+async function getAlgorithmsRootPathForCurrentWorkspace(
   filesystem: IFilesystem
 ): Promise<string | null> {
-  return await resolveAlgorithmsTreeRootPath({
+  return await resolveAlgorithmsRootPath({
     filesystem,
     workspaceFolderPaths: getWorkspaceFolderPaths(),
   });
@@ -148,7 +151,7 @@ export function createAlgorithmsCreateFolderAtRootCommand(
   dependencies: AlgorithmTreeActionDependencies
 ): () => Promise<void> {
   return async (): Promise<void> => {
-    const algorithmsRootPath = await resolveAlgorithmsRootPath(
+    const algorithmsRootPath = await getAlgorithmsRootPathForCurrentWorkspace(
       dependencies.filesystem
     );
 
@@ -204,7 +207,7 @@ export function createAlgorithmsCreateFolderCommand(
   dependencies: AlgorithmTreeActionDependencies
 ): (treeNode?: WorkspaceTreeNode) => Promise<void> {
   return async (treeNode?: WorkspaceTreeNode): Promise<void> => {
-    const algorithmsRootPath = await resolveAlgorithmsRootPath(
+    const algorithmsRootPath = await getAlgorithmsRootPathForCurrentWorkspace(
       dependencies.filesystem
     );
 
@@ -265,7 +268,7 @@ export function createAlgorithmsCreateFileCommand(
   dependencies: AlgorithmTreeActionDependencies
 ): (treeNode?: WorkspaceTreeNode) => Promise<void> {
   return async (treeNode?: WorkspaceTreeNode): Promise<void> => {
-    const algorithmsRootPath = await resolveAlgorithmsRootPath(
+    const algorithmsRootPath = await getAlgorithmsRootPathForCurrentWorkspace(
       dependencies.filesystem
     );
 
@@ -323,6 +326,127 @@ export function createAlgorithmsCreateFileCommand(
  * @param {AlgorithmTreeActionDependencies} dependencies Action dependencies.
  * @returns {(treeNode?: WorkspaceTreeNode) => Promise<void>} Command handler.
  */
+export function createAlgorithmsAddIncludeFileCommand(
+  dependencies: AlgorithmTreeActionDependencies
+): (treeNode?: WorkspaceTreeNode) => Promise<void> {
+  return async (treeNode?: WorkspaceTreeNode): Promise<void> => {
+    if (treeNode === undefined || treeNode.kind !== "file") {
+      await dependencies.notificationRouter.warn(
+        "Select an algorithm source file to add an include file."
+      );
+      return;
+    }
+
+    const algorithmsRootPath = await getAlgorithmsRootPathForCurrentWorkspace(
+      dependencies.filesystem
+    );
+
+    if (algorithmsRootPath === null) {
+      await dependencies.notificationRouter.warn(
+        "Algorithms root is unavailable."
+      );
+      return;
+    }
+
+    // Determine language key from file extension
+    const languageKey = dependencies.languages.normalizeFileExtension(treeNode.filePath);
+    if (languageKey === undefined) {
+      await dependencies.notificationRouter.warn(
+        "File language could not be determined."
+      );
+      return;
+    }
+
+    // Verify this is a main algorithm file (basename matches parent directory)
+    const algorithmDirectoryPath = path.dirname(treeNode.filePath);
+    const algorithmDirectory = path.basename(algorithmDirectoryPath);
+    const fileName = path.basename(treeNode.filePath);
+    const fileBaseNameWithoutExtension = path.basename(fileName, path.extname(fileName));
+
+    if (fileBaseNameWithoutExtension !== algorithmDirectory) {
+      await dependencies.notificationRouter.warn(
+        "Only add include files to main algorithm source files."
+      );
+      return;
+    }
+
+    // Prompt for include file name with language-specific extension hint
+    const prompt = `Add include file for ${languageKey}`;
+    const fileExtension = path.extname(treeNode.filePath);
+    const placeHolder = `helper${fileExtension}`;
+
+    const inputName = await promptForRelativeName(prompt, placeHolder);
+
+    if (inputName === undefined) {
+      return;
+    }
+
+    // Validate extension matches language
+    const trimmedInput = inputName.trim();
+    if (trimmedInput.length === 0) {
+      await dependencies.notificationRouter.warn("File name cannot be empty.");
+      return;
+    }
+
+    const inputExtension = path.extname(trimmedInput);
+    const expectedExtension = path.extname(treeNode.filePath);
+
+    if (inputExtension !== expectedExtension) {
+      await dependencies.notificationRouter.warn(
+        `Include file must have extension ${expectedExtension}.`
+      );
+      return;
+    }
+
+    // Ensure include directory exists
+    const includeDirectoryName = `${languageKey}_include`;
+    const includeDirectoryPath = path.join(algorithmDirectoryPath, includeDirectoryName);
+
+    try {
+      await dependencies.filesystem.ensureDirectory(includeDirectoryPath);
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      await dependencies.notificationRouter.error(
+        `Failed to create include folder: ${errorMessage}`
+      );
+      return;
+    }
+
+    // Create the include file
+    const includeFilePath = path.join(includeDirectoryPath, trimmedInput);
+    const targetExists =
+      (await dependencies.filesystem.isFile(includeFilePath))
+      || (await dependencies.filesystem.isDirectory(includeFilePath));
+
+    if (targetExists) {
+      await dependencies.notificationRouter.warn(
+        "An include file with that name already exists."
+      );
+      return;
+    }
+
+    try {
+      await dependencies.filesystem.writeText(includeFilePath, "");
+      await vscode.window.showTextDocument(vscode.Uri.file(includeFilePath));
+      dependencies.refreshAlgorithmsTree();
+      await dependencies.notificationRouter.info(
+        `Created include file: ${trimmedInput}`
+      );
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      await dependencies.notificationRouter.error(
+        `Failed to create include file: ${errorMessage}`
+      );
+    }
+  };
+}
+
+/**
+ * Creates one command that deletes a file or folder in the Algorithms tree.
+ *
+ * @param {AlgorithmTreeActionDependencies} dependencies Action dependencies.
+ * @returns {(treeNode?: WorkspaceTreeNode) => Promise<void>} Command handler.
+ */
 export function createAlgorithmsDeleteCommand(
   dependencies: AlgorithmTreeActionDependencies
 ): (treeNode?: WorkspaceTreeNode) => Promise<void> {
@@ -332,7 +456,7 @@ export function createAlgorithmsDeleteCommand(
       return;
     }
 
-    const algorithmsRootPath = await resolveAlgorithmsRootPath(
+    const algorithmsRootPath = await getAlgorithmsRootPathForCurrentWorkspace(
       dependencies.filesystem
     );
 
@@ -378,15 +502,42 @@ export function createAlgorithmsDeleteCommand(
     }
 
     const basename = path.basename(canonicalTargetPath);
+
+    // Check if this is a main algorithm file that has include files
+    const relevantIncludeDirectories: string[] = [];
+    if (treeNode.kind === "file") {
+      const parentDirectory = path.dirname(canonicalTargetPath);
+      const parentDirectoryBaseName = path.basename(parentDirectory);
+      const fileName = path.basename(canonicalTargetPath);
+      const fileBaseName = path.basename(fileName, path.extname(fileName));
+
+      // Check if this is a main algorithm file
+      if (fileBaseName === parentDirectoryBaseName) {
+        // Find all language-specific include directories
+        const dirEntries = await dependencies.filesystem.listDirectory(parentDirectory);
+        if (dirEntries !== null) {
+          for (const entry of Object.values(dirEntries)) {
+            if (entry.isDirectory() && entry.name.endsWith("_include")) {
+              relevantIncludeDirectories.push(path.join(parentDirectory, entry.name));
+            }
+          }
+        }
+      }
+    }
+
     const deletePrompt = treeNode.kind === "directory"
       ? `Delete folder ${basename} and all of its contents?`
       : `Delete file ${basename}?`;
+
+    const detail = relevantIncludeDirectories.length > 0
+      ? `${canonicalTargetPath}\n\nNote: Associated include folder(s) will also be deleted.`
+      : canonicalTargetPath;
 
     const confirmation = await vscode.window.showWarningMessage(
       deletePrompt,
       {
         modal: true,
-        detail: canonicalTargetPath,
+        detail,
       },
       "Delete"
     );
@@ -396,10 +547,24 @@ export function createAlgorithmsDeleteCommand(
     }
 
     try {
+      // Delete the main target
       await vscode.workspace.fs.delete(vscode.Uri.file(canonicalTargetPath), {
         recursive: true,
         useTrash: true,
       });
+
+      // Delete associated include directories
+      for (const includeDir of relevantIncludeDirectories) {
+        try {
+          await vscode.workspace.fs.delete(vscode.Uri.file(includeDir), {
+            recursive: true,
+            useTrash: true,
+          });
+        } catch {
+          // Continue with other includes if one fails
+        }
+      }
+
       dependencies.refreshAlgorithmsTree();
       await dependencies.notificationRouter.info(`Moved to trash: ${basename}`);
       return;
@@ -408,9 +573,22 @@ export function createAlgorithmsDeleteCommand(
     }
 
     try {
+      // Delete the main target
       await dependencies.filesystem.deletePath(canonicalTargetPath, {
         recursive: true,
       });
+
+      // Delete associated include directories
+      for (const includeDir of relevantIncludeDirectories) {
+        try {
+          await dependencies.filesystem.deletePath(includeDir, {
+            recursive: true,
+          });
+        } catch {
+          // Continue with other includes if one fails
+        }
+      }
+
       dependencies.refreshAlgorithmsTree();
       await dependencies.notificationRouter.info(`Deleted permanently: ${basename}`);
     } catch (error) {
@@ -419,5 +597,33 @@ export function createAlgorithmsDeleteCommand(
         `Failed to delete: ${errorMessage}`
       );
     }
+  };
+}
+
+/**
+ * Creates one command to switch to file view in the algorithms sidebar.
+ *
+ * @param {IViewModeService} viewModeService View mode service dependency.
+ * @returns {() => Promise<void>} Command handler.
+ */
+export function createAlgorithmsSidebarShowFileViewCommand(
+  viewModeService: IViewModeService
+): () => Promise<void> {
+  return async (): Promise<void> => {
+    await viewModeService.setViewMode("files");
+  };
+}
+
+/**
+ * Creates one command to switch to language view in the algorithms sidebar.
+ *
+ * @param {IViewModeService} viewModeService View mode service dependency.
+ * @returns {() => Promise<void>} Command handler.
+ */
+export function createAlgorithmsSidebarShowLanguageViewCommand(
+  viewModeService: IViewModeService
+): () => Promise<void> {
+  return async (): Promise<void> => {
+    await viewModeService.setViewMode("language");
   };
 }

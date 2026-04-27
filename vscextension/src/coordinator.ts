@@ -7,6 +7,9 @@ import {
   createAlgorithmsCreateFolderAtRootCommand,
   createAlgorithmsCreateFolderCommand,
   createAlgorithmsCreateFileCommand,
+  createAlgorithmsAddIncludeFileCommand,
+  createAlgorithmsSidebarShowFileViewCommand,
+  createAlgorithmsSidebarShowLanguageViewCommand,
   createAlgorithmsDeleteCommand,
   createShowBootstrapStatusCommand,
   registerCommands,
@@ -32,6 +35,10 @@ import {
 } from "./filesystem";
 import type { IFilesystem } from "./filesystem";
 import {
+  createAlgorithmsIndex,
+} from "./algorithms";
+import type { IAlgorithmsIndex } from "./algorithms";
+import {
   buildSmokeLanguageSelections,
   createLanguages,
   GENERATED_LANGUAGE_DATA,
@@ -42,8 +49,8 @@ import {
   createConductorNotificationDispatcher,
 } from "./notifications";
 import type { INotificationRouter } from "./notifications";
-import { createHostStateService } from "./state";
-import type { IStateMachine } from "./state";
+import { createHostStateService, createViewModeService } from "./state";
+import type { IStateMachine, IViewModeService } from "./state";
 import {
   createWorkspaceAlgorithmsTreeDataProvider,
   createWorkspaceStandardLibraryTreeDataProvider,
@@ -82,21 +89,29 @@ export function createCoordinator(
       languages: buildSmokeLanguageSelections(languages),
     },
   });
+  const viewModeService: IViewModeService = createViewModeService();
   const conductor: IConductor = createConductorService();
   const notificationRouter: INotificationRouter = createNotificationRouter();
   const notificationDispatcher = createConductorNotificationDispatcher(notificationRouter);
   const viewHost: IViewHost = createViewHost(context);
   const communicationHub: ICommunicationHub = createCommunicationHub(viewHost);
   const viewsRegistration = viewHost.register();
-  const workspaceAlgorithmsTreeProvider: RefreshableWorkspaceTreeDataProvider =
-    createWorkspaceAlgorithmsTreeDataProvider({
+  const workspaceFolderPaths = (vscode.workspace.workspaceFolders ?? []).map(
+    (workspaceFolder) => workspaceFolder.uri.fsPath
+  );
+  const algorithmsIndex: IAlgorithmsIndex = createAlgorithmsIndex({
     filesystem,
     languages,
+    workspaceFolderPaths,
+  });
+  const workspaceAlgorithmsTreeProvider: RefreshableWorkspaceTreeDataProvider =
+    createWorkspaceAlgorithmsTreeDataProvider({
+    viewModeService,
+    algorithmsIndex,
     });
   const workspaceStandardLibraryTreeProvider: RefreshableWorkspaceTreeDataProvider =
     createWorkspaceStandardLibraryTreeDataProvider({
-      filesystem,
-      languages,
+      algorithmsIndex,
     });
   const workspaceAlgorithmsTreeRegistration = viewHost.registerTreeDataProvider(
     workspaceAlgorithmsTreeViewId,
@@ -172,24 +187,40 @@ export function createCoordinator(
     }),
     algorithmsCreateFolderAtRoot: createAlgorithmsCreateFolderAtRootCommand({
       filesystem,
+      languages,
       notificationRouter,
       refreshAlgorithmsTree: workspaceAlgorithmsTreeProvider.refresh,
     }),
     algorithmsCreateFolder: createAlgorithmsCreateFolderCommand({
       filesystem,
+      languages,
       notificationRouter,
       refreshAlgorithmsTree: workspaceAlgorithmsTreeProvider.refresh,
     }),
     algorithmsCreateFile: createAlgorithmsCreateFileCommand({
       filesystem,
+      languages,
+      notificationRouter,
+      refreshAlgorithmsTree: workspaceAlgorithmsTreeProvider.refresh,
+    }),
+    algorithmsAddIncludeFile: createAlgorithmsAddIncludeFileCommand({
+      filesystem,
+      languages,
       notificationRouter,
       refreshAlgorithmsTree: workspaceAlgorithmsTreeProvider.refresh,
     }),
     algorithmsDelete: createAlgorithmsDeleteCommand({
       filesystem,
+      languages,
       notificationRouter,
       refreshAlgorithmsTree: workspaceAlgorithmsTreeProvider.refresh,
     }),
+    algorithmsSidebarShowFileView: createAlgorithmsSidebarShowFileViewCommand(
+      viewModeService
+    ),
+    algorithmsSidebarShowLanguageView: createAlgorithmsSidebarShowLanguageViewCommand(
+      viewModeService
+    ),
   };
 
   return vscode.Disposable.from(

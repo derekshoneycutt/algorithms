@@ -9,6 +9,9 @@ import {
   getAlgorithmsCreateFolderAtRootCommandId,
   getAlgorithmsCreateFolderCommandId,
   getAlgorithmsCreateFileCommandId,
+  getAlgorithmsAddIncludeFileCommandId,
+  getAlgorithmsSidebarShowFileViewCommandId,
+  getAlgorithmsSidebarShowLanguageViewCommandId,
   getAlgorithmsDeleteCommandId,
 } from "./commandIds";
 
@@ -49,6 +52,18 @@ export function registerCommands(
     vscode.commands.registerCommand(
       getAlgorithmsCreateFileCommandId(),
       commands.algorithmsCreateFile
+    ),
+    vscode.commands.registerCommand(
+      getAlgorithmsAddIncludeFileCommandId(),
+      commands.algorithmsAddIncludeFile
+    ),
+    vscode.commands.registerCommand(
+      getAlgorithmsSidebarShowFileViewCommandId(),
+      commands.algorithmsSidebarShowFileView
+    ),
+    vscode.commands.registerCommand(
+      getAlgorithmsSidebarShowLanguageViewCommandId(),
+      commands.algorithmsSidebarShowLanguageView
     ),
     vscode.commands.registerCommand(
       getAlgorithmsDeleteCommandId(),

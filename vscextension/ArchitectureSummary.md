@@ -68,7 +68,7 @@ Purpose: own product behavior and workflow rules.
 
 Responsibilities: encode invariants, expose stable contracts, and avoid transport/composition ownership.
 
-Modules: `commands`, `conductor`, `languages`, `state`.
+Modules: `algorithms`, `commands`, `conductor`, `languages`, `state`.
 
 ### 4.2 Boundary and Support Modules
 
@@ -98,6 +98,7 @@ Surfaces: `src/views/media/shared/`, `test/`.
 
 | Module | Why It Exists | Owns | Must Not Own | Primary Contracts |
 | --- | --- | --- | --- | --- |
+| `algorithms` | Algorithm and stdlib discovery | `src/algorithms/`, root-path resolution, category/entry/implementation discovery, stdlib entry discovery | View rendering, canonical state ownership, command execution | `IAlgorithmsIndex` |
 | `commands` | User-invoked extension behavior | `src/commands/`, command registration and command handlers | Canonical state ownership, view transport ownership | `IExtensionCommands` |
 | `commandline` | Process execution boundary | `src/commandline/`, process handle abstraction and adapters | Workflow policy, UI ownership, host state ownership | `ICommandLine`, `ICommandLineProcessHandle` |
 | `comms` | Typed host/webview messaging | `src/comms/shared/`, `src/comms/communicationHub.ts`, payload and publish helpers under `src/comms/builders/` | Workflow policy, orchestration policy, canonical state ownership | `ICommunicationHub` |
@@ -182,9 +183,10 @@ Example:
 6. User commands: `src/commands/`
 7. Language catalog and lookups: `src/languages/`
 8. Process execution boundary: `src/commandline/`
-9. Webview provider and frontend runtime: `src/views/`, `src/views/media/`
-10. Composition root: `src/coordinator.ts`
-11. Utility support surfaces: `src/views/media/shared/`, `test/`
+9. Algorithm and stdlib discovery: `src/algorithms/`
+10. Webview provider and frontend runtime: `src/views/`, `src/views/media/`
+11. Composition root: `src/coordinator.ts`
+12. Utility support surfaces: `src/views/media/shared/`, `test/`
 
 ## 10. Summary
 

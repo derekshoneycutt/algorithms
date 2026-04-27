@@ -1,6 +1,8 @@
 export type { IStateMachine } from "./IStateMachine";
 export { createHostStateService } from "./service";
 export type { CreateHostStateServiceInput } from "./service";
+export { createViewModeService } from "./viewMode";
+export type { IViewModeService, SidebarViewMode } from "./viewMode";
 export type {
   ExtensionHostContext,
   ExtensionHostEvent,

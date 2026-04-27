@@ -1,0 +1,457 @@
+import * as path from "node:path";
+import type { Dirent } from "node:fs";
+
+import type { IFilesystem } from "../filesystem";
+import type { ILanguages } from "../languages";
+import type { IAlgorithmsIndex, AlgorithmsIndexDependencies } from "./IAlgorithmsIndex";
+import type {
+  AlgorithmCategory,
+  AlgorithmEntry,
+  AlgorithmImplementation,
+  StandardLibEntry,
+} from "./types";
+
+// ---------------------------------------------------------------------------
+// Private helpers – root resolution (repo layout domain knowledge)
+// ---------------------------------------------------------------------------
+
+/**
+ * Resolves one source root when a workspace folder points at a repo root.
+ *
+ * @param {IFilesystem} filesystem Filesystem dependency.
+ * @param {string} workspaceFolderPath Workspace folder path.
+ * @returns {Promise<string | null>} Canonical src root path when present.
+ */
+async function resolveSourceRootForWorkspaceFolder(
+  filesystem: IFilesystem,
+  workspaceFolderPath: string
+): Promise<string | null> {
+  const canonicalPath = await filesystem.realpath(workspaceFolderPath);
+  const srcPath = path.join(canonicalPath, "src");
+  if (await filesystem.isDirectory(srcPath)) {
+    return await filesystem.realpath(srcPath);
+  }
+  return null;
+}
+
+/**
+ * Returns true when a path contains a `src` segment.
+ *
+ * @param {string} inputPath Candidate path.
+ * @returns {boolean} True when src is one of the path segments.
+ */
+function hasSourceSegment(inputPath: string): boolean {
+  const parsedPath = path.parse(inputPath);
+  const relativePath = inputPath.slice(parsedPath.root.length);
+  return relativePath.split(path.sep).filter(Boolean).includes("src");
+}
+
+/**
+ * Resolves the repository root from a path that may be inside `src`.
+ *
+ * @param {string} sourcePath Path that may include a src segment.
+ * @returns {string | null} Repository root when src is found, null otherwise.
+ */
+function resolveRepositoryRootFromSourcePath(sourcePath: string): string | null {
+  let cursor = path.resolve(sourcePath);
+  while (true) {
+    if (path.basename(cursor) === "src") {
+      return path.dirname(cursor);
+    }
+    const parentPath = path.dirname(cursor);
+    if (parentPath === cursor) {
+      return null;
+    }
+    cursor = parentPath;
+  }
+}
+
+/**
+ * Resolves the algorithms source root (the `src/` directory) for the workspace.
+ *
+ * @param {IFilesystem} filesystem Filesystem dependency.
+ * @param {readonly string[]} workspaceFolderPaths Workspace folder paths.
+ * @returns {Promise<string | null>} Canonical root path or null.
+ */
+async function resolveAlgorithmsRootPath(
+  filesystem: IFilesystem,
+  workspaceFolderPaths: readonly string[]
+): Promise<string | null> {
+  for (const workspaceFolderPath of workspaceFolderPaths) {
+    const srcRootPath = await resolveSourceRootForWorkspaceFolder(
+      filesystem,
+      workspaceFolderPath
+    );
+    if (srcRootPath !== null) {
+      return srcRootPath;
+    }
+
+    const canonicalPath = await filesystem.realpath(workspaceFolderPath);
+    if (hasSourceSegment(canonicalPath)) {
+      return canonicalPath;
+    }
+  }
+  return null;
+}
+
+/**
+ * Resolves the standard library root (`stdlib/`) for the workspace.
+ *
+ * @param {IFilesystem} filesystem Filesystem dependency.
+ * @param {readonly string[]} workspaceFolderPaths Workspace folder paths.
+ * @returns {Promise<string | null>} Canonical stdlib root path or null.
+ */
+async function resolveStdlibRootPath(
+  filesystem: IFilesystem,
+  workspaceFolderPaths: readonly string[]
+): Promise<string | null> {
+  for (const workspaceFolderPath of workspaceFolderPaths) {
+    const canonicalPath = await filesystem.realpath(workspaceFolderPath);
+    const workspaceStdlibPath = path.join(canonicalPath, "stdlib");
+
+    if (await filesystem.isDirectory(workspaceStdlibPath)) {
+      return await filesystem.realpath(workspaceStdlibPath);
+    }
+
+    if (!hasSourceSegment(canonicalPath)) {
+      continue;
+    }
+
+    const repositoryRootPath = resolveRepositoryRootFromSourcePath(canonicalPath);
+    if (repositoryRootPath === null) {
+      continue;
+    }
+
+    const repositoryStdlibPath = path.join(repositoryRootPath, "stdlib");
+    if (await filesystem.isDirectory(repositoryStdlibPath)) {
+      return await filesystem.realpath(repositoryStdlibPath);
+    }
+  }
+  return null;
+}
+
+// ---------------------------------------------------------------------------
+// Private helpers – filtering and listing
+// ---------------------------------------------------------------------------
+
+/**
+ * Returns true when a path segment should be hidden from tree views.
+ *
+ * @param {string} name Path segment name.
+ * @returns {boolean} True when hidden.
+ */
+function isHiddenName(name: string): boolean {
+  return name.startsWith(".");
+}
+
+/**
+ * Returns true when a directory name is the reserved output directory.
+ *
+ * @param {string} name Directory base name.
+ * @returns {boolean} True when the directory is output.
+ */
+function isOutputDirectoryName(name: string): boolean {
+  return name.trim().toLowerCase() === "output";
+}
+
+/**
+ * Returns true when a directory name matches the `{languageKey}_include` pattern.
+ *
+ * @param {string} directoryName Directory base name.
+ * @returns {boolean} True when the name matches.
+ */
+function isLanguageIncludeDirectoryName(directoryName: string): boolean {
+  const trimmed = directoryName.trim();
+  return trimmed.length >= 9 && trimmed.endsWith("_include");
+}
+
+/**
+ * Returns true when one directory-list entry is a Dirent object.
+ *
+ * @param {string | Dirent} entry Directory entry.
+ * @returns {entry is Dirent} Type predicate.
+ */
+function isDirentEntry(entry: string | Dirent): entry is Dirent {
+  return typeof entry !== "string";
+}
+
+/**
+ * Returns true when a file extension resolves to a supported language key.
+ *
+ * @param {ILanguages} languages Languages dependency.
+ * @param {string} filePath File path.
+ * @returns {boolean} True when supported.
+ */
+function isSupportedLanguageFile(languages: ILanguages, filePath: string): boolean {
+  return languages.normalizeFileExtension(filePath) !== undefined;
+}
+
+/**
+ * Reads and sorts Dirent entries from a directory. Returns an empty array when
+ * the directory does not exist or cannot be listed.
+ *
+ * @param {string} dirPath Directory path.
+ * @param {IFilesystem} filesystem Filesystem dependency.
+ * @returns {Promise<Dirent[]>} Sorted Dirent entries.
+ */
+async function listDirents(
+  dirPath: string,
+  filesystem: IFilesystem
+): Promise<Dirent[]> {
+  const entries = await filesystem.listDirectory(dirPath, { withFileTypes: true });
+  if (entries === null) {
+    return [];
+  }
+  const dirents = (entries as Array<string | Dirent>).filter(isDirentEntry);
+  dirents.sort((left, right) => {
+    if (left.isDirectory() && !right.isDirectory()) {
+      return -1;
+    }
+    if (!left.isDirectory() && right.isDirectory()) {
+      return 1;
+    }
+    return left.name.localeCompare(right.name);
+  });
+  return dirents;
+}
+
+// ---------------------------------------------------------------------------
+// Factory
+// ---------------------------------------------------------------------------
+
+/**
+ * Creates one algorithms domain index.
+ *
+ * Root paths are resolved lazily on first use and cached for the lifetime of
+ * this instance.
+ *
+ * TODO: Add full workspace-change invalidation so stale cached roots are
+ * re-resolved when the workspace folder set changes.
+ *
+ * @param {AlgorithmsIndexDependencies} dependencies Injected dependencies.
+ * @returns {IAlgorithmsIndex} Algorithm index instance.
+ */
+export function createAlgorithmsIndex(
+  dependencies: AlgorithmsIndexDependencies
+): IAlgorithmsIndex {
+  const { filesystem, languages, workspaceFolderPaths } = dependencies;
+
+  // Lazy-resolved roots. undefined = not yet resolved; null = not found.
+  let cachedAlgorithmsRoot: string | null | undefined = undefined;
+  let cachedStdlibRoot: string | null | undefined = undefined;
+
+  /**
+   * Returns the algorithms source root, resolving it on first call.
+   *
+   * @returns {Promise<string | null>} Root path or null.
+   */
+  async function getAlgorithmsRoot(): Promise<string | null> {
+    if (cachedAlgorithmsRoot === undefined) {
+      cachedAlgorithmsRoot = await resolveAlgorithmsRootPath(filesystem, workspaceFolderPaths);
+    }
+    return cachedAlgorithmsRoot;
+  }
+
+  /**
+   * Returns the stdlib root, resolving it on first call.
+   *
+   * @returns {Promise<string | null>} Root path or null.
+   */
+  async function getStdlibRoot(): Promise<string | null> {
+    if (cachedStdlibRoot === undefined) {
+      cachedStdlibRoot = await resolveStdlibRootPath(filesystem, workspaceFolderPaths);
+    }
+    return cachedStdlibRoot;
+  }
+
+  return {
+    async getCategories(): Promise<AlgorithmCategory[]> {
+      const root = await getAlgorithmsRoot();
+      if (root === null) {
+        return [];
+      }
+
+      const canonicalRoot = await filesystem.realpath(root);
+      const dirents = await listDirents(canonicalRoot, filesystem);
+      const categories: AlgorithmCategory[] = [];
+
+      for (const dirent of dirents) {
+        if (!dirent.isDirectory()) {
+          continue;
+        }
+        if (isHiddenName(dirent.name)) {
+          continue;
+        }
+        if (isOutputDirectoryName(dirent.name)) {
+          continue;
+        }
+
+        const categoryPath = path.join(canonicalRoot, dirent.name);
+
+        // Only include directories that have at least one visible child
+        const children = await listDirents(categoryPath, filesystem);
+        const hasVisibleChildren = children.some((child) => {
+          return !isHiddenName(child.name);
+        });
+        if (!hasVisibleChildren) {
+          continue;
+        }
+
+        categories.push({ name: dirent.name, path: categoryPath });
+      }
+
+      return categories;
+    },
+
+    async getAlgorithms(categoryPath: string): Promise<AlgorithmEntry[]> {
+      const canonicalCategoryPath = await filesystem.realpath(categoryPath);
+      const dirents = await listDirents(canonicalCategoryPath, filesystem);
+      const algorithms: AlgorithmEntry[] = [];
+
+      for (const dirent of dirents) {
+        if (!dirent.isDirectory()) {
+          continue;
+        }
+        if (isHiddenName(dirent.name)) {
+          continue;
+        }
+        if (isOutputDirectoryName(dirent.name)) {
+          continue;
+        }
+        if (isLanguageIncludeDirectoryName(dirent.name)) {
+          continue;
+        }
+
+        const algorithmPath = path.join(canonicalCategoryPath, dirent.name);
+        const children = await listDirents(algorithmPath, filesystem);
+
+        // Must have at least one file whose base name matches the directory name
+        const hasMainFile = children.some((child) => {
+          if (!child.isFile()) {
+            return false;
+          }
+          const baseName = path.basename(child.name, path.extname(child.name));
+          return baseName === dirent.name && isSupportedLanguageFile(languages, child.name);
+        });
+
+        if (!hasMainFile) {
+          continue;
+        }
+
+        algorithms.push({
+          name: dirent.name,
+          path: algorithmPath,
+          categoryPath: canonicalCategoryPath,
+        });
+      }
+
+      return algorithms;
+    },
+
+    async getImplementations(algorithmPath: string): Promise<AlgorithmImplementation[]> {
+      const canonicalAlgorithmPath = await filesystem.realpath(algorithmPath);
+      const algorithmBaseName = path.basename(canonicalAlgorithmPath);
+      const dirents = await listDirents(canonicalAlgorithmPath, filesystem);
+      const implementations: AlgorithmImplementation[] = [];
+      const seenLanguageKeys = new Set<string>();
+
+      for (const dirent of dirents) {
+        if (!dirent.isFile()) {
+          continue;
+        }
+
+        const baseName = path.basename(dirent.name, path.extname(dirent.name));
+        if (baseName !== algorithmBaseName) {
+          continue;
+        }
+
+        const filePath = path.join(canonicalAlgorithmPath, dirent.name);
+        const languageKey = languages.normalizeFileExtension(filePath);
+        if (languageKey === undefined || seenLanguageKeys.has(languageKey)) {
+          continue;
+        }
+        seenLanguageKeys.add(languageKey);
+
+        const includeDirectoryPath = path.join(
+          canonicalAlgorithmPath,
+          `${languageKey}_include`
+        );
+        const hasIncludes = await filesystem.isDirectory(includeDirectoryPath);
+
+        let includeFilePaths: string[] = [];
+        if (hasIncludes) {
+          const includeEntries = await listDirents(includeDirectoryPath, filesystem);
+          includeFilePaths = includeEntries
+            .filter((entry) => {
+              if (!entry.isFile()) {
+                return false;
+              }
+              if (isHiddenName(entry.name)) {
+                return false;
+              }
+              const entryPath = path.join(includeDirectoryPath, entry.name);
+              const entryLanguageKey = languages.normalizeFileExtension(entryPath);
+              return entryLanguageKey === languageKey;
+            })
+            .map((entry) => path.join(includeDirectoryPath, entry.name));
+        }
+
+        implementations.push({
+          languageKey,
+          filePath,
+          hasIncludes,
+          includeFilePaths,
+        });
+      }
+
+      implementations.sort((left, right) => left.languageKey.localeCompare(right.languageKey));
+      return implementations;
+    },
+
+    async getStandardLibraryEntries(dirPath?: string): Promise<StandardLibEntry[]> {
+      let targetPath: string | null;
+
+      if (dirPath !== undefined) {
+        targetPath = dirPath;
+      } else {
+        targetPath = await getStdlibRoot();
+      }
+
+      if (targetPath === null) {
+        return [];
+      }
+
+      const canonicalPath = await filesystem.realpath(targetPath);
+      const dirents = await listDirents(canonicalPath, filesystem);
+      const entries: StandardLibEntry[] = [];
+
+      for (const dirent of dirents) {
+        if (isHiddenName(dirent.name)) {
+          continue;
+        }
+
+        const entryPath = path.join(canonicalPath, dirent.name);
+
+        if (dirent.isDirectory()) {
+          if (isOutputDirectoryName(dirent.name)) {
+            continue;
+          }
+          entries.push({ kind: "directory", name: dirent.name, path: entryPath });
+          continue;
+        }
+
+        if (!dirent.isFile()) {
+          continue;
+        }
+
+        if (!isSupportedLanguageFile(languages, entryPath)) {
+          continue;
+        }
+
+        entries.push({ kind: "file", name: dirent.name, path: entryPath });
+      }
+
+      return entries;
+    },
+  };
+}

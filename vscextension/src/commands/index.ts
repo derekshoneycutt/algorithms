@@ -7,6 +7,9 @@ export {
 	getAlgorithmsCreateFolderAtRootCommandId,
 	getAlgorithmsCreateFolderCommandId,
 	getAlgorithmsCreateFileCommandId,
+	getAlgorithmsAddIncludeFileCommandId,
+	getAlgorithmsSidebarShowFileViewCommandId,
+	getAlgorithmsSidebarShowLanguageViewCommandId,
 	getAlgorithmsDeleteCommandId,
 } from "./commandIds";
 export { registerCommands } from "./registerCommands";
@@ -20,5 +23,8 @@ export {
 	createAlgorithmsCreateFolderAtRootCommand,
 	createAlgorithmsCreateFolderCommand,
 	createAlgorithmsCreateFileCommand,
+	createAlgorithmsAddIncludeFileCommand,
+	createAlgorithmsSidebarShowFileViewCommand,
+	createAlgorithmsSidebarShowLanguageViewCommand,
 	createAlgorithmsDeleteCommand,
 } from "./algorithmTreeActions";

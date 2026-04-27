@@ -5,13 +5,49 @@ import * as vscode from "vscode";
 
 import type { IFilesystem } from "../../filesystem";
 import type { ILanguages } from "../../languages";
+import type { IAlgorithmsIndex } from "../../algorithms";
+import type { IViewModeService } from "../../state/viewMode";
 
 /**
  * One tree node rendered in the workspace tree panels.
+ *
+ * Node kinds:
+ * - "directory": generic folder (category-level dir, stdlib dir)
+ * - "algorithmDir": algorithm directory (second-level in algorithms tree, has implementations)
+ * - "file": plain file (non-collapsible)
+ * - "mainFile": algorithm main file (collapsible, may have includes)
+ * - "languageSummary": language grouping row for LANGUAGE view (collapsible)
+ *
+ * Algorithm directories have:
+ * - kind: "algorithmDir"
+ * - filePath: the algorithm directory path
+ *
+ * Main files (in FILES view) have:
+ * - kind: "mainFile"
+ * - filePath: the main file path
+ * - languageKey: the language of this main file
+ * - parentAlgorithmPath: the algorithm directory
+ *
+ * Language summary rows (in LANGUAGE view) have:
+ * - kind: "languageSummary"
+ * - filePath: the main file path (for opening)
+ * - languageKey: the language key (for label display)
+ * - parentAlgorithmPath: the algorithm directory
+ *
+ * Include files have:
+ * - kind: "file"
+ * - filePath: the include file path
+ * - languageKey: the language of the include file
+ * - isIncludeFile: true
  */
 export interface WorkspaceTreeNode {
-  kind: "directory" | "file";
+  kind: "directory" | "algorithmDir" | "file" | "mainFile" | "languageSummary";
   filePath: string;
+  languageKey?: string;
+  parentAlgorithmPath?: string;
+  isIncludeFile?: boolean;
+  /** True when this node has include files nested under it. Controls collapse arrow. */
+  hasIncludes?: boolean;
 }
 
 /**
@@ -36,37 +72,18 @@ export interface RestrictedTreeDiscoveryDependencies {
 }
 
 /**
- * Dependencies for resolving an algorithms tree root.
- */
-export interface AlgorithmsTreeRootDependencies {
-  filesystem: IFilesystem;
-  workspaceFolderPaths: readonly string[];
-}
-
-/**
- * Dependencies for resolving a standard-library tree root.
- */
-export interface StandardLibraryTreeRootDependencies {
-  filesystem: IFilesystem;
-  workspaceFolderPaths: readonly string[];
-}
-
-/**
  * Dependencies for creating one algorithms tree data provider.
  */
 export interface AlgorithmsTreeDataProviderDependencies {
-  filesystem: IFilesystem;
-  languages: ILanguages;
-  workspaceFolderPaths?: readonly string[];
+  algorithmsIndex: IAlgorithmsIndex;
+  viewModeService: IViewModeService;
 }
 
 /**
  * Dependencies for creating one standard-library tree data provider.
  */
 export interface StandardLibraryTreeDataProviderDependencies {
-  filesystem: IFilesystem;
-  languages: ILanguages;
-  workspaceFolderPaths?: readonly string[];
+  algorithmsIndex: IAlgorithmsIndex;
 }
 
 /**
@@ -174,119 +191,6 @@ function resolveRepositoryRootFromSourcePath(sourcePath: string): string | null 
 }
 
 /**
- * Resolves one algorithms tree root for the current workspace.
- *
- * Rules:
- * 1. Workspace folder with a src directory uses that src directory.
- * 2. Workspace folder inside src uses the folder path directly.
- *
- * @param {AlgorithmsTreeRootDependencies} dependencies Resolver dependencies.
- * @returns {Promise<string | null>} Canonical root path or null when unsupported.
- */
-export async function resolveAlgorithmsTreeRootPath(
-  dependencies: AlgorithmsTreeRootDependencies
-): Promise<string | null> {
-  const { filesystem, workspaceFolderPaths } = dependencies;
-
-  for (const workspaceFolderPath of workspaceFolderPaths) {
-    const srcRootPath = await resolveSourceRootForWorkspaceFolder(
-      filesystem,
-      workspaceFolderPath
-    );
-
-    if (srcRootPath !== null) {
-      return srcRootPath;
-    }
-
-    const canonicalWorkspaceFolderPath = await filesystem.realpath(workspaceFolderPath);
-
-    if (hasSourceSegment(canonicalWorkspaceFolderPath)) {
-      return canonicalWorkspaceFolderPath;
-    }
-  }
-
-  return null;
-}
-
-/**
- * Resolves one standard-library tree root for the current workspace.
- *
- * Rules:
- * 1. Workspace folder with stdlib directory uses that stdlib directory.
- * 2. Workspace folder inside src resolves repoRoot/stdlib when present.
- *
- * @param {StandardLibraryTreeRootDependencies} dependencies Resolver dependencies.
- * @returns {Promise<string | null>} Canonical stdlib root path or null when unsupported.
- */
-export async function resolveStandardLibraryTreeRootPath(
-  dependencies: StandardLibraryTreeRootDependencies
-): Promise<string | null> {
-  const { filesystem, workspaceFolderPaths } = dependencies;
-
-  for (const workspaceFolderPath of workspaceFolderPaths) {
-    const canonicalWorkspaceFolderPath = await filesystem.realpath(workspaceFolderPath);
-    const workspaceStdlibPath = path.join(canonicalWorkspaceFolderPath, "stdlib");
-
-    if (await filesystem.isDirectory(workspaceStdlibPath)) {
-      return await filesystem.realpath(workspaceStdlibPath);
-    }
-
-    if (!hasSourceSegment(canonicalWorkspaceFolderPath)) {
-      continue;
-    }
-
-    const repositoryRootPath = resolveRepositoryRootFromSourcePath(
-      canonicalWorkspaceFolderPath
-    );
-
-    if (repositoryRootPath === null) {
-      continue;
-    }
-
-    const repositoryStdlibPath = path.join(repositoryRootPath, "stdlib");
-    if (await filesystem.isDirectory(repositoryStdlibPath)) {
-      return await filesystem.realpath(repositoryStdlibPath);
-    }
-  }
-
-  return null;
-}
-
-/**
- * Resolves a context value for an Algorithms tree element based on its depth relative to tree root.
- *
- * Rules:
- * 1. First-level directory (e.g., src/numeric): "algos.algorithmsFirstLevelDirectory"
- * 2. Second-level directory (e.g., src/numeric/euclidgcd): "algos.algorithmsSecondLevelDirectory"
- * 3. File at any level: "algos.algorithmFile"
- *
- * @param {WorkspaceTreeNode} element Tree element.
- * @param {string} treeRootPath Canonical algorithms tree root path (e.g., src/).
- * @returns {string | undefined} Context value for the element or undefined for no context assignment.
- */
-function resolveAlgorithmsElementContextValue(
-  element: WorkspaceTreeNode,
-  treeRootPath: string
-): string | undefined {
-  if (element.kind === "file") {
-    return "algos.algorithmFile";
-  }
-
-  const relativePath = path.relative(treeRootPath, element.filePath);
-  const depthSegments = relativePath.split(path.sep).filter((segment) => segment.length > 0);
-
-  if (depthSegments.length === 1) {
-    return "algos.algorithmsFirstLevelDirectory";
-  }
-
-  if (depthSegments.length === 2) {
-    return "algos.algorithmsSecondLevelDirectory";
-  }
-
-  return undefined;
-}
-
-/**
  * Returns true when one file is mapped to a supported language key.
  *
  * @param {ILanguages} languages Languages dependency.
@@ -295,6 +199,94 @@ function resolveAlgorithmsElementContextValue(
  */
 function isSupportedLanguageFile(languages: ILanguages, filePath: string): boolean {
   return languages.normalizeFileExtension(filePath) !== undefined;
+}
+
+/**
+ * Returns true when a directory name matches the {languageKey}_include pattern.
+ *
+ * @param {string} directoryName Directory name to check.
+ * @returns {boolean} True when the name matches {languageKey}_include pattern.
+ */
+export function isLanguageIncludeDirectoryName(directoryName: string): boolean {
+  const trimmed = directoryName.trim();
+  if (trimmed.length < 9) {
+    return false;
+  }
+  return trimmed.endsWith("_include");
+}
+
+/**
+ * Reads include files from one {languageKey}_include directory.
+ *
+ * @param {string} includeDirectoryPath Path to the include directory.
+ * @param {string} parentAlgorithmPath Path to the parent algorithm directory.
+ * @param {string} languageKey Language key for validation.
+ * @param {IFilesystem} filesystem Filesystem dependency.
+ * @param {ILanguages} languages Languages dependency.
+ * @returns {Promise<WorkspaceTreeNode[]>} Include file nodes.
+ */
+export async function readIncludeFiles(
+  includeDirectoryPath: string,
+  parentAlgorithmPath: string,
+  languageKey: string,
+  filesystem: IFilesystem,
+  languages: ILanguages
+): Promise<WorkspaceTreeNode[]> {
+  const directoryEntries = await filesystem.listDirectory(includeDirectoryPath, {
+    withFileTypes: true,
+  });
+
+  if (directoryEntries === null) {
+    return [];
+  }
+
+  const entries = (directoryEntries as Dirent[]).filter((entry) => {
+    return isDirentEntry(entry);
+  });
+  entries.sort((leftEntry, rightEntry) => {
+    return compareTreeNames(
+      leftEntry.name,
+      leftEntry.isDirectory(),
+      rightEntry.name,
+      rightEntry.isDirectory()
+    );
+  });
+
+  const includeFiles: WorkspaceTreeNode[] = [];
+
+  for (const directoryEntry of entries) {
+    if (isHiddenName(directoryEntry.name)) {
+      continue;
+    }
+
+    if (directoryEntry.isDirectory()) {
+      continue;
+    }
+
+    if (!directoryEntry.isFile()) {
+      continue;
+    }
+
+    const entryPath = path.join(includeDirectoryPath, directoryEntry.name);
+
+    if (!isSupportedLanguageFile(languages, entryPath)) {
+      continue;
+    }
+
+    const fileLanguageKey = languages.normalizeFileExtension(entryPath);
+    if (fileLanguageKey !== languageKey) {
+      continue;
+    }
+
+    includeFiles.push({
+      kind: "file",
+      filePath: entryPath,
+      languageKey,
+      isIncludeFile: true,
+    });
+  }
+
+  return includeFiles;
 }
 
 /**
@@ -384,24 +376,6 @@ export async function readRestrictedDirectoryChildren(
 }
 
 /**
- * Returns workspace folder paths from either explicit input or VS Code state.
- *
- * @param {readonly string[] | undefined} workspaceFolderPaths Optional explicit folder paths.
- * @returns {readonly string[]} Workspace folder paths.
- */
-function getWorkspaceFolderPaths(
-  workspaceFolderPaths: readonly string[] | undefined
-): readonly string[] {
-  if (workspaceFolderPaths !== undefined) {
-    return workspaceFolderPaths;
-  }
-
-  return (vscode.workspace.workspaceFolders ?? []).map((workspaceFolder) => {
-    return workspaceFolder.uri.fsPath;
-  });
-}
-
-/**
  * Creates one TreeItem for the given node.
  *
  * @param {WorkspaceTreeNode} element Tree element.
@@ -411,26 +385,73 @@ function createTreeItem(
   element: WorkspaceTreeNode,
   contextValue?: string
 ): vscode.TreeItem {
-  const label = path.basename(element.filePath);
+  const resourceUri = vscode.Uri.file(element.filePath);
 
-  if (element.kind === "directory") {
-    const treeItem = new vscode.TreeItem(
-      label,
-      vscode.TreeItemCollapsibleState.Collapsed
-    );
-    treeItem.resourceUri = vscode.Uri.file(element.filePath);
+  // Handle language summary rows
+  if (element.kind === "languageSummary" && element.languageKey) {
+    const collapsibleState = element.hasIncludes
+      ? vscode.TreeItemCollapsibleState.Collapsed
+      : vscode.TreeItemCollapsibleState.None;
+    // Pass the URI as the constructor arg so VS Code applies the file icon theme,
+    // then override label with the language key string.
+    const treeItem = new vscode.TreeItem(resourceUri, collapsibleState);
+    treeItem.label = element.languageKey;
+    treeItem.resourceUri = resourceUri;
+    if (element.hasIncludes) {
+      // Collapsible items would otherwise get a folder icon; force file styling.
+      treeItem.iconPath = vscode.ThemeIcon.File;
+    }
+    treeItem.command = {
+      command: "vscode.open",
+      title: "Open File",
+      arguments: [resourceUri],
+    };
     if (contextValue !== undefined) {
       treeItem.contextValue = contextValue;
     }
     return treeItem;
   }
 
-  const treeItem = new vscode.TreeItem(label, vscode.TreeItemCollapsibleState.None);
-  treeItem.resourceUri = vscode.Uri.file(element.filePath);
+  // Handle mainFile nodes (FILES view collapsible main files)
+  if (element.kind === "mainFile") {
+    const collapsibleState = element.hasIncludes
+      ? vscode.TreeItemCollapsibleState.Collapsed
+      : vscode.TreeItemCollapsibleState.None;
+    const treeItem = new vscode.TreeItem(resourceUri, collapsibleState);
+    treeItem.resourceUri = resourceUri;
+    if (element.hasIncludes) {
+      // Collapsible items would otherwise get a folder icon; force file styling.
+      treeItem.iconPath = vscode.ThemeIcon.File;
+    }
+    treeItem.command = {
+      command: "vscode.open",
+      title: "Open File",
+      arguments: [resourceUri],
+    };
+    if (contextValue !== undefined) {
+      treeItem.contextValue = contextValue;
+    }
+    return treeItem;
+  }
+
+  if (element.kind === "directory" || element.kind === "algorithmDir") {
+    const treeItem = new vscode.TreeItem(
+      resourceUri,
+      vscode.TreeItemCollapsibleState.Collapsed
+    );
+    treeItem.resourceUri = resourceUri;
+    if (contextValue !== undefined) {
+      treeItem.contextValue = contextValue;
+    }
+    return treeItem;
+  }
+
+  const treeItem = new vscode.TreeItem(resourceUri, vscode.TreeItemCollapsibleState.None);
+  treeItem.resourceUri = resourceUri;
   treeItem.command = {
     command: "vscode.open",
     title: "Open File",
-    arguments: [vscode.Uri.file(element.filePath)],
+    arguments: [resourceUri],
   };
   if (contextValue !== undefined) {
     treeItem.contextValue = contextValue;
@@ -447,50 +468,107 @@ function createTreeItem(
 export function createWorkspaceAlgorithmsTreeDataProvider(
   dependencies: AlgorithmsTreeDataProviderDependencies
 ): RefreshableWorkspaceTreeDataProvider {
-  const { filesystem, languages } = dependencies;
+  const { algorithmsIndex, viewModeService } = dependencies;
   const onDidChangeTreeDataEmitter = new vscode.EventEmitter<
     WorkspaceTreeNode | undefined | null | void
   >();
-  let cachedTreeRootPath: string | null | undefined = undefined;
+
+  // Refresh the tree whenever the user switches view modes
+  viewModeService.onDidChangeViewMode(() => {
+    onDidChangeTreeDataEmitter.fire();
+  });
 
   return {
     onDidChangeTreeData: onDidChangeTreeDataEmitter.event,
 
     async getChildren(element?: WorkspaceTreeNode): Promise<WorkspaceTreeNode[]> {
-      if (element !== undefined) {
-        if (element.kind !== "directory") {
+      const viewMode = viewModeService.getViewMode();
+
+      // Include file parents: return include files from precomputed paths
+      if (
+        element !== undefined &&
+        (element.kind === "languageSummary" || element.kind === "mainFile") &&
+        element.languageKey &&
+        element.parentAlgorithmPath
+      ) {
+        const implementations = await algorithmsIndex.getImplementations(
+          element.parentAlgorithmPath
+        );
+        const impl = implementations.find(
+          (i) => i.languageKey === element.languageKey
+        );
+        if (impl === undefined) {
           return [];
         }
-
-        return await readRestrictedDirectoryChildren(element.filePath, {
-          filesystem,
-          languages,
-        });
+        return impl.includeFilePaths.map((filePath) => ({
+          kind: "file" as const,
+          filePath,
+          languageKey: element.languageKey,
+          isIncludeFile: true,
+        }));
       }
 
-      if (cachedTreeRootPath === undefined) {
-        cachedTreeRootPath = await resolveAlgorithmsTreeRootPath({
-          filesystem,
-          workspaceFolderPaths: getWorkspaceFolderPaths(dependencies.workspaceFolderPaths),
-        });
+      // Algorithm directory: return mainFile or languageSummary nodes
+      if (element !== undefined && element.kind === "algorithmDir") {
+        const implementations = await algorithmsIndex.getImplementations(element.filePath);
+
+        if (viewMode === "language") {
+          return implementations.map((impl) => ({
+            kind: "languageSummary" as const,
+            filePath: impl.filePath,
+            languageKey: impl.languageKey,
+            parentAlgorithmPath: element.filePath,
+            hasIncludes: impl.hasIncludes,
+          }));
+        } else {
+          return implementations.map((impl) => ({
+            kind: "mainFile" as const,
+            filePath: impl.filePath,
+            languageKey: impl.languageKey,
+            parentAlgorithmPath: element.filePath,
+            hasIncludes: impl.hasIncludes,
+          }));
+        }
       }
 
-      if (cachedTreeRootPath === null) {
+      // Category directory: return algorithm dirs
+      if (element !== undefined && element.kind === "directory") {
+        const algorithms = await algorithmsIndex.getAlgorithms(element.filePath);
+        return algorithms.map((algo) => ({
+          kind: "algorithmDir" as const,
+          filePath: algo.path,
+        }));
+      }
+
+      if (element !== undefined) {
         return [];
       }
 
-      return await readRestrictedDirectoryChildren(cachedTreeRootPath, {
-        filesystem,
-        languages,
-      });
+      // Root: return categories
+      const categories = await algorithmsIndex.getCategories();
+      return categories.map((category) => ({
+        kind: "directory" as const,
+        filePath: category.path,
+      }));
     },
 
     getTreeItem(element: WorkspaceTreeNode): vscode.TreeItem {
-      if (cachedTreeRootPath === null || cachedTreeRootPath === undefined) {
-        return createTreeItem(element);
+      let contextValue: string | undefined;
+
+      if (element.kind === "languageSummary" && element.languageKey) {
+        contextValue = "algos.algorithmsLanguageSummary";
+      } else if (element.kind === "mainFile") {
+        contextValue = "algos.algorithmsMainFile";
+      } else if (element.isIncludeFile) {
+        contextValue = "algos.algorithmsIncludeFile";
+      } else if (element.kind === "algorithmDir") {
+        contextValue = "algos.algorithmsSecondLevelDirectory";
+      } else if (element.kind === "directory") {
+        contextValue = "algos.algorithmsFirstLevelDirectory";
+      } else if (element.kind === "file") {
+        contextValue = "algos.algorithmFile";
       }
 
-      const contextValue = resolveAlgorithmsElementContextValue(element, cachedTreeRootPath);
       return createTreeItem(element, contextValue);
     },
 
@@ -509,7 +587,7 @@ export function createWorkspaceAlgorithmsTreeDataProvider(
 export function createWorkspaceStandardLibraryTreeDataProvider(
   dependencies: StandardLibraryTreeDataProviderDependencies
 ): RefreshableWorkspaceTreeDataProvider {
-  const { filesystem, languages } = dependencies;
+  const { algorithmsIndex } = dependencies;
   const onDidChangeTreeDataEmitter = new vscode.EventEmitter<
     WorkspaceTreeNode | undefined | null | void
   >();
@@ -518,30 +596,19 @@ export function createWorkspaceStandardLibraryTreeDataProvider(
     onDidChangeTreeData: onDidChangeTreeDataEmitter.event,
 
     async getChildren(element?: WorkspaceTreeNode): Promise<WorkspaceTreeNode[]> {
-      if (element !== undefined) {
-        if (element.kind !== "directory") {
-          return [];
-        }
+      const dirPath = element !== undefined
+        ? (element.kind === "directory" ? element.filePath : undefined)
+        : undefined;
 
-        return await readRestrictedDirectoryChildren(element.filePath, {
-          filesystem,
-          languages,
-        });
-      }
-
-      const workspaceRootPath = await resolveStandardLibraryTreeRootPath({
-        filesystem,
-        workspaceFolderPaths: getWorkspaceFolderPaths(dependencies.workspaceFolderPaths),
-      });
-
-      if (workspaceRootPath === null) {
+      if (element !== undefined && element.kind !== "directory") {
         return [];
       }
 
-      return await readRestrictedDirectoryChildren(workspaceRootPath, {
-        filesystem,
-        languages,
-      });
+      const entries = await algorithmsIndex.getStandardLibraryEntries(dirPath);
+      return entries.map((entry) => ({
+        kind: entry.kind === "directory" ? "directory" as const : "file" as const,
+        filePath: entry.path,
+      }));
     },
 
     getTreeItem(element: WorkspaceTreeNode): vscode.TreeItem {
