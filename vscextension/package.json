@@ -348,7 +348,7 @@
         },
         {
           "command": "algos.algorithmsAddIncludeFile",
-          "when": "view == algos.workspaceAlgorithmsTreeView && (viewItem == algos.algorithmsLanguageSummaryUnflagged || viewItem == algos.algorithmsLanguageSummaryFlagged)",
+          "when": "view == algos.workspaceAlgorithmsTreeView && (viewItem == algos.algorithmsLanguageSummaryUnflagged || viewItem == algos.algorithmsLanguageSummaryFlagged || viewItem == algos.algorithmsLanguageSummaryRunResultsUnflagged || viewItem == algos.algorithmsLanguageSummaryRunResultsFlagged)",
           "group": "inline@2"
         },
         {
@@ -363,7 +363,7 @@
         },
         {
           "command": "algos.algorithmsDelete",
-          "when": "view == algos.workspaceAlgorithmsTreeView && (viewItem == algos.algorithmsLanguageSummaryUnflagged || viewItem == algos.algorithmsLanguageSummaryFlagged)",
+          "when": "view == algos.workspaceAlgorithmsTreeView && (viewItem == algos.algorithmsLanguageSummaryUnflagged || viewItem == algos.algorithmsLanguageSummaryFlagged || viewItem == algos.algorithmsLanguageSummaryRunResultsUnflagged || viewItem == algos.algorithmsLanguageSummaryRunResultsFlagged)",
           "group": "inline@3"
         },
         {
@@ -373,54 +373,54 @@
         },
         {
           "command": "algos.algorithmsFlagLanguage",
-          "when": "view == algos.workspaceAlgorithmsTreeView && (viewItem == algos.algorithmFileUnflagged || viewItem == algos.algorithmFileRunResultsUnflagged || viewItem == algos.algorithmsMainFileUnflagged || viewItem == algos.algorithmsMainFileRunResultsUnflagged || viewItem == algos.algorithmsLanguageSummaryUnflagged)",
+          "when": "view == algos.workspaceAlgorithmsTreeView && (viewItem == algos.algorithmFileUnflagged || viewItem == algos.algorithmFileRunResultsUnflagged || viewItem == algos.algorithmsMainFileUnflagged || viewItem == algos.algorithmsMainFileRunResultsUnflagged || viewItem == algos.algorithmsLanguageSummaryUnflagged || viewItem == algos.algorithmsLanguageSummaryRunResultsUnflagged)",
           "group": "inline@4"
         },
         {
           "command": "algos.algorithmsUnflagLanguage",
-          "when": "view == algos.workspaceAlgorithmsTreeView && (viewItem == algos.algorithmFileFlagged || viewItem == algos.algorithmFileRunResultsFlagged || viewItem == algos.algorithmsMainFileFlagged || viewItem == algos.algorithmsMainFileRunResultsFlagged || viewItem == algos.algorithmsLanguageSummaryFlagged)",
+          "when": "view == algos.workspaceAlgorithmsTreeView && (viewItem == algos.algorithmFileFlagged || viewItem == algos.algorithmFileRunResultsFlagged || viewItem == algos.algorithmsMainFileFlagged || viewItem == algos.algorithmsMainFileRunResultsFlagged || viewItem == algos.algorithmsLanguageSummaryFlagged || viewItem == algos.algorithmsLanguageSummaryRunResultsFlagged)",
           "group": "inline@4"
         },
         {
           "command": "algos.algorithmsRunFile",
-          "when": "view == algos.workspaceAlgorithmsTreeView && (viewItem == algos.algorithmFileUnflagged || viewItem == algos.algorithmFileFlagged || viewItem == algos.algorithmFileRunResultsUnflagged || viewItem == algos.algorithmFileRunResultsFlagged || viewItem == algos.algorithmsMainFileUnflagged || viewItem == algos.algorithmsMainFileFlagged || viewItem == algos.algorithmsMainFileRunResultsUnflagged || viewItem == algos.algorithmsMainFileRunResultsFlagged || viewItem == algos.algorithmsLanguageSummaryUnflagged || viewItem == algos.algorithmsLanguageSummaryFlagged)",
+          "when": "view == algos.workspaceAlgorithmsTreeView && (viewItem == algos.algorithmFileUnflagged || viewItem == algos.algorithmFileFlagged || viewItem == algos.algorithmFileRunResultsUnflagged || viewItem == algos.algorithmFileRunResultsFlagged || viewItem == algos.algorithmsMainFileUnflagged || viewItem == algos.algorithmsMainFileFlagged || viewItem == algos.algorithmsMainFileRunResultsUnflagged || viewItem == algos.algorithmsMainFileRunResultsFlagged || viewItem == algos.algorithmsLanguageSummaryUnflagged || viewItem == algos.algorithmsLanguageSummaryFlagged || viewItem == algos.algorithmsLanguageSummaryRunResultsUnflagged || viewItem == algos.algorithmsLanguageSummaryRunResultsFlagged)",
           "group": "inline@1"
         },
         {
           "command": "algos.algorithmsClearRunResults",
-          "when": "view == algos.workspaceAlgorithmsTreeView && (viewItem == algos.algorithmFileRunResultsUnflagged || viewItem == algos.algorithmFileRunResultsFlagged || viewItem == algos.algorithmsMainFileRunResultsUnflagged || viewItem == algos.algorithmsMainFileRunResultsFlagged)",
+          "when": "view == algos.workspaceAlgorithmsTreeView && (viewItem == algos.algorithmFileRunResultsUnflagged || viewItem == algos.algorithmFileRunResultsFlagged || viewItem == algos.algorithmsMainFileRunResultsUnflagged || viewItem == algos.algorithmsMainFileRunResultsFlagged || viewItem == algos.algorithmsLanguageSummaryRunResultsUnflagged || viewItem == algos.algorithmsLanguageSummaryRunResultsFlagged)",
           "group": "inline@1.5"
         },
         {
           "submenu": "algos.algorithmsRunActionsSubmenu",
-          "when": "view == algos.workspaceAlgorithmsTreeView && (viewItem == algos.algorithmFileUnflagged || viewItem == algos.algorithmFileFlagged || viewItem == algos.algorithmFileRunResultsUnflagged || viewItem == algos.algorithmFileRunResultsFlagged || viewItem == algos.algorithmsMainFileUnflagged || viewItem == algos.algorithmsMainFileFlagged || viewItem == algos.algorithmsMainFileRunResultsUnflagged || viewItem == algos.algorithmsMainFileRunResultsFlagged || viewItem == algos.algorithmsLanguageSummaryUnflagged || viewItem == algos.algorithmsLanguageSummaryFlagged)",
+          "when": "view == algos.workspaceAlgorithmsTreeView && (viewItem == algos.algorithmFileUnflagged || viewItem == algos.algorithmFileFlagged || viewItem == algos.algorithmFileRunResultsUnflagged || viewItem == algos.algorithmFileRunResultsFlagged || viewItem == algos.algorithmsMainFileUnflagged || viewItem == algos.algorithmsMainFileFlagged || viewItem == algos.algorithmsMainFileRunResultsUnflagged || viewItem == algos.algorithmsMainFileRunResultsFlagged || viewItem == algos.algorithmsLanguageSummaryUnflagged || viewItem == algos.algorithmsLanguageSummaryFlagged || viewItem == algos.algorithmsLanguageSummaryRunResultsUnflagged || viewItem == algos.algorithmsLanguageSummaryRunResultsFlagged)",
           "group": "inline@99"
         }
       ],
       "algos.algorithmsRunActionsSubmenu": [
         {
           "command": "algos.algorithmsRunFile",
-          "when": "view == algos.workspaceAlgorithmsTreeView && (viewItem == algos.algorithmFileUnflagged || viewItem == algos.algorithmFileFlagged || viewItem == algos.algorithmFileRunResultsUnflagged || viewItem == algos.algorithmFileRunResultsFlagged || viewItem == algos.algorithmsMainFileUnflagged || viewItem == algos.algorithmsMainFileFlagged || viewItem == algos.algorithmsMainFileRunResultsUnflagged || viewItem == algos.algorithmsMainFileRunResultsFlagged || viewItem == algos.algorithmsLanguageSummaryUnflagged || viewItem == algos.algorithmsLanguageSummaryFlagged)",
+          "when": "view == algos.workspaceAlgorithmsTreeView && (viewItem == algos.algorithmFileUnflagged || viewItem == algos.algorithmFileFlagged || viewItem == algos.algorithmFileRunResultsUnflagged || viewItem == algos.algorithmFileRunResultsFlagged || viewItem == algos.algorithmsMainFileUnflagged || viewItem == algos.algorithmsMainFileFlagged || viewItem == algos.algorithmsMainFileRunResultsUnflagged || viewItem == algos.algorithmsMainFileRunResultsFlagged || viewItem == algos.algorithmsLanguageSummaryUnflagged || viewItem == algos.algorithmsLanguageSummaryFlagged || viewItem == algos.algorithmsLanguageSummaryRunResultsUnflagged || viewItem == algos.algorithmsLanguageSummaryRunResultsFlagged)",
           "group": "navigation@1"
         },
         {
           "command": "algos.algorithmsCompileOnly",
-          "when": "view == algos.workspaceAlgorithmsTreeView && (viewItem == algos.algorithmFileUnflagged || viewItem == algos.algorithmFileFlagged || viewItem == algos.algorithmFileRunResultsUnflagged || viewItem == algos.algorithmFileRunResultsFlagged || viewItem == algos.algorithmsMainFileUnflagged || viewItem == algos.algorithmsMainFileFlagged || viewItem == algos.algorithmsMainFileRunResultsUnflagged || viewItem == algos.algorithmsMainFileRunResultsFlagged || viewItem == algos.algorithmsLanguageSummaryUnflagged || viewItem == algos.algorithmsLanguageSummaryFlagged)",
+          "when": "view == algos.workspaceAlgorithmsTreeView && (viewItem == algos.algorithmFileUnflagged || viewItem == algos.algorithmFileFlagged || viewItem == algos.algorithmFileRunResultsUnflagged || viewItem == algos.algorithmFileRunResultsFlagged || viewItem == algos.algorithmsMainFileUnflagged || viewItem == algos.algorithmsMainFileFlagged || viewItem == algos.algorithmsMainFileRunResultsUnflagged || viewItem == algos.algorithmsMainFileRunResultsFlagged || viewItem == algos.algorithmsLanguageSummaryUnflagged || viewItem == algos.algorithmsLanguageSummaryFlagged || viewItem == algos.algorithmsLanguageSummaryRunResultsUnflagged || viewItem == algos.algorithmsLanguageSummaryRunResultsFlagged)",
           "group": "navigation@2"
         },
         {
           "command": "algos.algorithmsCheckOnly",
-          "when": "view == algos.workspaceAlgorithmsTreeView && (viewItem == algos.algorithmFileUnflagged || viewItem == algos.algorithmFileFlagged || viewItem == algos.algorithmFileRunResultsUnflagged || viewItem == algos.algorithmFileRunResultsFlagged || viewItem == algos.algorithmsMainFileUnflagged || viewItem == algos.algorithmsMainFileFlagged || viewItem == algos.algorithmsMainFileRunResultsUnflagged || viewItem == algos.algorithmsMainFileRunResultsFlagged || viewItem == algos.algorithmsLanguageSummaryUnflagged || viewItem == algos.algorithmsLanguageSummaryFlagged)",
+          "when": "view == algos.workspaceAlgorithmsTreeView && (viewItem == algos.algorithmFileUnflagged || viewItem == algos.algorithmFileFlagged || viewItem == algos.algorithmFileRunResultsUnflagged || viewItem == algos.algorithmFileRunResultsFlagged || viewItem == algos.algorithmsMainFileUnflagged || viewItem == algos.algorithmsMainFileFlagged || viewItem == algos.algorithmsMainFileRunResultsUnflagged || viewItem == algos.algorithmsMainFileRunResultsFlagged || viewItem == algos.algorithmsLanguageSummaryUnflagged || viewItem == algos.algorithmsLanguageSummaryFlagged || viewItem == algos.algorithmsLanguageSummaryRunResultsUnflagged || viewItem == algos.algorithmsLanguageSummaryRunResultsFlagged)",
           "group": "navigation@3"
         },
         {
           "command": "algos.algorithmsClean",
-          "when": "view == algos.workspaceAlgorithmsTreeView && (viewItem == algos.algorithmFileUnflagged || viewItem == algos.algorithmFileFlagged || viewItem == algos.algorithmFileRunResultsUnflagged || viewItem == algos.algorithmFileRunResultsFlagged || viewItem == algos.algorithmsMainFileUnflagged || viewItem == algos.algorithmsMainFileFlagged || viewItem == algos.algorithmsMainFileRunResultsUnflagged || viewItem == algos.algorithmsMainFileRunResultsFlagged || viewItem == algos.algorithmsLanguageSummaryUnflagged || viewItem == algos.algorithmsLanguageSummaryFlagged)",
+          "when": "view == algos.workspaceAlgorithmsTreeView && (viewItem == algos.algorithmFileUnflagged || viewItem == algos.algorithmFileFlagged || viewItem == algos.algorithmFileRunResultsUnflagged || viewItem == algos.algorithmFileRunResultsFlagged || viewItem == algos.algorithmsMainFileUnflagged || viewItem == algos.algorithmsMainFileFlagged || viewItem == algos.algorithmsMainFileRunResultsUnflagged || viewItem == algos.algorithmsMainFileRunResultsFlagged || viewItem == algos.algorithmsLanguageSummaryUnflagged || viewItem == algos.algorithmsLanguageSummaryFlagged || viewItem == algos.algorithmsLanguageSummaryRunResultsUnflagged || viewItem == algos.algorithmsLanguageSummaryRunResultsFlagged)",
           "group": "navigation@4"
         },
         {
           "command": "algos.algorithmsLocalClean",
-          "when": "view == algos.workspaceAlgorithmsTreeView && (viewItem == algos.algorithmFileUnflagged || viewItem == algos.algorithmFileFlagged || viewItem == algos.algorithmFileRunResultsUnflagged || viewItem == algos.algorithmFileRunResultsFlagged || viewItem == algos.algorithmsMainFileUnflagged || viewItem == algos.algorithmsMainFileFlagged || viewItem == algos.algorithmsMainFileRunResultsUnflagged || viewItem == algos.algorithmsMainFileRunResultsFlagged || viewItem == algos.algorithmsLanguageSummaryUnflagged || viewItem == algos.algorithmsLanguageSummaryFlagged)",
+          "when": "view == algos.workspaceAlgorithmsTreeView && (viewItem == algos.algorithmFileUnflagged || viewItem == algos.algorithmFileFlagged || viewItem == algos.algorithmFileRunResultsUnflagged || viewItem == algos.algorithmFileRunResultsFlagged || viewItem == algos.algorithmsMainFileUnflagged || viewItem == algos.algorithmsMainFileFlagged || viewItem == algos.algorithmsMainFileRunResultsUnflagged || viewItem == algos.algorithmsMainFileRunResultsFlagged || viewItem == algos.algorithmsLanguageSummaryUnflagged || viewItem == algos.algorithmsLanguageSummaryFlagged || viewItem == algos.algorithmsLanguageSummaryRunResultsUnflagged || viewItem == algos.algorithmsLanguageSummaryRunResultsFlagged)",
           "group": "navigation@5"
         }
       ]

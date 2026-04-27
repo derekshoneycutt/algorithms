@@ -115,6 +115,12 @@ function buildSmokeStatusTooltip(
  */
 function getTreeItemContextValue(element: WorkspaceTreeNode): string | undefined {
   if (element.kind === "languageSummary" && element.languageKey) {
+    if (hasRetainedRunResults(element.runStatus) && element.hasOpenTarget !== false) {
+      return element.isFlagged === true
+        ? "algos.algorithmsLanguageSummaryRunResultsFlagged"
+        : "algos.algorithmsLanguageSummaryRunResultsUnflagged";
+    }
+
     return element.hasOpenTarget === false
       ? "algos.algorithmsLanguageSummaryAbsent"
       : element.isFlagged === true

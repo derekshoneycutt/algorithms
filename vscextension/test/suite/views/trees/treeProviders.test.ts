@@ -811,6 +811,116 @@ describe("views/trees — run file status projection", () => {
     );
   });
 
+  it("projects run-result contexts onto LANGUAGE rows", async () => {
+    const algorithmPath = "/repo/src/numeric/euclidgcd";
+    const categories: AlgorithmCategory[] = [
+      { name: "numeric", path: "/repo/src/numeric" },
+    ];
+    const algorithms: AlgorithmEntry[] = [
+      { name: "euclidgcd", path: algorithmPath, categoryPath: "/repo/src/numeric" },
+    ];
+    const implementations: AlgorithmImplementation[] = [
+      {
+        languageKey: "python",
+        isFlagged: false,
+        filePath: "/repo/src/numeric/euclidgcd/euclidgcd.py",
+        filePaths: ["/repo/src/numeric/euclidgcd/euclidgcd.py"],
+        hasIncludes: false,
+        includeFilePaths: [],
+      },
+    ];
+
+    const conductor: IConductor = {
+      reactToSmokeIntent(): never {
+        throw new Error("not used");
+      },
+      reactToRunControlsIntent(): never {
+        throw new Error("not used");
+      },
+      async runFile(): Promise<void> {
+        return;
+      },
+      getRunForTarget(target) {
+        if (
+          target.nodeKind === "languageSummary"
+          && target.filePath === "/repo/src/numeric/euclidgcd/euclidgcd.py"
+        ) {
+          return {
+            runId: "run-3",
+            ownerKey: "python:euclidgcd",
+            status: "completed",
+            startedAt: 1,
+            updatedAt: 2,
+            message: "Run File completed successfully",
+            progressPercent: null,
+            stepKey: null,
+            errorMessage: null,
+          };
+        }
+
+        return null;
+      },
+      subscribeRunTargetStatus() {
+        return {
+          dispose(): void {
+            return;
+          },
+        };
+      },
+      startRun(): never {
+        throw new Error("not used");
+      },
+      markProgress(): never {
+        throw new Error("not used");
+      },
+      markCompleted(): never {
+        throw new Error("not used");
+      },
+      markFailed(): never {
+        throw new Error("not used");
+      },
+      cancelRun(): never {
+        throw new Error("not used");
+      },
+      stopSmokeTest(): Promise<boolean> {
+        throw new Error("not used");
+      },
+      clearSmokeResults(): boolean {
+        throw new Error("not used");
+      },
+      clearRunResults(): boolean {
+        throw new Error("not used");
+      },
+      getRun(): never {
+        throw new Error("not used");
+      },
+    };
+
+    const provider = createWorkspaceAlgorithmsTreeDataProvider({
+      algorithmsIndex: createAlgorithmsIndexStub(categories, algorithms, implementations),
+      conductor,
+      viewModeService: createViewModeServiceStub("language"),
+      filterModeService: createFilterModeServiceStub("all"),
+      languages: createLanguageStub(),
+    });
+
+    const rootChildren = (await provider.getChildren()) ?? [];
+    const categoryNode = rootChildren[0];
+    const algorithmNodes = (await provider.getChildren(categoryNode)) ?? [];
+    const algorithmNode = algorithmNodes[0];
+    const languageRows = (await provider.getChildren(algorithmNode)) ?? [];
+    const pythonRow = languageRows.find((row) => {
+      return row.kind === "languageSummary" && row.languageKey === "python";
+    }) as WorkspaceTreeNode;
+
+    const pythonItem = await provider.getTreeItem(pythonRow);
+
+    assert.strictEqual(
+      pythonItem.contextValue,
+      "algos.algorithmsLanguageSummaryRunResultsUnflagged"
+    );
+  });
+
   it("projects smoke status onto FILES main-file rows", async () => {
     const algorithmPath = "/repo/src/numeric/euclidgcd";
     const categories: AlgorithmCategory[] = [
