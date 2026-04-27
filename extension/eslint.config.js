@@ -1,17 +1,64 @@
-module.exports = [
+const js = require("@eslint/js");
+const globals = require("globals");
+const tseslint = require("typescript-eslint");
+
+module.exports = tseslint.config(
   {
-    files: ["src/**/*.js", "test/**/*.js"],
+    ignores: ["dist/**", "out/**", "node_modules/**"],
+  },
+  {
+    ...js.configs.recommended,
+    files: ["**/*.js"],
     languageOptions: {
       ecmaVersion: 2022,
-      sourceType: "commonjs",
+      globals: {
+        ...globals.node,
+      },
+      sourceType: "script",
     },
-    linterOptions: {
-      reportUnusedDisableDirectives: true,
+    rules: {
+      "@typescript-eslint/no-require-imports": "off",
+    },
+  },
+  ...tseslint.configs.recommended,
+  {
+    files: ["**/*.ts"],
+    languageOptions: {
+      ecmaVersion: 2022,
+      globals: {
+        ...globals.node,
+      },
+      sourceType: "module",
     },
     rules: {
       curly: ["error", "all"],
-      "prefer-const": "error",
+      eqeqeq: ["error", "always", { "null": "ignore" }],
+      "no-undef": "off",
       "no-var": "error",
+      "prefer-const": "error",
+      "@typescript-eslint/no-unused-vars": [
+        "error",
+        {
+          argsIgnorePattern: "^_",
+          varsIgnorePattern: "^_",
+          caughtErrorsIgnorePattern: "^_",
+        },
+      ],
     },
   },
-];
+  {
+    files: ["test/**/*.ts"],
+    languageOptions: {
+      globals: {
+        ...globals.mocha,
+        ...globals.node,
+      },
+    },
+  },
+  {
+    files: ["**/*.js"],
+    rules: {
+      "@typescript-eslint/no-require-imports": "off",
+    },
+  }
+);

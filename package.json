@@ -16,7 +16,7 @@
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
     "build": "webpack",
-    "buildextension": "npm --prefix extension run build:vsix",
+    "buildextension": "npm --prefix extension run package",
     "langs:validate": "node scripts/langs/validate-languages.js",
     "langs:generate": "node scripts/langs/generate-languages.js",
     "langs:test": "node scripts/langs/test-langs-tooling.js",
