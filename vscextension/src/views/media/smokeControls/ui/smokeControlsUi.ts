@@ -1,3 +1,6 @@
+import { html, nothing, render, type TemplateResult } from "lit";
+import { unsafeHTML } from "lit/directives/unsafe-html.js";
+
 import type {
   SmokeControlsViewSnapshot,
   ViewSmokeControlIntent,
@@ -46,165 +49,214 @@ const SMOKE_CONTROLS_SECTION_ICON_SVG_BY_NAME = Object.freeze({
 });
 
 /**
+ * Returns the normalized smoke status class name for rendering.
+ *
+ * @param {string} className Input status class.
+ * @returns {"status-muted" | "status-ok" | "status-error"} Supported class name.
+ */
+function normalizeSmokeStatusClassName(
+  className: string
+): "status-muted" | "status-ok" | "status-error" {
+  if (className === "status-ok") {
+    return className;
+  }
+
+  if (className === "status-error") {
+    return className;
+  }
+
+  return "status-muted";
+}
+
+/**
  * Renders one section header with icon and optional actions markup.
  *
  * @param {string} title Section title.
  * @param {"report" | "timeout" | "languages"} iconName Icon key.
- * @param {string} [actionsHtml] Optional actions markup.
- * @returns {string} Section header HTML.
+ * @param {TemplateResult | typeof nothing} [actionsTemplate] Optional actions template.
+ * @returns {TemplateResult} Section header template.
  */
 function renderSectionHeader(
   title: string,
   iconName: "report" | "timeout" | "languages",
-  actionsHtml = ""
-): string {
-  return `<div class="sectionHeader"><div class="sectionTitleGroup">${SMOKE_CONTROLS_SECTION_ICON_SVG_BY_NAME[iconName]}<div class="sectionTitle">${title}</div></div>${actionsHtml}</div>`;
+  actionsTemplate: TemplateResult | typeof nothing = nothing
+): TemplateResult {
+  return html`<div class="sectionHeader"><div class="sectionTitleGroup">${unsafeHTML(SMOKE_CONTROLS_SECTION_ICON_SVG_BY_NAME[iconName])}<div class="sectionTitle">${title}</div></div>${actionsTemplate}</div>`;
 }
 
 /**
- * Binds smoke controls event handlers for one app root.
+ * Reads one text input element by role from the app root.
  *
  * @param {HTMLElement} appRoot Smoke controls app root.
- * @param {(intent: ViewSmokeControlIntent) => void} emit Intent emitter.
+ * @param {string} role Data role value.
+ * @returns {HTMLInputElement | null} Input element or null.
+ */
+function getTextInputByRole(appRoot: HTMLElement, role: string): HTMLInputElement | null {
+  const element = appRoot.querySelector(`[data-role='${role}']`);
+  if (!(element instanceof HTMLInputElement)) {
+    return null;
+  }
+
+  return element;
+}
+
+/**
+ * Reads one clear button element by role from the app root.
+ *
+ * @param {HTMLElement} appRoot Smoke controls app root.
+ * @param {string} role Data role value.
+ * @returns {HTMLButtonElement | null} Button element or null.
+ */
+function getClearButtonByRole(appRoot: HTMLElement, role: string): HTMLButtonElement | null {
+  const element = appRoot.querySelector(`[data-role='${role}']`);
+  if (!(element instanceof HTMLButtonElement)) {
+    return null;
+  }
+
+  return element;
+}
+
+/**
+ * Updates one clear-button visibility from input state.
+ *
+ * @param {HTMLElement} appRoot Smoke controls app root.
+ * @param {string} inputRole Data role for the input.
+ * @param {string} clearRole Data role for the clear button.
  * @returns {void}
  */
-function bindSmokeControlsHandlers(
+function updateClearButtonVisibility(
   appRoot: HTMLElement,
-  emit: (intent: ViewSmokeControlIntent) => void
+  inputRole: string,
+  clearRole: string
 ): void {
-  const reportEnabled = appRoot.querySelector("[data-role='report-enabled']");
-  const markdownPath = appRoot.querySelector("[data-role='markdown-path']");
-  const timeoutSeconds = appRoot.querySelector("[data-role='timeout-seconds']");
-  const slowTimeoutSeconds = appRoot.querySelector(
-    "[data-role='slow-timeout-seconds']"
-  );
-  const selectAllButton = appRoot.querySelector("[data-role='select-all-languages']");
-  const deselectAllButton = appRoot.querySelector(
-    "[data-role='deselect-all-languages']"
-  );
-
-  if (reportEnabled instanceof HTMLInputElement) {
-    reportEnabled.addEventListener("change", () => {
-      emit({
-        kind: "setReportEnabled",
-        enabled: reportEnabled.checked,
-      });
-    });
+  const input = getTextInputByRole(appRoot, inputRole);
+  const clearButton = getClearButtonByRole(appRoot, clearRole);
+  if (input === null || clearButton === null) {
+    return;
   }
 
-  if (markdownPath instanceof HTMLInputElement) {
-    markdownPath.addEventListener("change", () => {
-      emit({
-        kind: "setMarkdownPath",
-        markdownPath: markdownPath.value,
-      });
-    });
-  }
-
-  if (timeoutSeconds instanceof HTMLInputElement) {
-    timeoutSeconds.addEventListener("change", () => {
-      emit({
-        kind: "setTimeoutSeconds",
-        timeoutSeconds: timeoutSeconds.value,
-      });
-    });
-  }
-
-  if (slowTimeoutSeconds instanceof HTMLInputElement) {
-    slowTimeoutSeconds.addEventListener("change", () => {
-      emit({
-        kind: "setSlowTimeoutSeconds",
-        slowTimeoutSeconds: slowTimeoutSeconds.value,
-      });
-    });
-  }
-
-  if (selectAllButton instanceof HTMLButtonElement) {
-    selectAllButton.addEventListener("click", () => {
-      emit({ kind: "selectAllLanguages" });
-    });
-  }
-
-  if (deselectAllButton instanceof HTMLButtonElement) {
-    deselectAllButton.addEventListener("click", () => {
-      emit({ kind: "deselectAllLanguages" });
-    });
-  }
-
-  const languageCheckboxes = appRoot.querySelectorAll("[data-role='language-toggle']");
-  languageCheckboxes.forEach((checkbox) => {
-    if (!(checkbox instanceof HTMLInputElement)) {
-      return;
-    }
-
-    checkbox.addEventListener("change", () => {
-      emit({
-        kind: "toggleLanguage",
-        languageKey: String(checkbox.dataset.languageKey ?? ""),
-      });
-    });
-  });
+  const shouldShow = !input.disabled && input.value.length > 0;
+  clearButton.classList.toggle("hidden", !shouldShow);
 }
 
 /**
- * Renders the smoke controls layout into one app root.
+ * Updates clear-button visibility for all smoke controls text fields.
  *
  * @param {HTMLElement} appRoot Smoke controls app root.
+ * @returns {void}
+ */
+function updateAllClearButtonVisibility(appRoot: HTMLElement): void {
+  updateClearButtonVisibility(appRoot, "markdown-path", "clear-markdown-path");
+  updateClearButtonVisibility(appRoot, "timeout-seconds", "clear-timeout-seconds");
+  updateClearButtonVisibility(
+    appRoot,
+    "slow-timeout-seconds",
+    "clear-slow-timeout-seconds"
+  );
+}
+
+/**
+ * Renders one language item.
+ *
+ * @param {SmokeControlsViewSnapshot["languages"][number]} language One language snapshot row.
+ * @returns {TemplateResult} Language item template.
+ */
+function renderLanguageItem(
+  language: SmokeControlsViewSnapshot["languages"][number]
+): TemplateResult {
+  const iconTemplate =
+    typeof language.iconUri === "string" && language.iconUri.length > 0
+      ? html`<img class="smoke-language-icon" src=${language.iconUri} alt="" aria-hidden="true" />`
+      : html`<span class="smoke-language-icon smoke-language-icon-fallback" aria-hidden="true"></span>`;
+
+  return html`
+    <label class="smoke-language-item" title=${language.disabledReason.length > 0 ? language.disabledReason : nothing}>
+      <input
+        type="checkbox"
+        data-role="language-toggle"
+        data-language-key=${language.languageKey}
+        ?checked=${language.selected}
+        ?disabled=${language.disabled}
+      />
+      <span class="smoke-language-label">${iconTemplate}<span>${language.label}</span></span>
+    </label>
+  `;
+}
+
+/**
+ * Renders the smoke controls template for one snapshot.
+ *
  * @param {SmokeControlsViewSnapshot} snapshot Host snapshot payload.
- * @returns {void}
+ * @returns {TemplateResult} Smoke controls template.
  */
-function renderSmokeControls(
-  appRoot: HTMLElement,
-  snapshot: SmokeControlsViewSnapshot
-): void {
-  const languageItems = snapshot.languages
-    .map((language) => {
-      const checked = language.selected ? "checked" : "";
-      const disabled = language.disabled ? "disabled" : "";
-      const disabledTitle = language.disabledReason
-        ? ` title="${language.disabledReason}"`
-        : "";
-      const iconElement =
-        typeof language.iconUri === "string" && language.iconUri.length > 0
-          ? `<img class="smoke-language-icon" src="${language.iconUri}" alt="" aria-hidden="true" />`
-          : '<span class="smoke-language-icon smoke-language-icon-fallback" aria-hidden="true"></span>';
-      return `<label class="smoke-language-item"${disabledTitle}><input type="checkbox" data-role="language-toggle" data-language-key="${language.languageKey}" ${checked} ${disabled} /><span class="smoke-language-label">${iconElement}<span>${language.label}</span></span></label>`;
-    })
-    .join("");
+function renderSmokeControlsTemplate(snapshot: SmokeControlsViewSnapshot): TemplateResult {
+  const reportStatusClass = normalizeSmokeStatusClassName(snapshot.reportStatusClassName);
+  const smokeStatusClass = normalizeSmokeStatusClassName(snapshot.smokeStatusClassName);
 
-  appRoot.innerHTML = `
+  return html`
     <section class="panel" aria-label="Smoke controls">
       <p class="panelDescription">Controls smoke tests run in supported directories.</p>
       <section class="section">
         ${renderSectionHeader("Report Generation", "report")}
         <div class="smoke-markdown-row">
           <label class="smoke-markdown-label" for="smoke-markdown-enabled">
-            <input id="smoke-markdown-enabled" type="checkbox" data-role="report-enabled" ${
-              snapshot.reportEnabled ? "checked" : ""
-            } />
+            <input id="smoke-markdown-enabled" type="checkbox" data-role="report-enabled" ?checked=${snapshot.reportEnabled} />
           </label>
-          <input
-            class="smoke-input"
-            type="text"
-            data-role="markdown-path"
-            placeholder="Optional report path"
-            value="${snapshot.markdownPath}"
-            ${snapshot.reportEnabled ? "" : "disabled"}
-          />
+          <div class="smoke-input-row">
+            <input
+              class="smoke-input smoke-input-with-clear"
+              type="text"
+              data-role="markdown-path"
+              placeholder="Optional report path"
+              .value=${snapshot.markdownPath}
+              ?disabled=${!snapshot.reportEnabled}
+            />
+            <button
+              class="smoke-clear-inline-button ${snapshot.reportEnabled && snapshot.markdownPath.length > 0 ? "" : "hidden"}"
+              data-role="clear-markdown-path"
+              type="button"
+              aria-label="Clear markdown path"
+              title="Clear"
+            >
+              ×
+            </button>
+          </div>
         </div>
         <p class="smoke-helper-text">Enable markdown output and optionally override the generated report path.</p>
-        <p class="smoke-status ${snapshot.reportStatusClassName}">${snapshot.reportStatusText}</p>
+        <p class="smoke-status ${reportStatusClass}">${snapshot.reportStatusText}</p>
       </section>
       <section class="section">
         ${renderSectionHeader("Timeouts", "timeout")}
         <div class="smoke-timeout-row">
           <label class="smoke-timeout-field">
             <span>Timeout</span>
-            <input class="smoke-input" type="text" data-role="timeout-seconds" value="${snapshot.timeoutSeconds}" />
+            <div class="smoke-input-row">
+              <input class="smoke-input smoke-input-with-clear" type="text" data-role="timeout-seconds" .value=${snapshot.timeoutSeconds} />
+              <button
+                class="smoke-clear-inline-button ${snapshot.timeoutSeconds.length > 0 ? "" : "hidden"}"
+                data-role="clear-timeout-seconds"
+                type="button"
+                aria-label="Clear timeout"
+                title="Clear"
+              >
+                ×
+              </button>
+            </div>
           </label>
           <label class="smoke-timeout-field">
             <span>Slow Timeout</span>
-            <input class="smoke-input" type="text" data-role="slow-timeout-seconds" value="${snapshot.slowTimeoutSeconds}" />
+            <div class="smoke-input-row">
+              <input class="smoke-input smoke-input-with-clear" type="text" data-role="slow-timeout-seconds" .value=${snapshot.slowTimeoutSeconds} />
+              <button
+                class="smoke-clear-inline-button ${snapshot.slowTimeoutSeconds.length > 0 ? "" : "hidden"}"
+                data-role="clear-slow-timeout-seconds"
+                type="button"
+                aria-label="Clear slow timeout"
+                title="Clear"
+              >
+                ×
+              </button>
+            </div>
           </label>
         </div>
         <p class="smoke-helper-text">Defaults use timeout. Long-running languages should use slow-timeout.</p>
@@ -213,17 +265,29 @@ function renderSmokeControls(
         ${renderSectionHeader(
           "Languages",
           "languages",
-          '<div class="buttonRow"><button class="button secondary" type="button" data-role="select-all-languages">Select all</button><button class="button secondary" type="button" data-role="deselect-all-languages">Deselect all</button></div>'
+          html`<div class="buttonRow"><button class="button secondary" type="button" data-role="select-all-languages">Select all</button><button class="button secondary" type="button" data-role="deselect-all-languages">Deselect all</button></div>`
         )}
         <div class="smoke-language-list-container">
           <div class="smoke-language-grid">
-            ${languageItems}
+            ${snapshot.languages.map((language) => renderLanguageItem(language))}
           </div>
         </div>
-        <p class="smoke-status ${snapshot.smokeStatusClassName}">${snapshot.smokeStatusText}</p>
+        <p class="smoke-status ${smokeStatusClass}">${snapshot.smokeStatusText}</p>
       </section>
     </section>
   `;
+}
+
+/**
+ * Applies one snapshot to the smoke controls root using Lit.
+ *
+ * @param {HTMLElement} appRoot Smoke controls app root.
+ * @param {SmokeControlsViewSnapshot} snapshot Snapshot to render.
+ * @returns {void}
+ */
+function applySnapshot(appRoot: HTMLElement, snapshot: SmokeControlsViewSnapshot): void {
+  render(renderSmokeControlsTemplate(snapshot), appRoot);
+  updateAllClearButtonVisibility(appRoot);
 }
 
 /**
@@ -234,6 +298,18 @@ function renderSmokeControls(
 export function createSmokeControlsUi(): ISmokeControlsUi {
   const appRoot = document.querySelector("[data-role='smoke-controls-app']");
   const listeners = new Set<(intent: ViewSmokeControlIntent) => void>();
+
+  if (!(appRoot instanceof HTMLElement)) {
+    return {
+      onIntent(listener: (intent: ViewSmokeControlIntent) => void): () => void {
+        listeners.add(listener);
+        return () => {
+          listeners.delete(listener);
+        };
+      },
+      setSnapshot(): void {},
+    };
+  }
 
   /**
    * Emits one intent to all listeners.
@@ -247,16 +323,7 @@ export function createSmokeControlsUi(): ISmokeControlsUi {
     }
   }
 
-  const applySnapshot = (snapshot: SmokeControlsViewSnapshot): void => {
-    if (!(appRoot instanceof HTMLElement)) {
-      return;
-    }
-
-    renderSmokeControls(appRoot, snapshot);
-    bindSmokeControlsHandlers(appRoot, emit);
-  };
-
-  applySnapshot({
+  applySnapshot(appRoot, {
     stateValue: "ready",
     reportEnabled: false,
     markdownPath: "",
@@ -270,6 +337,167 @@ export function createSmokeControlsUi(): ISmokeControlsUi {
     languages: [],
   });
 
+  appRoot.addEventListener("change", (event) => {
+    const target = event.target;
+    if (!(target instanceof HTMLInputElement)) {
+      return;
+    }
+
+    const role = String(target.dataset.role || "");
+    if (role === "report-enabled") {
+      const markdownPathInput = getTextInputByRole(appRoot, "markdown-path");
+      if (markdownPathInput !== null) {
+        markdownPathInput.disabled = !target.checked;
+      }
+
+      updateClearButtonVisibility(appRoot, "markdown-path", "clear-markdown-path");
+
+      emit({
+        kind: "setReportEnabled",
+        enabled: target.checked,
+      });
+      return;
+    }
+
+    if (role === "markdown-path") {
+      updateClearButtonVisibility(appRoot, "markdown-path", "clear-markdown-path");
+      emit({
+        kind: "setMarkdownPath",
+        markdownPath: target.value,
+      });
+      return;
+    }
+
+    if (role === "timeout-seconds") {
+      updateClearButtonVisibility(appRoot, "timeout-seconds", "clear-timeout-seconds");
+      emit({
+        kind: "setTimeoutSeconds",
+        timeoutSeconds: target.value,
+      });
+      return;
+    }
+
+    if (role === "slow-timeout-seconds") {
+      updateClearButtonVisibility(
+        appRoot,
+        "slow-timeout-seconds",
+        "clear-slow-timeout-seconds"
+      );
+      emit({
+        kind: "setSlowTimeoutSeconds",
+        slowTimeoutSeconds: target.value,
+      });
+      return;
+    }
+
+    if (role === "language-toggle") {
+      emit({
+        kind: "toggleLanguage",
+        languageKey: String(target.dataset.languageKey || ""),
+      });
+    }
+  });
+
+  appRoot.addEventListener("input", (event) => {
+    const target = event.target;
+    if (!(target instanceof HTMLInputElement)) {
+      return;
+    }
+
+    const role = String(target.dataset.role || "");
+    if (role === "markdown-path") {
+      updateClearButtonVisibility(appRoot, "markdown-path", "clear-markdown-path");
+      return;
+    }
+
+    if (role === "timeout-seconds") {
+      updateClearButtonVisibility(appRoot, "timeout-seconds", "clear-timeout-seconds");
+      return;
+    }
+
+    if (role === "slow-timeout-seconds") {
+      updateClearButtonVisibility(
+        appRoot,
+        "slow-timeout-seconds",
+        "clear-slow-timeout-seconds"
+      );
+    }
+  });
+
+  appRoot.addEventListener("click", (event) => {
+    const target = event.target;
+    if (!(target instanceof HTMLButtonElement)) {
+      return;
+    }
+
+    const role = String(target.dataset.role || "");
+    if (role === "select-all-languages") {
+      emit({ kind: "selectAllLanguages" });
+      return;
+    }
+
+    if (role === "deselect-all-languages") {
+      emit({ kind: "deselectAllLanguages" });
+      return;
+    }
+
+    if (role === "clear-markdown-path") {
+      const input = getTextInputByRole(appRoot, "markdown-path");
+      if (input === null) {
+        return;
+      }
+
+      input.value = "";
+      updateClearButtonVisibility(appRoot, "markdown-path", "clear-markdown-path");
+      emit({
+        kind: "setMarkdownPath",
+        markdownPath: "",
+      });
+
+      if (!input.disabled) {
+        input.focus();
+      }
+      return;
+    }
+
+    if (role === "clear-timeout-seconds") {
+      const input = getTextInputByRole(appRoot, "timeout-seconds");
+      if (input === null) {
+        return;
+      }
+
+      input.value = "";
+      updateClearButtonVisibility(appRoot, "timeout-seconds", "clear-timeout-seconds");
+      emit({
+        kind: "setTimeoutSeconds",
+        timeoutSeconds: "",
+      });
+
+      input.focus();
+      return;
+    }
+
+    if (role === "clear-slow-timeout-seconds") {
+      const input = getTextInputByRole(appRoot, "slow-timeout-seconds");
+      if (input === null) {
+        return;
+      }
+
+      input.value = "";
+      updateClearButtonVisibility(
+        appRoot,
+        "slow-timeout-seconds",
+        "clear-slow-timeout-seconds"
+      );
+      emit({
+        kind: "setSlowTimeoutSeconds",
+        slowTimeoutSeconds: "",
+      });
+
+      input.focus();
+    }
+  });
+
   return {
     onIntent(listener: (intent: ViewSmokeControlIntent) => void): () => void {
       listeners.add(listener);
@@ -279,7 +507,7 @@ export function createSmokeControlsUi(): ISmokeControlsUi {
     },
 
     setSnapshot(snapshot: SmokeControlsViewSnapshot): void {
-      applySnapshot(snapshot);
+      applySnapshot(appRoot, snapshot);
     },
   };
 }
