@@ -19,6 +19,12 @@ import {
   getAlgorithmsUnflagLanguageCommandId,
   getAlgorithmsRunFileCommandId,
   getAlgorithmsEditorTitleRunFileCommandId,
+  getAlgorithmsEditorTitleCompileOnlyCommandId,
+  getAlgorithmsEditorTitleCheckOnlyNativeCommandId,
+  getAlgorithmsEditorTitleCheckOnlyDockerCommandId,
+  getAlgorithmsEditorTitleCheckOnlySshCommandId,
+  getAlgorithmsEditorTitleCleanCommandId,
+  getAlgorithmsEditorTitleLocalCleanCommandId,
   getAlgorithmsCompileOnlyCommandId,
   getAlgorithmsCheckOnlyNativeCommandId,
   getAlgorithmsCheckOnlyDockerCommandId,
@@ -115,6 +121,30 @@ export function registerCommands(
     vscode.commands.registerCommand(
       getAlgorithmsEditorTitleRunFileCommandId(),
       commands.algorithmsEditorTitleRunFile
+    ),
+    vscode.commands.registerCommand(
+      getAlgorithmsEditorTitleCompileOnlyCommandId(),
+      commands.algorithmsEditorTitleCompileOnly
+    ),
+    vscode.commands.registerCommand(
+      getAlgorithmsEditorTitleCheckOnlyNativeCommandId(),
+      commands.algorithmsEditorTitleCheckOnlyNative
+    ),
+    vscode.commands.registerCommand(
+      getAlgorithmsEditorTitleCheckOnlyDockerCommandId(),
+      commands.algorithmsEditorTitleCheckOnlyDocker
+    ),
+    vscode.commands.registerCommand(
+      getAlgorithmsEditorTitleCheckOnlySshCommandId(),
+      commands.algorithmsEditorTitleCheckOnlySsh
+    ),
+    vscode.commands.registerCommand(
+      getAlgorithmsEditorTitleCleanCommandId(),
+      commands.algorithmsEditorTitleClean
+    ),
+    vscode.commands.registerCommand(
+      getAlgorithmsEditorTitleLocalCleanCommandId(),
+      commands.algorithmsEditorTitleLocalClean
     ),
     vscode.commands.registerCommand(
       getAlgorithmsCompileOnlyCommandId(),

@@ -152,6 +152,60 @@ export function getAlgorithmsEditorTitleRunFileCommandId(): string {
 }
 
 /**
+ * Command identifier for compile-only execution from the editor title bar.
+ *
+ * @returns {string} Command identifier.
+ */
+export function getAlgorithmsEditorTitleCompileOnlyCommandId(): string {
+  return "algos.algorithmsEditorTitleCompileOnly";
+}
+
+/**
+ * Command identifier for check-only native execution from the editor title bar.
+ *
+ * @returns {string} Command identifier.
+ */
+export function getAlgorithmsEditorTitleCheckOnlyNativeCommandId(): string {
+  return "algos.algorithmsEditorTitleCheckOnlyNative";
+}
+
+/**
+ * Command identifier for check-only docker execution from the editor title bar.
+ *
+ * @returns {string} Command identifier.
+ */
+export function getAlgorithmsEditorTitleCheckOnlyDockerCommandId(): string {
+  return "algos.algorithmsEditorTitleCheckOnlyDocker";
+}
+
+/**
+ * Command identifier for check-only ssh execution from the editor title bar.
+ *
+ * @returns {string} Command identifier.
+ */
+export function getAlgorithmsEditorTitleCheckOnlySshCommandId(): string {
+  return "algos.algorithmsEditorTitleCheckOnlySsh";
+}
+
+/**
+ * Command identifier for clean execution from the editor title bar.
+ *
+ * @returns {string} Command identifier.
+ */
+export function getAlgorithmsEditorTitleCleanCommandId(): string {
+  return "algos.algorithmsEditorTitleClean";
+}
+
+/**
+ * Command identifier for local clean execution from the editor title bar.
+ *
+ * @returns {string} Command identifier.
+ */
+export function getAlgorithmsEditorTitleLocalCleanCommandId(): string {
+  return "algos.algorithmsEditorTitleLocalClean";
+}
+
+/**
  * Command identifier for compile-only execution from the tree.
  *
  * @returns {string} Command identifier.

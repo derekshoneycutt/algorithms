@@ -180,6 +180,42 @@
         "icon": "$(play)"
       },
       {
+        "command": "algos.algorithmsEditorTitleCompileOnly",
+        "title": "Compile Only",
+        "category": "Derek's Algorithms",
+        "icon": "$(pie-chart)"
+      },
+      {
+        "command": "algos.algorithmsEditorTitleCheckOnlyNative",
+        "title": "Check Only (Native)",
+        "category": "Derek's Algorithms",
+        "icon": "$(beaker)"
+      },
+      {
+        "command": "algos.algorithmsEditorTitleCheckOnlyDocker",
+        "title": "Check Only (Docker)",
+        "category": "Derek's Algorithms",
+        "icon": "$(beaker)"
+      },
+      {
+        "command": "algos.algorithmsEditorTitleCheckOnlySsh",
+        "title": "Check Only (SSH)",
+        "category": "Derek's Algorithms",
+        "icon": "$(beaker)"
+      },
+      {
+        "command": "algos.algorithmsEditorTitleClean",
+        "title": "Clean",
+        "category": "Derek's Algorithms",
+        "icon": "$(root-folder)"
+      },
+      {
+        "command": "algos.algorithmsEditorTitleLocalClean",
+        "title": "Local Clean",
+        "category": "Derek's Algorithms",
+        "icon": "$(root-folder-opened)"
+      },
+      {
         "command": "algos.algorithmsCompileOnly",
         "title": "Compile Only",
         "category": "Derek's Algorithms",
@@ -299,7 +335,44 @@
         {
           "command": "algos.algorithmsEditorTitleRunFile",
           "when": "resourceScheme == file && resourcePath =~ /[\\\\/]src[\\\\/][^\\\\/]+[\\\\/][^\\\\/]+[\\\\/][^\\\\/]+$/",
-          "group": "navigation"
+          "group": "1_run@1"
+        }
+      ],
+      "editor/title/run": [
+        {
+          "command": "algos.algorithmsEditorTitleRunFile",
+          "when": "resourceScheme == file && resourcePath =~ /[\\\\/]src[\\\\/][^\\\\/]+[\\\\/][^\\\\/]+[\\\\/][^\\\\/]+$/",
+          "group": "1_actions@1"
+        },
+        {
+          "command": "algos.algorithmsEditorTitleCompileOnly",
+          "when": "resourceScheme == file && resourcePath =~ /[\\\\/]src[\\\\/][^\\\\/]+[\\\\/][^\\\\/]+[\\\\/][^\\\\/]+$/",
+          "group": "1_actions@2"
+        },
+        {
+          "command": "algos.algorithmsEditorTitleCheckOnlyNative",
+          "when": "resourceScheme == file && resourcePath =~ /[\\\\/]src[\\\\/][^\\\\/]+[\\\\/][^\\\\/]+[\\\\/][^\\\\/]+$/",
+          "group": "1_actions@3"
+        },
+        {
+          "command": "algos.algorithmsEditorTitleCheckOnlyDocker",
+          "when": "resourceScheme == file && resourcePath =~ /[\\\\/]src[\\\\/][^\\\\/]+[\\\\/][^\\\\/]+[\\\\/][^\\\\/]+$/",
+          "group": "1_actions@4"
+        },
+        {
+          "command": "algos.algorithmsEditorTitleCheckOnlySsh",
+          "when": "resourceScheme == file && resourcePath =~ /[\\\\/]src[\\\\/][^\\\\/]+[\\\\/][^\\\\/]+[\\\\/][^\\\\/]+$/",
+          "group": "1_actions@5"
+        },
+        {
+          "command": "algos.algorithmsEditorTitleClean",
+          "when": "resourceScheme == file && resourcePath =~ /[\\\\/]src[\\\\/][^\\\\/]+[\\\\/][^\\\\/]+[\\\\/][^\\\\/]+$/",
+          "group": "1_actions@6"
+        },
+        {
+          "command": "algos.algorithmsEditorTitleLocalClean",
+          "when": "resourceScheme == file && resourcePath =~ /[\\\\/]src[\\\\/][^\\\\/]+[\\\\/][^\\\\/]+[\\\\/][^\\\\/]+$/",
+          "group": "1_actions@7"
         }
       ],
       "view/title": [

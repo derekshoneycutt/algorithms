@@ -17,6 +17,12 @@ export {
 	getAlgorithmsUnflagLanguageCommandId,
 	getAlgorithmsRunFileCommandId,
 	getAlgorithmsEditorTitleRunFileCommandId,
+	getAlgorithmsEditorTitleCompileOnlyCommandId,
+	getAlgorithmsEditorTitleCheckOnlyNativeCommandId,
+	getAlgorithmsEditorTitleCheckOnlyDockerCommandId,
+	getAlgorithmsEditorTitleCheckOnlySshCommandId,
+	getAlgorithmsEditorTitleCleanCommandId,
+	getAlgorithmsEditorTitleLocalCleanCommandId,
 	getAlgorithmsCompileOnlyCommandId,
 	getAlgorithmsCheckOnlyNativeCommandId,
 	getAlgorithmsCheckOnlyDockerCommandId,
@@ -66,5 +72,13 @@ export {
 	createAlgorithmsClearSmokeResultsCommand,
 	createAlgorithmsClearRunResultsCommand,
 } from "./algorithmTreeActions";
-export { createAlgorithmsEditorTitleRunFileCommand } from "./editorTitleRunCommand";
+export {
+	createAlgorithmsEditorTitleRunFileCommand,
+	createAlgorithmsEditorTitleCompileOnlyCommand,
+	createAlgorithmsEditorTitleCheckOnlyNativeCommand,
+	createAlgorithmsEditorTitleCheckOnlyDockerCommand,
+	createAlgorithmsEditorTitleCheckOnlySshCommand,
+	createAlgorithmsEditorTitleCleanCommand,
+	createAlgorithmsEditorTitleLocalCleanCommand,
+} from "./editorTitleRunCommand";
 export { createAlgorithmsExplorerRunCommands } from "./explorerRunCommand";

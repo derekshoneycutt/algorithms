@@ -13,6 +13,13 @@ import {
   getAlgorithmsFlagLanguageCommandId,
   getAlgorithmsUnflagLanguageCommandId,
   getAlgorithmsRunFileCommandId,
+  getAlgorithmsEditorTitleRunFileCommandId,
+  getAlgorithmsEditorTitleCompileOnlyCommandId,
+  getAlgorithmsEditorTitleCheckOnlyNativeCommandId,
+  getAlgorithmsEditorTitleCheckOnlyDockerCommandId,
+  getAlgorithmsEditorTitleCheckOnlySshCommandId,
+  getAlgorithmsEditorTitleCleanCommandId,
+  getAlgorithmsEditorTitleLocalCleanCommandId,
   getAlgorithmsCompileOnlyCommandId,
   getAlgorithmsCheckOnlyNativeCommandId,
   getAlgorithmsCheckOnlyDockerCommandId,
@@ -160,6 +167,34 @@ describe("bootstrap extension", () => {
     assert.ok(
       availableCommands.includes(getAlgorithmsRunFileCommandId()),
       "algorithms run-file command should be registered"
+    );
+    assert.ok(
+      availableCommands.includes(getAlgorithmsEditorTitleRunFileCommandId()),
+      "algorithms editor-title run-file command should be registered"
+    );
+    assert.ok(
+      availableCommands.includes(getAlgorithmsEditorTitleCompileOnlyCommandId()),
+      "algorithms editor-title compile-only command should be registered"
+    );
+    assert.ok(
+      availableCommands.includes(getAlgorithmsEditorTitleCheckOnlyNativeCommandId()),
+      "algorithms editor-title check-only-native command should be registered"
+    );
+    assert.ok(
+      availableCommands.includes(getAlgorithmsEditorTitleCheckOnlyDockerCommandId()),
+      "algorithms editor-title check-only-docker command should be registered"
+    );
+    assert.ok(
+      availableCommands.includes(getAlgorithmsEditorTitleCheckOnlySshCommandId()),
+      "algorithms editor-title check-only-ssh command should be registered"
+    );
+    assert.ok(
+      availableCommands.includes(getAlgorithmsEditorTitleCleanCommandId()),
+      "algorithms editor-title clean command should be registered"
+    );
+    assert.ok(
+      availableCommands.includes(getAlgorithmsEditorTitleLocalCleanCommandId()),
+      "algorithms editor-title local-clean command should be registered"
     );
     assert.ok(
       availableCommands.includes(getAlgorithmsCompileOnlyCommandId()),

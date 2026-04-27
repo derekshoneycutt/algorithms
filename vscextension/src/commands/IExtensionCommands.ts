@@ -141,6 +141,54 @@ export interface IExtensionCommands {
   algorithmsEditorTitleRunFile: (resourceUri?: Uri) => Promise<void>;
 
   /**
+   * Compiles one Algorithms source target from the editor title bar.
+   *
+   * @param {Uri} [resourceUri] Resource shown in the active editor.
+   * @returns {Promise<void>}
+   */
+  algorithmsEditorTitleCompileOnly: (resourceUri?: Uri) => Promise<void>;
+
+  /**
+   * Performs one check-only native pass from the editor title bar.
+   *
+   * @param {Uri} [resourceUri] Resource shown in the active editor.
+   * @returns {Promise<void>}
+   */
+  algorithmsEditorTitleCheckOnlyNative: (resourceUri?: Uri) => Promise<void>;
+
+  /**
+   * Performs one check-only docker pass from the editor title bar.
+   *
+   * @param {Uri} [resourceUri] Resource shown in the active editor.
+   * @returns {Promise<void>}
+   */
+  algorithmsEditorTitleCheckOnlyDocker: (resourceUri?: Uri) => Promise<void>;
+
+  /**
+   * Performs one check-only ssh pass from the editor title bar.
+   *
+   * @param {Uri} [resourceUri] Resource shown in the active editor.
+   * @returns {Promise<void>}
+   */
+  algorithmsEditorTitleCheckOnlySsh: (resourceUri?: Uri) => Promise<void>;
+
+  /**
+   * Runs clean from the editor title bar.
+   *
+   * @param {Uri} [resourceUri] Resource shown in the active editor.
+   * @returns {Promise<void>}
+   */
+  algorithmsEditorTitleClean: (resourceUri?: Uri) => Promise<void>;
+
+  /**
+   * Runs local clean from the editor title bar.
+   *
+   * @param {Uri} [resourceUri] Resource shown in the active editor.
+   * @returns {Promise<void>}
+   */
+  algorithmsEditorTitleLocalClean: (resourceUri?: Uri) => Promise<void>;
+
+  /**
    * Compiles one Algorithms source target without running it.
    *
    * @param {WorkspaceTreeNode} [treeNode] Hovered tree node.
