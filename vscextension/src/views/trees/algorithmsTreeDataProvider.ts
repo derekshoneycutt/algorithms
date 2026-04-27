@@ -69,6 +69,16 @@ function buildRunStatusTooltip(
 }
 
 /**
+ * Returns true when one run status represents retained results.
+ *
+ * @param {WorkspaceTreeNode["runStatus"]} status Run status.
+ * @returns {boolean} True when status is clearable retained output.
+ */
+function hasRetainedRunResults(status: WorkspaceTreeNode["runStatus"]): boolean {
+  return status !== undefined && status !== "starting" && status !== "running";
+}
+
+/**
  * Formats one smoke runtime status to title case for tooltip text.
  *
  * @param {"queued" | "running" | "passed" | "failed"} status Runtime smoke status.
@@ -113,6 +123,12 @@ function getTreeItemContextValue(element: WorkspaceTreeNode): string | undefined
   }
 
   if (element.kind === "mainFile") {
+    if (hasRetainedRunResults(element.runStatus)) {
+      return element.isFlagged === true
+        ? "algos.algorithmsMainFileRunResultsFlagged"
+        : "algos.algorithmsMainFileRunResultsUnflagged";
+    }
+
     return element.isFlagged === true
       ? "algos.algorithmsMainFileFlagged"
       : "algos.algorithmsMainFileUnflagged";
@@ -123,6 +139,14 @@ function getTreeItemContextValue(element: WorkspaceTreeNode): string | undefined
   }
 
   if (element.kind === "algorithmDir") {
+    if (element.isSmokeRunning === true) {
+      return "algos.algorithmsSecondLevelDirectorySmokeRunning";
+    }
+
+    if (element.hasSmokeResults === true) {
+      return "algos.algorithmsSecondLevelDirectorySmokeResults";
+    }
+
     return "algos.algorithmsSecondLevelDirectory";
   }
 
@@ -131,6 +155,12 @@ function getTreeItemContextValue(element: WorkspaceTreeNode): string | undefined
   }
 
   if (element.kind === "file") {
+    if (hasRetainedRunResults(element.runStatus)) {
+      return element.isFlagged === true
+        ? "algos.algorithmFileRunResultsFlagged"
+        : "algos.algorithmFileRunResultsUnflagged";
+    }
+
     return element.isFlagged === true
       ? "algos.algorithmFileFlagged"
       : "algos.algorithmFileUnflagged";
@@ -228,7 +258,6 @@ export function createWorkspaceAlgorithmsTreeDataProvider(
    * @returns {vscode.TreeItem} Resolved tree item.
    */
   function getTreeItemForElement(element: WorkspaceTreeNode): vscode.TreeItem {
-    const contextValue = getTreeItemContextValue(element);
     let resolvedElement = element;
 
     if (conductor !== undefined && isRunStatusNode(element)) {
@@ -246,6 +275,23 @@ export function createWorkspaceAlgorithmsTreeDataProvider(
             runSnapshot.message,
             runSnapshot.errorMessage
           ),
+        };
+      }
+    }
+
+    if (
+      hostState !== undefined
+      && element.kind === "algorithmDir"
+    ) {
+      const snapshot = hostState.getSnapshot();
+      const hasSmokeResults = snapshot.smokeRunStatusByAlgorithm[element.filePath] !== undefined;
+      const isSmokeRunning = snapshot.activeSmokeRunAlgorithmPath === element.filePath;
+
+      if (hasSmokeResults || isSmokeRunning) {
+        resolvedElement = {
+          ...resolvedElement,
+          hasSmokeResults,
+          isSmokeRunning,
         };
       }
     }
@@ -272,6 +318,8 @@ export function createWorkspaceAlgorithmsTreeDataProvider(
         };
       }
     }
+
+    const contextValue = getTreeItemContextValue(resolvedElement);
 
     const treeItem = createTreeItem(resolvedElement, contextValue);
 

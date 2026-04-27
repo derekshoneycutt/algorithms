@@ -4,6 +4,7 @@ export type {
   CommandLineSpawnSyncOptions,
   ICommandLine,
   ICommandLineProcessHandle,
+  ICommandLineTrackedExecution,
 } from "./ICommandLine";
 export { createCommandLine } from "./commandLine";
 export type { IRunCommandAdapter } from "./adapters";

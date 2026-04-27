@@ -1,5 +1,7 @@
 export type {
   ConductorCancelRunInput,
+  ConductorClearRunResultsInput,
+  ConductorClearSmokeResultsInput,
   ConductorMarkCompletedInput,
   ConductorMarkFailedInput,
   ConductorMarkProgressInput,
@@ -16,6 +18,7 @@ export type {
   ConductorRunSnapshot,
   ConductorSmokeIntent,
   ConductorSmokeReaction,
+  ConductorStopSmokeTestInput,
   ConductorRunStatus,
   ConductorStartRunInput,
   IConductor,

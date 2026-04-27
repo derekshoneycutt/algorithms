@@ -658,6 +658,15 @@ describe("views/trees — run file status projection", () => {
       cancelRun(): never {
         throw new Error("not used");
       },
+      stopSmokeTest(): Promise<boolean> {
+        throw new Error("not used");
+      },
+      clearSmokeResults(): boolean {
+        throw new Error("not used");
+      },
+      clearRunResults(): boolean {
+        throw new Error("not used");
+      },
       getRun(): never {
         throw new Error("not used");
       },
@@ -690,6 +699,116 @@ describe("views/trees — run file status projection", () => {
     assert.ok(String(pythonItem.tooltip).includes("Run Action: Running"));
     assert.ok(String(pythonItem.tooltip).includes("dispatched to terminal"));
     assert.strictEqual(goItem.resourceUri?.fragment, "");
+  });
+
+  it("projects run-result contexts onto FILES rows", async () => {
+    const algorithmPath = "/repo/src/numeric/euclidgcd";
+    const categories: AlgorithmCategory[] = [
+      { name: "numeric", path: "/repo/src/numeric" },
+    ];
+    const algorithms: AlgorithmEntry[] = [
+      { name: "euclidgcd", path: algorithmPath, categoryPath: "/repo/src/numeric" },
+    ];
+    const implementations: AlgorithmImplementation[] = [
+      {
+        languageKey: "python",
+        isFlagged: false,
+        filePath: "/repo/src/numeric/euclidgcd/euclidgcd.py",
+        filePaths: ["/repo/src/numeric/euclidgcd/euclidgcd.py"],
+        hasIncludes: false,
+        includeFilePaths: [],
+      },
+    ];
+
+    const conductor: IConductor = {
+      reactToSmokeIntent(): never {
+        throw new Error("not used");
+      },
+      reactToRunControlsIntent(): never {
+        throw new Error("not used");
+      },
+      async runFile(): Promise<void> {
+        return;
+      },
+      getRunForTarget(target) {
+        if (
+          target.nodeKind === "mainFile"
+          && target.filePath === "/repo/src/numeric/euclidgcd/euclidgcd.py"
+        ) {
+          return {
+            runId: "run-2",
+            ownerKey: "python:euclidgcd.py",
+            status: "completed",
+            startedAt: 1,
+            updatedAt: 2,
+            message: "Run File completed successfully",
+            progressPercent: null,
+            stepKey: null,
+            errorMessage: null,
+          };
+        }
+
+        return null;
+      },
+      subscribeRunTargetStatus() {
+        return {
+          dispose(): void {
+            return;
+          },
+        };
+      },
+      startRun(): never {
+        throw new Error("not used");
+      },
+      markProgress(): never {
+        throw new Error("not used");
+      },
+      markCompleted(): never {
+        throw new Error("not used");
+      },
+      markFailed(): never {
+        throw new Error("not used");
+      },
+      cancelRun(): never {
+        throw new Error("not used");
+      },
+      stopSmokeTest(): Promise<boolean> {
+        throw new Error("not used");
+      },
+      clearSmokeResults(): boolean {
+        throw new Error("not used");
+      },
+      clearRunResults(): boolean {
+        throw new Error("not used");
+      },
+      getRun(): never {
+        throw new Error("not used");
+      },
+    };
+
+    const provider = createWorkspaceAlgorithmsTreeDataProvider({
+      algorithmsIndex: createAlgorithmsIndexStub(categories, algorithms, implementations),
+      conductor,
+      viewModeService: createViewModeServiceStub("files"),
+      filterModeService: createFilterModeServiceStub("all"),
+      languages: createLanguageStub(),
+    });
+
+    const rootChildren = (await provider.getChildren()) ?? [];
+    const categoryNode = rootChildren[0];
+    const algorithmNodes = (await provider.getChildren(categoryNode)) ?? [];
+    const algorithmNode = algorithmNodes[0];
+    const fileRows = (await provider.getChildren(algorithmNode)) ?? [];
+    const pythonMain = fileRows.find((row) => {
+      return row.filePath.endsWith("euclidgcd.py");
+    }) as WorkspaceTreeNode;
+
+    const pythonItem = await provider.getTreeItem(pythonMain);
+
+    assert.strictEqual(
+      pythonItem.contextValue,
+      "algos.algorithmsMainFileRunResultsUnflagged"
+    );
   });
 
   it("projects smoke status onto FILES main-file rows", async () => {
@@ -762,6 +881,64 @@ describe("views/trees — run file status projection", () => {
       assert.ok(String(pythonItem.tooltip).includes("Smoke Test: Running"));
       assert.strictEqual(goItem.resourceUri?.fragment, "algos-smoke-queued");
       assert.ok(String(goItem.tooltip).includes("Smoke Test: Queued"));
+    } finally {
+      hostState.dispose();
+    }
+  });
+
+  it("projects folder smoke action contexts onto algorithm rows", async () => {
+    const algorithmPath = "/repo/src/numeric/euclidgcd";
+    const categories: AlgorithmCategory[] = [
+      { name: "numeric", path: "/repo/src/numeric" },
+    ];
+    const algorithms: AlgorithmEntry[] = [
+      { name: "euclidgcd", path: algorithmPath, categoryPath: "/repo/src/numeric" },
+    ];
+    const hostState = createHostStateService();
+
+    try {
+      const provider = createWorkspaceAlgorithmsTreeDataProvider({
+        algorithmsIndex: createAlgorithmsIndexStub(categories, algorithms, []),
+        viewModeService: createViewModeServiceStub("files"),
+        filterModeService: createFilterModeServiceStub("all"),
+        hostState,
+        languages: createLanguageStub(),
+      });
+
+      const rootChildren = (await provider.getChildren()) ?? [];
+      const categoryNode = rootChildren[0];
+      const algorithmNodes = (await provider.getChildren(categoryNode)) ?? [];
+      const algorithmNode = algorithmNodes[0];
+
+      const idleItem = await provider.getTreeItem(algorithmNode);
+      assert.strictEqual(idleItem.contextValue, "algos.algorithmsSecondLevelDirectory");
+
+      hostState.send({
+        type: "SMOKE_RUN_STARTED",
+        algorithmPath,
+        languageKeys: ["python"],
+        runId: "smoke-1",
+      });
+
+      const runningItem = await provider.getTreeItem(algorithmNode);
+      assert.strictEqual(runningItem.contextValue, "algos.algorithmsSecondLevelDirectorySmokeRunning");
+
+      hostState.send({
+        type: "SMOKE_RUN_FINISHED",
+        algorithmPath,
+      });
+
+      const resultsItem = await provider.getTreeItem(algorithmNode);
+      assert.strictEqual(resultsItem.contextValue, "algos.algorithmsSecondLevelDirectorySmokeResults");
+
+      hostState.send({
+        type: "SMOKE_RUN_STATUS_CLEARED",
+        algorithmPath,
+        runId: "smoke-1",
+      });
+
+      const clearedItem = await provider.getTreeItem(algorithmNode);
+      assert.strictEqual(clearedItem.contextValue, "algos.algorithmsSecondLevelDirectory");
     } finally {
       hostState.dispose();
     }

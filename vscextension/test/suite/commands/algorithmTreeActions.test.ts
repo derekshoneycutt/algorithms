@@ -7,6 +7,9 @@ import {
   createAlgorithmsCleanCommand,
   createAlgorithmsLocalCleanCommand,
   createAlgorithmsSmokeTestCommand,
+  createAlgorithmsStopSmokeTestCommand,
+  createAlgorithmsClearSmokeResultsCommand,
+  createAlgorithmsClearRunResultsCommand,
 } from "../../../src/commands/algorithmTreeActions";
 import type { IConductor, ConductorRunFileInput } from "../../../src/conductor";
 import type { IFilesystem } from "../../../src/filesystem";
@@ -195,6 +198,15 @@ describe("commands/algorithmTreeActions — run-file integration", () => {
       cancelRun(): never {
         throw new Error("not used");
       },
+      stopSmokeTest(): Promise<boolean> {
+        throw new Error("not used");
+      },
+      clearSmokeResults(): boolean {
+        throw new Error("not used");
+      },
+      clearRunResults(): boolean {
+        throw new Error("not used");
+      },
       getRun(): never {
         throw new Error("not used");
       },
@@ -310,6 +322,15 @@ describe("commands/algorithmTreeActions — run-file integration", () => {
       cancelRun(): never {
         throw new Error("not used");
       },
+      stopSmokeTest(): Promise<boolean> {
+        throw new Error("not used");
+      },
+      clearSmokeResults(): boolean {
+        throw new Error("not used");
+      },
+      clearRunResults(): boolean {
+        throw new Error("not used");
+      },
       getRun(): never {
         throw new Error("not used");
       },
@@ -346,5 +367,110 @@ describe("commands/algorithmTreeActions — run-file integration", () => {
     assert.strictEqual(runInputs[2].actionKind, "clean");
     assert.strictEqual(runInputs[3].actionKind, "localclean");
     assert.strictEqual(runInputs[4].actionKind, "smoke-test");
+  });
+
+  it("delegates stop-smoke and clear-smoke commands to conductor", async () => {
+    const stoppedAlgorithms: string[] = [];
+    const clearedAlgorithms: string[] = [];
+    const clearedRunTargets: Array<{ nodeKind: string; filePath: string }> = [];
+
+    const conductor: IConductor = {
+      reactToSmokeIntent(): never {
+        throw new Error("not used");
+      },
+      reactToRunControlsIntent(): never {
+        throw new Error("not used");
+      },
+      async runFile(): Promise<void> {
+        throw new Error("not used");
+      },
+      async stopSmokeTest(input): Promise<boolean> {
+        stoppedAlgorithms.push(input.algorithmPath);
+        return true;
+      },
+      clearSmokeResults(input): boolean {
+        clearedAlgorithms.push(input.algorithmPath);
+        return true;
+      },
+      clearRunResults(input): boolean {
+        clearedRunTargets.push({
+          nodeKind: input.target.nodeKind,
+          filePath: input.target.filePath,
+        });
+        return true;
+      },
+      getRunForTarget() {
+        return null;
+      },
+      subscribeRunTargetStatus() {
+        return {
+          dispose(): void {
+            return;
+          },
+        };
+      },
+      startRun(): never {
+        throw new Error("not used");
+      },
+      markProgress(): never {
+        throw new Error("not used");
+      },
+      markCompleted(): never {
+        throw new Error("not used");
+      },
+      markFailed(): never {
+        throw new Error("not used");
+      },
+      cancelRun(): never {
+        throw new Error("not used");
+      },
+      getRun(): never {
+        throw new Error("not used");
+      },
+    };
+
+    const notificationRouter: INotificationRouter = {
+      info(): Thenable<string | undefined> {
+        return Promise.resolve(undefined);
+      },
+      warn(): Thenable<string | undefined> {
+        return Promise.resolve(undefined);
+      },
+      error(): Thenable<string | undefined> {
+        return Promise.resolve(undefined);
+      },
+    };
+
+    const dependencies = {
+      conductor,
+      filesystem: createFilesystemStub(),
+      hostState: createHostStateStub(createInitialRunControlsSettings()),
+      languages: createLanguagesStub(),
+      notificationRouter,
+      refreshAlgorithmsTree(): void {
+        return;
+      },
+    };
+
+    const treeNode: WorkspaceTreeNode = {
+      kind: "algorithmDir",
+      filePath: "/repo/src/numeric/max",
+    };
+
+    await createAlgorithmsStopSmokeTestCommand(dependencies)(treeNode);
+    await createAlgorithmsClearSmokeResultsCommand(dependencies)(treeNode);
+    await createAlgorithmsClearRunResultsCommand(dependencies)({
+      kind: "file",
+      filePath: "/repo/src/numeric/max/max.py",
+    });
+
+    assert.deepStrictEqual(stoppedAlgorithms, ["/repo/src/numeric/max"]);
+    assert.deepStrictEqual(clearedAlgorithms, ["/repo/src/numeric/max"]);
+    assert.deepStrictEqual(clearedRunTargets, [
+      {
+        nodeKind: "file",
+        filePath: "/repo/src/numeric/max/max.py",
+      },
+    ]);
   });
 });

@@ -7,6 +7,7 @@ import type {
   CommandLineSpawnSyncOptions,
   ICommandLine,
   ICommandLineProcessHandle,
+  ICommandLineTrackedExecution,
 } from "./ICommandLine";
 
 /**
@@ -72,6 +73,150 @@ function createProcessHandle(runningChildProcess: ChildProcess): ICommandLinePro
 }
 
 /**
+ * Creates one tracked asynchronous process execution.
+ *
+ * @param {string} command Executable path or command.
+ * @param {string[]} args Command arguments.
+ * @param {CommandLineSpawnOptions} [options] Launch options.
+ * @returns {ICommandLineTrackedExecution} Tracked execution.
+ */
+function createTrackedExecution(
+  command: string,
+  args: string[],
+  options?: CommandLineSpawnOptions
+): ICommandLineTrackedExecution {
+  let child: ChildProcess;
+  try {
+    child = childProcess.spawn(command, args, {
+      cwd: options?.cwd,
+      env: options?.env,
+      shell: false,
+    });
+  } catch (error) {
+    return {
+      handle: {
+        pid: null,
+        isRunning(): boolean {
+          return false;
+        },
+        kill(): { ok: boolean; reason: string | null } {
+          return { ok: false, reason: "not-running" };
+        },
+      },
+      result: Promise.resolve(
+        createResult({
+          ok: false,
+          reason: "spawn-failed",
+          errorMessage: error instanceof Error ? error.message : String(error),
+        })
+      ),
+    };
+  }
+
+  const handle = createProcessHandle(child);
+  let stdout = "";
+  let stderr = "";
+  let timedOut = false;
+  let spawnErrorMessage: string | null = null;
+  let timeoutId: NodeJS.Timeout | undefined;
+
+  if (typeof options?.timeoutMs === "number" && options.timeoutMs > 0) {
+    timeoutId = setTimeout(() => {
+      timedOut = true;
+      handle.kill("SIGTERM");
+    }, options.timeoutMs);
+  }
+
+  child.stdout?.on("data", (chunk: Buffer | string) => {
+    const text = chunk.toString();
+    stdout += text;
+    options?.onStdoutData?.(text);
+  });
+
+  child.stderr?.on("data", (chunk: Buffer | string) => {
+    const text = chunk.toString();
+    stderr += text;
+    options?.onStderrData?.(text);
+  });
+
+  const result = new Promise<CommandLineResult>((resolve) => {
+    child.on("error", (error: Error) => {
+      spawnErrorMessage = error.message;
+    });
+
+    child.on("close", (code: number | null, signal: NodeJS.Signals | null) => {
+      if (timeoutId) {
+        clearTimeout(timeoutId);
+      }
+
+      const combinedOutput = `${stdout}${stderr}`;
+
+      if (spawnErrorMessage !== null) {
+        resolve(
+          createResult({
+            ok: false,
+            exitCode: code,
+            stdout,
+            stderr,
+            combinedOutput,
+            reason: timedOut ? "timeout-exceeded" : "spawn-failed",
+            errorMessage: spawnErrorMessage,
+          })
+        );
+        return;
+      }
+
+      if (timedOut) {
+        resolve(
+          createResult({
+            ok: false,
+            exitCode: code,
+            stdout,
+            stderr,
+            combinedOutput,
+            reason: "timeout-exceeded",
+            errorMessage: null,
+          })
+        );
+        return;
+      }
+
+      if (code === 0) {
+        resolve(
+          createResult({
+            ok: true,
+            exitCode: 0,
+            stdout,
+            stderr,
+            combinedOutput,
+            reason: null,
+            errorMessage: null,
+          })
+        );
+        return;
+      }
+
+      resolve(
+        createResult({
+          ok: false,
+          exitCode: code,
+          stdout,
+          stderr,
+          combinedOutput,
+          reason: signal !== null ? "terminated-by-signal" : "non-zero-exit",
+          errorMessage: null,
+        })
+      );
+    });
+  });
+
+  return {
+    handle,
+    result,
+  };
+}
+
+/**
  * Creates the concrete command-line module.
  *
  * @returns {ICommandLine} Command-line module.
@@ -83,112 +228,15 @@ export function createCommandLine(): ICommandLine {
       args: string[],
       options?: CommandLineSpawnOptions
     ): Promise<CommandLineResult> {
-      let stdout = "";
-      let stderr = "";
-      let timedOut = false;
-      let spawnErrorMessage: string | null = null;
+      return await createTrackedExecution(command, args, options).result;
+    },
 
-      let child: ChildProcess;
-      try {
-        child = childProcess.spawn(command, args, {
-          cwd: options?.cwd,
-          env: options?.env,
-          shell: false,
-        });
-      } catch (error) {
-        return createResult({
-          ok: false,
-          reason: "spawn-failed",
-          errorMessage: error instanceof Error ? error.message : String(error),
-        });
-      }
-
-      const handle = createProcessHandle(child);
-      let timeoutId: NodeJS.Timeout | undefined;
-      if (typeof options?.timeoutMs === "number" && options.timeoutMs > 0) {
-        timeoutId = setTimeout(() => {
-          timedOut = true;
-          handle.kill("SIGTERM");
-        }, options.timeoutMs);
-      }
-
-      child.stdout?.on("data", (chunk: Buffer | string) => {
-        const text = chunk.toString();
-        stdout += text;
-        options?.onStdoutData?.(text);
-      });
-
-      child.stderr?.on("data", (chunk: Buffer | string) => {
-        const text = chunk.toString();
-        stderr += text;
-        options?.onStderrData?.(text);
-      });
-
-      const closeResult = await new Promise<{
-        code: number | null;
-        signal: NodeJS.Signals | null;
-      }>((resolve) => {
-        child.on("error", (error: Error) => {
-          spawnErrorMessage = error.message;
-        });
-
-        child.on("close", (code: number | null, signal: NodeJS.Signals | null) => {
-          resolve({ code, signal });
-        });
-      });
-
-      if (timeoutId) {
-        clearTimeout(timeoutId);
-      }
-
-      const combinedOutput = `${stdout}${stderr}`;
-
-      if (spawnErrorMessage !== null) {
-        return createResult({
-          ok: false,
-          exitCode: closeResult.code,
-          stdout,
-          stderr,
-          combinedOutput,
-          reason: timedOut ? "timeout-exceeded" : "spawn-failed",
-          errorMessage: spawnErrorMessage,
-        });
-      }
-
-      if (timedOut) {
-        return createResult({
-          ok: false,
-          exitCode: closeResult.code,
-          stdout,
-          stderr,
-          combinedOutput,
-          reason: "timeout-exceeded",
-          errorMessage: null,
-        });
-      }
-
-      if (closeResult.code === 0) {
-        return createResult({
-          ok: true,
-          exitCode: 0,
-          stdout,
-          stderr,
-          combinedOutput,
-          reason: null,
-          errorMessage: null,
-        });
-      }
-
-      return createResult({
-        ok: false,
-        exitCode: closeResult.code,
-        stdout,
-        stderr,
-        combinedOutput,
-        reason:
-          closeResult.signal !== null ? "terminated-by-signal" : "non-zero-exit",
-        errorMessage: null,
-      });
+    spawnTracked(
+      command: string,
+      args: string[],
+      options?: CommandLineSpawnOptions
+    ): ICommandLineTrackedExecution {
+      return createTrackedExecution(command, args, options);
     },
 
     spawnSync(

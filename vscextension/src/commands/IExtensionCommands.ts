@@ -169,4 +169,28 @@ export interface IExtensionCommands {
    * @returns {Promise<void>}
    */
   algorithmsSmokeTest: (treeNode?: WorkspaceTreeNode) => Promise<void>;
+
+  /**
+   * Stops one active smoke test for the hovered Algorithms directory.
+   *
+   * @param {WorkspaceTreeNode} [treeNode] Hovered tree node.
+   * @returns {Promise<void>}
+   */
+  algorithmsStopSmokeTest: (treeNode?: WorkspaceTreeNode) => Promise<void>;
+
+  /**
+   * Clears retained smoke results for the hovered Algorithms directory.
+   *
+   * @param {WorkspaceTreeNode} [treeNode] Hovered tree node.
+   * @returns {Promise<void>}
+   */
+  algorithmsClearSmokeResults: (treeNode?: WorkspaceTreeNode) => Promise<void>;
+
+  /**
+   * Clears retained run results for one hovered run target row.
+   *
+   * @param {WorkspaceTreeNode} [treeNode] Hovered tree node.
+   * @returns {Promise<void>}
+   */
+  algorithmsClearRunResults: (treeNode?: WorkspaceTreeNode) => Promise<void>;
 }

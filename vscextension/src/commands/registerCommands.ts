@@ -23,6 +23,9 @@ import {
   getAlgorithmsCleanCommandId,
   getAlgorithmsLocalCleanCommandId,
   getAlgorithmsSmokeTestCommandId,
+  getAlgorithmsStopSmokeTestCommandId,
+  getAlgorithmsClearSmokeResultsCommandId,
+  getAlgorithmsClearRunResultsCommandId,
 } from "./commandIds";
 
 /**
@@ -118,6 +121,18 @@ export function registerCommands(
     vscode.commands.registerCommand(
       getAlgorithmsSmokeTestCommandId(),
       commands.algorithmsSmokeTest
+    ),
+    vscode.commands.registerCommand(
+      getAlgorithmsStopSmokeTestCommandId(),
+      commands.algorithmsStopSmokeTest
+    ),
+    vscode.commands.registerCommand(
+      getAlgorithmsClearSmokeResultsCommandId(),
+      commands.algorithmsClearSmokeResults
+    ),
+    vscode.commands.registerCommand(
+      getAlgorithmsClearRunResultsCommandId(),
+      commands.algorithmsClearRunResults
     )
   );
 }

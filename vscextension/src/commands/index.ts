@@ -21,6 +21,9 @@ export {
 	getAlgorithmsCleanCommandId,
 	getAlgorithmsLocalCleanCommandId,
 	getAlgorithmsSmokeTestCommandId,
+	getAlgorithmsStopSmokeTestCommandId,
+	getAlgorithmsClearSmokeResultsCommandId,
+	getAlgorithmsClearRunResultsCommandId,
 } from "./commandIds";
 export { registerCommands } from "./registerCommands";
 export { createShowBootstrapStatusCommand } from "./showBootstrapStatus";
@@ -47,4 +50,7 @@ export {
 	createAlgorithmsCleanCommand,
 	createAlgorithmsLocalCleanCommand,
 	createAlgorithmsSmokeTestCommand,
+	createAlgorithmsStopSmokeTestCommand,
+	createAlgorithmsClearSmokeResultsCommand,
+	createAlgorithmsClearRunResultsCommand,
 } from "./algorithmTreeActions";

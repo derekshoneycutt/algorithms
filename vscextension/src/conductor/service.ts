@@ -2,6 +2,8 @@ import * as path from "node:path";
 
 import type {
   ConductorCancelRunInput,
+  ConductorClearRunResultsInput,
+  ConductorClearSmokeResultsInput,
   ConductorMarkCompletedInput,
   ConductorMarkFailedInput,
   ConductorMarkProgressInput,
@@ -16,11 +18,17 @@ import type {
   ConductorRunSnapshot,
   ConductorSmokeIntent,
   ConductorStartRunInput,
+  ConductorStopSmokeTestInput,
   ConductorSubscription,
   IConductor,
 } from "./IConductor";
 import type { ViewToHostMessage } from "../comms/shared/messageTypes";
-import type { IAlgorithmsTerminalRunAdapter, ICommandLine } from "../commandline";
+import type {
+  CommandLineResult,
+  IAlgorithmsTerminalRunAdapter,
+  ICommandLine,
+  ICommandLineProcessHandle,
+} from "../commandline";
 import { resolveAlgorithmsRootPath } from "../algorithms";
 import type {
   IStateMachine,
@@ -111,6 +119,11 @@ function buildRunTargetKey(target: ConductorRunTargetRef): string {
  * Lifecycle operations used by run-file orchestration.
  */
 interface RunFileStatusLifecycle {
+  markCancelled(
+    target: ConductorRunTargetRef,
+    message?: string | null,
+    expectedRunId?: string
+  ): void;
   markCompleted(
     target: ConductorRunTargetRef,
     message?: string | null,
@@ -137,6 +150,11 @@ interface RunFileStatusLifecycle {
  * Deferred smoke status retention operations.
  */
 interface SmokeStatusRetentionLifecycle {
+  clearNow(
+    algorithmPath: string,
+    hostState: IStateMachine,
+    refreshAlgorithmsTree: () => void
+  ): boolean;
   markStarted(algorithmPath: string, runId: string): void;
   markFinished(
     algorithmPath: string,
@@ -144,6 +162,18 @@ interface SmokeStatusRetentionLifecycle {
     hostState: IStateMachine,
     refreshAlgorithmsTree: () => void
   ): void;
+}
+
+/**
+ * One active smoke execution tracked for stop support.
+ */
+interface ActiveSmokeExecution {
+  algorithmPath: string;
+  handle: ICommandLineProcessHandle;
+  result: Promise<CommandLineResult>;
+  runId: string;
+  stopRequested: boolean;
+  target: ConductorRunTargetRef;
 }
 
 /**
@@ -656,6 +686,16 @@ function recordRunFileFailure(input: ConductorRunFileInput, errorMessage: string
 }
 
 /**
+ * Builds one stop confirmation message for one algorithm path.
+ *
+ * @param {string} algorithmDirectoryPath Algorithm directory path.
+ * @returns {string} Human-readable stop message.
+ */
+function buildSmokeStoppedMessage(algorithmDirectoryPath: string): string {
+  return `Smoke Test stopped for ${path.basename(algorithmDirectoryPath)}.`;
+}
+
+/**
  * Runs one Algorithms target by delegating execution to terminal or commandline adapters.
  *
  * @param {ConductorRunFileInput} input Run-file orchestration input.
@@ -668,7 +708,8 @@ async function runAlgorithmsFile(
   runAdapter: IAlgorithmsTerminalRunAdapter | undefined,
   commandLine: ICommandLine | undefined,
   runLifecycle: RunFileStatusLifecycle,
-  smokeStatusRetentionLifecycle: SmokeStatusRetentionLifecycle
+  smokeStatusRetentionLifecycle: SmokeStatusRetentionLifecycle,
+  activeSmokeExecutionByAlgorithm: Map<string, ActiveSmokeExecution>
 ): Promise<void> {
   const actionKind = resolveRunActionKind(input);
   const actionLabel = getActionLabel(actionKind);
@@ -913,7 +954,7 @@ async function runAlgorithmsFile(
     );
 
     if (shouldUseCommandLineSmokeExecution) {
-      const runResult = await commandLine.spawn(
+      const trackedExecution = commandLine.spawnTracked(
         runScriptPath,
         [...runControlOptionTokens, ...runControlPassthrough.tokens],
         {
@@ -927,7 +968,33 @@ async function runAlgorithmsFile(
         }
       );
 
+      const activeSmokeExecution: ActiveSmokeExecution = {
+        algorithmPath: algorithmDirectoryPath,
+        handle: trackedExecution.handle,
+        result: trackedExecution.result,
+        runId: startedRunId,
+        stopRequested: false,
+        target: runTarget,
+      };
+      activeSmokeExecutionByAlgorithm.set(algorithmDirectoryPath, activeSmokeExecution);
+
+      const runResult = await trackedExecution.result;
+
+      const latestActiveSmokeExecution = activeSmokeExecutionByAlgorithm.get(algorithmDirectoryPath);
+      if (latestActiveSmokeExecution?.runId === startedRunId) {
+        activeSmokeExecutionByAlgorithm.delete(algorithmDirectoryPath);
+      }
+
       finishSmokeRuntimeStatus();
+
+      if (activeSmokeExecution.stopRequested) {
+        runLifecycle.markCancelled(
+          runTarget,
+          buildSmokeStoppedMessage(algorithmDirectoryPath),
+          startedRunId
+        );
+        return;
+      }
 
       if (!runResult.ok) {
         const exitCodeText = runResult.exitCode === null ? "unknown" : String(runResult.exitCode);
@@ -988,6 +1055,8 @@ async function runAlgorithmsFile(
     input.hostState.send({ type: "COMMAND_SUCCEEDED", result: successMessage });
     await input.notificationRouter.info(successMessage);
   } catch (error) {
+    activeSmokeExecutionByAlgorithm.delete(algorithmDirectoryPath);
+
     if (actionKind === "smoke-test") {
       input.hostState.send({
         type: "SMOKE_RUN_FINISHED",
@@ -1535,6 +1604,7 @@ export function createConductorService(
   const runStatusClearTimersByTarget = new Map<string, NodeJS.Timeout>();
   const smokeStatusClearTimersByAlgorithm = new Map<string, NodeJS.Timeout>();
   const latestSmokeRunIdByAlgorithm = new Map<string, string>();
+  const activeSmokeExecutionByAlgorithm = new Map<string, ActiveSmokeExecution>();
   const runTargetListeners = new Set<
     (change: ConductorRunTargetStatusChange) => void
   >();
@@ -1769,9 +1839,46 @@ export function createConductorService(
     return storeRunSnapshotForTarget(target, updated);
   }
 
+  /**
+   * Marks one target run as cancelled.
+   *
+   * @param {ConductorRunTargetRef} target Run target reference.
+   * @param {string | null} message Cancellation message.
+   * @param {string} [expectedRunId] Expected run id for stale-update protection.
+   * @returns {ConductorRunSnapshot | null} Updated snapshot or null.
+   */
+  function markTargetRunCancelled(
+    target: ConductorRunTargetRef,
+    message: string | null,
+    expectedRunId?: string
+  ): ConductorRunSnapshot | null {
+    const targetKey = buildRunTargetKey(target);
+    const snapshot = runSnapshotsByTarget.get(targetKey);
+    if (snapshot === undefined) {
+      return null;
+    }
+
+    if (expectedRunId !== undefined && snapshot.runId !== expectedRunId) {
+      return null;
+    }
+
+    const updated: ConductorRunSnapshot = {
+      ...snapshot,
+      status: "cancelled",
+      errorMessage: null,
+      message,
+      updatedAt: Date.now(),
+    };
+
+    return storeRunSnapshotForTarget(target, updated);
+  }
+
   const runLifecycle: RunFileStatusLifecycle = {
     start(target, ownerKey, message): ConductorRunSnapshot {
       return startRunForTarget(target, ownerKey, message ?? null);
+    },
+    markCancelled(target, message, expectedRunId): void {
+      markTargetRunCancelled(target, message ?? null, expectedRunId);
     },
     markRunning(target, message, expectedRunId): void {
       markTargetRunRunning(target, message ?? null, expectedRunId);
@@ -1785,6 +1892,32 @@ export function createConductorService(
   };
 
   const smokeStatusRetentionLifecycle: SmokeStatusRetentionLifecycle = {
+    clearNow(
+      algorithmPath,
+      hostState,
+      refreshAlgorithmsTree
+    ): boolean {
+      const existingTimer = smokeStatusClearTimersByAlgorithm.get(algorithmPath);
+      if (existingTimer !== undefined) {
+        clearTimeout(existingTimer);
+        smokeStatusClearTimersByAlgorithm.delete(algorithmPath);
+      }
+
+      const runId = latestSmokeRunIdByAlgorithm.get(algorithmPath);
+      if (runId === undefined) {
+        return false;
+      }
+
+      latestSmokeRunIdByAlgorithm.delete(algorithmPath);
+      hostState.send({
+        type: "SMOKE_RUN_STATUS_CLEARED",
+        algorithmPath,
+        runId,
+      });
+      refreshAlgorithmsTree();
+      return true;
+    },
+
     markStarted(algorithmPath, runId): void {
       latestSmokeRunIdByAlgorithm.set(algorithmPath, runId);
 
@@ -1852,8 +1985,56 @@ export function createConductorService(
         runAdapter,
         commandLine,
         runLifecycle,
-        smokeStatusRetentionLifecycle
+        smokeStatusRetentionLifecycle,
+        activeSmokeExecutionByAlgorithm
       );
+    },
+
+    async stopSmokeTest(input: ConductorStopSmokeTestInput): Promise<boolean> {
+      const activeSmokeExecution = activeSmokeExecutionByAlgorithm.get(input.algorithmPath);
+      if (activeSmokeExecution === undefined) {
+        return false;
+      }
+
+      activeSmokeExecution.stopRequested = true;
+      const killResult = activeSmokeExecution.handle.kill("SIGTERM");
+      if (!killResult.ok && killResult.reason !== "not-running") {
+        return false;
+      }
+
+      await activeSmokeExecution.result;
+      return true;
+    },
+
+    clearSmokeResults(input: ConductorClearSmokeResultsInput): boolean {
+      if (activeSmokeExecutionByAlgorithm.has(input.algorithmPath)) {
+        return false;
+      }
+
+      return smokeStatusRetentionLifecycle.clearNow(
+        input.algorithmPath,
+        input.hostState,
+        input.refreshAlgorithmsTree
+      );
+    },
+
+    clearRunResults(input: ConductorClearRunResultsInput): boolean {
+      const targetKey = buildRunTargetKey(input.target);
+      const snapshot = runSnapshotsByTarget.get(targetKey);
+      if (snapshot === undefined) {
+        return false;
+      }
+
+      if (snapshot.status === "starting" || snapshot.status === "running") {
+        return false;
+      }
+
+      clearRunStatusTimer(targetKey);
+      runSnapshotsByTarget.delete(targetKey);
+      runTargetByRunId.delete(snapshot.runId);
+      publishRunTargetStatusChange(input.target, snapshot);
+      input.refreshAlgorithmsTree();
+      return true;
     },
 
     getRunForTarget(target: ConductorRunTargetRef): ConductorRunSnapshot | null {

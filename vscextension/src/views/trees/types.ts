@@ -63,6 +63,10 @@ export interface WorkspaceTreeNode {
   smokeStatus?: SmokeLanguageRunStatus;
   /** Optional tooltip detail for smoke-test status. */
   smokeStatusTooltip?: string;
+  /** True when one smoke test is actively running for this algorithm folder. */
+  isSmokeRunning?: boolean;
+  /** True when retained smoke results currently exist for this algorithm folder. */
+  hasSmokeResults?: boolean;
 }
 
 /**

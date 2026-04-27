@@ -186,3 +186,30 @@ export function getAlgorithmsLocalCleanCommandId(): string {
 export function getAlgorithmsSmokeTestCommandId(): string {
   return "algos.algorithmsSmokeTest";
 }
+
+/**
+ * Command identifier for stopping an active smoke test from an algorithm directory row.
+ *
+ * @returns {string} Command identifier.
+ */
+export function getAlgorithmsStopSmokeTestCommandId(): string {
+  return "algos.algorithmsStopSmokeTest";
+}
+
+/**
+ * Command identifier for clearing retained smoke results from an algorithm directory row.
+ *
+ * @returns {string} Command identifier.
+ */
+export function getAlgorithmsClearSmokeResultsCommandId(): string {
+  return "algos.algorithmsClearSmokeResults";
+}
+
+/**
+ * Command identifier for clearing retained run results from one target row.
+ *
+ * @returns {string} Command identifier.
+ */
+export function getAlgorithmsClearRunResultsCommandId(): string {
+  return "algos.algorithmsClearRunResults";
+}

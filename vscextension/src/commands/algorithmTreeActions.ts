@@ -906,6 +906,122 @@ export function createAlgorithmsSmokeTestCommand(
 }
 
 /**
+ * Creates one command to stop smoke tests for the hovered algorithm directory.
+ *
+ * @param {AlgorithmTreeActionDependencies} dependencies Action dependencies.
+ * @returns {(treeNode?: WorkspaceTreeNode) => Promise<void>} Command handler.
+ */
+export function createAlgorithmsStopSmokeTestCommand(
+  dependencies: AlgorithmTreeActionDependencies
+): (treeNode?: WorkspaceTreeNode) => Promise<void> {
+  return async (treeNode?: WorkspaceTreeNode): Promise<void> => {
+    if (dependencies.conductor === undefined || dependencies.hostState === undefined) {
+      await dependencies.notificationRouter.error("Run File orchestration is not configured.");
+      return;
+    }
+
+    if (treeNode === undefined || treeNode.kind !== "algorithmDir") {
+      await dependencies.notificationRouter.warn("Select an algorithm directory row to stop smoke testing.");
+      return;
+    }
+
+    const algorithmPath = resolveAlgorithmDirectoryPath(treeNode);
+    const stopped = await dependencies.conductor.stopSmokeTest({
+      algorithmPath,
+    });
+
+    if (!stopped) {
+      await dependencies.notificationRouter.warn("Smoke test is not currently running.");
+      return;
+    }
+
+    dependencies.refreshAlgorithmsTree();
+    await dependencies.notificationRouter.info(`Stopping smoke test for ${path.basename(algorithmPath)}.`);
+  };
+}
+
+/**
+ * Creates one command to clear retained smoke results for the hovered algorithm directory.
+ *
+ * @param {AlgorithmTreeActionDependencies} dependencies Action dependencies.
+ * @returns {(treeNode?: WorkspaceTreeNode) => Promise<void>} Command handler.
+ */
+export function createAlgorithmsClearSmokeResultsCommand(
+  dependencies: AlgorithmTreeActionDependencies
+): (treeNode?: WorkspaceTreeNode) => Promise<void> {
+  return async (treeNode?: WorkspaceTreeNode): Promise<void> => {
+    if (dependencies.conductor === undefined || dependencies.hostState === undefined) {
+      await dependencies.notificationRouter.error("Run File orchestration is not configured.");
+      return;
+    }
+
+    if (treeNode === undefined || treeNode.kind !== "algorithmDir") {
+      await dependencies.notificationRouter.warn("Select an algorithm directory row to clear smoke results.");
+      return;
+    }
+
+    const algorithmPath = resolveAlgorithmDirectoryPath(treeNode);
+    const cleared = dependencies.conductor.clearSmokeResults({
+      algorithmPath,
+      hostState: dependencies.hostState,
+      refreshAlgorithmsTree: dependencies.refreshAlgorithmsTree,
+    });
+
+    if (!cleared) {
+      await dependencies.notificationRouter.warn("Smoke results are not available to clear.");
+      return;
+    }
+
+    await dependencies.notificationRouter.info(`Cleared smoke results for ${path.basename(algorithmPath)}.`);
+  };
+}
+
+/**
+ * Creates one command to clear retained run results for one hovered run target.
+ *
+ * @param {AlgorithmTreeActionDependencies} dependencies Action dependencies.
+ * @returns {(treeNode?: WorkspaceTreeNode) => Promise<void>} Command handler.
+ */
+export function createAlgorithmsClearRunResultsCommand(
+  dependencies: AlgorithmTreeActionDependencies
+): (treeNode?: WorkspaceTreeNode) => Promise<void> {
+  return async (treeNode?: WorkspaceTreeNode): Promise<void> => {
+    if (dependencies.conductor === undefined) {
+      await dependencies.notificationRouter.error("Run File orchestration is not configured.");
+      return;
+    }
+
+    if (
+      treeNode === undefined
+      || (
+        treeNode.kind !== "file"
+        && treeNode.kind !== "mainFile"
+        && treeNode.kind !== "languageSummary"
+        && treeNode.kind !== "algorithmDir"
+      )
+    ) {
+      await dependencies.notificationRouter.warn("Select a run target row to clear retained run results.");
+      return;
+    }
+
+    const cleared = dependencies.conductor.clearRunResults({
+      target: {
+        nodeKind: treeNode.kind,
+        filePath: treeNode.filePath,
+      },
+      refreshAlgorithmsTree: dependencies.refreshAlgorithmsTree,
+    });
+
+    if (!cleared) {
+      await dependencies.notificationRouter.warn("Run results are not available to clear.");
+      return;
+    }
+
+    await dependencies.notificationRouter.info(`Cleared run results for ${path.basename(treeNode.filePath)}.`);
+  };
+}
+
+/**
  * Creates one command that executes one action kind against the hovered target.
  *
  * @param {AlgorithmTreeActionDependencies} dependencies Action dependencies.

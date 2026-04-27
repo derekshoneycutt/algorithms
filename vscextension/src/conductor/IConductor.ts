@@ -140,6 +140,30 @@ export interface ConductorReactToRunControlsIntentInput {
 }
 
 /**
+ * Input for stopping one active smoke test.
+ */
+export interface ConductorStopSmokeTestInput {
+  algorithmPath: string;
+}
+
+/**
+ * Input for clearing retained smoke results for one algorithm.
+ */
+export interface ConductorClearSmokeResultsInput {
+  algorithmPath: string;
+  hostState: IStateMachine;
+  refreshAlgorithmsTree: () => void;
+}
+
+/**
+ * Input for clearing retained run results for one run target.
+ */
+export interface ConductorClearRunResultsInput {
+  target: ConductorRunTargetRef;
+  refreshAlgorithmsTree: () => void;
+}
+
+/**
  * Input for conductor-owned run-file orchestration.
  */
 export interface ConductorRunFileInput {
@@ -221,6 +245,30 @@ export interface IConductor {
    * @returns {Promise<void>} Resolves when orchestration finishes.
    */
   runFile(input: ConductorRunFileInput): Promise<void>;
+
+  /**
+   * Stops one active smoke test.
+   *
+   * @param {ConductorStopSmokeTestInput} input Stop input.
+   * @returns {Promise<boolean>} True when a stop request was delivered.
+   */
+  stopSmokeTest(input: ConductorStopSmokeTestInput): Promise<boolean>;
+
+  /**
+   * Clears retained smoke results for one algorithm.
+   *
+   * @param {ConductorClearSmokeResultsInput} input Clear input.
+   * @returns {boolean} True when results were cleared.
+   */
+  clearSmokeResults(input: ConductorClearSmokeResultsInput): boolean;
+
+  /**
+   * Clears retained run results for one run target.
+   *
+   * @param {ConductorClearRunResultsInput} input Clear input.
+   * @returns {boolean} True when retained results were cleared.
+   */
+  clearRunResults(input: ConductorClearRunResultsInput): boolean;
 
   /**
    * Gets the latest run snapshot for one target.

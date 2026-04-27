@@ -96,4 +96,23 @@ describe("commandline — createCommandLine", () => {
 
     assert.strictEqual(handle.isRunning(), false);
   });
+
+  it("supports tracked executions for cancellable processes", async () => {
+    const commandLine = createCommandLine();
+
+    const execution = commandLine.spawnTracked(
+      process.execPath,
+      ["-e", "setInterval(() => {}, 1000);"],
+      {
+        timeoutMs: 2000,
+      }
+    );
+
+    assert.strictEqual(execution.handle.isRunning(), true);
+    assert.strictEqual(execution.handle.kill("SIGTERM").ok, true);
+
+    const result = await execution.result;
+    assert.strictEqual(result.ok, false);
+    assert.strictEqual(result.reason, "terminated-by-signal");
+  });
 });

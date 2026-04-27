@@ -57,6 +57,14 @@ export interface ICommandLineProcessHandle {
 }
 
 /**
+ * One tracked asynchronous process execution.
+ */
+export interface ICommandLineTrackedExecution {
+  handle: ICommandLineProcessHandle;
+  result: Promise<CommandLineResult>;
+}
+
+/**
  * DI contract for launching and managing command-line processes.
  */
 export interface ICommandLine {
@@ -73,6 +81,20 @@ export interface ICommandLine {
     args: string[],
     options?: CommandLineSpawnOptions
   ): Promise<CommandLineResult>;
+
+  /**
+   * Spawns a command and returns both the process handle and completion result.
+   *
+   * @param {string} command Executable path or command.
+   * @param {string[]} args Command arguments.
+   * @param {CommandLineSpawnOptions} [options] Launch options.
+   * @returns {ICommandLineTrackedExecution} Tracked execution.
+   */
+  spawnTracked(
+    command: string,
+    args: string[],
+    options?: CommandLineSpawnOptions
+  ): ICommandLineTrackedExecution;
 
   /**
    * Runs a command synchronously and captures output.
