@@ -6,6 +6,7 @@ import {
   createAlgorithmsCheckOnlyCommand,
   createAlgorithmsCleanCommand,
   createAlgorithmsLocalCleanCommand,
+  createAlgorithmsSmokeTestCommand,
 } from "../../../src/commands/algorithmTreeActions";
 import type { IConductor, ConductorRunFileInput } from "../../../src/conductor";
 import type { IFilesystem } from "../../../src/filesystem";
@@ -114,6 +115,8 @@ function createHostStateStub(runControls: RunControlsSettings): IStateMachine {
       smokeStatusClassName: "status-muted",
       statusLabel: "0 selected",
     },
+    smokeRunStatusByAlgorithm: {},
+    activeSmokeRunAlgorithmPath: null,
     runControls,
   };
 
@@ -257,7 +260,7 @@ describe("commands/algorithmTreeActions — run-file integration", () => {
     assert.deepStrictEqual(errors, ["Run File orchestration is not configured."]);
   });
 
-  it("delegates compile/check/clean/localclean actions to conductor", async () => {
+  it("delegates compile/check/clean/localclean/smoke actions to conductor", async () => {
     const runInputs: ConductorRunFileInput[] = [];
 
     const notificationRouter: INotificationRouter = {
@@ -332,11 +335,16 @@ describe("commands/algorithmTreeActions — run-file integration", () => {
     await createAlgorithmsCheckOnlyCommand(dependencies)(treeNode);
     await createAlgorithmsCleanCommand(dependencies)(treeNode);
     await createAlgorithmsLocalCleanCommand(dependencies)(treeNode);
+    await createAlgorithmsSmokeTestCommand(dependencies)({
+      kind: "algorithmDir",
+      filePath: "/repo/src/numeric/max",
+    });
 
-    assert.strictEqual(runInputs.length, 4);
+    assert.strictEqual(runInputs.length, 5);
     assert.strictEqual(runInputs[0].actionKind, "compile-only");
     assert.strictEqual(runInputs[1].actionKind, "check-only");
     assert.strictEqual(runInputs[2].actionKind, "clean");
     assert.strictEqual(runInputs[3].actionKind, "localclean");
+    assert.strictEqual(runInputs[4].actionKind, "smoke-test");
   });
 });

@@ -113,11 +113,15 @@ export function createCommandLine(): ICommandLine {
       }
 
       child.stdout?.on("data", (chunk: Buffer | string) => {
-        stdout += chunk.toString();
+        const text = chunk.toString();
+        stdout += text;
+        options?.onStdoutData?.(text);
       });
 
       child.stderr?.on("data", (chunk: Buffer | string) => {
-        stderr += chunk.toString();
+        const text = chunk.toString();
+        stderr += text;
+        options?.onStderrData?.(text);
       });
 
       const closeResult = await new Promise<{

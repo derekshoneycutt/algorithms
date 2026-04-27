@@ -20,6 +20,7 @@ import {
   createAlgorithmsCheckOnlyCommand,
   createAlgorithmsCleanCommand,
   createAlgorithmsLocalCleanCommand,
+  createAlgorithmsSmokeTestCommand,
   createShowBootstrapStatusCommand,
   registerCommands,
 } from "./commands";
@@ -35,6 +36,7 @@ import {
 import type { ICommunicationHub } from "./comms";
 import {
   createAlgorithmsTerminalRunAdapter,
+  createCommandLine,
 } from "./commandline";
 import {
   createConductorService,
@@ -109,6 +111,7 @@ export function createCoordinator(
 
   const filesystem: IFilesystem = createFilesystem();
   const languages: ILanguages = createLanguages(GENERATED_LANGUAGE_DATA);
+  const commandLine = createCommandLine();
   const algorithmsTerminalRunAdapter = createAlgorithmsTerminalRunAdapter();
   const stateMachine: IStateMachine = createHostStateService({
     initialSmokeControls: {
@@ -119,6 +122,7 @@ export function createCoordinator(
   const filterModeService: IFilterModeService = createFilterModeService();
   const conductor: IConductor = createConductorService({
     algorithmsTerminalRunAdapter,
+    commandLine,
   });
   const notificationRouter: INotificationRouter = createNotificationRouter();
   const notificationDispatcher = createConductorNotificationDispatcher(notificationRouter);
@@ -142,6 +146,7 @@ export function createCoordinator(
       filterModeService,
       algorithmsIndex,
       conductor,
+      hostState: stateMachine,
       languages,
     });
   const runStatusTreeRefreshSubscription = conductor.subscribeRunTargetStatus(() => {
@@ -316,6 +321,14 @@ export function createCoordinator(
       refreshAlgorithmsTree: workspaceAlgorithmsTreeProvider.refresh,
     }),
     algorithmsLocalClean: createAlgorithmsLocalCleanCommand({
+      conductor,
+      filesystem,
+      hostState: stateMachine,
+      languages,
+      notificationRouter,
+      refreshAlgorithmsTree: workspaceAlgorithmsTreeProvider.refresh,
+    }),
+    algorithmsSmokeTest: createAlgorithmsSmokeTestCommand({
       conductor,
       filesystem,
       hostState: stateMachine,

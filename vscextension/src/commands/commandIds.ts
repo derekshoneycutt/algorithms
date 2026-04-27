@@ -177,3 +177,12 @@ export function getAlgorithmsCleanCommandId(): string {
 export function getAlgorithmsLocalCleanCommandId(): string {
   return "algos.algorithmsLocalClean";
 }
+
+/**
+ * Command identifier for smoke-test execution from an algorithm directory row.
+ *
+ * @returns {string} Command identifier.
+ */
+export function getAlgorithmsSmokeTestCommandId(): string {
+  return "algos.algorithmsSmokeTest";
+}

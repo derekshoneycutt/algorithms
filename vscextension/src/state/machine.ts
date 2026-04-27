@@ -72,6 +72,82 @@ function setAllSmokeLanguageSelections(
 }
 
 /**
+ * Initializes queued smoke runtime statuses for one algorithm path.
+ *
+ * @param {ExtensionHostContext} context Current machine context.
+ * @param {string} algorithmPath Algorithm path being smoke-tested.
+ * @param {string[]} languageKeys Languages participating in this run.
+ * @returns {ExtensionHostContext["smokeRunStatusByAlgorithm"]} Updated runtime map.
+ */
+function setSmokeRunStarted(
+  context: ExtensionHostContext,
+  algorithmPath: string,
+  languageKeys: string[]
+): ExtensionHostContext["smokeRunStatusByAlgorithm"] {
+  const nextByAlgorithm = {
+    ...context.smokeRunStatusByAlgorithm,
+  };
+  const queuedByLanguage: Record<string, "queued"> = {};
+
+  for (const languageKey of languageKeys) {
+    const normalizedLanguageKey = languageKey.trim().toLowerCase();
+    if (normalizedLanguageKey.length === 0) {
+      continue;
+    }
+
+    queuedByLanguage[normalizedLanguageKey] = "queued";
+  }
+
+  nextByAlgorithm[algorithmPath] = queuedByLanguage;
+  return nextByAlgorithm;
+}
+
+/**
+ * Sets one runtime smoke status for a language under an algorithm.
+ *
+ * @param {ExtensionHostContext} context Current machine context.
+ * @param {string} algorithmPath Algorithm path key.
+ * @param {string} languageKey Language key.
+ * @param {"queued" | "running" | "passed" | "failed"} status Next language status.
+ * @returns {ExtensionHostContext["smokeRunStatusByAlgorithm"]} Updated runtime map.
+ */
+function setSmokeLanguageRunStatus(
+  context: ExtensionHostContext,
+  algorithmPath: string,
+  languageKey: string,
+  status: "queued" | "running" | "passed" | "failed"
+): ExtensionHostContext["smokeRunStatusByAlgorithm"] {
+  const currentByLanguage = context.smokeRunStatusByAlgorithm[algorithmPath] ?? {};
+
+  return {
+    ...context.smokeRunStatusByAlgorithm,
+    [algorithmPath]: {
+      ...currentByLanguage,
+      [languageKey.trim().toLowerCase()]: status,
+    },
+  };
+}
+
+/**
+ * Clears runtime smoke statuses for one algorithm path.
+ *
+ * @param {ExtensionHostContext} context Current machine context.
+ * @param {string} algorithmPath Algorithm path to clear.
+ * @returns {ExtensionHostContext["smokeRunStatusByAlgorithm"]} Updated runtime map.
+ */
+function clearSmokeRunStatusForAlgorithm(
+  context: ExtensionHostContext,
+  algorithmPath: string
+): ExtensionHostContext["smokeRunStatusByAlgorithm"] {
+  const nextByAlgorithm = {
+    ...context.smokeRunStatusByAlgorithm,
+  };
+
+  delete nextByAlgorithm[algorithmPath];
+  return nextByAlgorithm;
+}
+
+/**
  * XState machine definition for the extension host orchestration layer.
  *
  * States:
@@ -102,6 +178,8 @@ export function createExtensionHostMachine() {
       lastResult: null,
       lastFailure: null,
       smokeControls: createInitialSmokeControlsSettings(input.initialSmokeControls),
+      smokeRunStatusByAlgorithm: {},
+      activeSmokeRunAlgorithmPath: null,
       runControls: createInitialRunControlsSettings(input.initialRunControls),
     };
   },
@@ -190,6 +268,40 @@ export function createExtensionHostMachine() {
                   false
                 ),
               };
+            },
+          }),
+        },
+        SMOKE_RUN_STARTED: {
+          actions: assign({
+            smokeRunStatusByAlgorithm: ({ context, event }) => {
+              return setSmokeRunStarted(context, event.algorithmPath, event.languageKeys);
+            },
+            activeSmokeRunAlgorithmPath: ({ event }) => event.algorithmPath,
+          }),
+        },
+        SMOKE_LANGUAGE_RUN_STATUS_SET: {
+          actions: assign({
+            smokeRunStatusByAlgorithm: ({ context, event }) => {
+              return setSmokeLanguageRunStatus(
+                context,
+                event.algorithmPath,
+                event.languageKey,
+                event.status
+              );
+            },
+          }),
+        },
+        SMOKE_RUN_FINISHED: {
+          actions: assign({
+            smokeRunStatusByAlgorithm: ({ context, event }) => {
+              return clearSmokeRunStatusForAlgorithm(context, event.algorithmPath);
+            },
+            activeSmokeRunAlgorithmPath: ({ context, event }) => {
+              if (context.activeSmokeRunAlgorithmPath !== event.algorithmPath) {
+                return context.activeSmokeRunAlgorithmPath;
+              }
+
+              return null;
             },
           }),
         },
@@ -443,6 +555,40 @@ export function createExtensionHostMachine() {
                   false
                 ),
               };
+            },
+          }),
+        },
+        SMOKE_RUN_STARTED: {
+          actions: assign({
+            smokeRunStatusByAlgorithm: ({ context, event }) => {
+              return setSmokeRunStarted(context, event.algorithmPath, event.languageKeys);
+            },
+            activeSmokeRunAlgorithmPath: ({ event }) => event.algorithmPath,
+          }),
+        },
+        SMOKE_LANGUAGE_RUN_STATUS_SET: {
+          actions: assign({
+            smokeRunStatusByAlgorithm: ({ context, event }) => {
+              return setSmokeLanguageRunStatus(
+                context,
+                event.algorithmPath,
+                event.languageKey,
+                event.status
+              );
+            },
+          }),
+        },
+        SMOKE_RUN_FINISHED: {
+          actions: assign({
+            smokeRunStatusByAlgorithm: ({ context, event }) => {
+              return clearSmokeRunStatusForAlgorithm(context, event.algorithmPath);
+            },
+            activeSmokeRunAlgorithmPath: ({ context, event }) => {
+              if (context.activeSmokeRunAlgorithmPath !== event.algorithmPath) {
+                return context.activeSmokeRunAlgorithmPath;
+              }
+
+              return null;
             },
           }),
         },

@@ -308,6 +308,10 @@ const URI_FRAGMENT_RUN_RUNNING = "algos-runfile-running";
 const URI_FRAGMENT_RUN_COMPLETED = "algos-runfile-completed";
 const URI_FRAGMENT_RUN_FAILED = "algos-runfile-failed";
 const URI_FRAGMENT_RUN_CANCELLED = "algos-runfile-cancelled";
+const URI_FRAGMENT_SMOKE_QUEUED = "algos-smoke-queued";
+const URI_FRAGMENT_SMOKE_RUNNING = "algos-smoke-running";
+const URI_FRAGMENT_SMOKE_PASSED = "algos-smoke-passed";
+const URI_FRAGMENT_SMOKE_FAILED = "algos-smoke-failed";
 
 /**
  * Maps one conductor run status to one URI fragment.
@@ -342,6 +346,34 @@ function getRunStatusUriFragment(
 }
 
 /**
+ * Maps one smoke runtime status to one URI fragment.
+ *
+ * @param {"queued" | "running" | "passed" | "failed" | undefined} smokeStatus Runtime smoke status.
+ * @returns {string | undefined} URI fragment for FileDecoration lookup.
+ */
+function getSmokeStatusUriFragment(
+  smokeStatus: "queued" | "running" | "passed" | "failed" | undefined
+): string | undefined {
+  if (smokeStatus === "queued") {
+    return URI_FRAGMENT_SMOKE_QUEUED;
+  }
+
+  if (smokeStatus === "running") {
+    return URI_FRAGMENT_SMOKE_RUNNING;
+  }
+
+  if (smokeStatus === "passed") {
+    return URI_FRAGMENT_SMOKE_PASSED;
+  }
+
+  if (smokeStatus === "failed") {
+    return URI_FRAGMENT_SMOKE_FAILED;
+  }
+
+  return undefined;
+}
+
+/**
  * Creates one TreeItem for the given node.
  *
  * @param {WorkspaceTreeNode} element Tree element.
@@ -366,9 +398,17 @@ export function createTreeItem(
   // Run File status decoration is applied only when no language-problem fragment
   // is active so flagged/missing diagnostics keep icon precedence.
   if (resourceUri.fragment.length === 0) {
-    const runStatusFragment = getRunStatusUriFragment(element.runStatus);
-    if (runStatusFragment !== undefined) {
-      resourceUri = resourceUri.with({ fragment: runStatusFragment });
+    const smokeStatusFragment =
+      element.kind === "languageSummary"
+        ? getSmokeStatusUriFragment(element.smokeStatus)
+        : undefined;
+    if (smokeStatusFragment !== undefined) {
+      resourceUri = resourceUri.with({ fragment: smokeStatusFragment });
+    } else {
+      const runStatusFragment = getRunStatusUriFragment(element.runStatus);
+      if (runStatusFragment !== undefined) {
+        resourceUri = resourceUri.with({ fragment: runStatusFragment });
+      }
     }
   }
 
@@ -401,6 +441,9 @@ export function createTreeItem(
     }
     if (element.runStatusTooltip !== undefined) {
       treeItem.tooltip = element.runStatusTooltip;
+    }
+    if (element.smokeStatusTooltip !== undefined) {
+      treeItem.tooltip = element.smokeStatusTooltip;
     }
     return treeItem;
   }
@@ -528,6 +571,38 @@ export function createLanguageStatusDecorationProvider(): vscode.FileDecorationP
           badge: "■",
           color: new vscode.ThemeColor("testing.iconQueued"),
           tooltip: "Run File: Cancelled",
+        };
+      }
+
+      if (uri.fragment === URI_FRAGMENT_SMOKE_QUEUED) {
+        return {
+          badge: "◷",
+          color: new vscode.ThemeColor("testing.iconQueued"),
+          tooltip: "Smoke Test: Queued",
+        };
+      }
+
+      if (uri.fragment === URI_FRAGMENT_SMOKE_RUNNING) {
+        return {
+          badge: "▶",
+          color: new vscode.ThemeColor("testing.iconQueued"),
+          tooltip: "Smoke Test: Running",
+        };
+      }
+
+      if (uri.fragment === URI_FRAGMENT_SMOKE_PASSED) {
+        return {
+          badge: "✓",
+          color: new vscode.ThemeColor("testing.iconPassed"),
+          tooltip: "Smoke Test: Passed",
+        };
+      }
+
+      if (uri.fragment === URI_FRAGMENT_SMOKE_FAILED) {
+        return {
+          badge: "✕",
+          color: new vscode.ThemeColor("testing.iconFailed"),
+          tooltip: "Smoke Test: Failed",
         };
       }
 

@@ -17,6 +17,7 @@ import {
   getAlgorithmsCheckOnlyCommandId,
   getAlgorithmsCleanCommandId,
   getAlgorithmsLocalCleanCommandId,
+  getAlgorithmsSmokeTestCommandId,
   getAlgorithmsSidebarShowAllRowsCommandId,
   getAlgorithmsSidebarShowProblemRowsCommandId,
 } from "../../src/commands/commandIds";
@@ -161,6 +162,10 @@ describe("bootstrap extension", () => {
     assert.ok(
       availableCommands.includes(getAlgorithmsLocalCleanCommandId()),
       "algorithms local-clean command should be registered"
+    );
+    assert.ok(
+      availableCommands.includes(getAlgorithmsSmokeTestCommandId()),
+      "algorithms smoke-test command should be registered"
     );
   });
 });

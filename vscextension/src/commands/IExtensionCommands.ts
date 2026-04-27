@@ -161,4 +161,12 @@ export interface IExtensionCommands {
    * @returns {Promise<void>}
    */
   algorithmsLocalClean: (treeNode?: WorkspaceTreeNode) => Promise<void>;
+
+  /**
+   * Runs smoke tests for the hovered Algorithms directory.
+   *
+   * @param {WorkspaceTreeNode} [treeNode] Hovered tree node.
+   * @returns {Promise<void>}
+   */
+  algorithmsSmokeTest: (treeNode?: WorkspaceTreeNode) => Promise<void>;
 }

@@ -302,6 +302,8 @@ describe("state — buildBootstrapStatusMessage", () => {
       lastResult: null,
       lastFailure: null,
       smokeControls,
+      smokeRunStatusByAlgorithm: {},
+      activeSmokeRunAlgorithmPath: null,
       runControls,
     });
 
@@ -317,6 +319,8 @@ describe("state — buildBootstrapStatusMessage", () => {
       lastResult: null,
       lastFailure: null,
       smokeControls,
+      smokeRunStatusByAlgorithm: {},
+      activeSmokeRunAlgorithmPath: null,
       runControls,
     });
 

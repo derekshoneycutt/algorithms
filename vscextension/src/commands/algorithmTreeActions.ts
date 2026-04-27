@@ -894,6 +894,18 @@ export function createAlgorithmsLocalCleanCommand(
 }
 
 /**
+ * Creates one command to run smoke tests for the hovered algorithm directory.
+ *
+ * @param {AlgorithmTreeActionDependencies} dependencies Action dependencies.
+ * @returns {(treeNode?: WorkspaceTreeNode) => Promise<void>} Command handler.
+ */
+export function createAlgorithmsSmokeTestCommand(
+  dependencies: AlgorithmTreeActionDependencies
+): (treeNode?: WorkspaceTreeNode) => Promise<void> {
+  return createAlgorithmsRunCommandForAction(dependencies, "smoke-test");
+}
+
+/**
  * Creates one command that executes one action kind against the hovered target.
  *
  * @param {AlgorithmTreeActionDependencies} dependencies Action dependencies.

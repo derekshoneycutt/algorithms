@@ -73,6 +73,21 @@ export interface RunControlsSettings {
 }
 
 /**
+ * Per-language runtime smoke-test status.
+ */
+export type SmokeLanguageRunStatus = "queued" | "running" | "passed" | "failed";
+
+/**
+ * Runtime smoke-test statuses keyed by language key for one algorithm path.
+ */
+export type SmokeRunStatusByLanguage = Record<string, SmokeLanguageRunStatus>;
+
+/**
+ * Runtime smoke-test statuses keyed by algorithm path.
+ */
+export type SmokeRunStatusByAlgorithm = Record<string, SmokeRunStatusByLanguage>;
+
+/**
  * Parsed run-arguments result.
  */
 export interface ParsedRunArgumentsResult {
@@ -382,6 +397,8 @@ export interface ExtensionHostContext {
   lastResult: string | null;
   lastFailure: string | null;
   smokeControls: SmokeControlsSettings;
+  smokeRunStatusByAlgorithm: SmokeRunStatusByAlgorithm;
+  activeSmokeRunAlgorithmPath: string | null;
   runControls: RunControlsSettings;
 }
 
@@ -399,6 +416,14 @@ export type ExtensionHostEvent =
   | { type: "SMOKE_LANGUAGE_TOGGLED"; languageKey: string }
   | { type: "SMOKE_ALL_LANGUAGES_SELECTED" }
   | { type: "SMOKE_ALL_LANGUAGES_DESELECTED" }
+  | { type: "SMOKE_RUN_STARTED"; algorithmPath: string; languageKeys: string[] }
+  | {
+      type: "SMOKE_LANGUAGE_RUN_STATUS_SET";
+      algorithmPath: string;
+      languageKey: string;
+      status: SmokeLanguageRunStatus;
+    }
+  | { type: "SMOKE_RUN_FINISHED"; algorithmPath: string }
   | {
       type: "SMOKE_REPORT_STATUS_SET";
       statusText: string;
@@ -449,6 +474,8 @@ export interface ExtensionHostSnapshot {
   readonly lastResult: string | null;
   readonly lastFailure: string | null;
   readonly smokeControls: SmokeControlsSettings;
+  readonly smokeRunStatusByAlgorithm: SmokeRunStatusByAlgorithm;
+  readonly activeSmokeRunAlgorithmPath: string | null;
   readonly runControls: RunControlsSettings;
 }
 

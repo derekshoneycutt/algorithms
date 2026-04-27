@@ -457,6 +457,140 @@ describe("conductor — createConductorService", () => {
     }
   });
 
+  it("routes smoke-test action with smoke controls and no positional target", async () => {
+    const runCalls: Parameters<IAlgorithmsTerminalRunAdapter["run"]>[] = [];
+
+    const adapter: IAlgorithmsTerminalRunAdapter = {
+      run(input): void {
+        runCalls.push([input]);
+      },
+      getTerminalName(): string {
+        return "Algorithms Runner";
+      },
+    };
+
+    const conductor = createConductorService({
+      algorithmsTerminalRunAdapter: adapter,
+    });
+    const stateMachine = createHostStateService({
+      initialSmokeControls: {
+        reportEnabled: true,
+        markdownPath: "output/smoke.md",
+        timeoutSeconds: "10m",
+        slowTimeoutSeconds: "30m",
+        languages: [
+          {
+            languageKey: "cpp",
+            label: "C++",
+            selected: true,
+            disabled: false,
+            disabledReason: "",
+          },
+          {
+            languageKey: "python",
+            label: "Python",
+            selected: false,
+            disabled: false,
+            disabledReason: "",
+          },
+        ],
+      },
+    });
+
+    try {
+      await conductor.runFile({
+        actionKind: "smoke-test",
+        filesystem: {
+          async realpath(targetPath: string): Promise<string> {
+            return targetPath;
+          },
+          async isFile(filePath: string): Promise<boolean> {
+            return filePath.endsWith("run.sh");
+          },
+          async isDirectory(_directoryPath: string): Promise<boolean> {
+            return true;
+          },
+          async readText(): Promise<string | null> {
+            return null;
+          },
+          async writeText(): Promise<void> {
+            return;
+          },
+          async listDirectory(): Promise<null> {
+            return null;
+          },
+          async ensureDirectory(): Promise<void> {
+            return;
+          },
+          async deletePath(): Promise<void> {
+            return;
+          },
+          async isPathWithinRoot(): Promise<boolean> {
+            return true;
+          },
+        },
+        hostState: stateMachine,
+        languages: {
+          getAll() {
+            return [];
+          },
+          getByKey() {
+            return undefined;
+          },
+          normalizeLanguageId(languageId: string) {
+            return languageId;
+          },
+          normalizeFileExtension() {
+            return undefined;
+          },
+          getDisplayLabel() {
+            return undefined;
+          },
+          getDefaultSmokeKeys() {
+            return [];
+          },
+        },
+        notificationRouter: {
+          info() {
+            return Promise.resolve(undefined);
+          },
+          warn() {
+            return Promise.resolve(undefined);
+          },
+          error() {
+            return Promise.resolve(undefined);
+          },
+        },
+        refreshAlgorithmsTree(): void {
+          return;
+        },
+        treeNode: {
+          kind: "algorithmDir",
+          filePath: "/repo/src/numeric/max",
+        },
+        workspaceFolderPaths: ["/repo"],
+      });
+
+      assert.strictEqual(runCalls.length, 1);
+      assert.deepStrictEqual(runCalls[0][0].optionTokens, [
+        "--smoke-test",
+        "--markdown=output/smoke.md",
+        "--timeout=10m",
+        "--slow-timeout=30m",
+        "--langs=cpp",
+      ]);
+      assert.deepStrictEqual(runCalls[0][0].passthroughTokens, []);
+      assert.strictEqual(runCalls[0][0].targetToken, undefined);
+      assert.strictEqual(runCalls[0][0].workingDirectoryPath, "/repo/src/numeric/max");
+
+      const snapshot = stateMachine.getSnapshot();
+      assert.strictEqual(snapshot.lastCommandId, "algorithms.smoke-test");
+      assert.ok(snapshot.lastResult?.includes("Smoke Test started for max"));
+    } finally {
+      stateMachine.dispose();
+    }
+  });
+
   it("blocks malformed run args and records lifecycle failure", async () => {
     const runCalls: Parameters<IAlgorithmsTerminalRunAdapter["run"]>[] = [];
 

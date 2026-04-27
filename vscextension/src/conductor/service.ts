@@ -20,11 +20,12 @@ import type {
   IConductor,
 } from "./IConductor";
 import type { ViewToHostMessage } from "../comms/shared/messageTypes";
-import type { IAlgorithmsTerminalRunAdapter } from "../commandline";
+import type { IAlgorithmsTerminalRunAdapter, ICommandLine } from "../commandline";
 import { resolveAlgorithmsRootPath } from "../algorithms";
 import type {
   IStateMachine,
   RunControlsSettings,
+  SmokeLanguageRunStatus,
   SmokeControlsSettings,
   SmokeLanguageSelection,
 } from "../state";
@@ -41,7 +42,60 @@ const COMPILE_ONLY_COMMAND_ID = "algorithms.compile-only";
 const CHECK_ONLY_COMMAND_ID = "algorithms.check-only";
 const CLEAN_COMMAND_ID = "algorithms.clean";
 const LOCAL_CLEAN_COMMAND_ID = "algorithms.localclean";
+const SMOKE_TEST_COMMAND_ID = "algorithms.smoke-test";
 const DEFAULT_RUN_STATUS_RETENTION_MS = 120_000;
+const SMOKE_STATUS_LINE_REGEX =
+  /SMOKE\s+\[\d+\/\d+\].*?lang=([a-zA-Z0-9_+\-]+).*?\[(RUNNING|PASS|FAIL|TIMEOUT)\]/;
+
+/**
+ * Maps one smoke terminal token to a runtime smoke status.
+ *
+ * @param {string} token Smoke status token parsed from terminal output.
+ * @returns {SmokeLanguageRunStatus | null} Runtime smoke status.
+ */
+function mapSmokeTokenToRuntimeStatus(token: string): SmokeLanguageRunStatus | null {
+  const normalizedToken = token.trim().toUpperCase();
+
+  if (normalizedToken === "RUNNING") {
+    return "running";
+  }
+
+  if (normalizedToken === "PASS") {
+    return "passed";
+  }
+
+  if (normalizedToken === "FAIL" || normalizedToken === "TIMEOUT") {
+    return "failed";
+  }
+
+  return null;
+}
+
+/**
+ * Parses one smoke status output line.
+ *
+ * @param {string} line One terminal output line.
+ * @returns {{languageKey: string, status: SmokeLanguageRunStatus} | null} Parsed status payload.
+ */
+function parseSmokeStatusLine(
+  line: string
+): { languageKey: string; status: SmokeLanguageRunStatus } | null {
+  const match = SMOKE_STATUS_LINE_REGEX.exec(line);
+  if (match === null) {
+    return null;
+  }
+
+  const languageKey = match[1].trim().toLowerCase();
+  const status = mapSmokeTokenToRuntimeStatus(match[2]);
+  if (languageKey.length === 0 || status === null) {
+    return null;
+  }
+
+  return {
+    languageKey,
+    status,
+  };
+}
 
 /**
  * Builds one stable run-target key.
@@ -84,6 +138,7 @@ interface RunFileStatusLifecycle {
  */
 export interface CreateConductorServiceInput {
   algorithmsTerminalRunAdapter?: IAlgorithmsTerminalRunAdapter;
+  commandLine?: ICommandLine;
   runStatusRetentionMs?: number;
 }
 
@@ -252,16 +307,21 @@ let nextRunSequence = 1;
 type RunnableTreeNode = {
   filePath: string;
   hasOpenTarget?: boolean;
-  kind: "file" | "mainFile" | "languageSummary";
+  kind: "file" | "mainFile" | "languageSummary" | "algorithmDir";
   languageKey?: string;
   parentAlgorithmPath?: string;
 };
 
 function isRunnableTreeNode(
-  treeNode: ConductorRunFileInput["treeNode"]
+  treeNode: ConductorRunFileInput["treeNode"],
+  actionKind: ConductorRunActionKind
 ): treeNode is RunnableTreeNode {
   if (treeNode === undefined) {
     return false;
+  }
+
+  if (actionKind === "smoke-test") {
+    return treeNode.kind === "algorithmDir";
   }
 
   return treeNode.kind === "file" || treeNode.kind === "mainFile" || treeNode.kind === "languageSummary";
@@ -276,6 +336,10 @@ function isRunnableTreeNode(
 function resolveAlgorithmDirectoryPath(
   treeNode: RunnableTreeNode
 ): string {
+  if (treeNode.kind === "algorithmDir") {
+    return treeNode.filePath;
+  }
+
   if (treeNode.parentAlgorithmPath !== undefined) {
     return treeNode.parentAlgorithmPath;
   }
@@ -352,7 +416,7 @@ function resolveRunActionKind(input: ConductorRunFileInput): ConductorRunActionK
  * @returns {boolean} True when file existence must be validated.
  */
 function actionRequiresConcreteTargetFile(actionKind: ConductorRunActionKind): boolean {
-  return actionKind !== "clean" && actionKind !== "localclean";
+  return actionKind !== "clean" && actionKind !== "localclean" && actionKind !== "smoke-test";
 }
 
 /**
@@ -388,6 +452,10 @@ function getCommandIdForAction(actionKind: ConductorRunActionKind): string {
     return LOCAL_CLEAN_COMMAND_ID;
   }
 
+  if (actionKind === "smoke-test") {
+    return SMOKE_TEST_COMMAND_ID;
+  }
+
   return RUN_FILE_COMMAND_ID;
 }
 
@@ -412,6 +480,10 @@ function getActionLabel(actionKind: ConductorRunActionKind): string {
 
   if (actionKind === "localclean") {
     return "Local Clean";
+  }
+
+  if (actionKind === "smoke-test") {
+    return "Smoke Test";
   }
 
   return "Run File";
@@ -461,6 +533,62 @@ function buildRunControlOptionTokens(
   }
 
   return optionTokens;
+}
+
+/**
+ * Resolves smoke-control option tokens for run.sh.
+ *
+ * @param {SmokeControlsSettings} smokeControls Snapshot smoke controls.
+ * @returns {{ok: boolean, tokens: string[], reason: string | null}} Parse result.
+ */
+function buildSmokeTestOptionTokens(
+  smokeControls: SmokeControlsSettings
+): { ok: boolean; tokens: string[]; reason: string | null } {
+  const optionTokens: string[] = ["--smoke-test"];
+
+  if (smokeControls.reportEnabled) {
+    const markdownPath = smokeControls.markdownPath.trim();
+    if (markdownPath.length > 0) {
+      optionTokens.push(`--markdown=${markdownPath}`);
+    } else {
+      optionTokens.push("--markdown");
+    }
+  }
+
+  const timeoutSeconds = smokeControls.timeoutSeconds.trim();
+  if (timeoutSeconds.length > 0) {
+    optionTokens.push(`--timeout=${timeoutSeconds}`);
+  }
+
+  const slowTimeoutSeconds = smokeControls.slowTimeoutSeconds.trim();
+  if (slowTimeoutSeconds.length > 0) {
+    optionTokens.push(`--slow-timeout=${slowTimeoutSeconds}`);
+  }
+
+  const selectableLanguages = smokeControls.languages.filter((language) => {
+    return !language.disabled;
+  });
+  const selectedLanguages = selectableLanguages.filter((language) => {
+    return language.selected;
+  });
+
+  if (selectedLanguages.length === 0) {
+    return {
+      ok: false,
+      tokens: [],
+      reason: "Select at least one smoke-test language.",
+    };
+  }
+
+  if (selectedLanguages.length !== selectableLanguages.length) {
+    optionTokens.push(`--langs=${selectedLanguages.map((language) => language.languageKey).join(" ")}`);
+  }
+
+  return {
+    ok: true,
+    tokens: optionTokens,
+    reason: null,
+  };
 }
 
 /**
@@ -515,22 +643,29 @@ function recordRunFileFailure(input: ConductorRunFileInput, errorMessage: string
 }
 
 /**
- * Runs one Algorithms target by delegating terminal dispatch to commandline adapter.
+ * Runs one Algorithms target by delegating execution to terminal or commandline adapters.
  *
  * @param {ConductorRunFileInput} input Run-file orchestration input.
  * @param {IAlgorithmsTerminalRunAdapter | undefined} runAdapter Terminal run adapter.
+ * @param {ICommandLine | undefined} commandLine Commandline process adapter.
  * @returns {Promise<void>} Resolves after orchestration completes.
  */
 async function runAlgorithmsFile(
   input: ConductorRunFileInput,
   runAdapter: IAlgorithmsTerminalRunAdapter | undefined,
+  commandLine: ICommandLine | undefined,
   runLifecycle: RunFileStatusLifecycle
 ): Promise<void> {
   const actionKind = resolveRunActionKind(input);
   const actionLabel = getActionLabel(actionKind);
+  const shouldUseCommandLineSmokeExecution = actionKind === "smoke-test" && commandLine !== undefined;
 
-  if (!isRunnableTreeNode(input.treeNode)) {
-    await input.notificationRouter.warn(`Select an algorithm file or language row to ${actionLabel.toLowerCase()}.`);
+  if (!isRunnableTreeNode(input.treeNode, actionKind)) {
+    if (actionKind === "smoke-test") {
+      await input.notificationRouter.warn("Select an algorithm directory row to smoke test.");
+    } else {
+      await input.notificationRouter.warn(`Select an algorithm file or language row to ${actionLabel.toLowerCase()}.`);
+    }
     return;
   }
 
@@ -549,7 +684,7 @@ async function runAlgorithmsFile(
     return;
   }
 
-  if (runAdapter === undefined) {
+  if (runAdapter === undefined && !shouldUseCommandLineSmokeExecution) {
     const errorMessage = "Run adapter is not configured.";
     runLifecycle.markFailed(runTarget, errorMessage);
     recordRunFileFailure(input, errorMessage);
@@ -612,8 +747,10 @@ async function runAlgorithmsFile(
     return;
   }
 
-  const languageKey = resolveLanguageKeyFromNode(treeNode, input);
-  if (languageKey === null) {
+  const languageKey = actionKind === "smoke-test"
+    ? null
+    : resolveLanguageKeyFromNode(treeNode, input);
+  if (actionKind !== "smoke-test" && languageKey === null) {
     const errorMessage = "Language could not be determined.";
     runLifecycle.markFailed(runTarget, errorMessage);
     recordRunFileFailure(input, errorMessage);
@@ -621,8 +758,23 @@ async function runAlgorithmsFile(
     return;
   }
 
-  const runControls = input.hostState.getSnapshot().runControls;
-  const runControlOptionTokens = buildRunControlOptionTokens(runControls, actionKind);
+  const hostSnapshot = input.hostState.getSnapshot();
+  const runControls = hostSnapshot.runControls;
+  const smokeControls = hostSnapshot.smokeControls;
+  const smokeTestOptions = actionKind === "smoke-test"
+    ? buildSmokeTestOptionTokens(smokeControls)
+    : { ok: true, tokens: [], reason: null };
+  if (!smokeTestOptions.ok) {
+    const errorMessage = smokeTestOptions.reason ?? "Smoke-test options are invalid.";
+    runLifecycle.markFailed(runTarget, errorMessage);
+    recordRunFileFailure(input, errorMessage);
+    await input.notificationRouter.warn(errorMessage);
+    return;
+  }
+
+  const runControlOptionTokens = actionKind === "smoke-test"
+    ? smokeTestOptions.tokens
+    : buildRunControlOptionTokens(runControls, actionKind);
   const runControlPassthrough = actionSupportsPassthroughArguments(actionKind)
     ? buildRunControlPassthroughTokens(runControls)
     : { ok: true, tokens: [], reason: null };
@@ -634,15 +786,30 @@ async function runAlgorithmsFile(
     return;
   }
 
-  const runTargetToken = actionKind === "clean"
+  const runTargetToken = actionKind === "smoke-test"
+    ? undefined
+    : actionKind === "clean"
     ? "clean"
     : actionKind === "localclean"
       ? "localclean"
       : treeNode.kind === "languageSummary"
-        ? languageKey
+        ? (languageKey ?? "")
         : path.basename(canonicalTargetFilePath ?? treeNode.filePath);
-  const runOwnerKey = `${languageKey}:${runTargetToken}`;
-
+  const runOwnerKey = actionKind === "smoke-test"
+    ? `smoke:${path.basename(algorithmDirectoryPath)}`
+    : `${languageKey}:${runTargetToken}`;
+  const smokeSelectedLanguageKeys = actionKind === "smoke-test"
+    ? smokeControls.languages
+        .filter((language) => {
+          return !language.disabled && language.selected;
+        })
+        .map((language) => {
+          return language.languageKey.trim().toLowerCase();
+        })
+        .filter((languageKey) => {
+          return languageKey.length > 0;
+        })
+    : [];
   try {
     const startedRunSnapshot = runLifecycle.start(
       runTarget,
@@ -650,6 +817,64 @@ async function runAlgorithmsFile(
       `${actionLabel} launch requested`
     );
     const startedRunId = startedRunSnapshot.runId;
+    let smokeOutputBuffer = "";
+    let smokeRunStarted = false;
+
+    /**
+     * Finalizes one active smoke runtime status projection.
+     *
+     * @returns {void}
+     */
+    function finishSmokeRuntimeStatus(): void {
+      if (!smokeRunStarted) {
+        return;
+      }
+
+      smokeRunStarted = false;
+      input.hostState.send({
+        type: "SMOKE_RUN_FINISHED",
+        algorithmPath: algorithmDirectoryPath,
+      });
+      input.refreshAlgorithmsTree();
+    }
+
+    /**
+     * Parses and applies smoke language status updates from one output chunk.
+     *
+     * @param {string} chunk One output chunk from run.sh.
+     * @returns {void}
+     */
+    function consumeSmokeOutputChunk(chunk: string): void {
+      smokeOutputBuffer += chunk.replace(/\r/g, "\n");
+      const lines = smokeOutputBuffer.split("\n");
+      smokeOutputBuffer = lines.pop() ?? "";
+
+      for (const line of lines) {
+        const parsedSmokeStatus = parseSmokeStatusLine(line);
+        if (parsedSmokeStatus === null) {
+          continue;
+        }
+
+        input.hostState.send({
+          type: "SMOKE_LANGUAGE_RUN_STATUS_SET",
+          algorithmPath: algorithmDirectoryPath,
+          languageKey: parsedSmokeStatus.languageKey,
+          status: parsedSmokeStatus.status,
+        });
+        input.refreshAlgorithmsTree();
+      }
+    }
+
+    if (actionKind === "smoke-test") {
+      input.hostState.send({
+        type: "SMOKE_RUN_STARTED",
+        algorithmPath: algorithmDirectoryPath,
+        languageKeys: smokeSelectedLanguageKeys,
+      });
+      smokeRunStarted = true;
+      input.refreshAlgorithmsTree();
+    }
+
     input.hostState.send({
       type: "COMMAND_REQUESTED",
       commandId: getCommandIdForAction(actionKind),
@@ -657,38 +882,96 @@ async function runAlgorithmsFile(
 
     runLifecycle.markRunning(
       runTarget,
-      `${actionLabel} dispatched to terminal for ${runTargetToken} (${languageKey})`,
+      actionKind === "smoke-test"
+        ? `${actionLabel} dispatched to terminal for ${path.basename(algorithmDirectoryPath)}`
+        : `${actionLabel} dispatched to terminal for ${runTargetToken} (${languageKey})`,
       startedRunId
     );
 
-    runAdapter.run({
-      executablePath: runScriptPath,
-      optionTokens: runControlOptionTokens,
-      passthroughTokens: runControlPassthrough.tokens,
-      targetToken: runTargetToken,
-      workingDirectoryPath: algorithmDirectoryPath,
-      onExit(exitCode): void {
-        if (typeof exitCode === "number" && exitCode !== 0) {
-          runLifecycle.markFailed(
-            runTarget,
-            `${actionLabel} exited with code ${exitCode}.`,
-            startedRunId
-          );
-          return;
+    if (shouldUseCommandLineSmokeExecution) {
+      const runResult = await commandLine.spawn(
+        runScriptPath,
+        [...runControlOptionTokens, ...runControlPassthrough.tokens],
+        {
+          cwd: algorithmDirectoryPath,
+          onStdoutData(chunk): void {
+            consumeSmokeOutputChunk(chunk);
+          },
+          onStderrData(chunk): void {
+            consumeSmokeOutputChunk(chunk);
+          },
         }
+      );
 
-        runLifecycle.markCompleted(
+      finishSmokeRuntimeStatus();
+
+      if (!runResult.ok) {
+        const exitCodeText = runResult.exitCode === null ? "unknown" : String(runResult.exitCode);
+        runLifecycle.markFailed(
           runTarget,
-          `${actionLabel} completed for ${runTargetToken} (${languageKey}).`,
+          `${actionLabel} exited with code ${exitCodeText}.`,
           startedRunId
         );
-      },
-    });
+        return;
+      }
 
-    const successMessage = `${actionLabel} started for ${runTargetToken} (${languageKey}) in ${runAdapter.getTerminalName()}.`;
+      runLifecycle.markCompleted(
+        runTarget,
+        `${actionLabel} completed for ${path.basename(algorithmDirectoryPath)}.`,
+        startedRunId
+      );
+    } else {
+      if (runAdapter === undefined) {
+        throw new Error("Run adapter is not configured.");
+      }
+
+      runAdapter.run({
+        executablePath: runScriptPath,
+        optionTokens: runControlOptionTokens,
+        passthroughTokens: runControlPassthrough.tokens,
+        targetToken: runTargetToken,
+        workingDirectoryPath: algorithmDirectoryPath,
+        onExit(exitCode): void {
+          if (actionKind === "smoke-test") {
+            finishSmokeRuntimeStatus();
+          }
+
+          if (typeof exitCode === "number" && exitCode !== 0) {
+            runLifecycle.markFailed(
+              runTarget,
+              `${actionLabel} exited with code ${exitCode}.`,
+              startedRunId
+            );
+            return;
+          }
+
+          runLifecycle.markCompleted(
+            runTarget,
+            actionKind === "smoke-test"
+              ? `${actionLabel} completed for ${path.basename(algorithmDirectoryPath)}.`
+              : `${actionLabel} completed for ${runTargetToken} (${languageKey}).`,
+            startedRunId
+          );
+        },
+      });
+    }
+
+    const successMessage = actionKind === "smoke-test"
+      ? shouldUseCommandLineSmokeExecution
+        ? `${actionLabel} started for ${path.basename(algorithmDirectoryPath)}.`
+        : `${actionLabel} started for ${path.basename(algorithmDirectoryPath)} in ${runAdapter?.getTerminalName() ?? "Algorithms Runner"}.`
+      : `${actionLabel} started for ${runTargetToken} (${languageKey}) in ${runAdapter?.getTerminalName() ?? "Algorithms Runner"}.`;
     input.hostState.send({ type: "COMMAND_SUCCEEDED", result: successMessage });
     await input.notificationRouter.info(successMessage);
   } catch (error) {
+    if (actionKind === "smoke-test") {
+      input.hostState.send({
+        type: "SMOKE_RUN_FINISHED",
+        algorithmPath: algorithmDirectoryPath,
+      });
+      input.refreshAlgorithmsTree();
+    }
+
     const errorMessage = error instanceof Error ? error.message : String(error);
     runLifecycle.markFailed(runTarget, errorMessage);
     input.hostState.send({ type: "COMMAND_FAILED", error: errorMessage });
@@ -1211,6 +1494,7 @@ export function createConductorService(
   input?: CreateConductorServiceInput
 ): IConductor {
   const runAdapter = input?.algorithmsTerminalRunAdapter;
+  const commandLine = input?.commandLine;
   const runStatusRetentionMs = input?.runStatusRetentionMs ?? DEFAULT_RUN_STATUS_RETENTION_MS;
   const runTargetByRunId = new Map<string, string>();
   const runSnapshotsById = new Map<string, ConductorRunSnapshot>();
@@ -1320,6 +1604,7 @@ export function createConductorService(
       nodeKind !== "file"
       && nodeKind !== "mainFile"
       && nodeKind !== "languageSummary"
+      && nodeKind !== "algorithmDir"
     ) {
       return null;
     }
@@ -1474,7 +1759,7 @@ export function createConductorService(
     },
 
     async runFile(input: ConductorRunFileInput): Promise<void> {
-      await runAlgorithmsFile(input, runAdapter, runLifecycle);
+      await runAlgorithmsFile(input, runAdapter, commandLine, runLifecycle);
     },
 
     getRunForTarget(target: ConductorRunTargetRef): ConductorRunSnapshot | null {

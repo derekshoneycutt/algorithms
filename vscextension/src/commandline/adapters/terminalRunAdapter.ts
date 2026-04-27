@@ -11,7 +11,7 @@ export interface AlgorithmsTerminalRunInput {
   executablePath: string;
   optionTokens: readonly string[];
   passthroughTokens: readonly string[];
-  targetToken: string;
+  targetToken?: string;
   workingDirectoryPath: string;
   onExit?: (exitCode: number | undefined) => void;
 }
@@ -55,6 +55,9 @@ function quoteShellToken(token: string): string {
  * @returns {string} Full shell command text.
  */
 export function buildAlgorithmsTerminalRunCommand(input: AlgorithmsTerminalRunInput): string {
+  const targetTokenSegment =
+    input.targetToken !== undefined ? [quoteShellToken(input.targetToken)] : [];
+
   return [
     "cd",
     quoteShellToken(input.workingDirectoryPath),
@@ -63,7 +66,7 @@ export function buildAlgorithmsTerminalRunCommand(input: AlgorithmsTerminalRunIn
     ...input.optionTokens.map((optionToken) => {
       return quoteShellToken(optionToken);
     }),
-    quoteShellToken(input.targetToken),
+    ...targetTokenSegment,
     ...input.passthroughTokens.map((token) => {
       return quoteShellToken(token);
     }),

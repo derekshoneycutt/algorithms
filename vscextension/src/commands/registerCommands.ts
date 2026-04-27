@@ -22,6 +22,7 @@ import {
   getAlgorithmsCheckOnlyCommandId,
   getAlgorithmsCleanCommandId,
   getAlgorithmsLocalCleanCommandId,
+  getAlgorithmsSmokeTestCommandId,
 } from "./commandIds";
 
 /**
@@ -113,6 +114,10 @@ export function registerCommands(
     vscode.commands.registerCommand(
       getAlgorithmsLocalCleanCommandId(),
       commands.algorithmsLocalClean
+    ),
+    vscode.commands.registerCommand(
+      getAlgorithmsSmokeTestCommandId(),
+      commands.algorithmsSmokeTest
     )
   );
 }

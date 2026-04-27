@@ -74,6 +74,19 @@ export function createHostStateService(
             };
           }),
         },
+        smokeRunStatusByAlgorithm: Object.fromEntries(
+          Object.entries(snapshot.context.smokeRunStatusByAlgorithm).map(
+            ([algorithmPath, byLanguage]) => {
+              return [
+                algorithmPath,
+                {
+                  ...byLanguage,
+                },
+              ];
+            }
+          )
+        ),
+        activeSmokeRunAlgorithmPath: snapshot.context.activeSmokeRunAlgorithmPath,
         runControls: {
           ...snapshot.context.runControls,
         },

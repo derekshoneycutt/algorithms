@@ -20,11 +20,14 @@ import { createTreeItem } from "./treeProviders";
  * @returns {boolean} True when run-status projection is supported.
  */
 type RunStatusNode = WorkspaceTreeNode & {
-  kind: "file" | "mainFile" | "languageSummary";
+  kind: "file" | "mainFile" | "languageSummary" | "algorithmDir";
 };
 
 function isRunStatusNode(element: WorkspaceTreeNode): element is RunStatusNode {
-  return element.kind === "file" || element.kind === "mainFile" || element.kind === "languageSummary";
+  return element.kind === "file"
+    || element.kind === "mainFile"
+    || element.kind === "languageSummary"
+    || element.kind === "algorithmDir";
 }
 
 /**
@@ -54,7 +57,7 @@ function buildRunStatusTooltip(
   message: string | null,
   errorMessage: string | null
 ): string {
-  const lines = [`Run File: ${formatRunStatusLabel(status)}`];
+  const lines = [`Run Action: ${formatRunStatusLabel(status)}`];
 
   if (errorMessage !== null && errorMessage.trim().length > 0) {
     lines.push(`Error: ${errorMessage}`);
@@ -63,6 +66,35 @@ function buildRunStatusTooltip(
   }
 
   return lines.join("\n");
+}
+
+/**
+ * Formats one smoke runtime status to title case for tooltip text.
+ *
+ * @param {"queued" | "running" | "passed" | "failed"} status Runtime smoke status.
+ * @returns {string} Human-readable status.
+ */
+function formatSmokeStatusLabel(
+  status: "queued" | "running" | "passed" | "failed"
+): string {
+  return status.charAt(0).toUpperCase() + status.slice(1);
+}
+
+/**
+ * Builds one smoke-status tooltip for language summary rows.
+ *
+ * @param {string} algorithmPath Algorithm path key.
+ * @param {string} languageKey Language key.
+ * @param {"queued" | "running" | "passed" | "failed"} status Runtime smoke status.
+ * @returns {string} Tooltip text.
+ */
+function buildSmokeStatusTooltip(
+  algorithmPath: string,
+  languageKey: string,
+  status: "queued" | "running" | "passed" | "failed"
+): string {
+  const algorithmName = algorithmPath.split(/[\\/]/).pop() ?? algorithmPath;
+  return `Smoke Test: ${formatSmokeStatusLabel(status)} (${languageKey}) in ${algorithmName}`;
 }
 
 /**
@@ -119,6 +151,7 @@ export function createWorkspaceAlgorithmsTreeDataProvider(
   const {
     algorithmsIndex,
     conductor,
+    hostState,
     filterModeService,
     viewModeService,
     languages,
@@ -212,6 +245,29 @@ export function createWorkspaceAlgorithmsTreeDataProvider(
             runSnapshot.status,
             runSnapshot.message,
             runSnapshot.errorMessage
+          ),
+        };
+      }
+    }
+
+    if (
+      hostState !== undefined
+      && element.kind === "languageSummary"
+      && element.languageKey !== undefined
+      && element.parentAlgorithmPath !== undefined
+    ) {
+      const snapshot = hostState.getSnapshot();
+      const byLanguage = snapshot.smokeRunStatusByAlgorithm[element.parentAlgorithmPath];
+      const smokeStatus = byLanguage?.[element.languageKey.trim().toLowerCase()];
+
+      if (smokeStatus !== undefined) {
+        resolvedElement = {
+          ...resolvedElement,
+          smokeStatus,
+          smokeStatusTooltip: buildSmokeStatusTooltip(
+            element.parentAlgorithmPath,
+            element.languageKey,
+            smokeStatus
           ),
         };
       }

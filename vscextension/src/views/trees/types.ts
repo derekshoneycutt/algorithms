@@ -6,6 +6,7 @@ import type { ILanguages } from "../../languages";
 import type { IAlgorithmsIndex } from "../../algorithms";
 import type { IFilterModeService } from "../../state/filterMode";
 import type { IViewModeService } from "../../state/viewMode";
+import type { IStateMachine, SmokeLanguageRunStatus } from "../../state";
 
 /**
  * One tree node rendered in the workspace tree panels.
@@ -58,6 +59,10 @@ export interface WorkspaceTreeNode {
   runStatus?: ConductorRunStatus;
   /** Optional tooltip detail for run status. */
   runStatusTooltip?: string;
+  /** Optional runtime smoke-test status for language rows. */
+  smokeStatus?: SmokeLanguageRunStatus;
+  /** Optional tooltip detail for smoke-test status. */
+  smokeStatusTooltip?: string;
 }
 
 /**
@@ -87,6 +92,7 @@ export interface RestrictedTreeDiscoveryDependencies {
 export interface AlgorithmsTreeDataProviderDependencies {
   algorithmsIndex: IAlgorithmsIndex;
   conductor?: IConductor;
+  hostState?: IStateMachine;
   viewModeService: IViewModeService;
   filterModeService: IFilterModeService;
   languages: ILanguages;

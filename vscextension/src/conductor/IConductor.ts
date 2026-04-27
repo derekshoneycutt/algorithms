@@ -34,7 +34,7 @@ export interface ConductorRunSnapshot {
  * Stable run-target reference used by tree status projection.
  */
 export interface ConductorRunTargetRef {
-  nodeKind: "file" | "mainFile" | "languageSummary";
+  nodeKind: "file" | "mainFile" | "languageSummary" | "algorithmDir";
   filePath: string;
 }
 
@@ -161,7 +161,8 @@ export type ConductorRunActionKind =
   | "compile-only"
   | "check-only"
   | "clean"
-  | "localclean";
+  | "localclean"
+  | "smoke-test";
 
 /**
  * One host notification emitted by conductor policy.

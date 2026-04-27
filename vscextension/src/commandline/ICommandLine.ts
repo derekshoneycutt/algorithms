@@ -7,6 +7,8 @@ export interface CommandLineSpawnOptions {
   cwd?: string;
   env?: NodeJS.ProcessEnv;
   timeoutMs?: number;
+  onStdoutData?: (chunk: string) => void;
+  onStderrData?: (chunk: string) => void;
 }
 
 /**

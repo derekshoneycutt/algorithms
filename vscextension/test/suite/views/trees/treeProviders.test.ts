@@ -686,7 +686,7 @@ describe("views/trees — run file status projection", () => {
     const goItem = await provider.getTreeItem(goMain);
 
     assert.strictEqual(pythonItem.resourceUri?.fragment, "algos-runfile-running");
-    assert.ok(String(pythonItem.tooltip).includes("Run File: Running"));
+    assert.ok(String(pythonItem.tooltip).includes("Run Action: Running"));
     assert.ok(String(pythonItem.tooltip).includes("dispatched to terminal"));
     assert.strictEqual(goItem.resourceUri?.fragment, "");
   });

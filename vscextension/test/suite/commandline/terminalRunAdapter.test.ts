@@ -30,4 +30,19 @@ describe("commandline/adapters — terminalRunAdapter", () => {
 
     assert.ok(command.includes("'it\"'\"'s'"));
   });
+
+  it("builds command without a positional target token", () => {
+    const command = buildAlgorithmsTerminalRunCommand({
+      executablePath: "/repo/run.sh",
+      optionTokens: ["--smoke-test", "--timeout=8m"],
+      passthroughTokens: [],
+      workingDirectoryPath: "/repo/src/numeric/max",
+    });
+
+    assert.ok(
+      command.includes(
+        "cd '/repo/src/numeric/max' && '/repo/run.sh' '--smoke-test' '--timeout=8m'"
+      )
+    );
+  });
 });

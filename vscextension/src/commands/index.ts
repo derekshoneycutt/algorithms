@@ -20,6 +20,7 @@ export {
 	getAlgorithmsCheckOnlyCommandId,
 	getAlgorithmsCleanCommandId,
 	getAlgorithmsLocalCleanCommandId,
+	getAlgorithmsSmokeTestCommandId,
 } from "./commandIds";
 export { registerCommands } from "./registerCommands";
 export { createShowBootstrapStatusCommand } from "./showBootstrapStatus";
@@ -45,4 +46,5 @@ export {
 	createAlgorithmsCheckOnlyCommand,
 	createAlgorithmsCleanCommand,
 	createAlgorithmsLocalCleanCommand,
+	createAlgorithmsSmokeTestCommand,
 } from "./algorithmTreeActions";
