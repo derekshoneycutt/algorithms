@@ -26,7 +26,7 @@ node_modules/
 templates/bin/
 templates/obj/
 
-vscextension/dist
-vscextension/out/
+extension/dist/
+extension/out/
 
 .vscode-test/
