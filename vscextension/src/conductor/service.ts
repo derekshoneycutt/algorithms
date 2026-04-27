@@ -36,8 +36,6 @@ import type {
 import type { ViewToHostMessage } from "../comms/shared/messageTypes";
 import type { IAlgorithmsTerminalRunAdapter, ICommandLine } from "../commandline";
 import type { IFilesystem } from "../filesystem";
-import { resolveAlgorithmFile, quoteForShell } from "../filesystem/algorithmFileResolver";
-import type { INotificationRouter } from "../notifications";
 import {
   createRunControlsIntentReaction,
   createSmokeIntentReaction,
@@ -76,7 +74,6 @@ export interface CreateConductorServiceInput {
   algorithmsTerminalRunAdapter?: IAlgorithmsTerminalRunAdapter;
   commandLine?: ICommandLine;
   filesystem?: IFilesystem;
-  notificationRouter?: INotificationRouter;
   repositoryRoot?: string;
   runStatusRetentionMs?: number;
 }
@@ -240,7 +237,6 @@ export function createConductorService(
   const runAdapter = input?.algorithmsTerminalRunAdapter;
   const commandLine = input?.commandLine;
   const filesystem = input?.filesystem;
-  const notificationRouter = input?.notificationRouter;
   const runStatusRetentionMs = input?.runStatusRetentionMs ?? DEFAULT_RUN_STATUS_RETENTION_MS;
   const runRegistry = createRunRegistry({ runStatusRetentionMs });
   const runLifecycle = runRegistry.buildRunLifecycle();
@@ -290,23 +286,6 @@ export function createConductorService(
         smokeStatusRetentionLifecycle,
         activeSmokeExecutionByAlgorithm,
       });
-    },
-
-    async runAlgorithmFile(resourceUri: { fsPath: string }): Promise<void> {
-      const fileInfo = resolveAlgorithmFile(resourceUri.fsPath);
-      if (fileInfo === null) {
-        await notificationRouter?.warn("Select a file under src/{category}/{algorithm}/ and try again.");
-        return;
-      }
-
-      const commandText = `cd ${quoteForShell(fileInfo.algorithmDir)} && ${quoteForShell(path.join(fileInfo.gitRoot, "run.sh"))} ${quoteForShell(fileInfo.fileName)}`;
-      const terminal = vscode.window.terminals.find((t) => t.name === "Algorithms Runner")
-        || vscode.window.createTerminal("Algorithms Runner");
-      terminal.show(true);
-      terminal.sendText(commandText, true);
-      await notificationRouter?.info(
-        `Run File started for ${fileInfo.fileName} in Algorithms Runner.`
-      );
     },
 
     async stopSmokeTest(input: ConductorStopSmokeTestInput): Promise<boolean> {

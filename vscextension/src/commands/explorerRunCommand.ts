@@ -50,13 +50,7 @@ function createExplorerRunCommandForAction(
       return;
     }
 
-    // For simple run-file action, use direct dispatch; for other actions, use conductor's full orchestration
-    if (actionKind === "run-file") {
-      await dependencies.conductor.runAlgorithmFile(clickedUri);
-      return;
-    }
-
-    // For other actions (compile-only, check-only, clean, localclean), use full conductor orchestration
+    // Use full conductor orchestration for all actions so run status tracking is preserved.
     // Convert URI to a tree node-like object for conductor.runFile()
     await dependencies.conductor.runFile({
       actionKind,

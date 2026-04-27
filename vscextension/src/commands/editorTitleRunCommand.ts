@@ -47,18 +47,7 @@ function createAlgorithmsEditorTitleCommandForAction(
   return async (): Promise<void> => {
     const uri = vscode.window.activeTextEditor?.document.uri;
     if (uri === undefined) {
-      if (actionKind === "run-file") {
-        // Conductor will warn if needed
-        await dependencies.conductor.runAlgorithmFile({ fsPath: "" });
-        return;
-      }
-
       await dependencies.notificationRouter.warn("Open a file under src/{category}/{algorithm}/ and try again.");
-      return;
-    }
-
-    if (actionKind === "run-file") {
-      await dependencies.conductor.runAlgorithmFile(uri);
       return;
     }
 
@@ -82,7 +71,7 @@ function createAlgorithmsEditorTitleCommandForAction(
 /**
  * Creates the editor-title Run File command.
  *
- * Delegates to conductor for direct run.sh dispatch via the active editor.
+ * Delegates to conductor orchestration via the active editor.
  *
  * @param {EditorTitleRunCommandDependencies} dependencies Command dependencies.
  * @returns {(...commandArgs: unknown[]) => Promise<void>} Command handler.

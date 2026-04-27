@@ -646,9 +646,6 @@ describe("views/trees — run file status projection", () => {
       async runFile(): Promise<void> {
         return;
       },
-      async runAlgorithmFile(): Promise<void> {
-        return;
-      },
       getRunForTarget(target) {
         if (
           target.nodeKind === "mainFile"
@@ -781,9 +778,6 @@ describe("views/trees — run file status projection", () => {
       async runFile(): Promise<void> {
         return;
       },
-      async runAlgorithmFile(): Promise<void> {
-        return;
-      },
       getRunForTarget(target) {
         if (
           target.nodeKind === "mainFile"
@@ -910,9 +904,6 @@ describe("views/trees — run file status projection", () => {
         throw new Error("not used");
       },
       async runFile(): Promise<void> {
-        return;
-      },
-      async runAlgorithmFile(): Promise<void> {
         return;
       },
       getRunForTarget(target) {

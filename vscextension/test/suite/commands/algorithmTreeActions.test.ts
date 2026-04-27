@@ -201,9 +201,6 @@ describe("commands/algorithmTreeActions — run-file integration", () => {
       async runFile(input: ConductorRunFileInput): Promise<void> {
         runInputs.push(input);
       },
-      async runAlgorithmFile(): Promise<void> {
-        return;
-      },
       getRunForTarget() {
         return null;
       },
@@ -346,9 +343,6 @@ describe("commands/algorithmTreeActions — run-file integration", () => {
       async runFile(input: ConductorRunFileInput): Promise<void> {
         runInputs.push(input);
       },
-      async runAlgorithmFile(): Promise<void> {
-        return;
-      },
       getRunForTarget() {
         return null;
       },
@@ -452,9 +446,6 @@ describe("commands/algorithmTreeActions — run-file integration", () => {
         throw new Error("not used");
       },
       async runFile(): Promise<void> {
-        throw new Error("not used");
-      },
-      async runAlgorithmFile(): Promise<void> {
         throw new Error("not used");
       },
       async stopSmokeTest(input): Promise<boolean> {

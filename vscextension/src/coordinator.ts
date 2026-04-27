@@ -158,7 +158,6 @@ export function createCoordinator(
     algorithmsTerminalRunAdapter,
     commandLine,
     filesystem,
-    notificationRouter,
     repositoryRoot: workspaceFolderPaths[0] ?? "",
   });
   void conductor.initWorkspaceSupportedContext({ workspaceFolderPaths });

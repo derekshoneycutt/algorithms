@@ -1079,14 +1079,7 @@ function createAlgorithmsRunCommandForAction(
       return;
     }
 
-    // For simple run-file action, use direct dispatch; for other actions, use conductor's full orchestration
-    if (actionKind === "run-file" && treeNode?.filePath !== undefined) {
-      const fileUri = vscode.Uri.file(treeNode.filePath);
-      await dependencies.conductor.runAlgorithmFile(fileUri);
-      return;
-    }
-
-    // For other actions (compile-only, check-only, clean, localclean, smoke-test), use full conductor orchestration
+    // Use full conductor orchestration for all actions so run status tracking is preserved.
     if (dependencies.hostState === undefined) {
       await dependencies.notificationRouter.error("Run File orchestration is not configured.");
       return;
