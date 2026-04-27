@@ -1,6 +1,12 @@
 import * as assert from "node:assert";
 
-import { createAlgorithmsRunFileCommand } from "../../../src/commands/algorithmTreeActions";
+import {
+  createAlgorithmsRunFileCommand,
+  createAlgorithmsCompileOnlyCommand,
+  createAlgorithmsCheckOnlyCommand,
+  createAlgorithmsCleanCommand,
+  createAlgorithmsLocalCleanCommand,
+} from "../../../src/commands/algorithmTreeActions";
 import type { IConductor, ConductorRunFileInput } from "../../../src/conductor";
 import type { IFilesystem } from "../../../src/filesystem";
 import type { ILanguages } from "../../../src/languages";
@@ -249,5 +255,88 @@ describe("commands/algorithmTreeActions — run-file integration", () => {
     });
 
     assert.deepStrictEqual(errors, ["Run File orchestration is not configured."]);
+  });
+
+  it("delegates compile/check/clean/localclean actions to conductor", async () => {
+    const runInputs: ConductorRunFileInput[] = [];
+
+    const notificationRouter: INotificationRouter = {
+      info(): Thenable<string | undefined> {
+        return Promise.resolve(undefined);
+      },
+      warn(): Thenable<string | undefined> {
+        return Promise.resolve(undefined);
+      },
+      error(): Thenable<string | undefined> {
+        return Promise.resolve(undefined);
+      },
+    };
+
+    const conductor: IConductor = {
+      reactToSmokeIntent(): never {
+        throw new Error("not used");
+      },
+      reactToRunControlsIntent(): never {
+        throw new Error("not used");
+      },
+      async runFile(input: ConductorRunFileInput): Promise<void> {
+        runInputs.push(input);
+      },
+      getRunForTarget() {
+        return null;
+      },
+      subscribeRunTargetStatus() {
+        return {
+          dispose(): void {
+            return;
+          },
+        };
+      },
+      startRun(): never {
+        throw new Error("not used");
+      },
+      markProgress(): never {
+        throw new Error("not used");
+      },
+      markCompleted(): never {
+        throw new Error("not used");
+      },
+      markFailed(): never {
+        throw new Error("not used");
+      },
+      cancelRun(): never {
+        throw new Error("not used");
+      },
+      getRun(): never {
+        throw new Error("not used");
+      },
+    };
+
+    const dependencies = {
+      conductor,
+      filesystem: createFilesystemStub(),
+      hostState: createHostStateStub(createInitialRunControlsSettings()),
+      languages: createLanguagesStub(),
+      notificationRouter,
+      refreshAlgorithmsTree: (): void => {
+        return;
+      },
+    };
+
+    const treeNode: WorkspaceTreeNode = {
+      kind: "file",
+      filePath: "/repo/src/numeric/max/max.py",
+    };
+
+    await createAlgorithmsCompileOnlyCommand(dependencies)(treeNode);
+    await createAlgorithmsCheckOnlyCommand(dependencies)(treeNode);
+    await createAlgorithmsCleanCommand(dependencies)(treeNode);
+    await createAlgorithmsLocalCleanCommand(dependencies)(treeNode);
+
+    assert.strictEqual(runInputs.length, 4);
+    assert.strictEqual(runInputs[0].actionKind, "compile-only");
+    assert.strictEqual(runInputs[1].actionKind, "check-only");
+    assert.strictEqual(runInputs[2].actionKind, "clean");
+    assert.strictEqual(runInputs[3].actionKind, "localclean");
   });
 });

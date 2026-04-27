@@ -13,6 +13,10 @@ import {
   getAlgorithmsFlagLanguageCommandId,
   getAlgorithmsUnflagLanguageCommandId,
   getAlgorithmsRunFileCommandId,
+  getAlgorithmsCompileOnlyCommandId,
+  getAlgorithmsCheckOnlyCommandId,
+  getAlgorithmsCleanCommandId,
+  getAlgorithmsLocalCleanCommandId,
   getAlgorithmsSidebarShowAllRowsCommandId,
   getAlgorithmsSidebarShowProblemRowsCommandId,
 } from "../../src/commands/commandIds";
@@ -141,6 +145,22 @@ describe("bootstrap extension", () => {
     assert.ok(
       availableCommands.includes(getAlgorithmsRunFileCommandId()),
       "algorithms run-file command should be registered"
+    );
+    assert.ok(
+      availableCommands.includes(getAlgorithmsCompileOnlyCommandId()),
+      "algorithms compile-only command should be registered"
+    );
+    assert.ok(
+      availableCommands.includes(getAlgorithmsCheckOnlyCommandId()),
+      "algorithms check-only command should be registered"
+    );
+    assert.ok(
+      availableCommands.includes(getAlgorithmsCleanCommandId()),
+      "algorithms clean command should be registered"
+    );
+    assert.ok(
+      availableCommands.includes(getAlgorithmsLocalCleanCommandId()),
+      "algorithms local-clean command should be registered"
     );
   });
 });

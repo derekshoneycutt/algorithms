@@ -143,6 +143,7 @@ export interface ConductorReactToRunControlsIntentInput {
  * Input for conductor-owned run-file orchestration.
  */
 export interface ConductorRunFileInput {
+  actionKind?: ConductorRunActionKind;
   filesystem: IFilesystem;
   hostState: IStateMachine;
   languages: ILanguages;
@@ -151,6 +152,16 @@ export interface ConductorRunFileInput {
   treeNode?: WorkspaceTreeNode;
   workspaceFolderPaths: readonly string[];
 }
+
+/**
+ * Supported tree execution actions routed through run.sh.
+ */
+export type ConductorRunActionKind =
+  | "run-file"
+  | "compile-only"
+  | "check-only"
+  | "clean"
+  | "localclean";
 
 /**
  * One host notification emitted by conductor policy.

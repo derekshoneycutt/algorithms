@@ -160,6 +160,37 @@
         "title": "Run File",
         "category": "Derek's Algorithms",
         "icon": "$(play)"
+      },
+      {
+        "command": "algos.algorithmsCompileOnly",
+        "title": "Compile Only",
+        "category": "Derek's Algorithms",
+        "icon": "$(tools)"
+      },
+      {
+        "command": "algos.algorithmsCheckOnly",
+        "title": "Check Only",
+        "category": "Derek's Algorithms",
+        "icon": "$(pass)"
+      },
+      {
+        "command": "algos.algorithmsClean",
+        "title": "Clean",
+        "category": "Derek's Algorithms",
+        "icon": "$(clear-all)"
+      },
+      {
+        "command": "algos.algorithmsLocalClean",
+        "title": "Local Clean",
+        "category": "Derek's Algorithms",
+        "icon": "$(trash)"
+      }
+    ],
+    "submenus": [
+      {
+        "id": "algos.algorithmsRunActionsSubmenu",
+        "label": "Run Actions",
+        "icon": "$(kebab-vertical)"
       }
     ],
     "menus": {
@@ -290,6 +321,38 @@
           "command": "algos.algorithmsRunFile",
           "when": "view == algos.workspaceAlgorithmsTreeView && (viewItem == algos.algorithmFileUnflagged || viewItem == algos.algorithmFileFlagged || viewItem == algos.algorithmsMainFileUnflagged || viewItem == algos.algorithmsMainFileFlagged || viewItem == algos.algorithmsLanguageSummaryUnflagged || viewItem == algos.algorithmsLanguageSummaryFlagged)",
           "group": "inline@1"
+        },
+        {
+          "submenu": "algos.algorithmsRunActionsSubmenu",
+          "when": "view == algos.workspaceAlgorithmsTreeView && (viewItem == algos.algorithmFileUnflagged || viewItem == algos.algorithmFileFlagged || viewItem == algos.algorithmsMainFileUnflagged || viewItem == algos.algorithmsMainFileFlagged || viewItem == algos.algorithmsLanguageSummaryUnflagged || viewItem == algos.algorithmsLanguageSummaryFlagged)",
+          "group": "inline@99"
+        }
+      ],
+      "algos.algorithmsRunActionsSubmenu": [
+        {
+          "command": "algos.algorithmsRunFile",
+          "when": "view == algos.workspaceAlgorithmsTreeView && (viewItem == algos.algorithmFileUnflagged || viewItem == algos.algorithmFileFlagged || viewItem == algos.algorithmsMainFileUnflagged || viewItem == algos.algorithmsMainFileFlagged || viewItem == algos.algorithmsLanguageSummaryUnflagged || viewItem == algos.algorithmsLanguageSummaryFlagged)",
+          "group": "navigation@1"
+        },
+        {
+          "command": "algos.algorithmsCompileOnly",
+          "when": "view == algos.workspaceAlgorithmsTreeView && (viewItem == algos.algorithmFileUnflagged || viewItem == algos.algorithmFileFlagged || viewItem == algos.algorithmsMainFileUnflagged || viewItem == algos.algorithmsMainFileFlagged || viewItem == algos.algorithmsLanguageSummaryUnflagged || viewItem == algos.algorithmsLanguageSummaryFlagged)",
+          "group": "navigation@2"
+        },
+        {
+          "command": "algos.algorithmsCheckOnly",
+          "when": "view == algos.workspaceAlgorithmsTreeView && (viewItem == algos.algorithmFileUnflagged || viewItem == algos.algorithmFileFlagged || viewItem == algos.algorithmsMainFileUnflagged || viewItem == algos.algorithmsMainFileFlagged || viewItem == algos.algorithmsLanguageSummaryUnflagged || viewItem == algos.algorithmsLanguageSummaryFlagged)",
+          "group": "navigation@3"
+        },
+        {
+          "command": "algos.algorithmsClean",
+          "when": "view == algos.workspaceAlgorithmsTreeView && (viewItem == algos.algorithmFileUnflagged || viewItem == algos.algorithmFileFlagged || viewItem == algos.algorithmsMainFileUnflagged || viewItem == algos.algorithmsMainFileFlagged || viewItem == algos.algorithmsLanguageSummaryUnflagged || viewItem == algos.algorithmsLanguageSummaryFlagged)",
+          "group": "navigation@4"
+        },
+        {
+          "command": "algos.algorithmsLocalClean",
+          "when": "view == algos.workspaceAlgorithmsTreeView && (viewItem == algos.algorithmFileUnflagged || viewItem == algos.algorithmFileFlagged || viewItem == algos.algorithmsMainFileUnflagged || viewItem == algos.algorithmsMainFileFlagged || viewItem == algos.algorithmsLanguageSummaryUnflagged || viewItem == algos.algorithmsLanguageSummaryFlagged)",
+          "group": "navigation@5"
         }
       ]
     },

@@ -8,6 +8,7 @@ import type {
   ConductorNotificationEffect,
   ConductorRunControlsIntent,
   ConductorRunControlsReaction,
+  ConductorRunActionKind,
   ConductorRunFileInput,
   ConductorRunTargetRef,
   ConductorRunTargetStatusChange,
@@ -36,6 +37,10 @@ import {
 } from "../state";
 
 const RUN_FILE_COMMAND_ID = "algorithms.run-file";
+const COMPILE_ONLY_COMMAND_ID = "algorithms.compile-only";
+const CHECK_ONLY_COMMAND_ID = "algorithms.check-only";
+const CLEAN_COMMAND_ID = "algorithms.clean";
+const LOCAL_CLEAN_COMMAND_ID = "algorithms.localclean";
 const DEFAULT_RUN_STATUS_RETENTION_MS = 120_000;
 
 /**
@@ -331,21 +336,125 @@ function resolveRepositoryRootFromAlgorithmsRootPath(
 }
 
 /**
+ * Returns the effective action kind for one run-file input.
+ *
+ * @param {ConductorRunFileInput} input Run input.
+ * @returns {ConductorRunActionKind} Effective action kind.
+ */
+function resolveRunActionKind(input: ConductorRunFileInput): ConductorRunActionKind {
+  return input.actionKind ?? "run-file";
+}
+
+/**
+ * Returns true when action requires one concrete source-file target.
+ *
+ * @param {ConductorRunActionKind} actionKind Execution action.
+ * @returns {boolean} True when file existence must be validated.
+ */
+function actionRequiresConcreteTargetFile(actionKind: ConductorRunActionKind): boolean {
+  return actionKind !== "clean" && actionKind !== "localclean";
+}
+
+/**
+ * Returns true when action supports passthrough run arguments.
+ *
+ * @param {ConductorRunActionKind} actionKind Execution action.
+ * @returns {boolean} True when passthrough args should be parsed and forwarded.
+ */
+function actionSupportsPassthroughArguments(actionKind: ConductorRunActionKind): boolean {
+  return actionKind === "run-file" || actionKind === "compile-only" || actionKind === "check-only";
+}
+
+/**
+ * Returns one state-machine command id for one action kind.
+ *
+ * @param {ConductorRunActionKind} actionKind Execution action.
+ * @returns {string} Command identifier.
+ */
+function getCommandIdForAction(actionKind: ConductorRunActionKind): string {
+  if (actionKind === "compile-only") {
+    return COMPILE_ONLY_COMMAND_ID;
+  }
+
+  if (actionKind === "check-only") {
+    return CHECK_ONLY_COMMAND_ID;
+  }
+
+  if (actionKind === "clean") {
+    return CLEAN_COMMAND_ID;
+  }
+
+  if (actionKind === "localclean") {
+    return LOCAL_CLEAN_COMMAND_ID;
+  }
+
+  return RUN_FILE_COMMAND_ID;
+}
+
+/**
+ * Returns one UI label for one action kind.
+ *
+ * @param {ConductorRunActionKind} actionKind Execution action.
+ * @returns {string} Human-friendly action label.
+ */
+function getActionLabel(actionKind: ConductorRunActionKind): string {
+  if (actionKind === "compile-only") {
+    return "Compile Only";
+  }
+
+  if (actionKind === "check-only") {
+    return "Check Only";
+  }
+
+  if (actionKind === "clean") {
+    return "Clean";
+  }
+
+  if (actionKind === "localclean") {
+    return "Local Clean";
+  }
+
+  return "Run File";
+}
+
+/**
+ * Builds a clean defaults option token from run controls.
+ *
+ * @param {RunControlsSettings} runControls Snapshot run controls.
+ * @returns {string} One `--defaults=` option token.
+ */
+function buildCleanDefaultsOptionToken(runControls: RunControlsSettings): string {
+  const stdlibDefault = runControls.cleanStdlibEnabled ? "y" : "n";
+  const archiveDefault = runControls.cleanArchivesEnabled ? "y" : "n";
+  return `--defaults=${stdlibDefault}|${archiveDefault}`;
+}
+
+/**
  * Resolves run-control option tokens for run.sh.
  *
  * These are run.sh option flags and must appear before the target argument.
  *
  * @param {RunControlsSettings} runControls Snapshot run controls.
+ * @param {ConductorRunActionKind} actionKind Execution action.
  * @returns {string[]} run.sh option tokens.
  */
-function buildRunControlOptionTokens(runControls: RunControlsSettings): string[] {
+function buildRunControlOptionTokens(
+  runControls: RunControlsSettings,
+  actionKind: ConductorRunActionKind
+): string[] {
   const optionTokens: string[] = [];
 
   if (runControls.sourceProfileEnabled) {
     optionTokens.push(`--source-profile=${runControls.sourceProfileText}`);
   }
 
-  if (runControls.runChecksMode === "compile-only") {
+  if (actionKind === "compile-only") {
+    optionTokens.push("--compile-only");
+  } else if (actionKind === "check-only") {
+    optionTokens.push(`--check-only=${runControls.runChecksRoute}`);
+  } else if (actionKind === "clean") {
+    optionTokens.push(buildCleanDefaultsOptionToken(runControls));
+  } else if (runControls.runChecksMode === "compile-only") {
     optionTokens.push("--compile-only");
   } else if (runControls.runChecksMode === "check-only") {
     optionTokens.push(`--check-only=${runControls.runChecksRoute}`);
@@ -397,7 +506,11 @@ function buildRunControlPassthroughTokens(
  * @returns {void}
  */
 function recordRunFileFailure(input: ConductorRunFileInput, errorMessage: string): void {
-  input.hostState.send({ type: "COMMAND_REQUESTED", commandId: RUN_FILE_COMMAND_ID });
+  const actionKind = resolveRunActionKind(input);
+  input.hostState.send({
+    type: "COMMAND_REQUESTED",
+    commandId: getCommandIdForAction(actionKind),
+  });
   input.hostState.send({ type: "COMMAND_FAILED", error: errorMessage });
 }
 
@@ -413,8 +526,11 @@ async function runAlgorithmsFile(
   runAdapter: IAlgorithmsTerminalRunAdapter | undefined,
   runLifecycle: RunFileStatusLifecycle
 ): Promise<void> {
+  const actionKind = resolveRunActionKind(input);
+  const actionLabel = getActionLabel(actionKind);
+
   if (!isRunnableTreeNode(input.treeNode)) {
-    await input.notificationRouter.warn("Select an algorithm file or language row to run.");
+    await input.notificationRouter.warn(`Select an algorithm file or language row to ${actionLabel.toLowerCase()}.`);
     return;
   }
 
@@ -424,8 +540,12 @@ async function runAlgorithmsFile(
     filePath: treeNode.filePath,
   };
 
-  if (treeNode.kind === "languageSummary" && treeNode.hasOpenTarget === false) {
-    await input.notificationRouter.warn("Cannot run a missing language row.");
+  if (
+    actionRequiresConcreteTargetFile(actionKind)
+    && treeNode.kind === "languageSummary"
+    && treeNode.hasOpenTarget === false
+  ) {
+    await input.notificationRouter.warn(`Cannot ${actionLabel.toLowerCase()} a missing language row.`);
     return;
   }
 
@@ -463,23 +583,27 @@ async function runAlgorithmsFile(
     return;
   }
 
-  const targetFilePath = treeNode.filePath;
-  if (!(await input.filesystem.isFile(targetFilePath))) {
-    await input.notificationRouter.warn("Target file no longer exists.");
-    input.refreshAlgorithmsTree();
-    return;
-  }
-
   const canonicalAlgorithmsRoot = await input.filesystem.realpath(algorithmsRootPath);
-  const canonicalTargetFilePath = await input.filesystem.realpath(targetFilePath);
-  const isWithinAlgorithmsRoot = await input.filesystem.isPathWithinRoot(
-    canonicalAlgorithmsRoot,
-    canonicalTargetFilePath
-  );
 
-  if (!isWithinAlgorithmsRoot) {
-    await input.notificationRouter.warn("Run target must stay inside the Algorithms root.");
-    return;
+  let canonicalTargetFilePath: string | null = null;
+  if (actionRequiresConcreteTargetFile(actionKind)) {
+    const targetFilePath = treeNode.filePath;
+    if (!(await input.filesystem.isFile(targetFilePath))) {
+      await input.notificationRouter.warn("Target file no longer exists.");
+      input.refreshAlgorithmsTree();
+      return;
+    }
+
+    canonicalTargetFilePath = await input.filesystem.realpath(targetFilePath);
+    const isWithinAlgorithmsRoot = await input.filesystem.isPathWithinRoot(
+      canonicalAlgorithmsRoot,
+      canonicalTargetFilePath
+    );
+
+    if (!isWithinAlgorithmsRoot) {
+      await input.notificationRouter.warn("Run target must stay inside the Algorithms root.");
+      return;
+    }
   }
 
   const algorithmDirectoryPath = resolveAlgorithmDirectoryPath(treeNode);
@@ -498,8 +622,10 @@ async function runAlgorithmsFile(
   }
 
   const runControls = input.hostState.getSnapshot().runControls;
-  const runControlOptionTokens = buildRunControlOptionTokens(runControls);
-  const runControlPassthrough = buildRunControlPassthroughTokens(runControls);
+  const runControlOptionTokens = buildRunControlOptionTokens(runControls, actionKind);
+  const runControlPassthrough = actionSupportsPassthroughArguments(actionKind)
+    ? buildRunControlPassthroughTokens(runControls)
+    : { ok: true, tokens: [], reason: null };
   if (!runControlPassthrough.ok) {
     const errorMessage = runControlPassthrough.reason ?? "Run args are invalid.";
     runLifecycle.markFailed(runTarget, errorMessage);
@@ -508,23 +634,30 @@ async function runAlgorithmsFile(
     return;
   }
 
-  const runTargetToken = treeNode.kind === "languageSummary"
-    ? languageKey
-    : path.basename(canonicalTargetFilePath);
+  const runTargetToken = actionKind === "clean"
+    ? "clean"
+    : actionKind === "localclean"
+      ? "localclean"
+      : treeNode.kind === "languageSummary"
+        ? languageKey
+        : path.basename(canonicalTargetFilePath ?? treeNode.filePath);
   const runOwnerKey = `${languageKey}:${runTargetToken}`;
 
   try {
     const startedRunSnapshot = runLifecycle.start(
       runTarget,
       runOwnerKey,
-      "Run File launch requested"
+      `${actionLabel} launch requested`
     );
     const startedRunId = startedRunSnapshot.runId;
-    input.hostState.send({ type: "COMMAND_REQUESTED", commandId: RUN_FILE_COMMAND_ID });
+    input.hostState.send({
+      type: "COMMAND_REQUESTED",
+      commandId: getCommandIdForAction(actionKind),
+    });
 
     runLifecycle.markRunning(
       runTarget,
-      `Run File dispatched to terminal for ${runTargetToken} (${languageKey})`,
+      `${actionLabel} dispatched to terminal for ${runTargetToken} (${languageKey})`,
       startedRunId
     );
 
@@ -538,7 +671,7 @@ async function runAlgorithmsFile(
         if (typeof exitCode === "number" && exitCode !== 0) {
           runLifecycle.markFailed(
             runTarget,
-            `Run File exited with code ${exitCode}.`,
+            `${actionLabel} exited with code ${exitCode}.`,
             startedRunId
           );
           return;
@@ -546,13 +679,13 @@ async function runAlgorithmsFile(
 
         runLifecycle.markCompleted(
           runTarget,
-          `Run File completed for ${runTargetToken} (${languageKey}).`,
+          `${actionLabel} completed for ${runTargetToken} (${languageKey}).`,
           startedRunId
         );
       },
     });
 
-    const successMessage = `Run File started for ${runTargetToken} (${languageKey}) in ${runAdapter.getTerminalName()}.`;
+    const successMessage = `${actionLabel} started for ${runTargetToken} (${languageKey}) in ${runAdapter.getTerminalName()}.`;
     input.hostState.send({ type: "COMMAND_SUCCEEDED", result: successMessage });
     await input.notificationRouter.info(successMessage);
   } catch (error) {

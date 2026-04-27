@@ -3,6 +3,7 @@ import * as path from "node:path";
 import * as vscode from "vscode";
 
 import type { IConductor } from "../conductor";
+import type { ConductorRunActionKind } from "../conductor";
 import type { IFilesystem } from "../filesystem";
 import type { ILanguages } from "../languages";
 import type { INotificationRouter } from "../notifications";
@@ -841,6 +842,68 @@ export function createAlgorithmsUnflagLanguageCommand(
 export function createAlgorithmsRunFileCommand(
   dependencies: AlgorithmTreeActionDependencies
 ): (treeNode?: WorkspaceTreeNode) => Promise<void> {
+  return createAlgorithmsRunCommandForAction(dependencies, "run-file");
+}
+
+/**
+ * Creates one command to compile-only the hovered Algorithms target.
+ *
+ * @param {AlgorithmTreeActionDependencies} dependencies Action dependencies.
+ * @returns {(treeNode?: WorkspaceTreeNode) => Promise<void>} Command handler.
+ */
+export function createAlgorithmsCompileOnlyCommand(
+  dependencies: AlgorithmTreeActionDependencies
+): (treeNode?: WorkspaceTreeNode) => Promise<void> {
+  return createAlgorithmsRunCommandForAction(dependencies, "compile-only");
+}
+
+/**
+ * Creates one command to check-only the hovered Algorithms target.
+ *
+ * @param {AlgorithmTreeActionDependencies} dependencies Action dependencies.
+ * @returns {(treeNode?: WorkspaceTreeNode) => Promise<void>} Command handler.
+ */
+export function createAlgorithmsCheckOnlyCommand(
+  dependencies: AlgorithmTreeActionDependencies
+): (treeNode?: WorkspaceTreeNode) => Promise<void> {
+  return createAlgorithmsRunCommandForAction(dependencies, "check-only");
+}
+
+/**
+ * Creates one command to clean hovered Algorithms target outputs.
+ *
+ * @param {AlgorithmTreeActionDependencies} dependencies Action dependencies.
+ * @returns {(treeNode?: WorkspaceTreeNode) => Promise<void>} Command handler.
+ */
+export function createAlgorithmsCleanCommand(
+  dependencies: AlgorithmTreeActionDependencies
+): (treeNode?: WorkspaceTreeNode) => Promise<void> {
+  return createAlgorithmsRunCommandForAction(dependencies, "clean");
+}
+
+/**
+ * Creates one command to local-clean hovered Algorithms target outputs.
+ *
+ * @param {AlgorithmTreeActionDependencies} dependencies Action dependencies.
+ * @returns {(treeNode?: WorkspaceTreeNode) => Promise<void>} Command handler.
+ */
+export function createAlgorithmsLocalCleanCommand(
+  dependencies: AlgorithmTreeActionDependencies
+): (treeNode?: WorkspaceTreeNode) => Promise<void> {
+  return createAlgorithmsRunCommandForAction(dependencies, "localclean");
+}
+
+/**
+ * Creates one command that executes one action kind against the hovered target.
+ *
+ * @param {AlgorithmTreeActionDependencies} dependencies Action dependencies.
+ * @param {ConductorRunActionKind} actionKind Requested action kind.
+ * @returns {(treeNode?: WorkspaceTreeNode) => Promise<void>} Command handler.
+ */
+function createAlgorithmsRunCommandForAction(
+  dependencies: AlgorithmTreeActionDependencies,
+  actionKind: ConductorRunActionKind
+): (treeNode?: WorkspaceTreeNode) => Promise<void> {
   return async (treeNode?: WorkspaceTreeNode): Promise<void> => {
     if (dependencies.conductor === undefined || dependencies.hostState === undefined) {
       await dependencies.notificationRouter.error("Run File orchestration is not configured.");
@@ -848,6 +911,7 @@ export function createAlgorithmsRunFileCommand(
     }
 
     await dependencies.conductor.runFile({
+      actionKind,
       filesystem: dependencies.filesystem,
       hostState: dependencies.hostState,
       languages: dependencies.languages,

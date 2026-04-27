@@ -18,6 +18,10 @@ import {
   getAlgorithmsFlagLanguageCommandId,
   getAlgorithmsUnflagLanguageCommandId,
   getAlgorithmsRunFileCommandId,
+  getAlgorithmsCompileOnlyCommandId,
+  getAlgorithmsCheckOnlyCommandId,
+  getAlgorithmsCleanCommandId,
+  getAlgorithmsLocalCleanCommandId,
 } from "./commandIds";
 
 /**
@@ -93,6 +97,22 @@ export function registerCommands(
     vscode.commands.registerCommand(
       getAlgorithmsRunFileCommandId(),
       commands.algorithmsRunFile
+    ),
+    vscode.commands.registerCommand(
+      getAlgorithmsCompileOnlyCommandId(),
+      commands.algorithmsCompileOnly
+    ),
+    vscode.commands.registerCommand(
+      getAlgorithmsCheckOnlyCommandId(),
+      commands.algorithmsCheckOnly
+    ),
+    vscode.commands.registerCommand(
+      getAlgorithmsCleanCommandId(),
+      commands.algorithmsClean
+    ),
+    vscode.commands.registerCommand(
+      getAlgorithmsLocalCleanCommandId(),
+      commands.algorithmsLocalClean
     )
   );
 }

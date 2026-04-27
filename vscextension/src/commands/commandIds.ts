@@ -141,3 +141,39 @@ export function getAlgorithmsUnflagLanguageCommandId(): string {
 export function getAlgorithmsRunFileCommandId(): string {
   return "algos.algorithmsRunFile";
 }
+
+/**
+ * Command identifier for compile-only execution from the tree.
+ *
+ * @returns {string} Command identifier.
+ */
+export function getAlgorithmsCompileOnlyCommandId(): string {
+  return "algos.algorithmsCompileOnly";
+}
+
+/**
+ * Command identifier for check-only execution from the tree.
+ *
+ * @returns {string} Command identifier.
+ */
+export function getAlgorithmsCheckOnlyCommandId(): string {
+  return "algos.algorithmsCheckOnly";
+}
+
+/**
+ * Command identifier for full clean execution from the tree.
+ *
+ * @returns {string} Command identifier.
+ */
+export function getAlgorithmsCleanCommandId(): string {
+  return "algos.algorithmsClean";
+}
+
+/**
+ * Command identifier for local clean execution from the tree.
+ *
+ * @returns {string} Command identifier.
+ */
+export function getAlgorithmsLocalCleanCommandId(): string {
+  return "algos.algorithmsLocalClean";
+}

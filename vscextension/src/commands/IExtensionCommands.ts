@@ -129,4 +129,36 @@ export interface IExtensionCommands {
    * @returns {Promise<void>}
    */
   algorithmsRunFile: (treeNode?: WorkspaceTreeNode) => Promise<void>;
+
+  /**
+   * Compiles one Algorithms source target without running it.
+   *
+   * @param {WorkspaceTreeNode} [treeNode] Hovered tree node.
+   * @returns {Promise<void>}
+   */
+  algorithmsCompileOnly: (treeNode?: WorkspaceTreeNode) => Promise<void>;
+
+  /**
+   * Performs one check-only pass for the hovered Algorithms target.
+   *
+   * @param {WorkspaceTreeNode} [treeNode] Hovered tree node.
+   * @returns {Promise<void>}
+   */
+  algorithmsCheckOnly: (treeNode?: WorkspaceTreeNode) => Promise<void>;
+
+  /**
+   * Cleans run output plus optional stdlib/archive artifacts.
+   *
+   * @param {WorkspaceTreeNode} [treeNode] Hovered tree node.
+   * @returns {Promise<void>}
+   */
+  algorithmsClean: (treeNode?: WorkspaceTreeNode) => Promise<void>;
+
+  /**
+   * Cleans only local output artifacts for the hovered target.
+   *
+   * @param {WorkspaceTreeNode} [treeNode] Hovered tree node.
+   * @returns {Promise<void>}
+   */
+  algorithmsLocalClean: (treeNode?: WorkspaceTreeNode) => Promise<void>;
 }

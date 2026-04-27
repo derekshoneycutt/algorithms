@@ -346,6 +346,117 @@ describe("conductor — createConductorService", () => {
     }
   });
 
+  it("routes clean action with run-control defaults and no passthrough args", async () => {
+    const runCalls: Parameters<IAlgorithmsTerminalRunAdapter["run"]>[] = [];
+
+    const adapter: IAlgorithmsTerminalRunAdapter = {
+      run(input): void {
+        runCalls.push([input]);
+      },
+      getTerminalName(): string {
+        return "Algorithms Runner";
+      },
+    };
+
+    const conductor = createConductorService({
+      algorithmsTerminalRunAdapter: adapter,
+    });
+    const stateMachine = createHostStateService({
+      initialRunControls: {
+        runArgsEnabled: true,
+        runArgsText: "--should-not-pass",
+        cleanStdlibEnabled: false,
+        cleanArchivesEnabled: true,
+      },
+    });
+
+    try {
+      await conductor.runFile({
+        actionKind: "clean",
+        filesystem: {
+          async realpath(targetPath: string): Promise<string> {
+            return targetPath;
+          },
+          async isFile(_filePath: string): Promise<boolean> {
+            return true;
+          },
+          async isDirectory(_directoryPath: string): Promise<boolean> {
+            return true;
+          },
+          async readText(): Promise<string | null> {
+            return null;
+          },
+          async writeText(): Promise<void> {
+            return;
+          },
+          async listDirectory(): Promise<null> {
+            return null;
+          },
+          async ensureDirectory(): Promise<void> {
+            return;
+          },
+          async deletePath(): Promise<void> {
+            return;
+          },
+          async isPathWithinRoot(): Promise<boolean> {
+            return true;
+          },
+        },
+        hostState: stateMachine,
+        languages: {
+          getAll() {
+            return [];
+          },
+          getByKey() {
+            return undefined;
+          },
+          normalizeLanguageId(languageId: string) {
+            return languageId;
+          },
+          normalizeFileExtension() {
+            return "python";
+          },
+          getDisplayLabel() {
+            return undefined;
+          },
+          getDefaultSmokeKeys() {
+            return [];
+          },
+        },
+        notificationRouter: {
+          info() {
+            return Promise.resolve(undefined);
+          },
+          warn() {
+            return Promise.resolve(undefined);
+          },
+          error() {
+            return Promise.resolve(undefined);
+          },
+        },
+        refreshAlgorithmsTree(): void {
+          return;
+        },
+        treeNode: {
+          kind: "file",
+          filePath: "/repo/src/numeric/max/max.py",
+        },
+        workspaceFolderPaths: ["/repo"],
+      });
+
+      assert.strictEqual(runCalls.length, 1);
+      assert.deepStrictEqual(runCalls[0][0].optionTokens, ["--defaults=n|y"]);
+      assert.deepStrictEqual(runCalls[0][0].passthroughTokens, []);
+      assert.strictEqual(runCalls[0][0].targetToken, "clean");
+
+      const snapshot = stateMachine.getSnapshot();
+      assert.strictEqual(snapshot.lastCommandId, "algorithms.clean");
+      assert.ok(snapshot.lastResult?.includes("Clean started for clean"));
+    } finally {
+      stateMachine.dispose();
+    }
+  });
+
   it("blocks malformed run args and records lifecycle failure", async () => {
     const runCalls: Parameters<IAlgorithmsTerminalRunAdapter["run"]>[] = [];
 

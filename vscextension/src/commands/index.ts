@@ -16,6 +16,10 @@ export {
 	getAlgorithmsFlagLanguageCommandId,
 	getAlgorithmsUnflagLanguageCommandId,
 	getAlgorithmsRunFileCommandId,
+	getAlgorithmsCompileOnlyCommandId,
+	getAlgorithmsCheckOnlyCommandId,
+	getAlgorithmsCleanCommandId,
+	getAlgorithmsLocalCleanCommandId,
 } from "./commandIds";
 export { registerCommands } from "./registerCommands";
 export { createShowBootstrapStatusCommand } from "./showBootstrapStatus";
@@ -37,4 +41,8 @@ export {
 	createAlgorithmsFlagLanguageCommand,
 	createAlgorithmsUnflagLanguageCommand,
 	createAlgorithmsRunFileCommand,
+	createAlgorithmsCompileOnlyCommand,
+	createAlgorithmsCheckOnlyCommand,
+	createAlgorithmsCleanCommand,
+	createAlgorithmsLocalCleanCommand,
 } from "./algorithmTreeActions";
