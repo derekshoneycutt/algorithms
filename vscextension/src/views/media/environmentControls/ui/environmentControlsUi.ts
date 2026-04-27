@@ -1,4 +1,6 @@
 import type {
+  EnvironmentControlsBatchRouting,
+  EnvironmentControlsRoutingLanguageEntry,
   EnvironmentControlsViewSnapshot,
   EnvironmentControlsViewVariable,
   ViewEnvironmentControlsIntent,
@@ -41,6 +43,89 @@ function escapeHtml(value: string): string {
 }
 
 /**
+ * Renders one status block when there is status text.
+ *
+ * @param {string} statusText Status text.
+ * @param {string} statusClassName Status class.
+ * @returns {string} Status markup.
+ */
+function renderStatus(statusText: string, statusClassName: string): string {
+  if (statusText.trim().length === 0) {
+    return "";
+  }
+
+  return `<div class="status ${escapeHtml(statusClassName)}">${escapeHtml(statusText)}</div>`;
+}
+
+const SECTION_ICON_SVG_BY_NAME: Readonly<Record<string, string>> = Object.freeze({
+  profile:
+    '<svg class="sectionIcon" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-hidden="true">'
+    + '<path d="M8 8C9.66 8 11 6.66 11 5C11 3.34 9.66 2 8 2C6.34 2 5 3.34 5 5C5 6.66 6.34 8 8 8Z" stroke="currentColor" stroke-width="1.1"/>'
+    + '<path d="M3 13C3.55 10.9 5.52 9.5 8 9.5C10.48 9.5 12.45 10.9 13 13" stroke="currentColor" stroke-width="1.1" stroke-linecap="round"/>'
+    + "</svg>",
+  check:
+    '<svg class="sectionIcon" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-hidden="true">'
+    + '<path d="M3 3.5C3 2.67 3.67 2 4.5 2H11.5C12.33 2 13 2.67 13 3.5V12.5C13 13.33 12.33 14 11.5 14H4.5C3.67 14 3 13.33 3 12.5V3.5Z" stroke="currentColor" stroke-width="1"/>'
+    + '<path d="M5 8L7 10L11 6" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"/>'
+    + "</svg>",
+  copy:
+    '<svg class="sectionIcon" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-hidden="true">'
+    + '<path d="M6 3H11.5C12.33 3 13 3.67 13 4.5V10" stroke="currentColor" stroke-width="1" stroke-linecap="round"/>'
+    + '<rect x="3" y="6" width="7" height="7" rx="1" stroke="currentColor" stroke-width="1"/>'
+    + "</svg>",
+  variables:
+    '<svg class="sectionIcon" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-hidden="true">'
+    + '<path d="M4 4.5H12" stroke="currentColor" stroke-width="1.1" stroke-linecap="round"/>'
+    + '<path d="M4 8H12" stroke="currentColor" stroke-width="1.1" stroke-linecap="round"/>'
+    + '<path d="M4 11.5H12" stroke="currentColor" stroke-width="1.1" stroke-linecap="round"/>'
+    + '<circle cx="6" cy="4.5" r="1.2" fill="currentColor"/>'
+    + '<circle cx="10" cy="8" r="1.2" fill="currentColor"/>'
+    + '<circle cx="7.5" cy="11.5" r="1.2" fill="currentColor"/>'
+    + "</svg>",
+  routing:
+    '<svg class="sectionIcon" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-hidden="true">'
+    + '<circle cx="4" cy="4" r="1.5" stroke="currentColor" stroke-width="1"/>'
+    + '<circle cx="12" cy="4" r="1.5" stroke="currentColor" stroke-width="1"/>'
+    + '<circle cx="8" cy="12" r="1.5" stroke="currentColor" stroke-width="1"/>'
+    + '<path d="M5.2 4.8L6.9 10.8" stroke="currentColor" stroke-width="1.1" stroke-linecap="round"/>'
+    + '<path d="M10.8 4.8L9.1 10.8" stroke="currentColor" stroke-width="1.1" stroke-linecap="round"/>'
+    + '<path d="M5.5 4H10.5" stroke="currentColor" stroke-width="1.1" stroke-linecap="round"/>'
+    + "</svg>",
+});
+
+/**
+ * Returns inline icon markup for one section key.
+ *
+ * @param {string} iconName Icon key.
+ * @returns {string} Icon markup or empty string.
+ */
+function getSectionIconSvg(iconName: string): string {
+  if (Object.prototype.hasOwnProperty.call(SECTION_ICON_SVG_BY_NAME, iconName)) {
+    return SECTION_ICON_SVG_BY_NAME[iconName];
+  }
+
+  return "";
+}
+
+/**
+ * Renders one section header with icon and optional actions markup.
+ *
+ * @param {string} title Section title.
+ * @param {string} iconName Section icon key.
+ * @param {string} [actionsHtml] Pre-built actions markup.
+ * @returns {string} Header HTML.
+ */
+function renderSectionHeader(title: string, iconName: string, actionsHtml?: string): string {
+  return '<div class="sectionHeader">'
+    + '<div class="sectionTitleGroup">'
+    + getSectionIconSvg(iconName)
+    + `<div class="sectionTitle">${escapeHtml(title)}</div>`
+    + "</div>"
+    + (actionsHtml || "")
+    + "</div>";
+}
+
+/**
  * Renders one variable card markup.
  *
  * @param {EnvironmentControlsViewVariable} variable Variable payload.
@@ -54,8 +139,131 @@ function renderVariableCard(variable: EnvironmentControlsViewVariable): string {
         <input class="input" data-role="variable-value" data-variable-key="${escapeHtml(variable.key)}" value="${escapeHtml(variable.value)}" />
         <button class="button" type="button" data-role="save-variable" data-variable-key="${escapeHtml(variable.key)}">Save</button>
       </div>
-      <div class="status ${escapeHtml(variable.statusClassName)}">${escapeHtml(variable.statusText)}</div>
+      ${renderStatus(variable.statusText, variable.statusClassName)}
     </div>
+  `;
+}
+
+/**
+ * Renders one language routing indicator list.
+ *
+ * @param {EnvironmentControlsRoutingLanguageEntry} entry Routing entry.
+ * @returns {string} Indicator markup.
+ */
+function renderLanguageIndicators(entry: EnvironmentControlsRoutingLanguageEntry): string {
+  let indicators = "";
+
+  if (entry.dockerEnabled) {
+    indicators += '<span class="indicator">docker</span>';
+  }
+
+  if (entry.sshEnabled) {
+    indicators += '<span class="indicator">ssh</span>';
+  }
+
+  return indicators;
+}
+
+/**
+ * Renders one language routing row.
+ *
+ * @param {EnvironmentControlsRoutingLanguageEntry} entry Routing entry.
+ * @returns {string} Routing row markup.
+ */
+function renderRoutingLanguageRow(entry: EnvironmentControlsRoutingLanguageEntry): string {
+  const conflictClass = entry.isConflict ? " conflict" : "";
+  const dockerDisabled = entry.dockerEnabled ? "" : " disabled";
+  const sshDisabled = entry.sshEnabled ? "" : " disabled";
+  const iconHtml = entry.iconUri !== undefined && entry.iconUri.trim().length > 0
+    ? `<img class="languageIcon" src="${escapeHtml(entry.iconUri)}" alt="" />`
+    : '<span class="languageIconFallback"></span>';
+
+  return `
+    <details class="languageRow${conflictClass}" data-language-key="${escapeHtml(entry.languageKey)}">
+      <summary class="languageSummary">
+        <div class="languageMain">
+          ${iconHtml}
+          <span class="languageName">${escapeHtml(entry.label)}</span>
+        </div>
+        <div class="indicatorList">${renderLanguageIndicators(entry)}</div>
+      </summary>
+      <div class="editorBody">
+        <label class="toggleRow">
+          <input
+            type="checkbox"
+            data-role="language-docker-enabled"
+            data-language-key="${escapeHtml(entry.languageKey)}"
+            ${entry.dockerEnabled ? "checked" : ""}
+          />
+          <span class="checkboxText">Docker</span>
+        </label>
+        <input
+          class="input"
+          data-role="language-docker-value"
+          data-language-key="${escapeHtml(entry.languageKey)}"
+          placeholder="Docker image"
+          value="${escapeHtml(entry.dockerValue)}"
+          ${dockerDisabled}
+        />
+
+        <label class="toggleRow">
+          <input
+            type="checkbox"
+            data-role="language-ssh-enabled"
+            data-language-key="${escapeHtml(entry.languageKey)}"
+            ${entry.sshEnabled ? "checked" : ""}
+          />
+          <span class="checkboxText">SSH</span>
+        </label>
+        <input
+          class="input"
+          data-role="language-ssh-value"
+          data-language-key="${escapeHtml(entry.languageKey)}"
+          placeholder="SSH route"
+          value="${escapeHtml(entry.sshValue)}"
+          ${sshDisabled}
+        />
+
+        <div class="buttonRow">
+          <button class="button" type="button" data-role="save-language-routing" data-language-key="${escapeHtml(entry.languageKey)}">Save</button>
+        </div>
+        ${renderStatus(entry.statusText, entry.statusClassName)}
+      </div>
+    </details>
+  `;
+}
+
+/**
+ * Renders the routing batch section.
+ *
+ * @param {EnvironmentControlsBatchRouting} batchRouting Batch routing payload.
+ * @returns {string} Batch routing section markup.
+ */
+function renderBatchRoutingSection(batchRouting: EnvironmentControlsBatchRouting): string {
+  const conflictClass = batchRouting.isConflict ? " conflict" : "";
+  const dockerDisabled = batchRouting.dockerEnabled ? "" : " disabled";
+  const sshDisabled = batchRouting.sshEnabled ? "" : " disabled";
+
+  return `
+    <section class="batchSection${conflictClass}">
+      <div class="subSectionTitle">Batch All</div>
+      <label class="toggleRow">
+        <input type="checkbox" data-role="batch-docker-enabled" ${batchRouting.dockerEnabled ? "checked" : ""} />
+        <span class="checkboxText">Docker</span>
+      </label>
+      <input class="input" data-role="batch-docker-value" placeholder="Docker image" value="${escapeHtml(batchRouting.dockerValue)}" ${dockerDisabled} />
+
+      <label class="toggleRow">
+        <input type="checkbox" data-role="batch-ssh-enabled" ${batchRouting.sshEnabled ? "checked" : ""} />
+        <span class="checkboxText">SSH</span>
+      </label>
+      <input class="input" data-role="batch-ssh-value" placeholder="SSH route" value="${escapeHtml(batchRouting.sshValue)}" ${sshDisabled} />
+
+      <div class="buttonRow">
+        <button class="button" type="button" data-role="save-batch-routing">Save</button>
+      </div>
+      ${renderStatus(batchRouting.statusText, batchRouting.statusClassName)}
+    </section>
   `;
 }
 
@@ -73,59 +281,128 @@ function renderEnvironmentControls(
   const variableCardsHtml = snapshot.variables.map((variable) => {
     return renderVariableCard(variable);
   }).join("");
+  const routingRowsHtml = snapshot.routingEntries.map((entry) => {
+    return renderRoutingLanguageRow(entry);
+  }).join("");
 
   appRoot.innerHTML = `
     <section class="panel" aria-label="Environment controls">
       <p class="panelDescription">Controls environment factors for the algorithms project via init.sh.</p>
 
       <section class="section">
-        <div class="sectionHeader"><div class="sectionTitle">Profile</div></div>
+        ${renderSectionHeader(
+          "Profile",
+          "profile",
+          '<button class="button secondary" type="button" data-role="refresh-environment">Refresh</button>'
+        )}
         <input class="input" data-role="profile-path" value="${escapeHtml(snapshot.profilePath)}" placeholder="${escapeHtml(snapshot.profilePlaceholder)}" />
         <div class="effectiveProfile">Effective profile for reads: ${escapeHtml(snapshot.effectiveProfilePath)}</div>
         <div class="helperText">Leave blank to let init.sh use its platform default profile path.</div>
       </section>
 
       <section class="section">
-        <div class="sectionHeader">
-          <div class="sectionTitle">Check Environment</div>
-          <button class="button secondary" type="button" data-role="run-check-env">Run Check</button>
-        </div>
-        <div class="status ${escapeHtml(snapshot.checkEnvStatusClassName)}">${escapeHtml(snapshot.checkEnvStatusText)}</div>
-        <div class="outputBox">${escapeHtml(snapshot.checkEnvFilteredOutput)}</div>
+        ${renderSectionHeader(
+          "Check Environment",
+          "check",
+          '<button class="button secondary" type="button" data-role="run-check-env">Check Environment</button>'
+        )}
+        ${renderStatus(snapshot.checkEnvStatusText, snapshot.checkEnvStatusClassName)}
+        <div class="outputBox">${snapshot.checkEnvFilteredOutput ? escapeHtml(snapshot.checkEnvFilteredOutput) : "No check-environment output yet."}</div>
         <details>
           <summary>Raw Output</summary>
-          <div class="outputBox">${escapeHtml(snapshot.checkEnvRawOutput)}</div>
+          <div class="outputBox">${snapshot.checkEnvRawOutput ? escapeHtml(snapshot.checkEnvRawOutput) : "No raw output yet."}</div>
         </details>
       </section>
 
       <section class="section">
-        <div class="sectionHeader">
-          <div class="sectionTitle">Copy Icons</div>
-          <button class="button secondary" type="button" data-role="run-copy-icons">Run Copy</button>
-        </div>
+        ${renderSectionHeader(
+          "Copy Icons",
+          "copy",
+          '<button class="button secondary" type="button" data-role="run-copy-icons">Copy Icons</button>'
+        )}
         <input class="input" data-role="copy-icons-path" value="${escapeHtml(snapshot.copyIconsPath)}" placeholder="Optional destination path" />
         <div class="helperText">Skips profile updates.</div>
-        <div class="status ${escapeHtml(snapshot.copyIconsStatusClassName)}">${escapeHtml(snapshot.copyIconsStatusText)}</div>
+        ${renderStatus(snapshot.copyIconsStatusText, snapshot.copyIconsStatusClassName)}
       </section>
 
       <section class="section">
-        <div class="sectionHeader"><div class="sectionTitle">Variables</div></div>
+        ${renderSectionHeader("Use Environment Variables", "variables")}
         <div class="variableGrid">${variableCardsHtml}</div>
       </section>
 
       <section class="section">
-        <div class="sectionHeader">
-          <div class="sectionTitle">Routing</div>
-          <button class="button secondary" type="button" data-role="save-routing">Save Routing</button>
-        </div>
-        <label class="helperText" for="routing-docker-map">Docker Map</label>
-        <textarea id="routing-docker-map" class="textarea" data-role="routing-docker-map">${escapeHtml(snapshot.routingDockerMapText)}</textarea>
-        <label class="helperText" for="routing-ssh-map">SSH Map</label>
-        <textarea id="routing-ssh-map" class="textarea" data-role="routing-ssh-map">${escapeHtml(snapshot.routingSshMapText)}</textarea>
-        <div class="status ${escapeHtml(snapshot.routingStatusClassName)}">${escapeHtml(snapshot.routingStatusText)}</div>
+        ${renderSectionHeader("Language routing", "routing")}
+        <div class="helperText">Configure per-language docker or ssh execution targets. SSH route value must use one of two formats:<pre>ssh-destination|code-dir|run-script<br>ssh-address|ssh-user|ssh-port|code-dir|run-script</pre>
+        Each language should have exactly one target configured (docker or ssh) or none.</div>
+        ${renderBatchRoutingSection(snapshot.batchRouting)}
+        <div class="routingTable">${routingRowsHtml}</div>
       </section>
     </section>
   `;
+}
+
+/**
+ * Resolves one language routing row from current DOM controls.
+ *
+ * @param {HTMLElement} appRoot Environment app root.
+ * @param {string} languageKey Language key.
+ * @returns {{dockerEnabled: boolean; dockerValue: string; sshEnabled: boolean; sshValue: string} | null} Current row values.
+ */
+function readLanguageRowDraft(
+  appRoot: HTMLElement,
+  languageKey: string
+): { dockerEnabled: boolean; dockerValue: string; sshEnabled: boolean; sshValue: string } | null {
+  const dockerEnabledInput = appRoot.querySelector(`[data-role='language-docker-enabled'][data-language-key='${languageKey}']`);
+  const dockerValueInput = appRoot.querySelector(`[data-role='language-docker-value'][data-language-key='${languageKey}']`);
+  const sshEnabledInput = appRoot.querySelector(`[data-role='language-ssh-enabled'][data-language-key='${languageKey}']`);
+  const sshValueInput = appRoot.querySelector(`[data-role='language-ssh-value'][data-language-key='${languageKey}']`);
+
+  if (
+    !(dockerEnabledInput instanceof HTMLInputElement)
+    || !(dockerValueInput instanceof HTMLInputElement)
+    || !(sshEnabledInput instanceof HTMLInputElement)
+    || !(sshValueInput instanceof HTMLInputElement)
+  ) {
+    return null;
+  }
+
+  return {
+    dockerEnabled: dockerEnabledInput.checked,
+    dockerValue: dockerValueInput.value,
+    sshEnabled: sshEnabledInput.checked,
+    sshValue: sshValueInput.value,
+  };
+}
+
+/**
+ * Resolves batch routing draft values from current DOM controls.
+ *
+ * @param {HTMLElement} appRoot Environment app root.
+ * @returns {{dockerEnabled: boolean; dockerValue: string; sshEnabled: boolean; sshValue: string} | null} Current batch values.
+ */
+function readBatchDraft(
+  appRoot: HTMLElement
+): { dockerEnabled: boolean; dockerValue: string; sshEnabled: boolean; sshValue: string } | null {
+  const dockerEnabledInput = appRoot.querySelector("[data-role='batch-docker-enabled']");
+  const dockerValueInput = appRoot.querySelector("[data-role='batch-docker-value']");
+  const sshEnabledInput = appRoot.querySelector("[data-role='batch-ssh-enabled']");
+  const sshValueInput = appRoot.querySelector("[data-role='batch-ssh-value']");
+
+  if (
+    !(dockerEnabledInput instanceof HTMLInputElement)
+    || !(dockerValueInput instanceof HTMLInputElement)
+    || !(sshEnabledInput instanceof HTMLInputElement)
+    || !(sshValueInput instanceof HTMLInputElement)
+  ) {
+    return null;
+  }
+
+  return {
+    dockerEnabled: dockerEnabledInput.checked,
+    dockerValue: dockerValueInput.value,
+    sshEnabled: sshEnabledInput.checked,
+    sshValue: sshValueInput.value,
+  };
 }
 
 /**
@@ -163,6 +440,13 @@ function bindEnvironmentHandlers(
   if (runCheckEnvButton instanceof HTMLButtonElement) {
     runCheckEnvButton.addEventListener("click", () => {
       emit({ kind: "runCheckEnvironment" });
+    });
+  }
+
+  const refreshEnvironmentButton = appRoot.querySelector("[data-role='refresh-environment']");
+  if (refreshEnvironmentButton instanceof HTMLButtonElement) {
+    refreshEnvironmentButton.addEventListener("click", () => {
+      emit({ kind: "refreshEnvironment" });
     });
   }
 
@@ -224,30 +508,86 @@ function bindEnvironmentHandlers(
     });
   });
 
-  const routingDockerMap = appRoot.querySelector("[data-role='routing-docker-map']");
-  if (routingDockerMap instanceof HTMLTextAreaElement) {
-    routingDockerMap.addEventListener("change", () => {
+  const languageDraftInputs = appRoot.querySelectorAll(
+    "[data-role='language-docker-enabled'], [data-role='language-docker-value'], [data-role='language-ssh-enabled'], [data-role='language-ssh-value']"
+  );
+  languageDraftInputs.forEach((languageDraftInput) => {
+    if (!(languageDraftInput instanceof HTMLInputElement)) {
+      return;
+    }
+
+    const eventName = languageDraftInput.type === "checkbox" ? "change" : "input";
+
+    languageDraftInput.addEventListener(eventName, () => {
+      const languageKey = String(languageDraftInput.dataset.languageKey || "");
+      if (languageKey.trim().length === 0) {
+        return;
+      }
+
+      const draft = readLanguageRowDraft(appRoot, languageKey);
+      if (draft === null) {
+        return;
+      }
+
       emit({
-        kind: "setRoutingDockerMapText",
-        text: routingDockerMap.value,
+        kind: "setLanguageRoutingDraft",
+        languageKey,
+        dockerEnabled: draft.dockerEnabled,
+        dockerValue: draft.dockerValue,
+        sshEnabled: draft.sshEnabled,
+        sshValue: draft.sshValue,
       });
     });
-  }
+  });
 
-  const routingSshMap = appRoot.querySelector("[data-role='routing-ssh-map']");
-  if (routingSshMap instanceof HTMLTextAreaElement) {
-    routingSshMap.addEventListener("change", () => {
+  const saveLanguageButtons = appRoot.querySelectorAll("[data-role='save-language-routing']");
+  saveLanguageButtons.forEach((saveLanguageButton) => {
+    if (!(saveLanguageButton instanceof HTMLButtonElement)) {
+      return;
+    }
+
+    saveLanguageButton.addEventListener("click", () => {
+      const languageKey = String(saveLanguageButton.dataset.languageKey || "");
+      if (languageKey.trim().length === 0) {
+        return;
+      }
+
       emit({
-        kind: "setRoutingSshMapText",
-        text: routingSshMap.value,
+        kind: "saveLanguageRouting",
+        languageKey,
       });
     });
-  }
+  });
 
-  const saveRoutingButton = appRoot.querySelector("[data-role='save-routing']");
-  if (saveRoutingButton instanceof HTMLButtonElement) {
-    saveRoutingButton.addEventListener("click", () => {
-      emit({ kind: "saveRouting" });
+  const batchInputs = appRoot.querySelectorAll(
+    "[data-role='batch-docker-enabled'], [data-role='batch-docker-value'], [data-role='batch-ssh-enabled'], [data-role='batch-ssh-value']"
+  );
+  batchInputs.forEach((batchInput) => {
+    if (!(batchInput instanceof HTMLInputElement)) {
+      return;
+    }
+
+    const eventName = batchInput.type === "checkbox" ? "change" : "input";
+    batchInput.addEventListener(eventName, () => {
+      const draft = readBatchDraft(appRoot);
+      if (draft === null) {
+        return;
+      }
+
+      emit({
+        kind: "setBatchRoutingDraft",
+        dockerEnabled: draft.dockerEnabled,
+        dockerValue: draft.dockerValue,
+        sshEnabled: draft.sshEnabled,
+        sshValue: draft.sshValue,
+      });
+    });
+  });
+
+  const saveBatchButton = appRoot.querySelector("[data-role='save-batch-routing']");
+  if (saveBatchButton instanceof HTMLButtonElement) {
+    saveBatchButton.addEventListener("click", () => {
+      emit({ kind: "saveBatchRouting" });
     });
   }
 }
@@ -296,8 +636,18 @@ export function createEnvironmentControlsUi(): IEnvironmentControlsUi {
     copyIconsStatusClassName: "status-muted",
     routingDockerMapText: "",
     routingSshMapText: "",
-    routingStatusText: "Routing values are ready to edit.",
+    routingStatusText: "",
     routingStatusClassName: "status-muted",
+    routingEntries: [],
+    batchRouting: {
+      dockerEnabled: false,
+      dockerValue: "",
+      sshEnabled: false,
+      sshValue: "",
+      isConflict: false,
+      statusText: "",
+      statusClassName: "",
+    },
     variables: [],
   });
 

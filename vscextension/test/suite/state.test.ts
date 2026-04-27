@@ -309,6 +309,12 @@ describe("state — buildBootstrapStatusMessage", () => {
     routingSshMapText: "",
     routingStatusText: "",
     routingStatusClassName: "status-muted" as const,
+    routingEntries: [],
+    batchRoutingDockerEnabled: false,
+    batchRoutingDockerValue: "",
+    batchRoutingSshEnabled: false,
+    batchRoutingSshValue: "",
+    batchRoutingConflict: false,
     variables: [],
   };
 

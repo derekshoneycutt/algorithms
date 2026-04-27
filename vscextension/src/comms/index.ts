@@ -14,7 +14,9 @@ export {
 } from "./builders/runControlsSnapshot";
 export {
 	buildEnvironmentControlsSnapshot,
+	createEnvironmentControlsSnapshotBuilder,
 	createEnvironmentControlsSnapshotPublisher,
+	createEnvironmentLanguageIconUriResolver,
 } from "./builders/environmentSnapshot";
 export type {
 	EnvironmentControlsViewSnapshot,

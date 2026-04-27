@@ -36,9 +36,9 @@ body {
 .section {
   border: 1px solid var(--vscode-panel-border);
   border-radius: 8px;
-  padding: 10px;
+  padding: 8px;
   display: grid;
-  gap: 8px;
+  gap: 6px;
   background: color-mix(in srgb, var(--vscode-sideBar-background) 94%, var(--vscode-editor-background));
 }
 
@@ -50,8 +50,25 @@ body {
 }
 
 .sectionTitle {
-  font-size: 12px;
-  font-weight: 600;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--vscode-descriptionForeground);
+}
+
+.sectionTitleGroup {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+
+.sectionIcon {
+  width: 13px;
+  height: 13px;
+  flex: 0 0 auto;
+  color: var(--vscode-foreground);
 }
 
 .input,
@@ -104,16 +121,19 @@ body {
 }
 
 .variableCard {
-  border: 1px solid var(--vscode-panel-border);
-  border-radius: 6px;
-  padding: 8px;
   display: grid;
+  gap: 6px;
+}
+
+.fieldRow {
+  display: grid;
+  grid-template-columns: 1fr auto;
   gap: 6px;
 }
 
 .variableLabel {
   font-size: 12px;
-  font-weight: 600;
+  font-weight: 400;
 }
 
 .status {
@@ -148,4 +168,129 @@ body {
 .effectiveProfile {
   font-size: 11px;
   color: var(--vscode-descriptionForeground);
+  overflow-x: auto;
+}
+
+.helperText pre {
+  margin: 4px 0;
+  padding: 4px 8px;
+  background: var(--vscode-editor-background);
+  border: 1px solid var(--vscode-input-border);
+  border-radius: 3px;
+  font-size: 10px;
+  font-family: monospace;
+  white-space: nowrap;
+  display: inline-block;
+}
+
+.batchSection {
+  border: 1px solid var(--vscode-panel-border);
+  border-radius: 6px;
+  padding: 8px;
+  display: grid;
+  gap: 6px;
+}
+
+.batchSection.conflict,
+.languageRow.conflict {
+  border-color: var(--vscode-inputValidation-errorBorder, var(--vscode-testing-iconFailed));
+  background: color-mix(in srgb, var(--vscode-inputValidation-errorBackground, transparent) 40%, transparent);
+}
+
+.subSectionTitle {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--vscode-descriptionForeground);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.toggleRow {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.checkboxText {
+  font-size: 12px;
+}
+
+.routingTable {
+  display: grid;
+  gap: 8px;
+}
+
+.languageRow {
+  border: 1px solid var(--vscode-panel-border);
+  border-radius: 6px;
+  overflow: hidden;
+  background: color-mix(in srgb, var(--vscode-editor-background) 90%, transparent);
+}
+
+.languageSummary {
+  list-style: none;
+  display: grid;
+  grid-template-columns: 1fr auto;
+  align-items: center;
+  gap: 8px;
+  padding: 8px;
+  cursor: pointer;
+}
+
+.languageSummary::-webkit-details-marker {
+  display: none;
+}
+
+.languageMain {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.languageIcon,
+.languageIconFallback {
+  width: 18px;
+  height: 18px;
+  border-radius: 4px;
+  flex: 0 0 auto;
+}
+
+.languageIconFallback {
+  background: var(--vscode-button-secondaryBackground);
+}
+
+.languageName {
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.indicatorList {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.indicator {
+  font-size: 10px;
+  line-height: 1;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  border-radius: 999px;
+  padding: 3px 6px;
+  background: color-mix(in srgb, var(--vscode-badge-background) 75%, transparent);
+  color: var(--vscode-badge-foreground);
+}
+
+.editorBody {
+  border-top: 1px solid var(--vscode-panel-border);
+  padding: 8px;
+  display: grid;
+  gap: 6px;
+}
+
+.input:disabled,
+.textarea:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
 }

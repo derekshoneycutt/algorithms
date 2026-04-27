@@ -94,6 +94,22 @@ export interface EnvironmentVariableSetting {
 }
 
 /**
+ * One language routing row in environment controls state.
+ */
+export interface EnvironmentRoutingLanguageSetting {
+  languageKey: string;
+  label: string;
+  iconUri?: string;
+  dockerEnabled: boolean;
+  dockerValue: string;
+  sshEnabled: boolean;
+  sshValue: string;
+  isConflict: boolean;
+  statusText: string;
+  statusClassName: ViewStatusClassName;
+}
+
+/**
  * Canonical environment controls settings stored in host state.
  */
 export interface EnvironmentControlsSettings {
@@ -111,6 +127,12 @@ export interface EnvironmentControlsSettings {
   routingSshMapText: string;
   routingStatusText: string;
   routingStatusClassName: ViewStatusClassName;
+  routingEntries: EnvironmentRoutingLanguageSetting[];
+  batchRoutingDockerEnabled: boolean;
+  batchRoutingDockerValue: string;
+  batchRoutingSshEnabled: boolean;
+  batchRoutingSshValue: string;
+  batchRoutingConflict: boolean;
   variables: EnvironmentVariableSetting[];
 }
 
@@ -563,6 +585,31 @@ export type ExtensionHostEvent =
       statusText: string;
       statusClassName: ViewStatusClassName;
     }
+  | {
+      type: "ENV_ROUTING_LANGUAGE_ENTRIES_SET";
+      entries: EnvironmentRoutingLanguageSetting[];
+    }
+  | {
+      type: "ENV_ROUTING_LANGUAGE_DRAFT_SET";
+      languageKey: string;
+      dockerEnabled: boolean;
+      dockerValue: string;
+      sshEnabled: boolean;
+      sshValue: string;
+    }
+  | {
+      type: "ENV_ROUTING_LANGUAGE_STATUS_SET";
+      languageKey: string;
+      statusText: string;
+      statusClassName: ViewStatusClassName;
+    }
+  | {
+      type: "ENV_BATCH_ROUTING_DRAFT_SET";
+      dockerEnabled: boolean;
+      dockerValue: string;
+      sshEnabled: boolean;
+      sshValue: string;
+    }
   | { type: "SHUTDOWN" };
 
 /**
@@ -719,6 +766,12 @@ export function createInitialEnvironmentControlsSettings(
     routingSshMapText: input?.routingSshMapText ?? "",
     routingStatusText: "Routing values are ready to edit.",
     routingStatusClassName: "status-muted",
+    routingEntries: [],
+    batchRoutingDockerEnabled: false,
+    batchRoutingDockerValue: "",
+    batchRoutingSshEnabled: false,
+    batchRoutingSshValue: "",
+    batchRoutingConflict: false,
     variables: [
       {
         key: "timeout",

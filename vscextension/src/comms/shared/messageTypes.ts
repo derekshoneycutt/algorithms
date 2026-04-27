@@ -70,6 +70,35 @@ export interface EnvironmentControlsViewVariable {
 }
 
 /**
+ * One language routing row payload sent to the webview.
+ */
+export interface EnvironmentControlsRoutingLanguageEntry {
+  languageKey: string;
+  label: string;
+  iconUri?: string;
+  dockerEnabled: boolean;
+  dockerValue: string;
+  sshEnabled: boolean;
+  sshValue: string;
+  isConflict: boolean;
+  statusText: string;
+  statusClassName: ViewStatusClassName;
+}
+
+/**
+ * Batch routing payload sent to the webview.
+ */
+export interface EnvironmentControlsBatchRouting {
+  dockerEnabled: boolean;
+  dockerValue: string;
+  sshEnabled: boolean;
+  sshValue: string;
+  isConflict: boolean;
+  statusText: string;
+  statusClassName: ViewStatusClassName;
+}
+
+/**
  * Environment controls snapshot payload shared with webview.
  */
 export interface EnvironmentControlsViewSnapshot {
@@ -88,6 +117,8 @@ export interface EnvironmentControlsViewSnapshot {
   routingSshMapText: string;
   routingStatusText: string;
   routingStatusClassName: ViewStatusClassName;
+  routingEntries: EnvironmentControlsRoutingLanguageEntry[];
+  batchRouting: EnvironmentControlsBatchRouting;
   variables: EnvironmentControlsViewVariable[];
 }
 
@@ -124,12 +155,33 @@ export type ViewEnvironmentControlsIntent =
   | { kind: "setCopyIconsPath"; copyIconsPath: string }
   | { kind: "runCheckEnvironment" }
   | { kind: "runCopyIcons" }
+  | { kind: "refreshEnvironment" }
   | {
       kind: "setVariableValue";
       key: EnvironmentVariableKey;
       value: string;
     }
   | { kind: "saveVariable"; key: EnvironmentVariableKey }
+  | {
+      kind: "setLanguageRoutingDraft";
+      languageKey: string;
+      dockerEnabled: boolean;
+      dockerValue: string;
+      sshEnabled: boolean;
+      sshValue: string;
+    }
+  | {
+      kind: "saveLanguageRouting";
+      languageKey: string;
+    }
+  | {
+      kind: "setBatchRoutingDraft";
+      dockerEnabled: boolean;
+      dockerValue: string;
+      sshEnabled: boolean;
+      sshValue: string;
+    }
+  | { kind: "saveBatchRouting" }
   | { kind: "setRoutingDockerMapText"; text: string }
   | { kind: "setRoutingSshMapText"; text: string }
   | { kind: "saveRouting" };
@@ -270,6 +322,78 @@ function isEnvironmentControlsViewVariable(value: unknown): value is Environment
 }
 
 /**
+ * Checks whether one value is an environment-controls routing-language payload.
+ *
+ * @param {unknown} value Candidate value.
+ * @returns {value is EnvironmentControlsRoutingLanguageEntry} True when the value is valid.
+ */
+function isEnvironmentControlsRoutingLanguageEntry(
+  value: unknown
+): value is EnvironmentControlsRoutingLanguageEntry {
+  if (typeof value !== "object" || value === null) {
+    return false;
+  }
+
+  if (
+    !("languageKey" in value) ||
+    typeof value.languageKey !== "string" ||
+    !("label" in value) ||
+    typeof value.label !== "string" ||
+    !("dockerEnabled" in value) ||
+    typeof value.dockerEnabled !== "boolean" ||
+    !("dockerValue" in value) ||
+    typeof value.dockerValue !== "string" ||
+    !("sshEnabled" in value) ||
+    typeof value.sshEnabled !== "boolean" ||
+    !("sshValue" in value) ||
+    typeof value.sshValue !== "string" ||
+    !("isConflict" in value) ||
+    typeof value.isConflict !== "boolean" ||
+    !("statusText" in value) ||
+    typeof value.statusText !== "string" ||
+    !("statusClassName" in value) ||
+    !isStatusClassName(value.statusClassName)
+  ) {
+    return false;
+  }
+
+  if ("iconUri" in value && value.iconUri !== undefined && typeof value.iconUri !== "string") {
+    return false;
+  }
+
+  return true;
+}
+
+/**
+ * Checks whether one value is an environment-controls batch-routing payload.
+ *
+ * @param {unknown} value Candidate value.
+ * @returns {value is EnvironmentControlsBatchRouting} True when the value is valid.
+ */
+function isEnvironmentControlsBatchRouting(value: unknown): value is EnvironmentControlsBatchRouting {
+  if (typeof value !== "object" || value === null) {
+    return false;
+  }
+
+  return (
+    "dockerEnabled" in value &&
+    typeof value.dockerEnabled === "boolean" &&
+    "dockerValue" in value &&
+    typeof value.dockerValue === "string" &&
+    "sshEnabled" in value &&
+    typeof value.sshEnabled === "boolean" &&
+    "sshValue" in value &&
+    typeof value.sshValue === "string" &&
+    "isConflict" in value &&
+    typeof value.isConflict === "boolean" &&
+    "statusText" in value &&
+    typeof value.statusText === "string" &&
+    "statusClassName" in value &&
+    isStatusClassName(value.statusClassName)
+  );
+}
+
+/**
  * Checks whether one value is an environment controls snapshot payload.
  *
  * @param {unknown} value Candidate value.
@@ -311,6 +435,11 @@ function isEnvironmentControlsViewSnapshot(value: unknown): value is Environment
     typeof value.routingStatusText === "string" &&
     "routingStatusClassName" in value &&
     isStatusClassName(value.routingStatusClassName) &&
+    "routingEntries" in value &&
+    Array.isArray(value.routingEntries) &&
+    value.routingEntries.every((entry) => isEnvironmentControlsRoutingLanguageEntry(entry)) &&
+    "batchRouting" in value &&
+    isEnvironmentControlsBatchRouting(value.batchRouting) &&
     "variables" in value &&
     Array.isArray(value.variables) &&
     value.variables.every((entry) => isEnvironmentControlsViewVariable(entry))
@@ -481,6 +610,42 @@ export function isViewEnvironmentControlsIntent(
         value.key === "gcc13Name" ||
         value.key === "gxx13Name")
     );
+  }
+
+  if (value.kind === "setLanguageRoutingDraft") {
+    return (
+      "languageKey" in value &&
+      typeof value.languageKey === "string" &&
+      "dockerEnabled" in value &&
+      typeof value.dockerEnabled === "boolean" &&
+      "dockerValue" in value &&
+      typeof value.dockerValue === "string" &&
+      "sshEnabled" in value &&
+      typeof value.sshEnabled === "boolean" &&
+      "sshValue" in value &&
+      typeof value.sshValue === "string"
+    );
+  }
+
+  if (value.kind === "saveLanguageRouting") {
+    return "languageKey" in value && typeof value.languageKey === "string";
+  }
+
+  if (value.kind === "setBatchRoutingDraft") {
+    return (
+      "dockerEnabled" in value &&
+      typeof value.dockerEnabled === "boolean" &&
+      "dockerValue" in value &&
+      typeof value.dockerValue === "string" &&
+      "sshEnabled" in value &&
+      typeof value.sshEnabled === "boolean" &&
+      "sshValue" in value &&
+      typeof value.sshValue === "string"
+    );
+  }
+
+  if (value.kind === "saveBatchRouting") {
+    return true;
   }
 
   if (value.kind === "setRoutingDockerMapText" || value.kind === "setRoutingSshMapText") {

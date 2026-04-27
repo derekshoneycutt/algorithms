@@ -5,6 +5,7 @@ import {
   createInitialRunControlsSettings,
   createInitialSmokeControlsSettings,
   type ExtensionHostContext,
+  type EnvironmentRoutingLanguageSetting,
   type EnvironmentVariableSetting,
   type ExtensionHostEvent,
   type InitialRunControlsSettingsInput,
@@ -206,6 +207,28 @@ function updateEnvironmentVariable(
     }
 
     return mapEntry(variable);
+  });
+}
+
+/**
+ * Updates one routing-language entry in-place by language key.
+ *
+ * @param {EnvironmentRoutingLanguageSetting[]} entries Current routing entries.
+ * @param {string} languageKey Language key to update.
+ * @param {(entry: EnvironmentRoutingLanguageSetting) => EnvironmentRoutingLanguageSetting} mapEntry Entry mapper.
+ * @returns {EnvironmentRoutingLanguageSetting[]} Updated routing entries.
+ */
+function updateEnvironmentRoutingLanguageEntry(
+  entries: EnvironmentRoutingLanguageSetting[],
+  languageKey: string,
+  mapEntry: (entry: EnvironmentRoutingLanguageSetting) => EnvironmentRoutingLanguageSetting
+): EnvironmentRoutingLanguageSetting[] {
+  return entries.map((entry) => {
+    if (entry.languageKey !== languageKey) {
+      return entry;
+    }
+
+    return mapEntry(entry);
   });
 }
 
@@ -679,6 +702,75 @@ export function createExtensionHostMachine() {
             },
           }),
         },
+        ENV_ROUTING_LANGUAGE_ENTRIES_SET: {
+          actions: assign({
+            environmentControls: ({ context, event }) => {
+              return {
+                ...context.environmentControls,
+                routingEntries: event.entries,
+              };
+            },
+          }),
+        },
+        ENV_ROUTING_LANGUAGE_DRAFT_SET: {
+          actions: assign({
+            environmentControls: ({ context, event }) => {
+              return {
+                ...context.environmentControls,
+                routingEntries: updateEnvironmentRoutingLanguageEntry(
+                  context.environmentControls.routingEntries,
+                  event.languageKey,
+                  (entry) => {
+                    const isConflict = event.dockerEnabled && event.sshEnabled;
+
+                    return {
+                      ...entry,
+                      dockerEnabled: event.dockerEnabled,
+                      dockerValue: event.dockerValue,
+                      sshEnabled: event.sshEnabled,
+                      sshValue: event.sshValue,
+                      isConflict,
+                    };
+                  }
+                ),
+              };
+            },
+          }),
+        },
+        ENV_ROUTING_LANGUAGE_STATUS_SET: {
+          actions: assign({
+            environmentControls: ({ context, event }) => {
+              return {
+                ...context.environmentControls,
+                routingEntries: updateEnvironmentRoutingLanguageEntry(
+                  context.environmentControls.routingEntries,
+                  event.languageKey,
+                  (entry) => {
+                    return {
+                      ...entry,
+                      statusText: event.statusText,
+                      statusClassName: event.statusClassName,
+                    };
+                  }
+                ),
+              };
+            },
+          }),
+        },
+        ENV_BATCH_ROUTING_DRAFT_SET: {
+          actions: assign({
+            environmentControls: ({ context, event }) => {
+              return {
+                ...context.environmentControls,
+                batchRoutingDockerEnabled: event.dockerEnabled,
+                batchRoutingDockerValue: event.dockerValue,
+                batchRoutingSshEnabled: event.sshEnabled,
+                batchRoutingSshValue: event.sshValue,
+                batchRoutingConflict: event.dockerEnabled && event.sshEnabled,
+              };
+            },
+          }),
+        },
         SHUTDOWN: { target: "stopped" },
       },
     },
@@ -1116,6 +1208,75 @@ export function createExtensionHostMachine() {
                 ...context.environmentControls,
                 routingStatusText: event.statusText,
                 routingStatusClassName: event.statusClassName,
+              };
+            },
+          }),
+        },
+        ENV_ROUTING_LANGUAGE_ENTRIES_SET: {
+          actions: assign({
+            environmentControls: ({ context, event }) => {
+              return {
+                ...context.environmentControls,
+                routingEntries: event.entries,
+              };
+            },
+          }),
+        },
+        ENV_ROUTING_LANGUAGE_DRAFT_SET: {
+          actions: assign({
+            environmentControls: ({ context, event }) => {
+              return {
+                ...context.environmentControls,
+                routingEntries: updateEnvironmentRoutingLanguageEntry(
+                  context.environmentControls.routingEntries,
+                  event.languageKey,
+                  (entry) => {
+                    const isConflict = event.dockerEnabled && event.sshEnabled;
+
+                    return {
+                      ...entry,
+                      dockerEnabled: event.dockerEnabled,
+                      dockerValue: event.dockerValue,
+                      sshEnabled: event.sshEnabled,
+                      sshValue: event.sshValue,
+                      isConflict,
+                    };
+                  }
+                ),
+              };
+            },
+          }),
+        },
+        ENV_ROUTING_LANGUAGE_STATUS_SET: {
+          actions: assign({
+            environmentControls: ({ context, event }) => {
+              return {
+                ...context.environmentControls,
+                routingEntries: updateEnvironmentRoutingLanguageEntry(
+                  context.environmentControls.routingEntries,
+                  event.languageKey,
+                  (entry) => {
+                    return {
+                      ...entry,
+                      statusText: event.statusText,
+                      statusClassName: event.statusClassName,
+                    };
+                  }
+                ),
+              };
+            },
+          }),
+        },
+        ENV_BATCH_ROUTING_DRAFT_SET: {
+          actions: assign({
+            environmentControls: ({ context, event }) => {
+              return {
+                ...context.environmentControls,
+                batchRoutingDockerEnabled: event.dockerEnabled,
+                batchRoutingDockerValue: event.dockerValue,
+                batchRoutingSshEnabled: event.sshEnabled,
+                batchRoutingSshValue: event.sshValue,
+                batchRoutingConflict: event.dockerEnabled && event.sshEnabled,
               };
             },
           }),

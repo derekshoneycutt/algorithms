@@ -1,5 +1,9 @@
 import type { ViewToHostMessage } from "../../../comms/shared/messageTypes";
-import type { AlgorithmsProfileWritableValues } from "../../../commandline";
+import {
+  parseDockerRouteMap,
+  type AlgorithmsProfileWritableValues,
+} from "../../../commandline";
+import type { ILanguages } from "../../../languages";
 import type { IStateMachine, ViewStatusClassName } from "../../../state";
 import type { IConductor } from "../../IConductor";
 import type { ApplyConductorReactionDependencies } from "../channelHandlerTypes";
@@ -10,6 +14,7 @@ import type { ApplyConductorReactionDependencies } from "../channelHandlerTypes"
 export interface CreateEnvironmentControlsChannelMessageHandlerInput
   extends ApplyConductorReactionDependencies {
   conductor: IConductor;
+  languages: ILanguages;
   publishSnapshot: () => void;
 }
 
@@ -35,10 +40,14 @@ function mapEnvironmentKindToStatusClass(kind: "running" | "ok" | "error"): View
  * Builds one writable profile value map from state snapshot values.
  *
  * @param {ReturnType<IStateMachine["getSnapshot"]>} snapshot Current host snapshot.
+ * @param {string} [dockerMapText] Optional docker map override.
+ * @param {string} [sshMapText] Optional SSH map override.
  * @returns {AlgorithmsProfileWritableValues} Writable profile values.
  */
 function buildEnvironmentWriteValuesFromSnapshot(
-  snapshot: ReturnType<IStateMachine["getSnapshot"]>
+  snapshot: ReturnType<IStateMachine["getSnapshot"]>,
+  dockerMapText?: string,
+  sshMapText?: string
 ): AlgorithmsProfileWritableValues {
   const valueByKey = new Map(snapshot.environmentControls.variables.map((variable) => {
     return [variable.key, variable.value] as const;
@@ -50,9 +59,131 @@ function buildEnvironmentWriteValuesFromSnapshot(
     gcc13Directory: valueByKey.get("gcc13Directory") ?? "",
     gcc13Name: valueByKey.get("gcc13Name") ?? "",
     gxx13Name: valueByKey.get("gxx13Name") ?? "",
-    dockerMapText: snapshot.environmentControls.routingDockerMapText,
-    sshMapText: snapshot.environmentControls.routingSshMapText,
+    dockerMapText: dockerMapText ?? snapshot.environmentControls.routingDockerMapText,
+    sshMapText: sshMapText ?? snapshot.environmentControls.routingSshMapText,
   };
+}
+
+/**
+ * Serializes one route map into shell-profile map text.
+ *
+ * @param {Map<string, string>} routeMap Route map.
+ * @returns {string} Serialized map text.
+ */
+function serializeRouteMap(routeMap: Map<string, string>): string {
+  const entries = Array.from(routeMap.entries()).filter(([, value]) => {
+    return String(value || "").trim().length > 0;
+  }).sort(([leftKey], [rightKey]) => {
+    return leftKey.localeCompare(rightKey);
+  });
+
+  return entries.map(([key, value]) => {
+    return `${key}=${value}`;
+  }).join(" ");
+}
+
+/**
+ * Parses one whitespace-delimited routing map into raw string values.
+ *
+ * @param {string} mapText Raw map text.
+ * @returns {Map<string, string>} Parsed route map.
+ */
+function parseRawRouteMap(mapText: string): Map<string, string> {
+  const routeMap = new Map<string, string>();
+  const rawText = String(mapText || "").trim();
+
+  if (rawText.length === 0) {
+    return routeMap;
+  }
+
+  const tokens = rawText.split(/\s+/);
+  for (const token of tokens) {
+    const separatorIndex = token.indexOf("=");
+
+    if (separatorIndex <= 0) {
+      continue;
+    }
+
+    const languageKey = token.slice(0, separatorIndex).trim().toLowerCase();
+    const value = token.slice(separatorIndex + 1).trim();
+
+    if (languageKey.length === 0 || value.length === 0) {
+      continue;
+    }
+
+    routeMap.set(languageKey, value);
+  }
+
+  return routeMap;
+}
+
+/**
+ * Builds language routing entries from current map text values.
+ *
+ * @param {ReturnType<IStateMachine["getSnapshot"]>} snapshot Current host snapshot.
+ * @param {ILanguages} languages Language catalog.
+ * @returns {Array<{languageKey: string; label: string; iconUri?: string; dockerEnabled: boolean; dockerValue: string; sshEnabled: boolean; sshValue: string; isConflict: boolean; statusText: string; statusClassName: ViewStatusClassName;}>} Routing entries.
+ */
+function buildRoutingEntriesFromSnapshot(
+  snapshot: ReturnType<IStateMachine["getSnapshot"]>,
+  languages: ILanguages
+): Array<{
+  languageKey: string;
+  label: string;
+  iconUri?: string;
+  dockerEnabled: boolean;
+  dockerValue: string;
+  sshEnabled: boolean;
+  sshValue: string;
+  isConflict: boolean;
+  statusText: string;
+  statusClassName: ViewStatusClassName;
+}> {
+  const existingEntryByKey = new Map(snapshot.environmentControls.routingEntries.map((entry) => {
+    return [entry.languageKey, entry] as const;
+  }));
+  const dockerMap = parseDockerRouteMap(snapshot.environmentControls.routingDockerMapText);
+  const sshMap = parseRawRouteMap(snapshot.environmentControls.routingSshMapText);
+
+  return languages.getAll().map((language) => {
+    const languageKey = language.key;
+    const dockerValue = dockerMap.get(languageKey) ?? "";
+    const sshValue = sshMap.get(languageKey) ?? "";
+    const dockerEnabled = dockerValue.length > 0;
+    const sshEnabled = sshValue.length > 0;
+    const isConflict = dockerEnabled && sshEnabled;
+    const existing = existingEntryByKey.get(languageKey);
+
+    return {
+      languageKey,
+      label: language.displayLabel,
+      iconUri: existing?.iconUri,
+      dockerEnabled,
+      dockerValue,
+      sshEnabled,
+      sshValue,
+      isConflict,
+      statusText: existing?.statusText ?? "",
+      statusClassName: existing?.statusClassName ?? "status-muted",
+    };
+  });
+}
+
+/**
+ * Synchronizes language routing entries with current routing map texts.
+ *
+ * @param {CreateEnvironmentControlsChannelMessageHandlerInput} input Channel handler dependencies.
+ * @returns {void}
+ */
+function syncRoutingEntries(
+  input: CreateEnvironmentControlsChannelMessageHandlerInput
+): void {
+  const snapshot = input.stateMachine.getSnapshot();
+
+  input.stateMachine.send({
+    type: "ENV_ROUTING_LANGUAGE_ENTRIES_SET",
+    entries: buildRoutingEntriesFromSnapshot(snapshot, input.languages),
+  });
 }
 
 /**
@@ -122,6 +253,44 @@ function applyEnvironmentProfileResult(
 }
 
 /**
+ * Validates one routing configuration.
+ *
+ * @param {boolean} dockerEnabled Whether docker routing is enabled.
+ * @param {string} dockerValue Docker route value.
+ * @param {boolean} sshEnabled Whether SSH routing is enabled.
+ * @param {string} sshValue SSH route value.
+ * @param {boolean} isBatch Whether this is a batch save.
+ * @returns {string | null} Error message when invalid; otherwise null.
+ */
+function validateRoutingConfiguration(
+  dockerEnabled: boolean,
+  dockerValue: string,
+  sshEnabled: boolean,
+  sshValue: string,
+  isBatch: boolean
+): string | null {
+  if (dockerEnabled && sshEnabled) {
+    return isBatch
+      ? "Cannot save Batch All with both docker and ssh enabled."
+      : "Cannot save with both docker and ssh enabled.";
+  }
+
+  if (dockerEnabled && dockerValue.trim().length === 0) {
+    return isBatch
+      ? "Enter a Docker value before saving Batch All."
+      : "Enter a Docker value before saving.";
+  }
+
+  if (sshEnabled && sshValue.trim().length === 0) {
+    return isBatch
+      ? "Enter an SSH route before saving Batch All."
+      : "Enter an SSH route before saving.";
+  }
+
+  return null;
+}
+
+/**
  * Creates one conductor-owned message handler for the environment-controls channel.
  *
  * @param {CreateEnvironmentControlsChannelMessageHandlerInput} input Channel handler dependencies.
@@ -141,6 +310,7 @@ export function createEnvironmentControlsChannelMessageHandler(
             profilePath.trim().length > 0 ? profilePath : undefined
           );
           applyEnvironmentProfileResult(input.stateMachine, result);
+          syncRoutingEntries(input);
         } catch (error) {
           input.stateMachine.send({
             type: "ENV_CHECK_ENV_STATUS_SET",
@@ -195,11 +365,48 @@ export function createEnvironmentControlsChannelMessageHandler(
       return;
     }
 
+    if (message.payload.kind === "setLanguageRoutingDraft") {
+      input.stateMachine.send({
+        type: "ENV_ROUTING_LANGUAGE_DRAFT_SET",
+        languageKey: message.payload.languageKey,
+        dockerEnabled: message.payload.dockerEnabled,
+        dockerValue: message.payload.dockerValue,
+        sshEnabled: message.payload.sshEnabled,
+        sshValue: message.payload.sshValue,
+      });
+      input.stateMachine.send({
+        type: "ENV_ROUTING_LANGUAGE_STATUS_SET",
+        languageKey: message.payload.languageKey,
+        statusText: "",
+        statusClassName: "status-muted",
+      });
+      input.publishSnapshot();
+      return;
+    }
+
+    if (message.payload.kind === "setBatchRoutingDraft") {
+      input.stateMachine.send({
+        type: "ENV_BATCH_ROUTING_DRAFT_SET",
+        dockerEnabled: message.payload.dockerEnabled,
+        dockerValue: message.payload.dockerValue,
+        sshEnabled: message.payload.sshEnabled,
+        sshValue: message.payload.sshValue,
+      });
+      input.stateMachine.send({
+        type: "ENV_ROUTING_STATUS_SET",
+        statusText: "",
+        statusClassName: "status-muted",
+      });
+      input.publishSnapshot();
+      return;
+    }
+
     if (message.payload.kind === "setRoutingDockerMapText") {
       input.stateMachine.send({
         type: "ENV_ROUTING_DOCKER_MAP_TEXT_SET",
         text: message.payload.text,
       });
+      syncRoutingEntries(input);
       input.stateMachine.send({
         type: "ENV_ROUTING_STATUS_SET",
         statusText: "Unsaved routing changes",
@@ -214,6 +421,7 @@ export function createEnvironmentControlsChannelMessageHandler(
         type: "ENV_ROUTING_SSH_MAP_TEXT_SET",
         text: message.payload.text,
       });
+      syncRoutingEntries(input);
       input.stateMachine.send({
         type: "ENV_ROUTING_STATUS_SET",
         statusText: "Unsaved routing changes",
@@ -279,31 +487,253 @@ export function createEnvironmentControlsChannelMessageHandler(
       return;
     }
 
-    if (message.payload.kind === "saveVariable" || message.payload.kind === "saveRouting") {
+    if (message.payload.kind === "refreshEnvironment") {
       void (async () => {
         const snapshot = input.stateMachine.getSnapshot();
         const profilePath = snapshot.environmentControls.profilePath;
-        const writeResult = await input.conductor.writeEnvironment({
-          profilePath: profilePath.trim().length > 0 ? profilePath : undefined,
-          values: buildEnvironmentWriteValuesFromSnapshot(snapshot),
-        });
 
-        applyEnvironmentProfileResult(input.stateMachine, writeResult);
-
-        if (message.payload.kind === "saveVariable") {
+        try {
+          const result = await input.conductor.readEnvironment(
+            profilePath.trim().length > 0 ? profilePath : undefined
+          );
+          applyEnvironmentProfileResult(input.stateMachine, result);
+          syncRoutingEntries(input);
+        } catch (error) {
           input.stateMachine.send({
-            type: "ENV_VARIABLE_STATUS_SET",
-            key: message.payload.key,
-            statusText: "Saved",
-            statusClassName: "status-ok",
+            type: "ENV_CHECK_ENV_STATUS_SET",
+            statusText: `Failed to refresh environment profile: ${error instanceof Error ? error.message : String(error)}`,
+            statusClassName: "status-error",
+            filteredOutput: "",
+            rawOutput: "",
           });
         }
 
-        if (message.payload.kind === "saveRouting") {
+        input.publishSnapshot();
+      })();
+      return;
+    }
+
+    if (message.payload.kind === "saveLanguageRouting") {
+      const languageKey = message.payload.languageKey;
+
+      void (async () => {
+        const snapshot = input.stateMachine.getSnapshot();
+        const profilePath = snapshot.environmentControls.profilePath;
+        const languageEntry = snapshot.environmentControls.routingEntries.find((entry) => {
+          return entry.languageKey === languageKey;
+        });
+
+        if (languageEntry === undefined) {
+          return;
+        }
+
+        const validationError = validateRoutingConfiguration(
+          languageEntry.dockerEnabled,
+          languageEntry.dockerValue,
+          languageEntry.sshEnabled,
+          languageEntry.sshValue,
+          false
+        );
+
+        if (validationError !== null) {
+          input.stateMachine.send({
+            type: "ENV_ROUTING_LANGUAGE_STATUS_SET",
+            languageKey: languageEntry.languageKey,
+            statusText: validationError,
+            statusClassName: "status-error",
+          });
+          input.publishSnapshot();
+          return;
+        }
+
+        input.stateMachine.send({
+          type: "ENV_ROUTING_LANGUAGE_STATUS_SET",
+          languageKey: languageEntry.languageKey,
+          statusText: `Saving ${languageEntry.label} routing...`,
+          statusClassName: "status-muted",
+        });
+        input.publishSnapshot();
+
+        try {
+          const dockerMap = parseDockerRouteMap(snapshot.environmentControls.routingDockerMapText);
+          const sshMap = parseRawRouteMap(snapshot.environmentControls.routingSshMapText);
+
+          if (languageEntry.dockerEnabled) {
+            dockerMap.set(languageEntry.languageKey, languageEntry.dockerValue.trim());
+          } else {
+            dockerMap.delete(languageEntry.languageKey);
+          }
+
+          if (languageEntry.sshEnabled) {
+            sshMap.set(languageEntry.languageKey, languageEntry.sshValue.trim());
+          } else {
+            sshMap.delete(languageEntry.languageKey);
+          }
+
+          const writeResult = await input.conductor.writeEnvironment({
+            profilePath: profilePath.trim().length > 0 ? profilePath : undefined,
+            values: buildEnvironmentWriteValuesFromSnapshot(
+              snapshot,
+              serializeRouteMap(dockerMap),
+              serializeRouteMap(sshMap)
+            ),
+          });
+
+          applyEnvironmentProfileResult(input.stateMachine, writeResult);
+          syncRoutingEntries(input);
+
+          input.stateMachine.send({
+            type: "ENV_ROUTING_LANGUAGE_STATUS_SET",
+            languageKey: languageEntry.languageKey,
+            statusText: `${languageEntry.label} routing saved.`,
+            statusClassName: "status-ok",
+          });
+        } catch (error) {
+          input.stateMachine.send({
+            type: "ENV_ROUTING_LANGUAGE_STATUS_SET",
+            languageKey: languageEntry.languageKey,
+            statusText: error instanceof Error ? error.message : String(error),
+            statusClassName: "status-error",
+          });
+        }
+
+        input.publishSnapshot();
+      })();
+
+      return;
+    }
+
+    if (message.payload.kind === "saveBatchRouting" || message.payload.kind === "saveRouting") {
+      void (async () => {
+        const snapshot = input.stateMachine.getSnapshot();
+        const profilePath = snapshot.environmentControls.profilePath;
+        const dockerEnabled = snapshot.environmentControls.batchRoutingDockerEnabled;
+        const dockerValue = snapshot.environmentControls.batchRoutingDockerValue;
+        const sshEnabled = snapshot.environmentControls.batchRoutingSshEnabled;
+        const sshValue = snapshot.environmentControls.batchRoutingSshValue;
+        const validationError = validateRoutingConfiguration(
+          dockerEnabled,
+          dockerValue,
+          sshEnabled,
+          sshValue,
+          true
+        );
+
+        if (validationError !== null) {
           input.stateMachine.send({
             type: "ENV_ROUTING_STATUS_SET",
-            statusText: "Routing saved",
+            statusText: validationError,
+            statusClassName: "status-error",
+          });
+          input.publishSnapshot();
+          return;
+        }
+
+        input.stateMachine.send({
+          type: "ENV_ROUTING_STATUS_SET",
+          statusText: "Applying Batch All routing...",
+          statusClassName: "status-muted",
+        });
+        input.publishSnapshot();
+
+        try {
+          const dockerMap = parseDockerRouteMap(snapshot.environmentControls.routingDockerMapText);
+          const sshMap = parseRawRouteMap(snapshot.environmentControls.routingSshMapText);
+
+          for (const language of input.languages.getAll()) {
+            if (dockerEnabled) {
+              dockerMap.set(language.key, dockerValue.trim());
+            } else {
+              dockerMap.delete(language.key);
+            }
+
+            if (sshEnabled) {
+              sshMap.set(language.key, sshValue.trim());
+            } else {
+              sshMap.delete(language.key);
+            }
+          }
+
+          const writeResult = await input.conductor.writeEnvironment({
+            profilePath: profilePath.trim().length > 0 ? profilePath : undefined,
+            values: buildEnvironmentWriteValuesFromSnapshot(
+              snapshot,
+              serializeRouteMap(dockerMap),
+              serializeRouteMap(sshMap)
+            ),
+          });
+
+          applyEnvironmentProfileResult(input.stateMachine, writeResult);
+          syncRoutingEntries(input);
+          input.stateMachine.send({
+            type: "ENV_ROUTING_STATUS_SET",
+            statusText: "Batch All routing saved.",
             statusClassName: "status-ok",
+          });
+
+          const refreshedSnapshot = input.stateMachine.getSnapshot();
+          for (const entry of refreshedSnapshot.environmentControls.routingEntries) {
+            input.stateMachine.send({
+              type: "ENV_ROUTING_LANGUAGE_STATUS_SET",
+              languageKey: entry.languageKey,
+              statusText: `${entry.label} routing saved.`,
+              statusClassName: "status-ok",
+            });
+          }
+        } catch (error) {
+          const errorText = error instanceof Error ? error.message : String(error);
+
+          input.stateMachine.send({
+            type: "ENV_ROUTING_STATUS_SET",
+            statusText: errorText,
+            statusClassName: "status-error",
+          });
+
+          const refreshedSnapshot = input.stateMachine.getSnapshot();
+          for (const entry of refreshedSnapshot.environmentControls.routingEntries) {
+            input.stateMachine.send({
+              type: "ENV_ROUTING_LANGUAGE_STATUS_SET",
+              languageKey: entry.languageKey,
+              statusText: errorText,
+              statusClassName: "status-error",
+            });
+          }
+        }
+
+        input.publishSnapshot();
+      })();
+
+      return;
+    }
+
+    if (message.payload.kind === "saveVariable") {
+      const key = message.payload.key;
+
+      void (async () => {
+        const snapshot = input.stateMachine.getSnapshot();
+        const profilePath = snapshot.environmentControls.profilePath;
+
+        try {
+          const writeResult = await input.conductor.writeEnvironment({
+            profilePath: profilePath.trim().length > 0 ? profilePath : undefined,
+            values: buildEnvironmentWriteValuesFromSnapshot(snapshot),
+          });
+
+          applyEnvironmentProfileResult(input.stateMachine, writeResult);
+          syncRoutingEntries(input);
+
+          input.stateMachine.send({
+            type: "ENV_VARIABLE_STATUS_SET",
+            key,
+            statusText: "Saved",
+            statusClassName: "status-ok",
+          });
+        } catch (error) {
+          input.stateMachine.send({
+            type: "ENV_VARIABLE_STATUS_SET",
+            key,
+            statusText: error instanceof Error ? error.message : String(error),
+            statusClassName: "status-error",
           });
         }
 

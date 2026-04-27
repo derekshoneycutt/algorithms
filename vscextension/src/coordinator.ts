@@ -29,9 +29,10 @@ import {
 } from "./commands";
 import type { IExtensionCommands } from "./commands";
 import {
-  buildEnvironmentControlsSnapshot,
   buildRunControlsSnapshot,
+  createEnvironmentControlsSnapshotBuilder,
   createEnvironmentControlsSnapshotPublisher,
+  createEnvironmentLanguageIconUriResolver,
   createRunControlsSnapshotPublisher,
   createSmokeLanguageIconUriResolver,
   createSmokeSnapshotBuilder,
@@ -198,6 +199,15 @@ export function createCoordinator(
     getSnapshot: getStateSnapshot,
     buildSnapshot: buildRunControlsSnapshot,
   });
+  const resolveEnvironmentLanguageIconUri = createEnvironmentLanguageIconUriResolver({
+    languages,
+    viewHost,
+    viewId: environmentControlsViewId,
+    extensionUri: context.extensionUri,
+  });
+  const buildEnvironmentControlsSnapshot = createEnvironmentControlsSnapshotBuilder(
+    resolveEnvironmentLanguageIconUri
+  );
   const publishEnvironmentSnapshot = createEnvironmentControlsSnapshotPublisher({
     postMessage: communicationHub.post.bind(communicationHub, environmentControlsViewId),
     getSnapshot: getStateSnapshot,
@@ -226,6 +236,7 @@ export function createCoordinator(
     environmentControlsViewId,
     createEnvironmentControlsChannelMessageHandler({
       conductor,
+      languages,
       stateMachine,
       dispatchNotification: notificationDispatcher.dispatch,
       publishSnapshot: publishEnvironmentSnapshot,

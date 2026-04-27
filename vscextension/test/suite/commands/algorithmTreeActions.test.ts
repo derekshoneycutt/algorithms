@@ -136,6 +136,12 @@ function createHostStateStub(runControls: RunControlsSettings): IStateMachine {
       routingSshMapText: "",
       routingStatusText: "",
       routingStatusClassName: "status-muted",
+      routingEntries: [],
+      batchRoutingDockerEnabled: false,
+      batchRoutingDockerValue: "",
+      batchRoutingSshEnabled: false,
+      batchRoutingSshValue: "",
+      batchRoutingConflict: false,
       variables: [],
     },
   };

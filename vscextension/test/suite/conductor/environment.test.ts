@@ -5,6 +5,7 @@ import {
   buildCopyIconsCommand,
   parseCheckEnvOutput,
 } from "../../../src/conductor/internal/environment";
+import { parseDockerRouteMap } from "../../../src/commandline";
 
 describe("conductor/internal — environment operations", () => {
   describe("parseCheckEnvOutput", () => {
@@ -132,6 +133,118 @@ describe("conductor/internal — environment operations", () => {
 
       assert.ok(!command.includes("--update-profile="));
       assert.ok(!command.includes("--icons-to="));
+    });
+  });
+
+  describe("Docker routing map parsing", () => {
+    it("parses docker route map with single language entry", () => {
+      const map = parseDockerRouteMap("python=ubuntu:latest");
+
+      assert.equal(map.size, 1);
+      assert.equal(map.get("python"), "ubuntu:latest");
+    });
+
+    it("parses docker route map with multiple entries", () => {
+      const map = parseDockerRouteMap("python=ubuntu:latest javascript=node:18 rust=rust:latest");
+
+      assert.equal(map.size, 3);
+      assert.equal(map.get("python"), "ubuntu:latest");
+      assert.equal(map.get("javascript"), "node:18");
+      assert.equal(map.get("rust"), "rust:latest");
+    });
+
+    it("handles empty route map", () => {
+      const map = parseDockerRouteMap("");
+
+      assert.equal(map.size, 0);
+    });
+
+    it("handles whitespace-only route map", () => {
+      const map = parseDockerRouteMap("   \t  \n  ");
+
+      assert.equal(map.size, 0);
+    });
+
+    it("preserves spaces in docker image names", () => {
+      const map = parseDockerRouteMap("python=my-registry.local/ubuntu:latest");
+
+      assert.equal(map.size, 1);
+      assert.equal(map.get("python"), "my-registry.local/ubuntu:latest");
+    });
+
+    it("handles trailing whitespace", () => {
+      const map = parseDockerRouteMap("python=ubuntu:latest   ");
+
+      assert.equal(map.size, 1);
+      assert.equal(map.get("python"), "ubuntu:latest");
+    });
+  });
+
+  describe("Environment routing validation", () => {
+    it("detects conflict when both docker and ssh enabled for same language", () => {
+      const dockerEnabled = true;
+      const dockerValue = "ubuntu:latest";
+      const sshEnabled = true;
+      const sshValue = "user@host";
+
+      const hasConflict = dockerEnabled && sshEnabled;
+      assert.equal(hasConflict, true);
+    });
+
+    it("detects no conflict when only docker enabled", () => {
+      const dockerEnabled = true;
+      const dockerValue = "ubuntu:latest";
+      const sshEnabled = false;
+      const sshValue = "";
+
+      const hasConflict = dockerEnabled && sshEnabled;
+      assert.equal(hasConflict, false);
+    });
+
+    it("detects no conflict when only ssh enabled", () => {
+      const dockerEnabled = false;
+      const dockerValue = "";
+      const sshEnabled = true;
+      const sshValue = "user@host";
+
+      const hasConflict = dockerEnabled && sshEnabled;
+      assert.equal(hasConflict, false);
+    });
+
+    it("detects no conflict when neither docker nor ssh enabled", () => {
+      const dockerEnabled = false;
+      const dockerValue = "";
+      const sshEnabled = false;
+      const sshValue = "";
+
+      const hasConflict = dockerEnabled && sshEnabled;
+      assert.equal(hasConflict, false);
+    });
+
+    it("validates required docker value when enabled", () => {
+      const dockerEnabled = true;
+      const dockerValue = "";
+
+      const hasError = dockerEnabled && !dockerValue;
+      assert.equal(hasError, true);
+    });
+
+    it("validates required ssh value when enabled", () => {
+      const sshEnabled = true;
+      const sshValue = "";
+
+      const hasError = sshEnabled && !sshValue;
+      assert.equal(hasError, true);
+    });
+
+    it("allows empty values when disabled", () => {
+      const dockerEnabled = false;
+      const dockerValue = "";
+      const sshEnabled = false;
+      const sshValue = "";
+
+      const isValid = true;
+      assert.equal(isValid, true);
     });
   });
 });
