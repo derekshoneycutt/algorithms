@@ -598,7 +598,9 @@ export function createWorkspaceAlgorithmsTreeDataProvider(
       let contextValue: string | undefined;
 
       if (element.kind === "languageSummary" && element.languageKey) {
-        contextValue = "algos.algorithmsLanguageSummary";
+        contextValue = element.hasOpenTarget === false
+          ? "algos.algorithmsLanguageSummaryAbsent"
+          : "algos.algorithmsLanguageSummary";
       } else if (element.kind === "mainFile") {
         contextValue = "algos.algorithmsMainFile";
       } else if (element.isIncludeFile) {

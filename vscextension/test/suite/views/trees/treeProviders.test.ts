@@ -303,3 +303,61 @@ describe("views/trees — standard-library item context values", () => {
     assert.strictEqual(fileTreeItem.contextValue, "algos.standardLibraryFile");
   });
 });
+
+describe("views/trees — algorithms item context values", () => {
+  it("sets context values for main, language summary, and include rows", async () => {
+    const algorithmPath = "/repo/src/numeric/euclidgcd";
+    const categories: AlgorithmCategory[] = [
+      { name: "numeric", path: "/repo/src/numeric" },
+    ];
+    const algorithms: AlgorithmEntry[] = [
+      { name: "euclidgcd", path: algorithmPath, categoryPath: "/repo/src/numeric" },
+    ];
+    const implementations: AlgorithmImplementation[] = [
+      {
+        languageKey: "python",
+        filePath: "/repo/src/numeric/euclidgcd/euclidgcd.py",
+        filePaths: ["/repo/src/numeric/euclidgcd/euclidgcd.py"],
+        hasIncludes: true,
+        includeFilePaths: ["/repo/src/numeric/euclidgcd/python_include/helper.py"],
+      },
+    ];
+
+    const fileProvider = createWorkspaceAlgorithmsTreeDataProvider({
+      algorithmsIndex: createAlgorithmsIndexStub(categories, algorithms, implementations),
+      viewModeService: createViewModeServiceStub("files"),
+      languages: createLanguageStub(),
+    });
+
+    const fileRoot = (await fileProvider.getChildren()) ?? [];
+    const fileCategory = fileRoot[0];
+    const fileAlgorithm = ((await fileProvider.getChildren(fileCategory)) ?? [])[0];
+    const fileRows = (await fileProvider.getChildren(fileAlgorithm)) ?? [];
+    const mainRow = fileRows.find((row) => row.kind === "mainFile") as WorkspaceTreeNode;
+    const mainItem = await fileProvider.getTreeItem(mainRow);
+    assert.strictEqual(mainItem.contextValue, "algos.algorithmsMainFile");
+
+    const includeRows = (await fileProvider.getChildren(mainRow)) ?? [];
+    const includeItem = await fileProvider.getTreeItem(includeRows[0]);
+    assert.strictEqual(includeItem.contextValue, "algos.algorithmsIncludeFile");
+
+    const languageProvider = createWorkspaceAlgorithmsTreeDataProvider({
+      algorithmsIndex: createAlgorithmsIndexStub(categories, algorithms, implementations),
+      viewModeService: createViewModeServiceStub("language"),
+      languages: createLanguageStub(),
+    });
+
+    const languageRoot = (await languageProvider.getChildren()) ?? [];
+    const languageCategory = languageRoot[0];
+    const languageAlgorithm = ((await languageProvider.getChildren(languageCategory)) ?? [])[0];
+    const languageRows = (await languageProvider.getChildren(languageAlgorithm)) ?? [];
+
+    const presentLanguageRow = languageRows.find((row) => row.languageKey === "python") as WorkspaceTreeNode;
+    const presentLanguageItem = await languageProvider.getTreeItem(presentLanguageRow);
+    assert.strictEqual(presentLanguageItem.contextValue, "algos.algorithmsLanguageSummary");
+
+    const absentLanguageRow = languageRows.find((row) => row.languageKey === "go") as WorkspaceTreeNode;
+    const absentLanguageItem = await languageProvider.getTreeItem(absentLanguageRow);
+    assert.strictEqual(absentLanguageItem.contextValue, "algos.algorithmsLanguageSummaryAbsent");
+  });
+});

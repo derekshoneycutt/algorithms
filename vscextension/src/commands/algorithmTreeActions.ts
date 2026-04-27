@@ -330,7 +330,13 @@ export function createAlgorithmsAddIncludeFileCommand(
   dependencies: AlgorithmTreeActionDependencies
 ): (treeNode?: WorkspaceTreeNode) => Promise<void> {
   return async (treeNode?: WorkspaceTreeNode): Promise<void> => {
-    if (treeNode === undefined || treeNode.kind !== "file") {
+    const acceptedKinds: ReadonlySet<WorkspaceTreeNode["kind"]> = new Set([
+      "file",
+      "mainFile",
+      "languageSummary",
+    ]);
+
+    if (treeNode === undefined || !acceptedKinds.has(treeNode.kind)) {
       await dependencies.notificationRouter.warn(
         "Select an algorithm source file to add an include file."
       );

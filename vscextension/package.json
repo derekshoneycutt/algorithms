@@ -207,9 +207,34 @@
           "group": "inline@10"
         },
         {
+          "command": "algos.algorithmsDelete",
+          "when": "view == algos.workspaceAlgorithmsTreeView && viewItem == algos.algorithmsMainFile",
+          "group": "inline@10"
+        },
+        {
           "command": "algos.algorithmsAddIncludeFile",
           "when": "view == algos.workspaceAlgorithmsTreeView && viewItem == algos.algorithmFile",
           "group": "inline@20"
+        },
+        {
+          "command": "algos.algorithmsAddIncludeFile",
+          "when": "view == algos.workspaceAlgorithmsTreeView && viewItem == algos.algorithmsMainFile",
+          "group": "inline@20"
+        },
+        {
+          "command": "algos.algorithmsDelete",
+          "when": "view == algos.workspaceAlgorithmsTreeView && viewItem == algos.algorithmsLanguageSummary",
+          "group": "inline@10"
+        },
+        {
+          "command": "algos.algorithmsAddIncludeFile",
+          "when": "view == algos.workspaceAlgorithmsTreeView && viewItem == algos.algorithmsLanguageSummary",
+          "group": "inline@20"
+        },
+        {
+          "command": "algos.algorithmsDelete",
+          "when": "view == algos.workspaceAlgorithmsTreeView && viewItem == algos.algorithmsIncludeFile",
+          "group": "inline@10"
         }
       ]
     },
