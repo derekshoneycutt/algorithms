@@ -77,6 +77,7 @@ import type { INotificationRouter } from "./notifications";
 import {
   createFilterModeService,
   createHostStateService,
+  createStateFilesystemBridge,
   createViewModeService,
 } from "./state";
 import type {
@@ -88,6 +89,8 @@ import {
   createWorkspaceAlgorithmsTreeDataProvider,
   createWorkspaceStandardLibraryTreeDataProvider,
   createLanguageStatusDecorationProvider,
+  createWorkspaceWatcherAdapter,
+  registerControlsChannels,
   createViewHost,
   getEnvironmentControlsSidebarViewId,
   getRunControlsSidebarViewId,
@@ -95,7 +98,11 @@ import {
   getWorkspaceAlgorithmsTreeViewId,
   getWorkspaceStandardLibraryTreeViewId,
 } from "./views";
-import type { IViewHost, RefreshableWorkspaceTreeDataProvider } from "./views";
+import type {
+  IViewHost,
+  IWorkspaceWatcherAdapter,
+  RefreshableWorkspaceTreeDataProvider,
+} from "./views";
 
 /**
  * Creates the coordinator for the bootstrap extension runtime.
@@ -127,62 +134,10 @@ export function createCoordinator(
       languages: buildSmokeLanguageSelections(languages),
     },
   });
+  const filesystemStateBridge = createStateFilesystemBridge(stateMachine);
   const filesystem: IFilesystem = createFilesystem({
     cacheTtlMs: stateMachine.getSnapshot().filesystemCacheTtlMs,
-    stateBridge: {
-      onCacheTtlSet(ttlMs) {
-        stateMachine.send({
-          type: "FILESYSTEM_CACHE_TTL_SET",
-          ttlMs,
-        });
-      },
-      onCacheCleared(targetPath) {
-        stateMachine.send({
-          type: "FILESYSTEM_CACHE_CLEARED",
-          targetPath,
-        });
-      },
-      onStatCacheEntrySet(targetPath, exists, kind, updatedAt) {
-        stateMachine.send({
-          type: "FILESYSTEM_STAT_CACHE_ENTRY_SET",
-          targetPath,
-          exists,
-          kind,
-          updatedAt,
-        });
-      },
-      onDirectoryCacheEntrySet(targetPath, entryCount, updatedAt) {
-        stateMachine.send({
-          type: "FILESYSTEM_DIRECTORY_CACHE_ENTRY_SET",
-          targetPath,
-          entryCount,
-          updatedAt,
-        });
-      },
-      onPendingOperationSet(operationId, operationType, targetPath, status, updatedAt) {
-        stateMachine.send({
-          type: "FILESYSTEM_PENDING_OPERATION_SET",
-          operationId,
-          operationType,
-          targetPath,
-          status,
-          updatedAt,
-        });
-      },
-      onPendingOperationCleared(operationId) {
-        stateMachine.send({
-          type: "FILESYSTEM_PENDING_OPERATION_CLEARED",
-          operationId,
-        });
-      },
-      onOperationErrorSet(targetPath, message) {
-        stateMachine.send({
-          type: "FILESYSTEM_OPERATION_ERROR_SET",
-          targetPath,
-          message,
-        });
-      },
-    },
+    stateBridge: filesystemStateBridge,
   });
   const commandLine = createCommandLine();
   const algorithmsTerminalRunAdapter = createAlgorithmsTerminalRunAdapter();
@@ -224,47 +179,16 @@ export function createCoordinator(
     createWorkspaceStandardLibraryTreeDataProvider({
       algorithmsIndex,
     });
-
-  const workspaceWatcher = vscode.workspace.createFileSystemWatcher("**/*");
-  const workspaceCreateWatcher = workspaceWatcher.onDidCreate((uri) => {
-    conductor.handleWorkspacePathChanged?.({
-      targetPath: uri.fsPath,
+  const workspaceWatcherAdapter: IWorkspaceWatcherAdapter = createWorkspaceWatcherAdapter(
+    {
+      conductor,
       filesystem,
       algorithmsIndex,
       refreshAlgorithmsTree: workspaceAlgorithmsTreeProvider.refresh,
       refreshStandardLibraryTree: workspaceStandardLibraryTreeProvider.refresh,
-    });
-  });
-  const workspaceChangeWatcher = workspaceWatcher.onDidChange((uri) => {
-    conductor.handleWorkspacePathChanged?.({
-      targetPath: uri.fsPath,
-      filesystem,
-      algorithmsIndex,
-      refreshAlgorithmsTree: workspaceAlgorithmsTreeProvider.refresh,
-      refreshStandardLibraryTree: workspaceStandardLibraryTreeProvider.refresh,
-    });
-  });
-  const workspaceDeleteWatcher = workspaceWatcher.onDidDelete((uri) => {
-    conductor.handleWorkspacePathChanged?.({
-      targetPath: uri.fsPath,
-      filesystem,
-      algorithmsIndex,
-      refreshAlgorithmsTree: workspaceAlgorithmsTreeProvider.refresh,
-      refreshStandardLibraryTree: workspaceStandardLibraryTreeProvider.refresh,
-    });
-  });
-  const workspaceFoldersChangeWatcher = vscode.workspace.onDidChangeWorkspaceFolders(() => {
-    const updatedFolderPaths = (vscode.workspace.workspaceFolders ?? []).map(
-      (workspaceFolder) => workspaceFolder.uri.fsPath
-    );
-    void conductor.refreshWorkspaceSupportedContext({ workspaceFolderPaths: updatedFolderPaths });
-    conductor.handleWorkspaceRootsChanged?.({
-      filesystem,
-      algorithmsIndex,
-      refreshAlgorithmsTree: workspaceAlgorithmsTreeProvider.refresh,
-      refreshStandardLibraryTree: workspaceStandardLibraryTreeProvider.refresh,
-    });
-  });
+    }
+  );
+  const workspaceWatcherRegistration = workspaceWatcherAdapter.activate();
 
   const workspaceAlgorithmsTreeRegistration = viewHost.registerTreeDataProvider(
     workspaceAlgorithmsTreeViewId,
@@ -313,34 +237,39 @@ export function createCoordinator(
     buildSnapshot: buildEnvironmentControlsSnapshot,
   });
 
-  const smokeControlsChannel = communicationHub.subscribe(
+  const smokeControlsChannelHandler = createSmokeControlsChannelMessageHandler({
+    conductor,
+    stateMachine,
+    dispatchNotification: notificationDispatcher.dispatch,
+    publishSnapshot: publishSmokeSnapshot,
+  });
+  const runControlsChannelHandler = createRunControlsChannelMessageHandler({
+    conductor,
+    stateMachine,
+    dispatchNotification: notificationDispatcher.dispatch,
+    publishSnapshot: publishRunSnapshot,
+  });
+  const environmentControlsChannelHandler = createEnvironmentControlsChannelMessageHandler({
+    conductor,
+    languages,
+    stateMachine,
+    dispatchNotification: notificationDispatcher.dispatch,
+    publishSnapshot: publishEnvironmentSnapshot,
+  });
+
+  const {
+    smokeControlsChannel,
+    runControlsChannel,
+    environmentControlsChannel,
+  } = registerControlsChannels({
     smokeControlsViewId,
-    createSmokeControlsChannelMessageHandler({
-      conductor,
-      stateMachine,
-      dispatchNotification: notificationDispatcher.dispatch,
-      publishSnapshot: publishSmokeSnapshot,
-    })
-  );
-  const runControlsChannel = communicationHub.subscribe(
     runControlsViewId,
-    createRunControlsChannelMessageHandler({
-      conductor,
-      stateMachine,
-      dispatchNotification: notificationDispatcher.dispatch,
-      publishSnapshot: publishRunSnapshot,
-    })
-  );
-  const environmentControlsChannel = communicationHub.subscribe(
     environmentControlsViewId,
-    createEnvironmentControlsChannelMessageHandler({
-      conductor,
-      languages,
-      stateMachine,
-      dispatchNotification: notificationDispatcher.dispatch,
-      publishSnapshot: publishEnvironmentSnapshot,
-    })
-  );
+    communicationHub,
+    smokeControlsListener: smokeControlsChannelHandler,
+    runControlsListener: runControlsChannelHandler,
+    environmentControlsListener: environmentControlsChannelHandler,
+  });
 
   const commands: IExtensionCommands = {
     showBootstrapStatus: createShowBootstrapStatusCommand({
@@ -510,11 +439,7 @@ export function createCoordinator(
     environmentControlsChannel,
     workspaceAlgorithmsTreeRegistration,
     workspaceStandardLibraryTreeRegistration,
-    workspaceWatcher,
-    workspaceCreateWatcher,
-    workspaceChangeWatcher,
-    workspaceDeleteWatcher,
-    workspaceFoldersChangeWatcher,
+    workspaceWatcherRegistration,
     runStatusTreeRefreshSubscription,
     conductorDisposer,
     languageStatusDecorationRegistration,

@@ -6,6 +6,20 @@ export { getEnvironmentControlsSidebarViewId } from "./viewIds";
 export { getWorkspaceAlgorithmsTreeViewId } from "./viewIds";
 export { getWorkspaceStandardLibraryTreeViewId } from "./viewIds";
 export {
+	registerControlsChannels,
+} from "./controlsChannelRegistration";
+export type {
+	ControlsChannelRegistrations,
+	RegisterControlsChannelsInput,
+} from "./controlsChannelRegistration";
+export {
+	createWorkspaceWatcherAdapter,
+} from "./workspaceWatcherAdapter";
+export type {
+	CreateWorkspaceWatcherAdapterInput,
+	IWorkspaceWatcherAdapter,
+} from "./workspaceWatcherAdapter";
+export {
 	createWorkspaceAlgorithmsTreeDataProvider,
 	createWorkspaceStandardLibraryTreeDataProvider,
 	createLanguageStatusDecorationProvider,

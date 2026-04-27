@@ -5,6 +5,12 @@ export { createViewModeService } from "./viewMode";
 export type { IViewModeService, SidebarViewMode } from "./viewMode";
 export { createFilterModeService } from "./filterMode";
 export type { IFilterModeService, SidebarFilterMode } from "./filterMode";
+export {
+  createStateFilesystemBridge,
+} from "./filesystemStateBridge";
+export type {
+  IStateFilesystemBridge,
+} from "./filesystemStateBridge";
 export type {
   ExtensionHostContext,
   ExtensionHostEvent,
