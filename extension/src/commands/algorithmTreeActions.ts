@@ -15,6 +15,7 @@ import {
   resolveAlgorithmsRootPath,
 } from "../algorithms";
 import type { IFlaggedLanguagesService } from "../algorithms";
+import { getOwningWorkspaceFolderPath, getWorkspaceFolderPaths } from "./workspaceFolders";
 
 /**
  * Dependencies for Algorithms tree action commands.
@@ -30,17 +31,6 @@ export interface AlgorithmTreeActionDependencies {
 }
 
 type CheckOnlyRoute = "native" | "docker" | "ssh";
-
-/**
- * Returns currently opened workspace folder paths.
- *
- * @returns {readonly string[]} Workspace folder paths.
- */
-function getWorkspaceFolderPaths(): readonly string[] {
-  return (vscode.workspace.workspaceFolders ?? []).map((workspaceFolder) => {
-    return workspaceFolder.uri.fsPath;
-  });
-}
 
 /**
  * Resolves the algorithms root path for the current workspace context.
@@ -1085,6 +1075,8 @@ function createAlgorithmsRunCommandForAction(
       return;
     }
 
+    const workspaceFolderPaths = getWorkspaceFolderPaths();
+
     await dependencies.conductor.runFile({
       actionKind,
       checkOnlyRouteOverride,
@@ -1092,9 +1084,10 @@ function createAlgorithmsRunCommandForAction(
       hostState: dependencies.hostState,
       languages: dependencies.languages,
       notificationRouter: dependencies.notificationRouter,
+      owningWorkspaceFolderPath: getOwningWorkspaceFolderPath(treeNode?.filePath),
       refreshAlgorithmsTree: dependencies.refreshAlgorithmsTree,
       treeNode,
-      workspaceFolderPaths: getWorkspaceFolderPaths(),
+      workspaceFolderPaths,
     });
   };
 }

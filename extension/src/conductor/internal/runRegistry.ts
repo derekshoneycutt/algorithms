@@ -69,6 +69,141 @@ export interface CreateRunRegistryInput {
 let nextRunSequence = 1;
 
 /**
+ * Manages run snapshot storage, timers, and listener notifications.
+ */
+class RunSnapshotStore {
+  private readonly runTargetByRunId = new Map<string, string>();
+  private readonly runSnapshotsById = new Map<string, ConductorRunSnapshot>();
+  private readonly runSnapshotsByTarget = new Map<string, ConductorRunSnapshot>();
+  private readonly runStatusClearTimersByTarget = new Map<string, NodeJS.Timeout>();
+  private readonly runTargetListeners = new Set<
+    (change: ConductorRunTargetStatusChange) => void
+  >();
+  private readonly retentionMs: number;
+
+  /**
+   * @param {number} retentionMs Time in milliseconds to retain cleared runs.
+   */
+  constructor(retentionMs: number) {
+    this.retentionMs = retentionMs;
+  }
+
+  /**
+   * Gets snapshot by run id.
+   */
+  getById(runId: string): ConductorRunSnapshot | undefined {
+    return this.runSnapshotsById.get(runId);
+  }
+
+  /**
+   * Gets snapshot by target.
+   */
+  getByTarget(targetKey: string): ConductorRunSnapshot | undefined {
+    return this.runSnapshotsByTarget.get(targetKey);
+  }
+
+  /**
+   * Resolves run target from run id.
+   */
+  getRunTargetForRunId(runId: string): ConductorRunTargetRef | null {
+    const targetKey = this.runTargetByRunId.get(runId);
+    if (targetKey === undefined) {
+      return null;
+    }
+
+    const separatorIndex = targetKey.indexOf(":");
+    if (separatorIndex < 0) {
+      return null;
+    }
+
+    const nodeKind = targetKey.slice(0, separatorIndex);
+    const filePath = targetKey.slice(separatorIndex + 1);
+    if (!isValidNodeKind(nodeKind)) {
+      return null;
+    }
+
+    return { nodeKind, filePath };
+  }
+
+  /**
+   * Stores snapshot by id and target, schedules retention cleanup, publishes change.
+   */
+  store(
+    target: ConductorRunTargetRef,
+    snapshot: ConductorRunSnapshot,
+    publish: (target: ConductorRunTargetRef, snapshot: ConductorRunSnapshot) => void
+  ): void {
+    const targetKey = buildRunTargetKey(target);
+    this.runSnapshotsById.set(snapshot.runId, snapshot);
+    this.runTargetByRunId.set(snapshot.runId, targetKey);
+    this.runSnapshotsByTarget.set(targetKey, snapshot);
+    publish(target, snapshot);
+
+    if (this.retentionMs > 0) {
+      this.clearTimer(targetKey);
+
+      const retainedRunId = snapshot.runId;
+      const timeoutHandle = setTimeout(() => {
+        this.runStatusClearTimersByTarget.delete(targetKey);
+
+        const latestSnapshot = this.runSnapshotsByTarget.get(targetKey);
+        if (latestSnapshot === undefined || latestSnapshot.runId !== retainedRunId) {
+          return;
+        }
+
+        this.runSnapshotsByTarget.delete(targetKey);
+        this.runTargetByRunId.delete(retainedRunId);
+        publish(target, latestSnapshot);
+      }, this.retentionMs);
+
+      this.runStatusClearTimersByTarget.set(targetKey, timeoutHandle);
+    }
+  }
+
+  /**
+   * Clears timer for target.
+   */
+  clearTimer(targetKey: string): void {
+    const existingTimer = this.runStatusClearTimersByTarget.get(targetKey);
+    if (existingTimer !== undefined) {
+      clearTimeout(existingTimer);
+      this.runStatusClearTimersByTarget.delete(targetKey);
+    }
+  }
+
+  /**
+   * Deletes target snapshot and its run id mapping.
+   */
+  deleteTarget(targetKey: string, runId: string): void {
+    this.clearTimer(targetKey);
+    this.runSnapshotsByTarget.delete(targetKey);
+    this.runTargetByRunId.delete(runId);
+  }
+
+  /**
+   * Subscribes to run target status changes.
+   */
+  subscribe(
+    listener: (change: ConductorRunTargetStatusChange) => void
+  ): () => void {
+    this.runTargetListeners.add(listener);
+    return () => {
+      this.runTargetListeners.delete(listener);
+    };
+  }
+
+  /**
+   * Publishes change to all listeners.
+   */
+  publish(target: ConductorRunTargetRef, snapshot: ConductorRunSnapshot): void {
+    const change: ConductorRunTargetStatusChange = { target, snapshot };
+    for (const listener of this.runTargetListeners) {
+      listener(change);
+    }
+  }
+}
+
+/**
  * Builds one stable run-target key.
  *
  * @param {ConductorRunTargetRef} target Run target reference.
@@ -76,6 +211,23 @@ let nextRunSequence = 1;
  */
 function buildRunTargetKey(target: ConductorRunTargetRef): string {
   return `${target.nodeKind}:${target.filePath}`;
+}
+
+/**
+ * Validates whether a value is a valid node kind.
+ *
+ * @param {string} value Value to validate.
+ * @returns {value is ConductorRunTargetRef["nodeKind"]} True if value is valid node kind.
+ */
+function isValidNodeKind(
+  value: string
+): value is ConductorRunTargetRef["nodeKind"] {
+  return (
+    value === "file"
+    || value === "mainFile"
+    || value === "languageSummary"
+    || value === "algorithmDir"
+  );
 }
 
 /**
@@ -133,304 +285,89 @@ function matchesExpectedRunId(
  * @returns {IRunRegistry} Run registry implementation.
  */
 export function createRunRegistry(input: CreateRunRegistryInput): IRunRegistry {
-  const runTargetByRunId = new Map<string, string>();
-  const runSnapshotsById = new Map<string, ConductorRunSnapshot>();
-  const runSnapshotsByTarget = new Map<string, ConductorRunSnapshot>();
-  const runStatusClearTimersByTarget = new Map<string, NodeJS.Timeout>();
-  const runTargetListeners = new Set<
-    (change: ConductorRunTargetStatusChange) => void
-  >();
-
-  /**
-   * Clears one scheduled run-status timer for one target key.
-   *
-   * @param {string} targetKey Stable target key.
-   * @returns {void}
-   */
-  function clearRunStatusTimer(targetKey: string): void {
-    const existingTimer = runStatusClearTimersByTarget.get(targetKey);
-    if (existingTimer === undefined) {
-      return;
-    }
-
-    clearTimeout(existingTimer);
-    runStatusClearTimersByTarget.delete(targetKey);
-  }
-
-  /**
-   * Emits one target-status change event to subscribers.
-   *
-   * @param {ConductorRunTargetRef} target Run target reference.
-   * @param {ConductorRunSnapshot} snapshot Updated snapshot.
-   * @returns {void}
-   */
-  function publishRunTargetStatusChange(
-    target: ConductorRunTargetRef,
-    snapshot: ConductorRunSnapshot
-  ): void {
-    const change: ConductorRunTargetStatusChange = {
-      target,
-      snapshot,
-    };
-
-    for (const listener of runTargetListeners) {
-      listener(change);
-    }
-  }
-
-  /**
-   * Stores one run snapshot by run id and target.
-   *
-   * @param {ConductorRunTargetRef} target Run target reference.
-   * @param {ConductorRunSnapshot} snapshot Snapshot to store.
-   * @returns {ConductorRunSnapshot} Stored snapshot.
-   */
-  function storeRunSnapshotForTarget(
-    target: ConductorRunTargetRef,
-    snapshot: ConductorRunSnapshot
-  ): ConductorRunSnapshot {
-    const targetKey = buildRunTargetKey(target);
-    runSnapshotsById.set(snapshot.runId, snapshot);
-    runTargetByRunId.set(snapshot.runId, targetKey);
-    runSnapshotsByTarget.set(targetKey, snapshot);
-    publishRunTargetStatusChange(target, snapshot);
-
-    if (input.runStatusRetentionMs > 0) {
-      clearRunStatusTimer(targetKey);
-
-      const retainedRunId = snapshot.runId;
-      const timeoutHandle = setTimeout(() => {
-        runStatusClearTimersByTarget.delete(targetKey);
-
-        const latestSnapshot = runSnapshotsByTarget.get(targetKey);
-        if (latestSnapshot === undefined || latestSnapshot.runId !== retainedRunId) {
-          return;
-        }
-
-        runSnapshotsByTarget.delete(targetKey);
-        runTargetByRunId.delete(retainedRunId);
-        publishRunTargetStatusChange(target, latestSnapshot);
-      }, input.runStatusRetentionMs);
-
-      runStatusClearTimersByTarget.set(targetKey, timeoutHandle);
-    }
-
-    return snapshot;
-  }
-
-  /**
-   * Resolves the run target for one run identifier.
-   *
-   * @param {string} runId Run identifier.
-   * @returns {ConductorRunTargetRef | null} Target reference or null.
-   */
-  function getRunTargetForRunId(runId: string): ConductorRunTargetRef | null {
-    const targetKey = runTargetByRunId.get(runId);
-    if (targetKey === undefined) {
-      return null;
-    }
-
-    const separatorIndex = targetKey.indexOf(":");
-    if (separatorIndex < 0) {
-      return null;
-    }
-
-    const nodeKind = targetKey.slice(0, separatorIndex);
-    const filePath = targetKey.slice(separatorIndex + 1);
-    if (
-      nodeKind !== "file"
-      && nodeKind !== "mainFile"
-      && nodeKind !== "languageSummary"
-      && nodeKind !== "algorithmDir"
-    ) {
-      return null;
-    }
-
-    return {
-      nodeKind,
-      filePath,
-    };
-  }
-
-  /**
-   * Starts one run snapshot for one target.
-   *
-   * @param {ConductorRunTargetRef} target Run target reference.
-   * @param {string} ownerKey Run owner key.
-   * @param {string | null} message Snapshot message.
-   * @returns {ConductorRunSnapshot} Started snapshot.
-   */
-  function startRunForTarget(
-    target: ConductorRunTargetRef,
-    ownerKey: string,
-    message: string | null
-  ): ConductorRunSnapshot {
-    const started = createBootstrapRunSnapshot({
-      ownerKey,
-      reason: message,
-    });
-    return storeRunSnapshotForTarget(target, started);
-  }
-
-  /**
-   * Marks one target run as running.
-   *
-   * @param {ConductorRunTargetRef} target Run target reference.
-   * @param {string | null} message Optional status message.
-   * @param {string | undefined} expectedRunId Optional stale-update guard.
-   * @returns {ConductorRunSnapshot | null} Updated snapshot or null.
-   */
-  function markTargetRunRunning(
-    target: ConductorRunTargetRef,
-    message: string | null,
-    expectedRunId?: string
-  ): ConductorRunSnapshot | null {
-    const targetKey = buildRunTargetKey(target);
-    const snapshot = runSnapshotsByTarget.get(targetKey);
-    if (snapshot === undefined) {
-      return null;
-    }
-
-    if (expectedRunId !== undefined && snapshot.runId !== expectedRunId) {
-      return null;
-    }
-
-    const updated: ConductorRunSnapshot = {
-      ...snapshot,
-      status: "running",
-      message,
-      updatedAt: Date.now(),
-    };
-    return storeRunSnapshotForTarget(target, updated);
-  }
-
-  /**
-   * Marks one target run as failed.
-   *
-   * @param {ConductorRunTargetRef} target Run target reference.
-   * @param {string} errorMessage Failure message.
-   * @param {string | undefined} expectedRunId Optional stale-update guard.
-   * @returns {ConductorRunSnapshot} Updated snapshot.
-   */
-  function markTargetRunFailed(
-    target: ConductorRunTargetRef,
-    errorMessage: string,
-    expectedRunId?: string
-  ): ConductorRunSnapshot {
-    const targetKey = buildRunTargetKey(target);
-    const existing = runSnapshotsByTarget.get(targetKey);
-    if (existing !== undefined && !matchesExpectedRunId(existing, expectedRunId)) {
-      return existing;
-    }
-
-    const baseSnapshot = existing ?? createBootstrapRunSnapshot({
-      ownerKey: `failed:${target.filePath}`,
-      reason: null,
-    });
-
-    const updated: ConductorRunSnapshot = {
-      ...baseSnapshot,
-      status: "failed",
-      errorMessage,
-      message: errorMessage,
-      updatedAt: Date.now(),
-    };
-
-    return storeRunSnapshotForTarget(target, updated);
-  }
-
-  /**
-   * Marks one target run as completed.
-   *
-   * @param {ConductorRunTargetRef} target Run target reference.
-   * @param {string | null} message Completion message.
-   * @param {string | undefined} expectedRunId Optional stale-update guard.
-   * @returns {ConductorRunSnapshot | null} Updated snapshot or null.
-   */
-  function markTargetRunCompleted(
-    target: ConductorRunTargetRef,
-    message: string | null,
-    expectedRunId?: string
-  ): ConductorRunSnapshot | null {
-    const targetKey = buildRunTargetKey(target);
-    const snapshot = runSnapshotsByTarget.get(targetKey);
-    if (snapshot === undefined) {
-      return null;
-    }
-
-    if (expectedRunId !== undefined && snapshot.runId !== expectedRunId) {
-      return null;
-    }
-
-    const updated: ConductorRunSnapshot = {
-      ...snapshot,
-      status: "completed",
-      errorMessage: null,
-      message,
-      updatedAt: Date.now(),
-    };
-
-    return storeRunSnapshotForTarget(target, updated);
-  }
-
-  /**
-   * Marks one target run as cancelled.
-   *
-   * @param {ConductorRunTargetRef} target Run target reference.
-   * @param {string | null} message Cancellation message.
-   * @param {string | undefined} expectedRunId Optional stale-update guard.
-   * @returns {ConductorRunSnapshot | null} Updated snapshot or null.
-   */
-  function markTargetRunCancelled(
-    target: ConductorRunTargetRef,
-    message: string | null,
-    expectedRunId?: string
-  ): ConductorRunSnapshot | null {
-    const targetKey = buildRunTargetKey(target);
-    const snapshot = runSnapshotsByTarget.get(targetKey);
-    if (snapshot === undefined) {
-      return null;
-    }
-
-    if (expectedRunId !== undefined && snapshot.runId !== expectedRunId) {
-      return null;
-    }
-
-    const updated: ConductorRunSnapshot = {
-      ...snapshot,
-      status: "cancelled",
-      errorMessage: null,
-      message,
-      updatedAt: Date.now(),
-    };
-
-    return storeRunSnapshotForTarget(target, updated);
-  }
+  const store = new RunSnapshotStore(input.runStatusRetentionMs);
 
   return {
     buildRunLifecycle(): RunFileStatusLifecycle {
       return {
         start(target, ownerKey, message): ConductorRunSnapshot {
-          return startRunForTarget(target, ownerKey, message ?? null);
+          const snapshot = createBootstrapRunSnapshot({
+            ownerKey,
+            reason: message ?? null,
+          });
+          store.store(target, snapshot, store.publish.bind(store));
+          return snapshot;
         },
         markCancelled(target, message, expectedRunId): void {
-          markTargetRunCancelled(target, message ?? null, expectedRunId);
+          const snapshot = store.getByTarget(buildRunTargetKey(target));
+          if (snapshot === undefined || !matchesExpectedRunId(snapshot, expectedRunId)) {
+            return;
+          }
+
+          const updated = {
+            ...snapshot,
+            status: "cancelled" as const,
+            message: message ?? snapshot.message,
+            updatedAt: Date.now(),
+          };
+          store.store(target, updated, store.publish.bind(store));
         },
         markRunning(target, message, expectedRunId): void {
-          markTargetRunRunning(target, message ?? null, expectedRunId);
+          const snapshot = store.getByTarget(buildRunTargetKey(target));
+          if (snapshot === undefined || !matchesExpectedRunId(snapshot, expectedRunId)) {
+            return;
+          }
+
+          const updated = {
+            ...snapshot,
+            status: "running" as const,
+            message: message ?? snapshot.message,
+            updatedAt: Date.now(),
+          };
+          store.store(target, updated, store.publish.bind(store));
         },
         markCompleted(target, message, expectedRunId): void {
-          markTargetRunCompleted(target, message ?? null, expectedRunId);
+          const snapshot = store.getByTarget(buildRunTargetKey(target));
+          if (snapshot === undefined || !matchesExpectedRunId(snapshot, expectedRunId)) {
+            return;
+          }
+
+          const updated = {
+            ...snapshot,
+            status: "completed" as const,
+            errorMessage: null,
+            message: message ?? snapshot.message,
+            updatedAt: Date.now(),
+          };
+          store.store(target, updated, store.publish.bind(store));
         },
         markFailed(target, errorMessage, expectedRunId): void {
-          markTargetRunFailed(target, errorMessage, expectedRunId);
+          const targetKey = buildRunTargetKey(target);
+          const existing = store.getByTarget(targetKey);
+          if (existing !== undefined && !matchesExpectedRunId(existing, expectedRunId)) {
+            return;
+          }
+
+          const baseSnapshot = existing ?? createBootstrapRunSnapshot({
+            ownerKey: `failed:${target.filePath}`,
+            reason: null,
+          });
+
+          const updated = {
+            ...baseSnapshot,
+            status: "failed" as const,
+            errorMessage,
+            message: errorMessage,
+            updatedAt: Date.now(),
+          };
+          store.store(target, updated, store.publish.bind(store));
         },
       };
     },
 
     clearRunResults(target: ConductorRunTargetRef): boolean {
       const targetKey = buildRunTargetKey(target);
-      const snapshot = runSnapshotsByTarget.get(targetKey);
+      const snapshot = store.getByTarget(targetKey);
       if (snapshot === undefined) {
         return false;
       }
@@ -439,38 +376,39 @@ export function createRunRegistry(input: CreateRunRegistryInput): IRunRegistry {
         return false;
       }
 
-      clearRunStatusTimer(targetKey);
-      runSnapshotsByTarget.delete(targetKey);
-      runTargetByRunId.delete(snapshot.runId);
-      publishRunTargetStatusChange(target, snapshot);
+      store.deleteTarget(targetKey, snapshot.runId);
+      store.publish(target, snapshot);
       return true;
     },
 
     getRunForTarget(target: ConductorRunTargetRef): ConductorRunSnapshot | null {
       const targetKey = buildRunTargetKey(target);
-      const snapshot = runSnapshotsByTarget.get(targetKey);
-      return snapshot ?? null;
+      return store.getByTarget(targetKey) ?? null;
     },
 
     subscribeRunTargetStatus(
       listener: (change: ConductorRunTargetStatusChange) => void
     ): ConductorSubscription {
-      runTargetListeners.add(listener);
+      const unsubscribe = store.subscribe(listener);
       return {
         dispose(): void {
-          runTargetListeners.delete(listener);
+          unsubscribe();
         },
       };
     },
 
     startRun(inputStart: ConductorStartRunInput): ConductorRunSnapshot {
       const snapshot = createBootstrapRunSnapshot(inputStart);
-      runSnapshotsById.set(snapshot.runId, snapshot);
+      store.store(
+        store.getRunTargetForRunId(snapshot.runId) ?? { nodeKind: "file", filePath: "" },
+        snapshot,
+        store.publish.bind(store)
+      );
       return snapshot;
     },
 
     markProgress(inputProgress: ConductorMarkProgressInput): ConductorRunSnapshot | null {
-      const snapshot = runSnapshotsById.get(inputProgress.runId);
+      const snapshot = store.getById(inputProgress.runId);
       if (snapshot === undefined) {
         return null;
       }
@@ -483,18 +421,16 @@ export function createRunRegistry(input: CreateRunRegistryInput): IRunRegistry {
         stepKey: inputProgress.stepKey ?? snapshot.stepKey,
         updatedAt: Date.now(),
       };
-      runSnapshotsById.set(updated.runId, updated);
-
-      const target = getRunTargetForRunId(updated.runId);
+      store.getById(updated.runId);
+      const target = store.getRunTargetForRunId(updated.runId);
       if (target !== null) {
-        storeRunSnapshotForTarget(target, updated);
+        store.store(target, updated, store.publish.bind(store));
       }
-
       return updated;
     },
 
     markCompleted(inputComplete: ConductorMarkCompletedInput): ConductorRunSnapshot | null {
-      const snapshot = runSnapshotsById.get(inputComplete.runId);
+      const snapshot = store.getById(inputComplete.runId);
       if (snapshot === undefined) {
         return null;
       }
@@ -506,18 +442,17 @@ export function createRunRegistry(input: CreateRunRegistryInput): IRunRegistry {
         errorMessage: null,
         updatedAt: Date.now(),
       };
-      runSnapshotsById.set(updated.runId, updated);
 
-      const target = getRunTargetForRunId(updated.runId);
+      const target = store.getRunTargetForRunId(updated.runId);
       if (target !== null) {
-        storeRunSnapshotForTarget(target, updated);
+        store.store(target, updated, store.publish.bind(store));
       }
 
       return updated;
     },
 
     markFailed(inputFail: ConductorMarkFailedInput): ConductorRunSnapshot | null {
-      const snapshot = runSnapshotsById.get(inputFail.runId);
+      const snapshot = store.getById(inputFail.runId);
       if (snapshot === undefined) {
         return null;
       }
@@ -529,18 +464,17 @@ export function createRunRegistry(input: CreateRunRegistryInput): IRunRegistry {
         message: inputFail.message ?? inputFail.errorMessage,
         updatedAt: Date.now(),
       };
-      runSnapshotsById.set(updated.runId, updated);
 
-      const target = getRunTargetForRunId(updated.runId);
+      const target = store.getRunTargetForRunId(updated.runId);
       if (target !== null) {
-        storeRunSnapshotForTarget(target, updated);
+        store.store(target, updated, store.publish.bind(store));
       }
 
       return updated;
     },
 
     cancelRun(inputCancel: ConductorCancelRunInput): ConductorRunSnapshot | null {
-      const snapshot = runSnapshotsById.get(inputCancel.runId);
+      const snapshot = store.getById(inputCancel.runId);
       if (snapshot === undefined) {
         return null;
       }
@@ -551,19 +485,17 @@ export function createRunRegistry(input: CreateRunRegistryInput): IRunRegistry {
         message: inputCancel.message ?? snapshot.message,
         updatedAt: Date.now(),
       };
-      runSnapshotsById.set(updated.runId, updated);
 
-      const target = getRunTargetForRunId(updated.runId);
+      const target = store.getRunTargetForRunId(updated.runId);
       if (target !== null) {
-        storeRunSnapshotForTarget(target, updated);
+        store.store(target, updated, store.publish.bind(store));
       }
 
       return updated;
     },
 
     getRun(runId: string): ConductorRunSnapshot | null {
-      const snapshot = runSnapshotsById.get(runId);
-      return snapshot ?? null;
+      return store.getById(runId) ?? null;
     },
   };
 }

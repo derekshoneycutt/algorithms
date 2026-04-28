@@ -37,7 +37,7 @@ import {
 describe("bootstrap extension", () => {
   it("activates the standalone TypeScript extension", async () => {
     const extension = vscode.extensions.getExtension(
-      "derekshoneycutt.algorithms-runner-vscext"
+      "derekshoneycutt.algorithms-runner-extension"
     );
 
     assert.ok(extension, "extension should be discoverable");
@@ -77,7 +77,7 @@ describe("bootstrap extension", () => {
 
   it("contributes workspace tree view panels", async () => {
     const extension = vscode.extensions.getExtension(
-      "derekshoneycutt.algorithms-runner-vscext"
+      "derekshoneycutt.algorithms-runner-extension"
     );
 
     assert.ok(extension, "extension should be discoverable");

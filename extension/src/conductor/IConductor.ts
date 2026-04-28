@@ -234,6 +234,7 @@ export interface ConductorRunFileInput {
   hostState: IStateMachine;
   languages: ILanguages;
   notificationRouter: INotificationRouter;
+  owningWorkspaceFolderPath?: string;
   refreshAlgorithmsTree: () => void;
   treeNode?: WorkspaceTreeNode;
   workspaceFolderPaths: readonly string[];

@@ -28,3 +28,10 @@ export type {
 	RefreshableWorkspaceTreeDataProvider,
 	WorkspaceTreeNode,
 } from "./trees";
+export type {
+	CoordinatorViewLayer,
+	CreateCoordinatorViewLayerInput,
+} from "./createCoordinatorViewLayer";
+export { createCoordinatorViewLayer } from "./createCoordinatorViewLayer";
+export type { CreateCoordinatorControlsChannelsInput } from "./createCoordinatorControlsChannels";
+export { createCoordinatorControlsChannels } from "./createCoordinatorControlsChannels";

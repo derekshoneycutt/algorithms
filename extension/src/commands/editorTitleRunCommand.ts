@@ -5,6 +5,7 @@ import type { IFilesystem } from "../filesystem";
 import type { ILanguages } from "../languages";
 import type { INotificationRouter } from "../notifications";
 import type { IStateMachine } from "../state";
+import { getOwningWorkspaceFolderPath, getWorkspaceFolderPaths } from "./workspaceFolders";
 
 type CheckOnlyRoute = "native" | "docker" | "ssh";
 
@@ -18,17 +19,6 @@ export interface EditorTitleRunCommandDependencies {
   languages: ILanguages;
   notificationRouter: INotificationRouter;
   refreshAlgorithmsTree: () => void;
-}
-
-/**
- * Returns currently opened workspace folder paths.
- *
- * @returns {readonly string[]} Workspace folder paths.
- */
-function getWorkspaceFolderPaths(): readonly string[] {
-  return (vscode.workspace.workspaceFolders ?? []).map((workspaceFolder) => {
-    return workspaceFolder.uri.fsPath;
-  });
 }
 
 /**
@@ -51,6 +41,8 @@ function createAlgorithmsEditorTitleCommandForAction(
       return;
     }
 
+    const workspaceFolderPaths = getWorkspaceFolderPaths();
+
     await dependencies.conductor.runFile({
       actionKind,
       checkOnlyRouteOverride,
@@ -58,12 +50,13 @@ function createAlgorithmsEditorTitleCommandForAction(
       hostState: dependencies.hostState,
       languages: dependencies.languages,
       notificationRouter: dependencies.notificationRouter,
+      owningWorkspaceFolderPath: getOwningWorkspaceFolderPath(uri.fsPath),
       refreshAlgorithmsTree: dependencies.refreshAlgorithmsTree,
       treeNode: {
         kind: "file",
         filePath: uri.fsPath,
       },
-      workspaceFolderPaths: getWorkspaceFolderPaths(),
+      workspaceFolderPaths,
     });
   };
 }

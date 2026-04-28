@@ -27,7 +27,30 @@ export type { IFlaggedLanguagesService } from "./flaggedLanguages";
  */
 export interface RootResolverDependencies {
   filesystem: IFilesystem;
+  owningWorkspaceFolderPath?: string;
   workspaceFolderPaths: readonly string[];
+}
+
+/**
+ * Returns the workspace-folder resolution order with the owning workspace first.
+ *
+ * @param {readonly string[]} workspaceFolderPaths Open workspace folder paths.
+ * @param {string | undefined} owningWorkspaceFolderPath Preferred workspace folder path.
+ * @returns {readonly string[]} Resolution order for root discovery.
+ */
+function getWorkspaceFolderResolutionOrder(
+  workspaceFolderPaths: readonly string[],
+  owningWorkspaceFolderPath: string | undefined
+): readonly string[] {
+  if (owningWorkspaceFolderPath === undefined || owningWorkspaceFolderPath.trim().length === 0) {
+    return workspaceFolderPaths;
+  }
+
+  const remainingWorkspaceFolderPaths = workspaceFolderPaths.filter((workspaceFolderPath) => {
+    return workspaceFolderPath !== owningWorkspaceFolderPath;
+  });
+
+  return [owningWorkspaceFolderPath, ...remainingWorkspaceFolderPaths];
 }
 
 /**
@@ -65,9 +88,13 @@ function resolveRepositoryRootFromSourcePath(sourcePath: string): string | null 
 export async function resolveAlgorithmsRootPath(
   dependencies: RootResolverDependencies
 ): Promise<string | null> {
-  const { filesystem, workspaceFolderPaths } = dependencies;
+  const { filesystem, owningWorkspaceFolderPath, workspaceFolderPaths } = dependencies;
+  const resolutionOrder = getWorkspaceFolderResolutionOrder(
+    workspaceFolderPaths,
+    owningWorkspaceFolderPath
+  );
 
-  for (const workspaceFolderPath of workspaceFolderPaths) {
+  for (const workspaceFolderPath of resolutionOrder) {
     const canonicalPath = await filesystem.realpath(workspaceFolderPath);
     const srcPath = path.join(canonicalPath, "src");
     if (await filesystem.isDirectory(srcPath)) {
@@ -90,9 +117,13 @@ export async function resolveAlgorithmsRootPath(
 export async function resolveStdlibRootPath(
   dependencies: RootResolverDependencies
 ): Promise<string | null> {
-  const { filesystem, workspaceFolderPaths } = dependencies;
+  const { filesystem, owningWorkspaceFolderPath, workspaceFolderPaths } = dependencies;
+  const resolutionOrder = getWorkspaceFolderResolutionOrder(
+    workspaceFolderPaths,
+    owningWorkspaceFolderPath
+  );
 
-  for (const workspaceFolderPath of workspaceFolderPaths) {
+  for (const workspaceFolderPath of resolutionOrder) {
     const canonicalPath = await filesystem.realpath(workspaceFolderPath);
     const stdlibPath = path.join(canonicalPath, "stdlib");
     if (await filesystem.isDirectory(stdlibPath)) {

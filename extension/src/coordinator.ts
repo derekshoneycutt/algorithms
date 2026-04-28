@@ -1,78 +1,20 @@
 import * as vscode from "vscode";
 
 import {
-  createStandardLibraryCreateFileCommand,
-  createStandardLibraryCreateFolderCommand,
-  createStandardLibraryDeleteCommand,
-  createAlgorithmsCreateFolderAtRootCommand,
-  createAlgorithmsCreateFolderCommand,
-  createAlgorithmsCreateFileCommand,
-  createAlgorithmsAddIncludeFileCommand,
-  createAlgorithmsSidebarShowFileViewCommand,
-  createAlgorithmsSidebarShowLanguageViewCommand,
-  createAlgorithmsSidebarShowAllRowsCommand,
-  createAlgorithmsSidebarShowProblemRowsCommand,
-  createAlgorithmsDeleteCommand,
-  createAlgorithmsFlagLanguageCommand,
-  createAlgorithmsUnflagLanguageCommand,
-  createAlgorithmsRunFileCommand,
-  createAlgorithmsEditorTitleRunFileCommand,
-  createAlgorithmsEditorTitleCompileOnlyCommand,
-  createAlgorithmsEditorTitleCheckOnlyNativeCommand,
-  createAlgorithmsEditorTitleCheckOnlyDockerCommand,
-  createAlgorithmsEditorTitleCheckOnlySshCommand,
-  createAlgorithmsEditorTitleCleanCommand,
-  createAlgorithmsEditorTitleLocalCleanCommand,
-  createAlgorithmsCompileOnlyCommand,
-  createAlgorithmsCheckOnlyNativeCommand,
-  createAlgorithmsCheckOnlyDockerCommand,
-  createAlgorithmsCheckOnlySshCommand,
-  createAlgorithmsCleanCommand,
-  createAlgorithmsLocalCleanCommand,
-  createAlgorithmsSmokeTestCommand,
-  createAlgorithmsStopSmokeTestCommand,
-  createAlgorithmsClearSmokeResultsCommand,
-  createAlgorithmsClearRunResultsCommand,
-  createShowBootstrapStatusCommand,
-    createAlgorithmsExplorerRunCommands,
+  createCoordinatorCommands,
   registerCommands,
 } from "./commands";
 import type { IExtensionCommands } from "./commands";
 import {
-  buildRunControlsSnapshot,
-  createEnvironmentControlsSnapshotBuilder,
-  createEnvironmentControlsSnapshotPublisher,
-  createEnvironmentLanguageIconUriResolver,
-  createRunControlsSnapshotPublisher,
-  createSmokeLanguageIconUriResolver,
-  createSmokeSnapshotBuilder,
-  createSmokeSnapshotPublisher,
-  createCommunicationHub,
-} from "./comms";
-import type { ICommunicationHub } from "./comms";
-import {
   createAlgorithmsTerminalRunAdapter,
   createCommandLine,
 } from "./commandline";
-import {
-  createEnvironmentControlsChannelMessageHandler,
-  createConductorService,
-  createRunControlsChannelMessageHandler,
-  createSmokeControlsChannelMessageHandler,
-} from "./conductor";
+import { createConductorService } from "./conductor";
 import type { IConductor } from "./conductor";
 import {
   createFilesystem,
 } from "./filesystem";
 import type { IFilesystem } from "./filesystem";
-import {
-  createAlgorithmsIndex,
-  createFlaggedLanguagesService,
-} from "./algorithms";
-import type {
-  IAlgorithmsIndex,
-  IFlaggedLanguagesService,
-} from "./algorithms";
 import {
   buildSmokeLanguageSelections,
   createLanguages,
@@ -96,49 +38,57 @@ import type {
   IViewModeService,
 } from "./state";
 import {
-  createWorkspaceAlgorithmsTreeDataProvider,
-  createWorkspaceStandardLibraryTreeDataProvider,
-  createLanguageStatusDecorationProvider,
-  createWorkspaceWatcherAdapter,
-  registerControlsChannels,
-  createViewHost,
+  createCoordinatorControlsChannels,
+  createCoordinatorViewLayer,
   getEnvironmentControlsSidebarViewId,
   getRunControlsSidebarViewId,
   getSmokeControlsSidebarViewId,
   getWorkspaceAlgorithmsTreeViewId,
   getWorkspaceStandardLibraryTreeViewId,
 } from "./views";
-import type {
-  IViewHost,
-  IWorkspaceWatcherAdapter,
-  RefreshableWorkspaceTreeDataProvider,
-} from "./views";
+import type { CoordinatorViewLayer } from "./views";
+
+interface CoordinatorViewIds {
+  environmentControlsViewId: string;
+  runControlsViewId: string;
+  smokeControlsViewId: string;
+  workspaceAlgorithmsTreeViewId: string;
+  workspaceStandardLibraryTreeViewId: string;
+}
+
+interface CoordinatorRuntimeServices {
+  algorithmsTerminalRunAdapter: ReturnType<typeof createAlgorithmsTerminalRunAdapter>;
+  commandLine: ReturnType<typeof createCommandLine>;
+  conductor: IConductor;
+  filesystem: IFilesystem;
+  filterModeService: IFilterModeService;
+  languages: ILanguages;
+  notificationDispatcher: ReturnType<typeof createConductorNotificationDispatcher>;
+  notificationRouter: INotificationRouter;
+  stateMachine: IStateMachine;
+  viewModeService: IViewModeService;
+  workspaceFolderPaths: readonly string[];
+}
 
 /**
- * Creates the coordinator for the bootstrap extension runtime.
+ * Returns currently opened workspace folder paths.
  *
- * The coordinator is the only place that constructs concrete implementations
- * across module boundaries. All other modules receive only injected interfaces.
- *
- * The state machine is constructed eagerly but its underlying XState actor
- * starts lazily on the first command dispatch.
- *
- * @param {vscode.ExtensionContext} context Extension activation context.
- * @returns {vscode.Disposable} Root disposable for the bootstrap runtime.
+ * @returns {readonly string[]} Workspace folder fs paths.
  */
-export function createCoordinator(
-  context: vscode.ExtensionContext
-): vscode.Disposable {
-  const runControlsViewId = getRunControlsSidebarViewId();
-  const smokeControlsViewId = getSmokeControlsSidebarViewId();
-  const environmentControlsViewId = getEnvironmentControlsSidebarViewId();
-  const workspaceAlgorithmsTreeViewId = getWorkspaceAlgorithmsTreeViewId();
-  const workspaceStandardLibraryTreeViewId = getWorkspaceStandardLibraryTreeViewId();
-  const workspaceFolderPaths = (vscode.workspace.workspaceFolders ?? []).map(
-    (workspaceFolder) => workspaceFolder.uri.fsPath
-  );
-  const languages: ILanguages = createLanguages(GENERATED_LANGUAGE_DATA);
+function getWorkspaceFolderPaths(): readonly string[] {
+  return (vscode.workspace.workspaceFolders ?? []).map((workspaceFolder) => {
+    return workspaceFolder.uri.fsPath;
+  });
+}
 
+/**
+ * Creates the runtime services required by the extension coordinator.
+ *
+ * @returns {CoordinatorRuntimeServices} Constructed runtime service graph.
+ */
+function createCoordinatorRuntimeServices(): CoordinatorRuntimeServices {
+  const workspaceFolderPaths = getWorkspaceFolderPaths();
+  const languages: ILanguages = createLanguages(GENERATED_LANGUAGE_DATA);
   const stateMachine: IStateMachine = createHostStateService({
     initialSmokeControls: {
       languages: buildSmokeLanguageSelections(languages),
@@ -162,365 +112,109 @@ export function createCoordinator(
   });
   void conductor.initWorkspaceSupportedContext({ workspaceFolderPaths });
   const notificationDispatcher = createConductorNotificationDispatcher(notificationRouter);
-  const viewHost: IViewHost = createViewHost(context);
-  const communicationHub: ICommunicationHub = createCommunicationHub(viewHost);
-  const viewsRegistration = viewHost.register();
-  const algorithmsIndex: IAlgorithmsIndex = createAlgorithmsIndex({
+
+  return {
+    algorithmsTerminalRunAdapter,
+    commandLine,
+    conductor,
     filesystem,
+    filterModeService,
     languages,
+    notificationDispatcher,
+    notificationRouter,
+    stateMachine,
+    viewModeService,
     workspaceFolderPaths,
-  });
-  const flaggedLanguages: IFlaggedLanguagesService = createFlaggedLanguagesService(
-    filesystem
-  );
-  const workspaceAlgorithmsTreeProvider: RefreshableWorkspaceTreeDataProvider =
-    createWorkspaceAlgorithmsTreeDataProvider({
-      viewModeService,
-      filterModeService,
-      algorithmsIndex,
-      conductor,
-      hostState: stateMachine,
-      languages,
-    });
-  const runStatusTreeRefreshSubscription = conductor.subscribeRunTargetStatus(() => {
-    workspaceAlgorithmsTreeProvider.refresh();
-  });
-    const explorerRunCommands = createAlgorithmsExplorerRunCommands({
-      conductor,
-      filesystem,
-      hostState: stateMachine,
-      languages,
-      notificationRouter,
-      refreshAlgorithmsTree: workspaceAlgorithmsTreeProvider.refresh,
-    });
-  const workspaceStandardLibraryTreeProvider: RefreshableWorkspaceTreeDataProvider =
-    createWorkspaceStandardLibraryTreeDataProvider({
-      algorithmsIndex,
-    });
-  const workspaceWatcherAdapter: IWorkspaceWatcherAdapter = createWorkspaceWatcherAdapter(
-    {
-      conductor,
-      filesystem,
-      algorithmsIndex,
-      refreshAlgorithmsTree: workspaceAlgorithmsTreeProvider.refresh,
-      refreshStandardLibraryTree: workspaceStandardLibraryTreeProvider.refresh,
-    }
-  );
-  const workspaceWatcherRegistration = workspaceWatcherAdapter.activate();
+  };
+}
 
-  const workspaceAlgorithmsTreeRegistration = viewHost.registerTreeDataProvider(
-    workspaceAlgorithmsTreeViewId,
-    workspaceAlgorithmsTreeProvider
-  );
-  const workspaceStandardLibraryTreeRegistration = viewHost.registerTreeDataProvider(
-    workspaceStandardLibraryTreeViewId,
-    workspaceStandardLibraryTreeProvider
-  );
-  const languageStatusDecorationProvider = createLanguageStatusDecorationProvider();
-  const languageStatusDecorationRegistration = vscode.window.registerFileDecorationProvider(
-    languageStatusDecorationProvider
-  );
-  const resolveSmokeLanguageIconUri = createSmokeLanguageIconUriResolver({
-    languages,
+
+/**
+ * Creates the coordinator for the bootstrap extension runtime.
+ *
+ * The coordinator is the only place that constructs concrete implementations
+ * across module boundaries. All other modules receive only injected interfaces.
+ *
+ * The state machine is constructed eagerly but its underlying XState actor
+ * starts lazily on the first command dispatch.
+ *
+ * @param {vscode.ExtensionContext} context Extension activation context.
+ * @returns {vscode.Disposable} Root disposable for the bootstrap runtime.
+ */
+export function createCoordinator(
+  context: vscode.ExtensionContext
+): vscode.Disposable {
+  const viewIds: CoordinatorViewIds = {
+    environmentControlsViewId: getEnvironmentControlsSidebarViewId(),
+    runControlsViewId: getRunControlsSidebarViewId(),
+    smokeControlsViewId: getSmokeControlsSidebarViewId(),
+    workspaceAlgorithmsTreeViewId: getWorkspaceAlgorithmsTreeViewId(),
+    workspaceStandardLibraryTreeViewId: getWorkspaceStandardLibraryTreeViewId(),
+  };
+  const runtimeServices = createCoordinatorRuntimeServices();
+  const {
+    conductor,
+    stateMachine,
+  } = runtimeServices;
+  const viewLayer: CoordinatorViewLayer = createCoordinatorViewLayer({
+    conductor,
+    context,
+    filesystem: runtimeServices.filesystem,
+    filterModeService: runtimeServices.filterModeService,
+    languages: runtimeServices.languages,
+    notificationRouter: runtimeServices.notificationRouter,
+    stateMachine,
+    viewIds: {
+      workspaceAlgorithmsTreeViewId: viewIds.workspaceAlgorithmsTreeViewId,
+      workspaceStandardLibraryTreeViewId: viewIds.workspaceStandardLibraryTreeViewId,
+    },
+    viewModeService: runtimeServices.viewModeService,
+    workspaceFolderPaths: runtimeServices.workspaceFolderPaths,
+  });
+  const {
+    communicationHub,
+    languageStatusDecorationRegistration,
+    runStatusTreeRefreshSubscription,
     viewHost,
-    viewId: smokeControlsViewId,
-    extensionUri: context.extensionUri,
-  });
-  const buildSmokeControlsSnapshot = createSmokeSnapshotBuilder(
-    resolveSmokeLanguageIconUri
-  );
-  const getStateSnapshot = stateMachine.getSnapshot.bind(stateMachine);
-  const publishSmokeSnapshot = createSmokeSnapshotPublisher({
-    postMessage: communicationHub.post.bind(communicationHub, smokeControlsViewId),
-    getSnapshot: getStateSnapshot,
-    buildSnapshot: buildSmokeControlsSnapshot,
-  });
-  const publishRunSnapshot = createRunControlsSnapshotPublisher({
-    postMessage: communicationHub.post.bind(communicationHub, runControlsViewId),
-    getSnapshot: getStateSnapshot,
-    buildSnapshot: buildRunControlsSnapshot,
-  });
-  const resolveEnvironmentLanguageIconUri = createEnvironmentLanguageIconUriResolver({
-    languages,
-    viewHost,
-    viewId: environmentControlsViewId,
-    extensionUri: context.extensionUri,
-  });
-  const buildEnvironmentControlsSnapshot = createEnvironmentControlsSnapshotBuilder(
-    resolveEnvironmentLanguageIconUri
-  );
-  const publishEnvironmentSnapshot = createEnvironmentControlsSnapshotPublisher({
-    postMessage: communicationHub.post.bind(communicationHub, environmentControlsViewId),
-    getSnapshot: getStateSnapshot,
-    buildSnapshot: buildEnvironmentControlsSnapshot,
-  });
-
-  const smokeControlsChannelHandler = createSmokeControlsChannelMessageHandler({
-    conductor,
-    stateMachine,
-    dispatchNotification: notificationDispatcher.dispatch,
-    publishSnapshot: publishSmokeSnapshot,
-  });
-  const runControlsChannelHandler = createRunControlsChannelMessageHandler({
-    conductor,
-    stateMachine,
-    dispatchNotification: notificationDispatcher.dispatch,
-    publishSnapshot: publishRunSnapshot,
-  });
-  const environmentControlsChannelHandler = createEnvironmentControlsChannelMessageHandler({
-    conductor,
-    languages,
-    stateMachine,
-    dispatchNotification: notificationDispatcher.dispatch,
-    publishSnapshot: publishEnvironmentSnapshot,
-  });
-
+    viewsRegistration,
+    workspaceAlgorithmsTreeProvider,
+    workspaceAlgorithmsTreeRegistration,
+    workspaceStandardLibraryTreeProvider,
+    workspaceStandardLibraryTreeRegistration,
+    workspaceWatcherRegistration,
+  } = viewLayer;
   const {
     smokeControlsChannel,
     runControlsChannel,
     environmentControlsChannel,
-  } = registerControlsChannels({
-    smokeControlsViewId,
-    runControlsViewId,
-    environmentControlsViewId,
+  } = createCoordinatorControlsChannels({
     communicationHub,
-    smokeControlsListener: smokeControlsChannelHandler,
-    runControlsListener: runControlsChannelHandler,
-    environmentControlsListener: environmentControlsChannelHandler,
+    conductor,
+    context,
+    languages: runtimeServices.languages,
+    notificationDispatcher: runtimeServices.notificationDispatcher,
+    stateMachine,
+    viewHost,
+    viewIds: {
+      environmentControlsViewId: viewIds.environmentControlsViewId,
+      runControlsViewId: viewIds.runControlsViewId,
+      smokeControlsViewId: viewIds.smokeControlsViewId,
+    },
   });
-
-  const commands: IExtensionCommands = {
-    showBootstrapStatus: createShowBootstrapStatusCommand({
-      extensionDisplayName: String(
-        context.extension.packageJSON.displayName ?? context.extension.id
-      ),
-      extensionVersion: String(context.extension.packageJSON.version ?? "0.0.0"),
-      hostState: stateMachine,
-      showStatusMessage: notificationRouter.info,
-    }),
-    standardLibraryCreateFile: createStandardLibraryCreateFileCommand({
-      filesystem,
-      notificationRouter,
-      refreshStandardLibraryTree: workspaceStandardLibraryTreeProvider.refresh,
-    }),
-    standardLibraryCreateFolder: createStandardLibraryCreateFolderCommand({
-      filesystem,
-      notificationRouter,
-      refreshStandardLibraryTree: workspaceStandardLibraryTreeProvider.refresh,
-    }),
-    standardLibraryDelete: createStandardLibraryDeleteCommand({
-      filesystem,
-      notificationRouter,
-      refreshStandardLibraryTree: workspaceStandardLibraryTreeProvider.refresh,
-    }),
-    algorithmsCreateFolderAtRoot: createAlgorithmsCreateFolderAtRootCommand({
-      filesystem,
-      languages,
-      notificationRouter,
-      refreshAlgorithmsTree: workspaceAlgorithmsTreeProvider.refresh,
-    }),
-    algorithmsCreateFolder: createAlgorithmsCreateFolderCommand({
-      filesystem,
-      languages,
-      notificationRouter,
-      refreshAlgorithmsTree: workspaceAlgorithmsTreeProvider.refresh,
-    }),
-    algorithmsCreateFile: createAlgorithmsCreateFileCommand({
-      filesystem,
-      languages,
-      notificationRouter,
-      refreshAlgorithmsTree: workspaceAlgorithmsTreeProvider.refresh,
-    }),
-    algorithmsAddIncludeFile: createAlgorithmsAddIncludeFileCommand({
-      filesystem,
-      languages,
-      notificationRouter,
-      refreshAlgorithmsTree: workspaceAlgorithmsTreeProvider.refresh,
-    }),
-    algorithmsDelete: createAlgorithmsDeleteCommand({
-      filesystem,
-      languages,
-      notificationRouter,
-      refreshAlgorithmsTree: workspaceAlgorithmsTreeProvider.refresh,
-    }),
-    algorithmsSidebarShowFileView: createAlgorithmsSidebarShowFileViewCommand(
-      viewModeService
-    ),
-    algorithmsSidebarShowLanguageView: createAlgorithmsSidebarShowLanguageViewCommand(
-      viewModeService
-    ),
-    algorithmsSidebarShowAllRows: createAlgorithmsSidebarShowAllRowsCommand(
-      filterModeService
-    ),
-    algorithmsSidebarShowProblemRows: createAlgorithmsSidebarShowProblemRowsCommand(
-      filterModeService
-    ),
-    algorithmsFlagLanguage: createAlgorithmsFlagLanguageCommand({
-      filesystem,
-      flaggedLanguages,
-      languages,
-      notificationRouter,
-      refreshAlgorithmsTree: workspaceAlgorithmsTreeProvider.refresh,
-    }),
-    algorithmsUnflagLanguage: createAlgorithmsUnflagLanguageCommand({
-      filesystem,
-      flaggedLanguages,
-      languages,
-      notificationRouter,
-      refreshAlgorithmsTree: workspaceAlgorithmsTreeProvider.refresh,
-    }),
-    algorithmsRunFile: createAlgorithmsRunFileCommand({
-      conductor,
-      filesystem,
-      hostState: stateMachine,
-      languages,
-      notificationRouter,
-      refreshAlgorithmsTree: workspaceAlgorithmsTreeProvider.refresh,
-    }),
-    algorithmsEditorTitleRunFile: createAlgorithmsEditorTitleRunFileCommand({
-      conductor,
-      filesystem,
-      hostState: stateMachine,
-      languages,
-      notificationRouter,
-      refreshAlgorithmsTree: workspaceAlgorithmsTreeProvider.refresh,
-    }),
-    algorithmsEditorTitleCompileOnly: createAlgorithmsEditorTitleCompileOnlyCommand({
-      conductor,
-      filesystem,
-      hostState: stateMachine,
-      languages,
-      notificationRouter,
-      refreshAlgorithmsTree: workspaceAlgorithmsTreeProvider.refresh,
-    }),
-    algorithmsEditorTitleCheckOnlyNative: createAlgorithmsEditorTitleCheckOnlyNativeCommand({
-      conductor,
-      filesystem,
-      hostState: stateMachine,
-      languages,
-      notificationRouter,
-      refreshAlgorithmsTree: workspaceAlgorithmsTreeProvider.refresh,
-    }),
-    algorithmsEditorTitleCheckOnlyDocker: createAlgorithmsEditorTitleCheckOnlyDockerCommand({
-      conductor,
-      filesystem,
-      hostState: stateMachine,
-      languages,
-      notificationRouter,
-      refreshAlgorithmsTree: workspaceAlgorithmsTreeProvider.refresh,
-    }),
-    algorithmsEditorTitleCheckOnlySsh: createAlgorithmsEditorTitleCheckOnlySshCommand({
-      conductor,
-      filesystem,
-      hostState: stateMachine,
-      languages,
-      notificationRouter,
-      refreshAlgorithmsTree: workspaceAlgorithmsTreeProvider.refresh,
-    }),
-    algorithmsEditorTitleClean: createAlgorithmsEditorTitleCleanCommand({
-      conductor,
-      filesystem,
-      hostState: stateMachine,
-      languages,
-      notificationRouter,
-      refreshAlgorithmsTree: workspaceAlgorithmsTreeProvider.refresh,
-    }),
-    algorithmsEditorTitleLocalClean: createAlgorithmsEditorTitleLocalCleanCommand({
-      conductor,
-      filesystem,
-      hostState: stateMachine,
-      languages,
-      notificationRouter,
-      refreshAlgorithmsTree: workspaceAlgorithmsTreeProvider.refresh,
-    }),
-    algorithmsCompileOnly: createAlgorithmsCompileOnlyCommand({
-      conductor,
-      filesystem,
-      hostState: stateMachine,
-      languages,
-      notificationRouter,
-      refreshAlgorithmsTree: workspaceAlgorithmsTreeProvider.refresh,
-    }),
-    algorithmsCheckOnlyNative: createAlgorithmsCheckOnlyNativeCommand({
-      conductor,
-      filesystem,
-      hostState: stateMachine,
-      languages,
-      notificationRouter,
-      refreshAlgorithmsTree: workspaceAlgorithmsTreeProvider.refresh,
-    }),
-    algorithmsCheckOnlyDocker: createAlgorithmsCheckOnlyDockerCommand({
-      conductor,
-      filesystem,
-      hostState: stateMachine,
-      languages,
-      notificationRouter,
-      refreshAlgorithmsTree: workspaceAlgorithmsTreeProvider.refresh,
-    }),
-    algorithmsCheckOnlySsh: createAlgorithmsCheckOnlySshCommand({
-      conductor,
-      filesystem,
-      hostState: stateMachine,
-      languages,
-      notificationRouter,
-      refreshAlgorithmsTree: workspaceAlgorithmsTreeProvider.refresh,
-    }),
-    algorithmsClean: createAlgorithmsCleanCommand({
-      conductor,
-      filesystem,
-      hostState: stateMachine,
-      languages,
-      notificationRouter,
-      refreshAlgorithmsTree: workspaceAlgorithmsTreeProvider.refresh,
-    }),
-    algorithmsLocalClean: createAlgorithmsLocalCleanCommand({
-      conductor,
-      filesystem,
-      hostState: stateMachine,
-      languages,
-      notificationRouter,
-      refreshAlgorithmsTree: workspaceAlgorithmsTreeProvider.refresh,
-    }),
-    algorithmsSmokeTest: createAlgorithmsSmokeTestCommand({
-      conductor,
-      filesystem,
-      hostState: stateMachine,
-      languages,
-      notificationRouter,
-      refreshAlgorithmsTree: workspaceAlgorithmsTreeProvider.refresh,
-    }),
-    algorithmsStopSmokeTest: createAlgorithmsStopSmokeTestCommand({
-      conductor,
-      filesystem,
-      hostState: stateMachine,
-      languages,
-      notificationRouter,
-      refreshAlgorithmsTree: workspaceAlgorithmsTreeProvider.refresh,
-    }),
-    algorithmsClearSmokeResults: createAlgorithmsClearSmokeResultsCommand({
-      conductor,
-      filesystem,
-      hostState: stateMachine,
-      languages,
-      notificationRouter,
-      refreshAlgorithmsTree: workspaceAlgorithmsTreeProvider.refresh,
-    }),
-    algorithmsClearRunResults: createAlgorithmsClearRunResultsCommand({
-      conductor,
-      filesystem,
-      hostState: stateMachine,
-      languages,
-      notificationRouter,
-      refreshAlgorithmsTree: workspaceAlgorithmsTreeProvider.refresh,
-    }),
-        explorerRunFile: explorerRunCommands.runFile,
-        explorerCompileOnly: explorerRunCommands.compileOnly,
-        explorerCheckOnlyNative: explorerRunCommands.checkOnlyNative,
-        explorerCheckOnlyDocker: explorerRunCommands.checkOnlyDocker,
-        explorerCheckOnlySsh: explorerRunCommands.checkOnlySsh,
-        explorerClean: explorerRunCommands.clean,
-        explorerLocalClean: explorerRunCommands.localClean,
-  };
+  const commands: IExtensionCommands = createCoordinatorCommands({
+    conductor,
+    context,
+    explorerRunCommands: viewLayer.explorerRunCommands,
+    filesystem: runtimeServices.filesystem,
+    filterModeService: runtimeServices.filterModeService,
+    flaggedLanguages: viewLayer.flaggedLanguages,
+    languages: runtimeServices.languages,
+    notificationRouter: runtimeServices.notificationRouter,
+    stateMachine,
+    viewModeService: runtimeServices.viewModeService,
+    workspaceAlgorithmsTreeProvider: viewLayer.workspaceAlgorithmsTreeProvider,
+    workspaceStandardLibraryTreeProvider: viewLayer.workspaceStandardLibraryTreeProvider,
+  });
 
   const conductorDisposer = {
     dispose(): void {

@@ -6,6 +6,7 @@ import type { IFilesystem } from "../filesystem";
 import type { ILanguages } from "../languages";
 import type { INotificationRouter } from "../notifications";
 import type { IStateMachine } from "../state";
+import { getOwningWorkspaceFolderPath, getWorkspaceFolderPaths } from "./workspaceFolders";
 
 /**
  * Dependencies for Explorer context menu run commands.
@@ -20,17 +21,6 @@ export interface ExplorerRunCommandDependencies {
 }
 
 type CheckOnlyRoute = "native" | "docker" | "ssh";
-
-/**
- * Returns currently opened workspace folder paths.
- *
- * @returns {readonly string[]} Workspace folder paths.
- */
-function getWorkspaceFolderPaths(): readonly string[] {
-  return (vscode.workspace.workspaceFolders ?? []).map((workspaceFolder) => {
-    return workspaceFolder.uri.fsPath;
-  });
-}
 
 /**
  * Creates a command handler for a specific Explorer run action.
@@ -50,6 +40,8 @@ function createExplorerRunCommandForAction(
       return;
     }
 
+    const workspaceFolderPaths = getWorkspaceFolderPaths();
+
     // Use full conductor orchestration for all actions so run status tracking is preserved.
     // Convert URI to a tree node-like object for conductor.runFile()
     await dependencies.conductor.runFile({
@@ -59,12 +51,13 @@ function createExplorerRunCommandForAction(
       hostState: dependencies.hostState,
       languages: dependencies.languages,
       notificationRouter: dependencies.notificationRouter,
+      owningWorkspaceFolderPath: getOwningWorkspaceFolderPath(clickedUri.fsPath),
       refreshAlgorithmsTree: dependencies.refreshAlgorithmsTree,
       treeNode: {
         kind: "file",
         filePath: clickedUri.fsPath,
       },
-      workspaceFolderPaths: getWorkspaceFolderPaths(),
+      workspaceFolderPaths,
     });
   };
 }

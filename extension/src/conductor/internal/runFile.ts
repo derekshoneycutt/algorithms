@@ -31,6 +31,102 @@ export interface RunFileOrchestrationDependencies {
 }
 
 /**
+ * Resolved preflight context required to execute one run target.
+ */
+interface RunExecutionContext {
+  algorithmDirectoryPath: string;
+  canonicalAlgorithmsRoot: string;
+  canonicalTargetFilePath: string | null;
+  languageKey: string | null;
+  runScriptPath: string;
+  runTarget: ConductorRunTargetRef;
+  treeNode: RunnableTreeNode;
+}
+
+/**
+ * Resolved runnable target details before filesystem validation.
+ */
+interface RunnableExecutionTarget {
+  runTarget: ConductorRunTargetRef;
+  treeNode: RunnableTreeNode;
+}
+
+/**
+ * Resolved filesystem context for one runnable target.
+ */
+interface RunFilesystemContext {
+  algorithmDirectoryPath: string;
+  canonicalAlgorithmsRoot: string;
+  canonicalTargetFilePath: string | null;
+  runScriptPath: string;
+}
+
+/**
+ * Resolved execution plan derived from host-state controls and validated context.
+ */
+interface RunExecutionPlan {
+  runControlOptionTokens: string[];
+  runControlPassthroughTokens: string[];
+  runOwnerKey: string;
+  runTargetToken: string | undefined;
+  smokeSelectedLanguageKeys: string[];
+}
+
+/**
+ * Runtime helpers and state for smoke-status projection during one execution.
+ */
+interface SmokeRuntimeProjection {
+  finish(): void;
+  consumeChunk(chunk: string): void;
+  markStarted(selectedLanguageKeys: readonly string[]): void;
+}
+
+/**
+ * Input for terminal-adapter execution.
+ */
+interface TerminalAdapterExecutionInput {
+  actionKind: ConductorRunActionKind;
+  actionLabel: string;
+  algorithmDirectoryPath: string;
+  languageKey: string | null;
+  runAdapter: IAlgorithmsTerminalRunAdapter;
+  runControlOptionTokens: string[];
+  runControlPassthroughTokens: string[];
+  runLifecycle: RunFileStatusLifecycle;
+  runScriptPath: string;
+  runTarget: ConductorRunTargetRef;
+  runTargetToken: string | undefined;
+  smokeRuntimeProjection: SmokeRuntimeProjection;
+  startedRunId: string;
+}
+
+/**
+ * Input for building the post-dispatch success message.
+ */
+interface RunStartedMessageInput {
+  actionKind: ConductorRunActionKind;
+  actionLabel: string;
+  algorithmDirectoryPath: string;
+  languageKey: string | null;
+  runAdapter: IAlgorithmsTerminalRunAdapter | undefined;
+  runTargetToken: string | undefined;
+  shouldUseCommandLineSmokeExecution: boolean;
+}
+
+/**
+ * Input for run execution failure cleanup.
+ */
+interface RunExecutionFailureInput {
+  actionKind: ConductorRunActionKind;
+  activeSmokeRunId: string | null;
+  algorithmDirectoryPath: string;
+  deps: RunFileOrchestrationDependencies;
+  error: unknown;
+  input: ConductorRunFileInput;
+  runTarget: ConductorRunTargetRef;
+}
+
+/**
  * A validated tree node shape accepted by run-file orchestration.
  */
 type RunnableTreeNode = {
@@ -388,188 +484,26 @@ function buildSmokeStoppedMessage(algorithmDirectoryPath: string): string {
 }
 
 /**
- * Runs one Algorithms target by delegating execution to terminal or commandline adapters.
+ * Creates one smoke runtime projection for one started run.
  *
  * @param {ConductorRunFileInput} input Run-file orchestration input.
  * @param {RunFileOrchestrationDependencies} deps Injected run-file dependencies.
- * @returns {Promise<void>} Resolves after orchestration completes.
+ * @param {string} algorithmDirectoryPath Algorithm directory path.
+ * @param {string} startedRunId Started run identifier.
+ * @returns {SmokeRuntimeProjection} Projection helpers for one smoke run.
  */
-export async function orchestrateRunFile(
+function createSmokeRuntimeProjection(
   input: ConductorRunFileInput,
-  deps: RunFileOrchestrationDependencies
-): Promise<void> {
-  const { runAdapter, commandLine, runLifecycle, smokeStatusRetentionLifecycle, activeSmokeExecutionByAlgorithm } = deps;
-  const actionKind = resolveRunActionKind(input);
-  const actionLabel = getActionLabel(actionKind);
-  const shouldUseCommandLineSmokeExecution = actionKind === "smoke-test" && commandLine !== undefined;
+  deps: RunFileOrchestrationDependencies,
+  algorithmDirectoryPath: string,
+  startedRunId: string
+): SmokeRuntimeProjection {
+  const { smokeStatusRetentionLifecycle } = deps;
+  let smokeOutputBuffer = "";
+  let smokeRunStarted = false;
 
-  if (!isRunnableTreeNode(input.treeNode, actionKind)) {
-    if (actionKind === "smoke-test") {
-      await input.notificationRouter.warn("Select an algorithm directory row to smoke test.");
-    } else {
-      await input.notificationRouter.warn(`Select an algorithm file or language row to ${actionLabel.toLowerCase()}.`);
-    }
-    return;
-  }
-
-  const treeNode = input.treeNode;
-  const runTarget: ConductorRunTargetRef = {
-    nodeKind: treeNode.kind,
-    filePath: treeNode.filePath,
-  };
-
-  if (
-    actionRequiresConcreteTargetFile(actionKind)
-    && treeNode.kind === "languageSummary"
-    && treeNode.hasOpenTarget === false
-  ) {
-    await input.notificationRouter.warn(`Cannot ${actionLabel.toLowerCase()} a missing language row.`);
-    return;
-  }
-
-  if (runAdapter === undefined && !shouldUseCommandLineSmokeExecution) {
-    const errorMessage = "Run adapter is not configured.";
-    runLifecycle.markFailed(runTarget, errorMessage);
-    recordRunFileFailure(input, errorMessage);
-    await input.notificationRouter.error(errorMessage);
-    return;
-  }
-
-  const algorithmsRootPath = await resolveAlgorithmsRootPath({
-    filesystem: input.filesystem,
-    workspaceFolderPaths: input.workspaceFolderPaths,
-  });
-
-  if (algorithmsRootPath === null) {
-    await input.notificationRouter.warn("Algorithms root is unavailable.");
-    return;
-  }
-
-  const repositoryRootPath = resolveRepositoryRootFromAlgorithmsRootPath(algorithmsRootPath);
-
-  if (repositoryRootPath === null) {
-    await input.notificationRouter.warn("Repository root is unavailable.");
-    return;
-  }
-
-  const runScriptPath = path.join(repositoryRootPath, "run.sh");
-  if (!(await input.filesystem.isFile(runScriptPath))) {
-    const errorMessage = "run.sh is unavailable.";
-    runLifecycle.markFailed(runTarget, errorMessage);
-    recordRunFileFailure(input, errorMessage);
-    await input.notificationRouter.error(errorMessage);
-    return;
-  }
-
-  const canonicalAlgorithmsRoot = await input.filesystem.realpath(algorithmsRootPath);
-
-  let canonicalTargetFilePath: string | null = null;
-  if (actionRequiresConcreteTargetFile(actionKind)) {
-    const targetFilePath = treeNode.filePath;
-    if (!(await input.filesystem.isFile(targetFilePath))) {
-      await input.notificationRouter.warn("Target file no longer exists.");
-      input.refreshAlgorithmsTree();
-      return;
-    }
-
-    canonicalTargetFilePath = await input.filesystem.realpath(targetFilePath);
-    const isWithinAlgorithmsRoot = await input.filesystem.isPathWithinRoot(
-      canonicalAlgorithmsRoot,
-      canonicalTargetFilePath
-    );
-
-    if (!isWithinAlgorithmsRoot) {
-      await input.notificationRouter.warn("Run target must stay inside the Algorithms root.");
-      return;
-    }
-  }
-
-  const algorithmDirectoryPath = resolveAlgorithmDirectoryPath(treeNode);
-  if (!(await input.filesystem.isDirectory(algorithmDirectoryPath))) {
-    await input.notificationRouter.warn("Algorithm directory is unavailable.");
-    return;
-  }
-
-  const languageKey = actionKind === "smoke-test"
-    ? null
-    : resolveLanguageKeyFromNode(treeNode, input);
-  if (actionKind !== "smoke-test" && languageKey === null) {
-    const errorMessage = "Language could not be determined.";
-    runLifecycle.markFailed(runTarget, errorMessage);
-    recordRunFileFailure(input, errorMessage);
-    await input.notificationRouter.warn(errorMessage);
-    return;
-  }
-
-  const hostSnapshot = input.hostState.getSnapshot();
-  const runControls = hostSnapshot.runControls;
-  const smokeControls = hostSnapshot.smokeControls;
-  const smokeTestOptions = actionKind === "smoke-test"
-    ? buildSmokeTestOptionTokens(smokeControls)
-    : { ok: true, tokens: [], reason: null };
-  if (!smokeTestOptions.ok) {
-    const errorMessage = smokeTestOptions.reason ?? "Smoke-test options are invalid.";
-    runLifecycle.markFailed(runTarget, errorMessage);
-    recordRunFileFailure(input, errorMessage);
-    await input.notificationRouter.warn(errorMessage);
-    return;
-  }
-
-  const runControlOptionTokens = actionKind === "smoke-test"
-    ? smokeTestOptions.tokens
-    : buildRunControlOptionTokens(runControls, actionKind, input.checkOnlyRouteOverride);
-  const runControlPassthrough = actionSupportsPassthroughArguments(actionKind)
-    ? buildRunControlPassthroughTokens(runControls)
-    : { ok: true, tokens: [], reason: null };
-  if (!runControlPassthrough.ok) {
-    const errorMessage = runControlPassthrough.reason ?? "Run args are invalid.";
-    runLifecycle.markFailed(runTarget, errorMessage);
-    recordRunFileFailure(input, errorMessage);
-    await input.notificationRouter.warn(errorMessage);
-    return;
-  }
-
-  const runTargetToken = actionKind === "smoke-test"
-    ? undefined
-    : actionKind === "clean"
-    ? "clean"
-    : actionKind === "localclean"
-      ? "localclean"
-      : treeNode.kind === "languageSummary"
-        ? (languageKey ?? "")
-        : path.basename(canonicalTargetFilePath ?? treeNode.filePath);
-  const runOwnerKey = actionKind === "smoke-test"
-    ? `smoke:${path.basename(algorithmDirectoryPath)}`
-    : `${languageKey}:${runTargetToken}`;
-  const smokeSelectedLanguageKeys = actionKind === "smoke-test"
-    ? smokeControls.languages
-        .filter((language) => {
-          return !language.disabled && language.selected;
-        })
-        .map((language) => {
-          return language.languageKey.trim().toLowerCase();
-        })
-        .filter((key) => {
-          return key.length > 0;
-        })
-    : [];
-  let activeSmokeRunId: string | null = null;
-  try {
-    const startedRunSnapshot = runLifecycle.start(
-      runTarget,
-      runOwnerKey,
-      `${actionLabel} launch requested`
-    );
-    const startedRunId = startedRunSnapshot.runId;
-    let smokeOutputBuffer = "";
-    let smokeRunStarted = false;
-
-    /**
-     * Finalizes one active smoke runtime status projection.
-     *
-     * @returns {void}
-     */
-    function finishSmokeRuntimeStatus(): void {
+  return {
+    finish(): void {
       if (!smokeRunStarted) {
         return;
       }
@@ -586,15 +520,8 @@ export async function orchestrateRunFile(
         input.refreshAlgorithmsTree
       );
       input.refreshAlgorithmsTree();
-    }
-
-    /**
-     * Parses and applies smoke language status updates from one output chunk.
-     *
-     * @param {string} chunk One output chunk from run.sh.
-     * @returns {void}
-     */
-    function consumeSmokeOutputChunk(chunk: string): void {
+    },
+    consumeChunk(chunk: string): void {
       smokeOutputBuffer += chunk.replace(/\r/g, "\n");
       const lines = smokeOutputBuffer.split("\n");
       smokeOutputBuffer = lines.pop() ?? "";
@@ -613,19 +540,544 @@ export async function orchestrateRunFile(
         });
         input.refreshAlgorithmsTree();
       }
-    }
-
-    if (actionKind === "smoke-test") {
-      activeSmokeRunId = startedRunId;
+    },
+    markStarted(selectedLanguageKeys: readonly string[]): void {
       input.hostState.send({
         type: "SMOKE_RUN_STARTED",
         algorithmPath: algorithmDirectoryPath,
-        languageKeys: smokeSelectedLanguageKeys,
+        languageKeys: [...selectedLanguageKeys],
         runId: startedRunId,
       });
       smokeStatusRetentionLifecycle.markStarted(algorithmDirectoryPath, startedRunId);
       smokeRunStarted = true;
       input.refreshAlgorithmsTree();
+    },
+  };
+}
+
+/**
+ * Executes one smoke test via the tracked command-line path.
+ *
+ * @param {RunFileOrchestrationDependencies} deps Injected run-file dependencies.
+ * @param {ICommandLine} commandLine Command-line execution service.
+ * @param {ConductorRunTargetRef} runTarget Run target identity.
+ * @param {string} actionLabel Human-readable action label.
+ * @param {string} algorithmDirectoryPath Algorithm directory path.
+ * @param {string} runScriptPath run.sh path.
+ * @param {string[]} runControlOptionTokens Parsed option tokens.
+ * @param {string[]} runControlPassthroughTokens Parsed passthrough tokens.
+ * @param {SmokeRuntimeProjection} smokeRuntimeProjection Smoke status projection helpers.
+ * @param {string} startedRunId Started run identifier.
+ * @returns {Promise<{ stopped: boolean }>} Result describing whether execution was cancelled by stop request.
+ */
+async function executeTrackedSmokeRun(
+  deps: RunFileOrchestrationDependencies,
+  commandLine: ICommandLine,
+  runTarget: ConductorRunTargetRef,
+  actionLabel: string,
+  algorithmDirectoryPath: string,
+  runScriptPath: string,
+  runControlOptionTokens: string[],
+  runControlPassthroughTokens: string[],
+  smokeRuntimeProjection: SmokeRuntimeProjection,
+  startedRunId: string
+): Promise<{ stopped: boolean }> {
+  const { activeSmokeExecutionByAlgorithm, runLifecycle } = deps;
+  const trackedExecution = commandLine.spawnTracked(
+    runScriptPath,
+    [...runControlOptionTokens, ...runControlPassthroughTokens],
+    {
+      cwd: algorithmDirectoryPath,
+      onStdoutData(chunk): void {
+        smokeRuntimeProjection.consumeChunk(chunk);
+      },
+      onStderrData(chunk): void {
+        smokeRuntimeProjection.consumeChunk(chunk);
+      },
+    }
+  );
+
+  const activeSmokeExecution: ActiveSmokeExecution = {
+    algorithmPath: algorithmDirectoryPath,
+    handle: trackedExecution.handle,
+    result: trackedExecution.result,
+    runId: startedRunId,
+    stopRequested: false,
+    target: runTarget,
+  };
+  activeSmokeExecutionByAlgorithm.set(algorithmDirectoryPath, activeSmokeExecution);
+
+  const runResult = await trackedExecution.result;
+
+  const latestActiveSmokeExecution = activeSmokeExecutionByAlgorithm.get(algorithmDirectoryPath);
+  if (latestActiveSmokeExecution?.runId === startedRunId) {
+    activeSmokeExecutionByAlgorithm.delete(algorithmDirectoryPath);
+  }
+
+  smokeRuntimeProjection.finish();
+
+  if (activeSmokeExecution.stopRequested) {
+    runLifecycle.markCancelled(
+      runTarget,
+      buildSmokeStoppedMessage(algorithmDirectoryPath),
+      startedRunId
+    );
+    return { stopped: true };
+  }
+
+  if (!runResult.ok) {
+    const exitCodeText = runResult.exitCode === null ? "unknown" : String(runResult.exitCode);
+    runLifecycle.markFailed(
+      runTarget,
+      `${actionLabel} exited with code ${exitCodeText}.`,
+      startedRunId
+    );
+    return { stopped: false };
+  }
+
+  runLifecycle.markCompleted(
+    runTarget,
+    `${actionLabel} completed for ${path.basename(algorithmDirectoryPath)}.`,
+    startedRunId
+  );
+  return { stopped: false };
+}
+
+/**
+ * Executes one run via the terminal adapter path.
+ *
+ * @param {TerminalAdapterExecutionInput} input Terminal-adapter execution input.
+ * @returns {void}
+ */
+function executeTerminalAdapterRun(input: TerminalAdapterExecutionInput): void {
+  input.runAdapter.run({
+    executablePath: input.runScriptPath,
+    optionTokens: input.runControlOptionTokens,
+    passthroughTokens: input.runControlPassthroughTokens,
+    targetToken: input.runTargetToken,
+    workingDirectoryPath: input.algorithmDirectoryPath,
+    onExit(exitCode): void {
+      if (input.actionKind === "smoke-test") {
+        input.smokeRuntimeProjection.finish();
+      }
+
+      if (typeof exitCode === "number" && exitCode !== 0) {
+        input.runLifecycle.markFailed(
+          input.runTarget,
+          `${input.actionLabel} exited with code ${exitCode}.`,
+          input.startedRunId
+        );
+        return;
+      }
+
+      input.runLifecycle.markCompleted(
+        input.runTarget,
+        input.actionKind === "smoke-test"
+          ? `${input.actionLabel} completed for ${path.basename(input.algorithmDirectoryPath)}.`
+          : `${input.actionLabel} completed for ${input.runTargetToken} (${input.languageKey}).`,
+        input.startedRunId
+      );
+    },
+  });
+}
+
+/**
+ * Builds the user-facing started message for one dispatched execution.
+ *
+ * @param {RunStartedMessageInput} input Started-message input.
+ * @returns {string} Started message for notifications and state.
+ */
+function buildRunStartedMessage(input: RunStartedMessageInput): string {
+  if (input.actionKind === "smoke-test") {
+    if (input.shouldUseCommandLineSmokeExecution) {
+      return `${input.actionLabel} started for ${path.basename(input.algorithmDirectoryPath)}.`;
+    }
+
+    return `${input.actionLabel} started for ${path.basename(input.algorithmDirectoryPath)} in ${input.runAdapter?.getTerminalName() ?? "Algorithms Runner"}.`;
+  }
+
+  return `${input.actionLabel} started for ${input.runTargetToken} (${input.languageKey}) in ${input.runAdapter?.getTerminalName() ?? "Algorithms Runner"}.`;
+}
+
+/**
+ * Applies run execution failure cleanup and notifications.
+ *
+ * @param {RunExecutionFailureInput} input Failure handling input.
+ * @returns {Promise<void>} Resolves after notifications complete.
+ */
+async function handleRunExecutionFailure(
+  input: RunExecutionFailureInput
+): Promise<void> {
+  const { activeSmokeExecutionByAlgorithm, runLifecycle, smokeStatusRetentionLifecycle } = input.deps;
+  activeSmokeExecutionByAlgorithm.delete(input.algorithmDirectoryPath);
+
+  if (input.actionKind === "smoke-test") {
+    input.input.hostState.send({
+      type: "SMOKE_RUN_FINISHED",
+      algorithmPath: input.algorithmDirectoryPath,
+    });
+    if (input.activeSmokeRunId !== null) {
+      smokeStatusRetentionLifecycle.markFinished(
+        input.algorithmDirectoryPath,
+        input.activeSmokeRunId,
+        input.input.hostState,
+        input.input.refreshAlgorithmsTree
+      );
+    }
+    input.input.refreshAlgorithmsTree();
+  }
+
+  const errorMessage = input.error instanceof Error ? input.error.message : String(input.error);
+  runLifecycle.markFailed(input.runTarget, errorMessage);
+  input.input.hostState.send({ type: "COMMAND_FAILED", error: errorMessage });
+  await input.input.notificationRouter.error(`Failed to run target: ${errorMessage}`);
+}
+
+/**
+ * Validates the requested tree node and resolves the logical run target.
+ *
+ * @param {ConductorRunFileInput} input Run-file orchestration input.
+ * @param {RunFileOrchestrationDependencies} deps Injected run-file dependencies.
+ * @param {ConductorRunActionKind} actionKind Effective action kind.
+ * @param {string} actionLabel Human-readable action label.
+ * @param {boolean} shouldUseCommandLineSmokeExecution Whether smoke execution uses the command line path.
+ * @returns {Promise<RunnableExecutionTarget | null>} Runnable target details or null when validation fails.
+ */
+async function resolveRunnableExecutionTarget(
+  input: ConductorRunFileInput,
+  deps: RunFileOrchestrationDependencies,
+  actionKind: ConductorRunActionKind,
+  actionLabel: string,
+  shouldUseCommandLineSmokeExecution: boolean
+): Promise<RunnableExecutionTarget | null> {
+  const { runAdapter, runLifecycle } = deps;
+
+  if (!isRunnableTreeNode(input.treeNode, actionKind)) {
+    if (actionKind === "smoke-test") {
+      await input.notificationRouter.warn("Select an algorithm directory row to smoke test.");
+    } else {
+      await input.notificationRouter.warn(`Select an algorithm file or language row to ${actionLabel.toLowerCase()}.`);
+    }
+    return null;
+  }
+
+  const treeNode = input.treeNode;
+  const runTarget: ConductorRunTargetRef = {
+    nodeKind: treeNode.kind,
+    filePath: treeNode.filePath,
+  };
+
+  if (
+    actionRequiresConcreteTargetFile(actionKind)
+    && treeNode.kind === "languageSummary"
+    && treeNode.hasOpenTarget === false
+  ) {
+    await input.notificationRouter.warn(`Cannot ${actionLabel.toLowerCase()} a missing language row.`);
+    return null;
+  }
+
+  if (runAdapter === undefined && !shouldUseCommandLineSmokeExecution) {
+    const errorMessage = "Run adapter is not configured.";
+    runLifecycle.markFailed(runTarget, errorMessage);
+    recordRunFileFailure(input, errorMessage);
+    await input.notificationRouter.error(errorMessage);
+    return null;
+  }
+
+  return {
+    runTarget,
+    treeNode,
+  };
+}
+
+/**
+ * Resolves and validates the filesystem context for one runnable target.
+ *
+ * @param {ConductorRunFileInput} input Run-file orchestration input.
+ * @param {ConductorRunActionKind} actionKind Effective action kind.
+ * @param {ConductorRunTargetRef} runTarget Logical run target.
+ * @param {RunnableTreeNode} treeNode Runnable tree node.
+ * @returns {Promise<RunFilesystemContext | null>} Filesystem context or null when validation fails.
+ */
+async function resolveRunFilesystemContext(
+  input: ConductorRunFileInput,
+  actionKind: ConductorRunActionKind,
+  runTarget: ConductorRunTargetRef,
+  treeNode: RunnableTreeNode
+): Promise<RunFilesystemContext | null> {
+  const algorithmsRootPath = await resolveAlgorithmsRootPath({
+    filesystem: input.filesystem,
+    owningWorkspaceFolderPath: input.owningWorkspaceFolderPath,
+    workspaceFolderPaths: input.workspaceFolderPaths,
+  });
+
+  if (algorithmsRootPath === null) {
+    await input.notificationRouter.warn("Algorithms root is unavailable.");
+    return null;
+  }
+
+  const repositoryRootPath = resolveRepositoryRootFromAlgorithmsRootPath(algorithmsRootPath);
+  if (repositoryRootPath === null) {
+    await input.notificationRouter.warn("Repository root is unavailable.");
+    return null;
+  }
+
+  const runScriptPath = path.join(repositoryRootPath, "run.sh");
+  if (!(await input.filesystem.isFile(runScriptPath))) {
+    const errorMessage = "run.sh is unavailable.";
+    recordRunFileFailure(input, errorMessage);
+    await input.notificationRouter.error(errorMessage);
+    return null;
+  }
+
+  const canonicalAlgorithmsRoot = await input.filesystem.realpath(algorithmsRootPath);
+  let canonicalTargetFilePath: string | null = null;
+
+  if (actionRequiresConcreteTargetFile(actionKind)) {
+    const targetFilePath = treeNode.filePath;
+    if (!(await input.filesystem.isFile(targetFilePath))) {
+      await input.notificationRouter.warn("Target file no longer exists.");
+      input.refreshAlgorithmsTree();
+      return null;
+    }
+
+    canonicalTargetFilePath = await input.filesystem.realpath(targetFilePath);
+    const isWithinAlgorithmsRoot = await input.filesystem.isPathWithinRoot(
+      canonicalAlgorithmsRoot,
+      canonicalTargetFilePath
+    );
+
+    if (!isWithinAlgorithmsRoot) {
+      await input.notificationRouter.warn("Run target must stay inside the Algorithms root.");
+      return null;
+    }
+  }
+
+  const algorithmDirectoryPath = resolveAlgorithmDirectoryPath(treeNode);
+  if (!(await input.filesystem.isDirectory(algorithmDirectoryPath))) {
+    await input.notificationRouter.warn("Algorithm directory is unavailable.");
+    return null;
+  }
+
+  return {
+    algorithmDirectoryPath,
+    canonicalAlgorithmsRoot,
+    canonicalTargetFilePath,
+    runScriptPath,
+  };
+}
+
+/**
+ * Resolves and validates the run context required before dispatching execution.
+ *
+ * @param {ConductorRunFileInput} input Run-file orchestration input.
+ * @param {RunFileOrchestrationDependencies} deps Injected run-file dependencies.
+ * @param {ConductorRunActionKind} actionKind Effective action kind.
+ * @param {string} actionLabel Human-readable action label.
+ * @param {boolean} shouldUseCommandLineSmokeExecution Whether smoke execution uses the command line path.
+ * @returns {Promise<RunExecutionContext | null>} Resolved execution context or null when validation fails.
+ */
+async function resolveRunExecutionContext(
+  input: ConductorRunFileInput,
+  deps: RunFileOrchestrationDependencies,
+  actionKind: ConductorRunActionKind,
+  actionLabel: string,
+  shouldUseCommandLineSmokeExecution: boolean
+): Promise<RunExecutionContext | null> {
+  const runnableExecutionTarget = await resolveRunnableExecutionTarget(
+    input,
+    deps,
+    actionKind,
+    actionLabel,
+    shouldUseCommandLineSmokeExecution
+  );
+  if (runnableExecutionTarget === null) {
+    return null;
+  }
+
+  const { runTarget, treeNode } = runnableExecutionTarget;
+  const runFilesystemContext = await resolveRunFilesystemContext(
+    input,
+    actionKind,
+    runTarget,
+    treeNode
+  );
+  if (runFilesystemContext === null) {
+    return null;
+  }
+
+  const {
+    algorithmDirectoryPath,
+    canonicalAlgorithmsRoot,
+    canonicalTargetFilePath,
+    runScriptPath,
+  } = runFilesystemContext;
+  const languageKey = actionKind === "smoke-test"
+    ? null
+    : resolveLanguageKeyFromNode(treeNode, input);
+  if (actionKind !== "smoke-test" && languageKey === null) {
+    const errorMessage = "Language could not be determined.";
+    deps.runLifecycle.markFailed(runTarget, errorMessage);
+    recordRunFileFailure(input, errorMessage);
+    await input.notificationRouter.warn(errorMessage);
+    return null;
+  }
+
+  return {
+    algorithmDirectoryPath,
+    canonicalAlgorithmsRoot,
+    canonicalTargetFilePath,
+    languageKey,
+    runScriptPath,
+    runTarget,
+    treeNode,
+  };
+}
+
+/**
+ * Resolves the execution plan for one validated run context.
+ *
+ * @param {ConductorRunFileInput} input Run-file orchestration input.
+ * @param {RunFileOrchestrationDependencies} deps Injected run-file dependencies.
+ * @param {ConductorRunActionKind} actionKind Effective action kind.
+ * @param {RunExecutionContext} executionContext Validated execution context.
+ * @returns {RunExecutionPlan | null} Execution plan or null when controls are invalid.
+ */
+function buildRunExecutionPlan(
+  input: ConductorRunFileInput,
+  deps: RunFileOrchestrationDependencies,
+  actionKind: ConductorRunActionKind,
+  executionContext: RunExecutionContext
+): RunExecutionPlan | null {
+  const { runLifecycle } = deps;
+  const hostSnapshot = input.hostState.getSnapshot();
+  const runControls = hostSnapshot.runControls;
+  const smokeControls = hostSnapshot.smokeControls;
+  const smokeTestOptions = actionKind === "smoke-test"
+    ? buildSmokeTestOptionTokens(smokeControls)
+    : { ok: true, tokens: [], reason: null };
+  if (!smokeTestOptions.ok) {
+    const errorMessage = smokeTestOptions.reason ?? "Smoke-test options are invalid.";
+    runLifecycle.markFailed(executionContext.runTarget, errorMessage);
+    recordRunFileFailure(input, errorMessage);
+    void input.notificationRouter.warn(errorMessage);
+    return null;
+  }
+
+  const runControlOptionTokens = actionKind === "smoke-test"
+    ? smokeTestOptions.tokens
+    : buildRunControlOptionTokens(runControls, actionKind, input.checkOnlyRouteOverride);
+  const runControlPassthrough = actionSupportsPassthroughArguments(actionKind)
+    ? buildRunControlPassthroughTokens(runControls)
+    : { ok: true, tokens: [], reason: null };
+  if (!runControlPassthrough.ok) {
+    const errorMessage = runControlPassthrough.reason ?? "Run args are invalid.";
+    runLifecycle.markFailed(executionContext.runTarget, errorMessage);
+    recordRunFileFailure(input, errorMessage);
+    void input.notificationRouter.warn(errorMessage);
+    return null;
+  }
+
+  const runTargetToken = actionKind === "smoke-test"
+    ? undefined
+    : actionKind === "clean"
+    ? "clean"
+    : actionKind === "localclean"
+      ? "localclean"
+      : executionContext.treeNode.kind === "languageSummary"
+        ? (executionContext.languageKey ?? "")
+        : path.basename(executionContext.canonicalTargetFilePath ?? executionContext.treeNode.filePath);
+  const runOwnerKey = actionKind === "smoke-test"
+    ? `smoke:${path.basename(executionContext.algorithmDirectoryPath)}`
+    : `${executionContext.languageKey}:${runTargetToken}`;
+  const smokeSelectedLanguageKeys = actionKind === "smoke-test"
+    ? smokeControls.languages
+        .filter((language) => {
+          return !language.disabled && language.selected;
+        })
+        .map((language) => {
+          return language.languageKey.trim().toLowerCase();
+        })
+        .filter((key) => {
+          return key.length > 0;
+        })
+    : [];
+
+  return {
+    runControlOptionTokens,
+    runControlPassthroughTokens: runControlPassthrough.tokens,
+    runOwnerKey,
+    runTargetToken,
+    smokeSelectedLanguageKeys,
+  };
+}
+
+/**
+ * Runs one Algorithms target by delegating execution to terminal or commandline adapters.
+ *
+ * @param {ConductorRunFileInput} input Run-file orchestration input.
+ * @param {RunFileOrchestrationDependencies} deps Injected run-file dependencies.
+ * @returns {Promise<void>} Resolves after orchestration completes.
+ */
+export async function orchestrateRunFile(
+  input: ConductorRunFileInput,
+  deps: RunFileOrchestrationDependencies
+): Promise<void> {
+  const { runAdapter, commandLine, runLifecycle, smokeStatusRetentionLifecycle, activeSmokeExecutionByAlgorithm } = deps;
+  const actionKind = resolveRunActionKind(input);
+  const actionLabel = getActionLabel(actionKind);
+  const shouldUseCommandLineSmokeExecution = actionKind === "smoke-test" && commandLine !== undefined;
+  const executionContext = await resolveRunExecutionContext(
+    input,
+    deps,
+    actionKind,
+    actionLabel,
+    shouldUseCommandLineSmokeExecution
+  );
+
+  if (executionContext === null) {
+    return;
+  }
+
+  const {
+    algorithmDirectoryPath,
+    canonicalAlgorithmsRoot,
+    canonicalTargetFilePath,
+    languageKey,
+    runScriptPath,
+    runTarget,
+    treeNode,
+  } = executionContext;
+  const executionPlan = buildRunExecutionPlan(input, deps, actionKind, executionContext);
+  if (executionPlan === null) {
+    return;
+  }
+
+  const {
+    runControlOptionTokens,
+    runControlPassthroughTokens,
+    runOwnerKey,
+    runTargetToken,
+    smokeSelectedLanguageKeys,
+  } = executionPlan;
+  let activeSmokeRunId: string | null = null;
+  try {
+    const startedRunSnapshot = runLifecycle.start(
+      runTarget,
+      runOwnerKey,
+      `${actionLabel} launch requested`
+    );
+    const startedRunId = startedRunSnapshot.runId;
+    const smokeRuntimeProjection = createSmokeRuntimeProjection(
+      input,
+      deps,
+      algorithmDirectoryPath,
+      startedRunId
+    );
+
+    if (actionKind === "smoke-test") {
+      activeSmokeRunId = startedRunId;
+      smokeRuntimeProjection.markStarted(smokeSelectedLanguageKeys);
     }
 
     input.hostState.send({
@@ -642,128 +1094,64 @@ export async function orchestrateRunFile(
     );
 
     if (shouldUseCommandLineSmokeExecution) {
-      const trackedExecution = commandLine.spawnTracked(
-        runScriptPath,
-        [...runControlOptionTokens, ...runControlPassthrough.tokens],
-        {
-          cwd: algorithmDirectoryPath,
-          onStdoutData(chunk): void {
-            consumeSmokeOutputChunk(chunk);
-          },
-          onStderrData(chunk): void {
-            consumeSmokeOutputChunk(chunk);
-          },
-        }
-      );
-
-      const activeSmokeExecution: ActiveSmokeExecution = {
-        algorithmPath: algorithmDirectoryPath,
-        handle: trackedExecution.handle,
-        result: trackedExecution.result,
-        runId: startedRunId,
-        stopRequested: false,
-        target: runTarget,
-      };
-      activeSmokeExecutionByAlgorithm.set(algorithmDirectoryPath, activeSmokeExecution);
-
-      const runResult = await trackedExecution.result;
-
-      const latestActiveSmokeExecution = activeSmokeExecutionByAlgorithm.get(algorithmDirectoryPath);
-      if (latestActiveSmokeExecution?.runId === startedRunId) {
-        activeSmokeExecutionByAlgorithm.delete(algorithmDirectoryPath);
-      }
-
-      finishSmokeRuntimeStatus();
-
-      if (activeSmokeExecution.stopRequested) {
-        runLifecycle.markCancelled(
-          runTarget,
-          buildSmokeStoppedMessage(algorithmDirectoryPath),
-          startedRunId
-        );
-        return;
-      }
-
-      if (!runResult.ok) {
-        const exitCodeText = runResult.exitCode === null ? "unknown" : String(runResult.exitCode);
-        runLifecycle.markFailed(
-          runTarget,
-          `${actionLabel} exited with code ${exitCodeText}.`,
-          startedRunId
-        );
-        return;
-      }
-
-      runLifecycle.markCompleted(
+      const trackedSmokeResult = await executeTrackedSmokeRun(
+        deps,
+        commandLine,
         runTarget,
-        `${actionLabel} completed for ${path.basename(algorithmDirectoryPath)}.`,
+        actionLabel,
+        algorithmDirectoryPath,
+        runScriptPath,
+        runControlOptionTokens,
+        runControlPassthroughTokens,
+        smokeRuntimeProjection,
         startedRunId
       );
+
+      if (trackedSmokeResult.stopped) {
+        return;
+      }
     } else {
       if (runAdapter === undefined) {
         throw new Error("Run adapter is not configured.");
       }
 
-      runAdapter.run({
-        executablePath: runScriptPath,
-        optionTokens: runControlOptionTokens,
-        passthroughTokens: runControlPassthrough.tokens,
-        targetToken: runTargetToken,
-        workingDirectoryPath: algorithmDirectoryPath,
-        onExit(exitCode): void {
-          if (actionKind === "smoke-test") {
-            finishSmokeRuntimeStatus();
-          }
-
-          if (typeof exitCode === "number" && exitCode !== 0) {
-            runLifecycle.markFailed(
-              runTarget,
-              `${actionLabel} exited with code ${exitCode}.`,
-              startedRunId
-            );
-            return;
-          }
-
-          runLifecycle.markCompleted(
-            runTarget,
-            actionKind === "smoke-test"
-              ? `${actionLabel} completed for ${path.basename(algorithmDirectoryPath)}.`
-              : `${actionLabel} completed for ${runTargetToken} (${languageKey}).`,
-            startedRunId
-          );
-        },
+      executeTerminalAdapterRun({
+        actionKind,
+        actionLabel,
+        algorithmDirectoryPath,
+        languageKey,
+        runAdapter,
+        runControlOptionTokens,
+        runControlPassthroughTokens,
+        runLifecycle,
+        runScriptPath,
+        runTarget,
+        runTargetToken,
+        smokeRuntimeProjection,
+        startedRunId,
       });
     }
 
-    const successMessage = actionKind === "smoke-test"
-      ? shouldUseCommandLineSmokeExecution
-        ? `${actionLabel} started for ${path.basename(algorithmDirectoryPath)}.`
-        : `${actionLabel} started for ${path.basename(algorithmDirectoryPath)} in ${runAdapter?.getTerminalName() ?? "Algorithms Runner"}.`
-      : `${actionLabel} started for ${runTargetToken} (${languageKey}) in ${runAdapter?.getTerminalName() ?? "Algorithms Runner"}.`;
+    const successMessage = buildRunStartedMessage({
+      actionKind,
+      actionLabel,
+      algorithmDirectoryPath,
+      languageKey,
+      runAdapter,
+      runTargetToken,
+      shouldUseCommandLineSmokeExecution,
+    });
     input.hostState.send({ type: "COMMAND_SUCCEEDED", result: successMessage });
     await input.notificationRouter.info(successMessage);
   } catch (error) {
-    activeSmokeExecutionByAlgorithm.delete(algorithmDirectoryPath);
-
-    if (actionKind === "smoke-test") {
-      input.hostState.send({
-        type: "SMOKE_RUN_FINISHED",
-        algorithmPath: algorithmDirectoryPath,
-      });
-      if (activeSmokeRunId !== null) {
-        smokeStatusRetentionLifecycle.markFinished(
-          algorithmDirectoryPath,
-          activeSmokeRunId,
-          input.hostState,
-          input.refreshAlgorithmsTree
-        );
-      }
-      input.refreshAlgorithmsTree();
-    }
-
-    const errorMessage = error instanceof Error ? error.message : String(error);
-    runLifecycle.markFailed(runTarget, errorMessage);
-    input.hostState.send({ type: "COMMAND_FAILED", error: errorMessage });
-    await input.notificationRouter.error(`Failed to run target: ${errorMessage}`);
+    await handleRunExecutionFailure({
+      actionKind,
+      activeSmokeRunId,
+      algorithmDirectoryPath,
+      deps,
+      error,
+      input,
+      runTarget,
+    });
   }
 }

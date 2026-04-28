@@ -5,7 +5,11 @@ import * as path from "node:path";
 
 import "mocha";
 import { createFilesystem } from "../../../src/filesystem";
-import { createAlgorithmsIndex } from "../../../src/algorithms";
+import {
+  createAlgorithmsIndex,
+  resolveAlgorithmsRootPath,
+  resolveStdlibRootPath,
+} from "../../../src/algorithms";
 import type { ILanguages } from "../../../src/languages";
 
 /**
@@ -53,6 +57,49 @@ function createLanguageStub(): ILanguages {
 }
 
 describe("algorithms — domain index discovery", () => {
+  it("resolveAlgorithmsRootPath prefers the owning workspace folder", async () => {
+    const workspaceRootA = await createTempDirectory();
+    const workspaceRootB = await createTempDirectory();
+    const filesystem = createFilesystem();
+
+    try {
+      await fs.mkdir(path.join(workspaceRootA, "src", "numeric", "max"), { recursive: true });
+      await fs.mkdir(path.join(workspaceRootB, "src", "datetime", "date"), { recursive: true });
+
+      const algorithmsRootPath = await resolveAlgorithmsRootPath({
+        filesystem,
+        owningWorkspaceFolderPath: workspaceRootB,
+        workspaceFolderPaths: [workspaceRootA, workspaceRootB],
+      });
+
+      assert.strictEqual(algorithmsRootPath, path.join(workspaceRootB, "src"));
+    } finally {
+      await fs.rm(workspaceRootA, { recursive: true, force: true });
+      await fs.rm(workspaceRootB, { recursive: true, force: true });
+    }
+  });
+
+  it("resolveStdlibRootPath preserves first-match fallback when no owning workspace is supplied", async () => {
+    const workspaceRootA = await createTempDirectory();
+    const workspaceRootB = await createTempDirectory();
+    const filesystem = createFilesystem();
+
+    try {
+      await fs.mkdir(path.join(workspaceRootA, "stdlib"), { recursive: true });
+      await fs.mkdir(path.join(workspaceRootB, "stdlib"), { recursive: true });
+
+      const stdlibRootPath = await resolveStdlibRootPath({
+        filesystem,
+        workspaceFolderPaths: [workspaceRootA, workspaceRootB],
+      });
+
+      assert.strictEqual(stdlibRootPath, path.join(workspaceRootA, "stdlib"));
+    } finally {
+      await fs.rm(workspaceRootA, { recursive: true, force: true });
+      await fs.rm(workspaceRootB, { recursive: true, force: true });
+    }
+  });
+
   it("getCategories returns immediate src subdirectories except output/hidden", async () => {
     const workspaceRootPath = await createTempDirectory();
     const filesystem = createFilesystem();

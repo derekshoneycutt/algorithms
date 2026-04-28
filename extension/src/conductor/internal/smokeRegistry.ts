@@ -63,9 +63,114 @@ export interface CreateSmokeRegistryInput {
  * @returns {ISmokeRegistry} Smoke registry implementation.
  */
 export function createSmokeRegistry(input: CreateSmokeRegistryInput): ISmokeRegistry {
-  const smokeStatusClearTimersByAlgorithm = new Map<string, NodeJS.Timeout>();
-  const latestSmokeRunIdByAlgorithm = new Map<string, string>();
-  const activeSmokeExecutionByAlgorithm = new Map<string, ActiveSmokeExecution>();
+  const retentionTimersByAlgorithmPath = new Map<string, NodeJS.Timeout>();
+  const latestRunIdByAlgorithmPath = new Map<string, string>();
+  const activeExecutionsByAlgorithmPath = new Map<string, ActiveSmokeExecution>();
+
+  /**
+   * Cancels and removes any pending clear timer for one algorithm path.
+   *
+   * @param {string} algorithmPath Algorithm path owning the timer.
+   * @returns {void}
+   */
+  function cancelRetentionTimer(algorithmPath: string): void {
+    const existingTimer = retentionTimersByAlgorithmPath.get(algorithmPath);
+    if (existingTimer === undefined) {
+      return;
+    }
+
+    clearTimeout(existingTimer);
+    retentionTimersByAlgorithmPath.delete(algorithmPath);
+  }
+
+  /**
+   * Emits one retained smoke-status clear event for one algorithm path.
+   *
+   * @param {string} algorithmPath Algorithm path to clear.
+   * @param {string} runId Run id whose retained status is being cleared.
+   * @param {IStateMachine} hostState Host state machine.
+   * @param {() => void} refreshAlgorithmsTree Refresh callback for the tree view.
+   * @returns {void}
+   */
+  function emitRetainedSmokeStatusCleared(
+    algorithmPath: string,
+    runId: string,
+    hostState: IStateMachine,
+    refreshAlgorithmsTree: () => void
+  ): void {
+    latestRunIdByAlgorithmPath.delete(algorithmPath);
+    hostState.send({
+      type: "SMOKE_RUN_STATUS_CLEARED",
+      algorithmPath,
+      runId,
+    });
+    refreshAlgorithmsTree();
+  }
+
+  /**
+   * Returns the tracked run id for one algorithm path after cancelling retention.
+   *
+   * @param {string} algorithmPath Algorithm path to inspect.
+   * @returns {string | null} Tracked run id when present.
+   */
+  function getTrackedRunIdAfterCancellingRetention(
+    algorithmPath: string
+  ): string | null {
+    cancelRetentionTimer(algorithmPath);
+
+    const runId = latestRunIdByAlgorithmPath.get(algorithmPath);
+    if (runId === undefined) {
+      return null;
+    }
+
+    return runId;
+  }
+
+  /**
+   * Schedules retained smoke status clearing for one completed run.
+   *
+   * @param {string} algorithmPath Algorithm path to clear later.
+   * @param {string} runId Completed run id.
+   * @param {IStateMachine} hostState Host state machine.
+   * @param {() => void} refreshAlgorithmsTree Refresh callback for the tree view.
+   * @returns {void}
+   */
+  function scheduleRetentionClear(
+    algorithmPath: string,
+    runId: string,
+    hostState: IStateMachine,
+    refreshAlgorithmsTree: () => void
+  ): void {
+    cancelRetentionTimer(algorithmPath);
+
+    const timeoutHandle = setTimeout(() => {
+      retentionTimersByAlgorithmPath.delete(algorithmPath);
+
+      const latestRunId = latestRunIdByAlgorithmPath.get(algorithmPath);
+      if (latestRunId !== runId) {
+        return;
+      }
+
+      emitRetainedSmokeStatusCleared(
+        algorithmPath,
+        runId,
+        hostState,
+        refreshAlgorithmsTree
+      );
+    }, input.smokeStatusRetentionMs);
+
+    retentionTimersByAlgorithmPath.set(algorithmPath, timeoutHandle);
+  }
+
+  /**
+   * Returns one active smoke execution for an algorithm path when present.
+   *
+   * @param {string} algorithmPath Algorithm path to inspect.
+   * @returns {ActiveSmokeExecution | null} Active execution when present.
+   */
+  function getActiveExecution(algorithmPath: string): ActiveSmokeExecution | null {
+    return activeExecutionsByAlgorithmPath.get(algorithmPath) ?? null;
+  }
 
   const smokeStatusRetentionLifecycle: SmokeStatusRetentionLifecycle = {
     clearNow(
@@ -73,35 +178,23 @@ export function createSmokeRegistry(input: CreateSmokeRegistryInput): ISmokeRegi
       hostState,
       refreshAlgorithmsTree
     ): boolean {
-      const existingTimer = smokeStatusClearTimersByAlgorithm.get(algorithmPath);
-      if (existingTimer !== undefined) {
-        clearTimeout(existingTimer);
-        smokeStatusClearTimersByAlgorithm.delete(algorithmPath);
-      }
-
-      const runId = latestSmokeRunIdByAlgorithm.get(algorithmPath);
-      if (runId === undefined) {
+      const runId = getTrackedRunIdAfterCancellingRetention(algorithmPath);
+      if (runId === null) {
         return false;
       }
 
-      latestSmokeRunIdByAlgorithm.delete(algorithmPath);
-      hostState.send({
-        type: "SMOKE_RUN_STATUS_CLEARED",
+      emitRetainedSmokeStatusCleared(
         algorithmPath,
         runId,
-      });
-      refreshAlgorithmsTree();
+        hostState,
+        refreshAlgorithmsTree
+      );
       return true;
     },
 
     markStarted(algorithmPath, runId): void {
-      latestSmokeRunIdByAlgorithm.set(algorithmPath, runId);
-
-      const existingTimer = smokeStatusClearTimersByAlgorithm.get(algorithmPath);
-      if (existingTimer !== undefined) {
-        clearTimeout(existingTimer);
-        smokeStatusClearTimersByAlgorithm.delete(algorithmPath);
-      }
+      latestRunIdByAlgorithmPath.set(algorithmPath, runId);
+      cancelRetentionTimer(algorithmPath);
     },
 
     markFinished(
@@ -111,44 +204,27 @@ export function createSmokeRegistry(input: CreateSmokeRegistryInput): ISmokeRegi
       refreshAlgorithmsTree
     ): void {
       if (input.smokeStatusRetentionMs <= 0) {
-        hostState.send({
-          type: "SMOKE_RUN_STATUS_CLEARED",
+        emitRetainedSmokeStatusCleared(
           algorithmPath,
           runId,
-        });
-        refreshAlgorithmsTree();
+          hostState,
+          refreshAlgorithmsTree
+        );
         return;
       }
 
-      const existingTimer = smokeStatusClearTimersByAlgorithm.get(algorithmPath);
-      if (existingTimer !== undefined) {
-        clearTimeout(existingTimer);
-      }
-
-      const timeoutHandle = setTimeout(() => {
-        smokeStatusClearTimersByAlgorithm.delete(algorithmPath);
-
-        const latestRunId = latestSmokeRunIdByAlgorithm.get(algorithmPath);
-        if (latestRunId !== runId) {
-          return;
-        }
-
-        latestSmokeRunIdByAlgorithm.delete(algorithmPath);
-        hostState.send({
-          type: "SMOKE_RUN_STATUS_CLEARED",
-          algorithmPath,
-          runId,
-        });
-        refreshAlgorithmsTree();
-      }, input.smokeStatusRetentionMs);
-
-      smokeStatusClearTimersByAlgorithm.set(algorithmPath, timeoutHandle);
+      scheduleRetentionClear(
+        algorithmPath,
+        runId,
+        hostState,
+        refreshAlgorithmsTree
+      );
     },
   };
 
   return {
     clearSmokeResults(inputClear: ConductorClearSmokeResultsInput): boolean {
-      if (activeSmokeExecutionByAlgorithm.has(inputClear.algorithmPath)) {
+      if (getActiveExecution(inputClear.algorithmPath) !== null) {
         return false;
       }
 
@@ -160,7 +236,7 @@ export function createSmokeRegistry(input: CreateSmokeRegistryInput): ISmokeRegi
     },
 
     getActiveSmokeExecutionByAlgorithm(): Map<string, ActiveSmokeExecution> {
-      return activeSmokeExecutionByAlgorithm;
+      return activeExecutionsByAlgorithmPath;
     },
 
     getSmokeStatusRetentionLifecycle(): SmokeStatusRetentionLifecycle {
@@ -168,8 +244,8 @@ export function createSmokeRegistry(input: CreateSmokeRegistryInput): ISmokeRegi
     },
 
     async stopSmokeTest(inputStop: ConductorStopSmokeTestInput): Promise<boolean> {
-      const activeSmokeExecution = activeSmokeExecutionByAlgorithm.get(inputStop.algorithmPath);
-      if (activeSmokeExecution === undefined) {
+      const activeSmokeExecution = getActiveExecution(inputStop.algorithmPath);
+      if (activeSmokeExecution === null) {
         return false;
       }
 
