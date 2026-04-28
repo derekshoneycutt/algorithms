@@ -7,8 +7,7 @@ import "mocha";
 import { createFilesystem } from "../../../src/filesystem";
 import {
   createAlgorithmsIndex,
-  resolveAlgorithmsRootPath,
-  resolveStdlibRootPath,
+  createRootPathResolver,
 } from "../../../src/algorithms";
 import type { ILanguages } from "../../../src/languages";
 
@@ -61,12 +60,13 @@ describe("algorithms — domain index discovery", () => {
     const workspaceRootA = await createTempDirectory();
     const workspaceRootB = await createTempDirectory();
     const filesystem = createFilesystem();
+    const rootPathResolver = createRootPathResolver();
 
     try {
       await fs.mkdir(path.join(workspaceRootA, "src", "numeric", "max"), { recursive: true });
       await fs.mkdir(path.join(workspaceRootB, "src", "datetime", "date"), { recursive: true });
 
-      const algorithmsRootPath = await resolveAlgorithmsRootPath({
+      const algorithmsRootPath = await rootPathResolver.resolveAlgorithmsRoot({
         filesystem,
         owningWorkspaceFolderPath: workspaceRootB,
         workspaceFolderPaths: [workspaceRootA, workspaceRootB],
@@ -83,12 +83,13 @@ describe("algorithms — domain index discovery", () => {
     const workspaceRootA = await createTempDirectory();
     const workspaceRootB = await createTempDirectory();
     const filesystem = createFilesystem();
+    const rootPathResolver = createRootPathResolver();
 
     try {
       await fs.mkdir(path.join(workspaceRootA, "stdlib"), { recursive: true });
       await fs.mkdir(path.join(workspaceRootB, "stdlib"), { recursive: true });
 
-      const stdlibRootPath = await resolveStdlibRootPath({
+      const stdlibRootPath = await rootPathResolver.resolveStdlibRoot({
         filesystem,
         workspaceFolderPaths: [workspaceRootA, workspaceRootB],
       });

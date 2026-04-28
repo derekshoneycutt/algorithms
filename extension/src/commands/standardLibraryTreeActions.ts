@@ -5,7 +5,7 @@ import * as vscode from "vscode";
 import type { IFilesystem } from "../filesystem";
 import type { INotificationRouter } from "../notifications";
 import type { WorkspaceTreeNode } from "../views";
-import { resolveStdlibRootPath } from "../algorithms";
+import type { IRootPathResolver } from "../algorithms";
 
 /**
  * Dependencies for Standard Library tree action commands.
@@ -14,6 +14,7 @@ export interface StandardLibraryTreeActionDependencies {
   filesystem: IFilesystem;
   notificationRouter: INotificationRouter;
   refreshStandardLibraryTree: () => void;
+  rootPathResolver: IRootPathResolver | undefined;
 }
 
 /**
@@ -31,12 +32,17 @@ function getWorkspaceFolderPaths(): readonly string[] {
  * Resolves the standard-library root path for the current workspace context.
  *
  * @param {IFilesystem} filesystem Filesystem dependency.
+ * @param {IRootPathResolver | undefined} rootPathResolver Root path resolver.
  * @returns {Promise<string | null>} Canonical stdlib root path.
  */
 async function getStdlibRootPathForCurrentWorkspace(
-  filesystem: IFilesystem
+  filesystem: IFilesystem,
+  rootPathResolver: IRootPathResolver | undefined
 ): Promise<string | null> {
-  return await resolveStdlibRootPath({
+  if (rootPathResolver === undefined) {
+    return null;
+  }
+  return await rootPathResolver.resolveStdlibRoot({
     filesystem,
     workspaceFolderPaths: getWorkspaceFolderPaths(),
   });
@@ -149,7 +155,8 @@ export function createStandardLibraryCreateFileCommand(
 ): (treeNode?: WorkspaceTreeNode) => Promise<void> {
   return async (treeNode?: WorkspaceTreeNode): Promise<void> => {
     const standardLibraryRootPath = await getStdlibRootPathForCurrentWorkspace(
-      dependencies.filesystem
+      dependencies.filesystem,
+      dependencies.rootPathResolver
     );
 
     if (standardLibraryRootPath === null) {
@@ -211,7 +218,8 @@ export function createStandardLibraryCreateFolderCommand(
 ): (treeNode?: WorkspaceTreeNode) => Promise<void> {
   return async (treeNode?: WorkspaceTreeNode): Promise<void> => {
     const standardLibraryRootPath = await getStdlibRootPathForCurrentWorkspace(
-      dependencies.filesystem
+      dependencies.filesystem,
+      dependencies.rootPathResolver
     );
 
     if (standardLibraryRootPath === null) {
@@ -277,7 +285,8 @@ export function createStandardLibraryDeleteCommand(
     }
 
     const standardLibraryRootPath = await getStdlibRootPathForCurrentWorkspace(
-      dependencies.filesystem
+      dependencies.filesystem,
+      dependencies.rootPathResolver
     );
 
     if (standardLibraryRootPath === null) {

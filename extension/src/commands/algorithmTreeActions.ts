@@ -11,10 +11,7 @@ import type { IStateMachine } from "../state";
 import type { IFilterModeService } from "../state/filterMode";
 import type { IViewModeService } from "../state/viewMode";
 import type { WorkspaceTreeNode } from "../views";
-import {
-  resolveAlgorithmsRootPath,
-} from "../algorithms";
-import type { IFlaggedLanguagesService } from "../algorithms";
+import type { IFlaggedLanguagesService, IRootPathResolver } from "../algorithms";
 import { getOwningWorkspaceFolderPath, getWorkspaceFolderPaths } from "./workspaceFolders";
 
 /**
@@ -28,6 +25,7 @@ export interface AlgorithmTreeActionDependencies {
   languages: ILanguages;
   notificationRouter: INotificationRouter;
   refreshAlgorithmsTree: () => void;
+  rootPathResolver?: IRootPathResolver;
 }
 
 type CheckOnlyRoute = "native" | "docker" | "ssh";
@@ -36,12 +34,18 @@ type CheckOnlyRoute = "native" | "docker" | "ssh";
  * Resolves the algorithms root path for the current workspace context.
  *
  * @param {IFilesystem} filesystem Filesystem dependency.
+ * @param {IRootPathResolver | undefined} rootPathResolver Root path resolver.
  * @returns {Promise<string | null>} Canonical algorithms root path.
  */
 async function getAlgorithmsRootPathForCurrentWorkspace(
-  filesystem: IFilesystem
+  filesystem: IFilesystem,
+  rootPathResolver: IRootPathResolver | undefined
 ): Promise<string | null> {
-  return await resolveAlgorithmsRootPath({
+  if (rootPathResolver === undefined) {
+    return null;
+  }
+
+  return await rootPathResolver.resolveAlgorithmsRoot({
     filesystem,
     workspaceFolderPaths: getWorkspaceFolderPaths(),
   });
@@ -205,7 +209,8 @@ export function createAlgorithmsCreateFolderAtRootCommand(
 ): () => Promise<void> {
   return async (): Promise<void> => {
     const algorithmsRootPath = await getAlgorithmsRootPathForCurrentWorkspace(
-      dependencies.filesystem
+      dependencies.filesystem,
+      dependencies.rootPathResolver
     );
 
     if (algorithmsRootPath === null) {
@@ -261,7 +266,8 @@ export function createAlgorithmsCreateFolderCommand(
 ): (treeNode?: WorkspaceTreeNode) => Promise<void> {
   return async (treeNode?: WorkspaceTreeNode): Promise<void> => {
     const algorithmsRootPath = await getAlgorithmsRootPathForCurrentWorkspace(
-      dependencies.filesystem
+      dependencies.filesystem,
+      dependencies.rootPathResolver
     );
 
     if (algorithmsRootPath === null) {
@@ -322,7 +328,8 @@ export function createAlgorithmsCreateFileCommand(
 ): (treeNode?: WorkspaceTreeNode) => Promise<void> {
   return async (treeNode?: WorkspaceTreeNode): Promise<void> => {
     const algorithmsRootPath = await getAlgorithmsRootPathForCurrentWorkspace(
-      dependencies.filesystem
+      dependencies.filesystem,
+      dependencies.rootPathResolver
     );
 
     if (algorithmsRootPath === null) {
@@ -397,7 +404,8 @@ export function createAlgorithmsAddIncludeFileCommand(
     }
 
     const algorithmsRootPath = await getAlgorithmsRootPathForCurrentWorkspace(
-      dependencies.filesystem
+      dependencies.filesystem,
+      dependencies.rootPathResolver
     );
 
     if (algorithmsRootPath === null) {
@@ -516,7 +524,8 @@ export function createAlgorithmsDeleteCommand(
     }
 
     const algorithmsRootPath = await getAlgorithmsRootPathForCurrentWorkspace(
-      dependencies.filesystem
+      dependencies.filesystem,
+      dependencies.rootPathResolver
     );
 
     if (algorithmsRootPath === null) {

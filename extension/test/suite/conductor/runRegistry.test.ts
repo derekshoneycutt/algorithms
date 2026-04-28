@@ -127,8 +127,12 @@ describe("conductor/internal — createRunRegistry", () => {
   it("startRun / markProgress / markCompleted via run id path", () => {
     const registry = createRunRegistry({ runStatusRetentionMs: 0 });
 
-    const snap = registry.startRun({ ownerKey: "ext", reason: "external" });
+    const snap = registry.startRun({ target: fileTarget, ownerKey: "ext", reason: "external" });
     assert.strictEqual(snap.status, "starting");
+
+    const byTargetAfterStart = registry.getRunForTarget(fileTarget);
+    assert.ok(byTargetAfterStart !== null);
+    assert.strictEqual(byTargetAfterStart.runId, snap.runId);
 
     const progressed = registry.markProgress({
       runId: snap.runId,
@@ -145,11 +149,14 @@ describe("conductor/internal — createRunRegistry", () => {
     assert.strictEqual(completed.status, "completed");
 
     assert.ok(registry.getRun(snap.runId) !== null);
+    const byTargetAfterComplete = registry.getRunForTarget(fileTarget);
+    assert.ok(byTargetAfterComplete !== null);
+    assert.strictEqual(byTargetAfterComplete.status, "completed");
   });
 
   it("markFailed via run id sets errorMessage", () => {
     const registry = createRunRegistry({ runStatusRetentionMs: 0 });
-    const snap = registry.startRun({ ownerKey: "ext2", reason: null });
+    const snap = registry.startRun({ target: fileTarget, ownerKey: "ext2", reason: null });
 
     const failed = registry.markFailed({ runId: snap.runId, errorMessage: "crash", message: "crash msg" });
     assert.ok(failed !== null);
@@ -159,7 +166,7 @@ describe("conductor/internal — createRunRegistry", () => {
 
   it("cancelRun via run id sets status to cancelled", () => {
     const registry = createRunRegistry({ runStatusRetentionMs: 0 });
-    const snap = registry.startRun({ ownerKey: "ext3", reason: null });
+    const snap = registry.startRun({ target: fileTarget, ownerKey: "ext3", reason: null });
 
     const cancelled = registry.cancelRun({ runId: snap.runId, message: "user cancelled" });
     assert.ok(cancelled !== null);

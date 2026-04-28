@@ -66,6 +66,7 @@ export interface ConductorSubscription {
  * Input for starting one run.
  */
 export interface ConductorStartRunInput {
+  target: ConductorRunTargetRef;
   ownerKey: string;
   processType?: string;
   reason?: string | null;
@@ -193,6 +194,39 @@ export interface ConductorInitWorkspaceSupportedContextInput {
  */
 export interface ConductorRefreshWorkspaceSupportedContextInput {
   workspaceFolderPaths: readonly string[];
+}
+
+/**
+ * Input for reading environment profile scoped to one workspace folder.
+ */
+export interface ConductorReadEnvironmentInput {
+  workspaceFolderPath: string;
+  profilePath?: string;
+}
+
+/**
+ * Input for writing environment profile scoped to one workspace folder.
+ */
+export interface ConductorWriteEnvironmentInput {
+  workspaceFolderPath: string;
+  request: EnvironmentWriteRequest;
+}
+
+/**
+ * Input for checking environment diagnostics scoped to one workspace folder.
+ */
+export interface ConductorCheckEnvironmentInput {
+  workspaceFolderPath: string;
+  profilePath?: string;
+}
+
+/**
+ * Input for copy-icons operation scoped to one workspace folder.
+ */
+export interface ConductorCopyIconsInput {
+  workspaceFolderPath: string;
+  profilePath?: string;
+  iconsPath?: string;
 }
 
 /**
@@ -463,35 +497,34 @@ export interface IConductor {
   /**
    * Reads the managed DEREKALGOS environment profile.
    *
-   * @param {string} [profilePath] Optional profile path override.
+   * @param {ConductorReadEnvironmentInput} input Workspace-scoped read request.
    * @returns {Promise<EnvironmentReadResult>} Parsed profile result.
    */
-  readEnvironment(profilePath?: string): Promise<EnvironmentReadResult>;
+  readEnvironment(input: ConductorReadEnvironmentInput): Promise<EnvironmentReadResult>;
 
   /**
    * Writes managed DEREKALGOS environment variables to the profile.
    *
-   * @param {EnvironmentWriteRequest} request Write request with values.
+   * @param {ConductorWriteEnvironmentInput} input Workspace-scoped write request.
    * @returns {Promise<EnvironmentWriteResult>} Written profile result.
    */
-  writeEnvironment(request: EnvironmentWriteRequest): Promise<EnvironmentWriteResult>;
+  writeEnvironment(input: ConductorWriteEnvironmentInput): Promise<EnvironmentWriteResult>;
 
   /**
    * Executes the check-environment diagnostics operation.
    *
-   * @param {string} [profilePath] Optional profile path override.
+   * @param {ConductorCheckEnvironmentInput} input Workspace-scoped check request.
    * @returns {Promise<CheckEnvResult>} Check-environment result.
    */
-  checkEnvironment(profilePath?: string): Promise<CheckEnvResult>;
+  checkEnvironment(input: ConductorCheckEnvironmentInput): Promise<CheckEnvResult>;
 
   /**
    * Executes the copy-icons operation.
    *
-   * @param {string} [profilePath] Optional profile path override.
-   * @param {string} [iconsPath] Optional destination path for icons.
+   * @param {ConductorCopyIconsInput} input Workspace-scoped copy request.
    * @returns {Promise<CopyIconsResult>} Copy-icons result.
    */
-  copyIcons(profilePath?: string, iconsPath?: string): Promise<CopyIconsResult>;
+  copyIcons(input: ConductorCopyIconsInput): Promise<CopyIconsResult>;
 }
 
 /**

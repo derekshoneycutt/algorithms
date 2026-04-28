@@ -66,8 +66,6 @@ export interface CreateRunRegistryInput {
   runStatusRetentionMs: number;
 }
 
-let nextRunSequence = 1;
-
 /**
  * Manages run snapshot storage, timers, and listener notifications.
  */
@@ -80,12 +78,24 @@ class RunSnapshotStore {
     (change: ConductorRunTargetStatusChange) => void
   >();
   private readonly retentionMs: number;
+  private nextSequence = 1;
 
   /**
    * @param {number} retentionMs Time in milliseconds to retain cleared runs.
    */
   constructor(retentionMs: number) {
     this.retentionMs = retentionMs;
+  }
+
+  /**
+   * Returns the next sequence number and advances the counter.
+   *
+   * @returns {number} Next sequence number for run id generation.
+   */
+  nextSequenceNumber(): number {
+    const seq = this.nextSequence;
+    this.nextSequence += 1;
+    return seq;
   }
 
   /**
@@ -130,14 +140,13 @@ class RunSnapshotStore {
    */
   store(
     target: ConductorRunTargetRef,
-    snapshot: ConductorRunSnapshot,
-    publish: (target: ConductorRunTargetRef, snapshot: ConductorRunSnapshot) => void
+    snapshot: ConductorRunSnapshot
   ): void {
     const targetKey = buildRunTargetKey(target);
     this.runSnapshotsById.set(snapshot.runId, snapshot);
     this.runTargetByRunId.set(snapshot.runId, targetKey);
     this.runSnapshotsByTarget.set(targetKey, snapshot);
-    publish(target, snapshot);
+    this.publish(target, snapshot);
 
     if (this.retentionMs > 0) {
       this.clearTimer(targetKey);
@@ -153,7 +162,7 @@ class RunSnapshotStore {
 
         this.runSnapshotsByTarget.delete(targetKey);
         this.runTargetByRunId.delete(retainedRunId);
-        publish(target, latestSnapshot);
+        this.publish(target, latestSnapshot);
       }, this.retentionMs);
 
       this.runStatusClearTimersByTarget.set(targetKey, timeoutHandle);
@@ -234,14 +243,15 @@ function isValidNodeKind(
  * Creates one bootstrap run snapshot.
  *
  * @param {ConductorStartRunInput} input Start input.
+ * @param {number} sequence Sequence number for this run.
  * @returns {ConductorRunSnapshot} Initial run snapshot.
  */
 function createBootstrapRunSnapshot(
-  input: ConductorStartRunInput
+  input: ConductorStartRunInput,
+  sequence: number
 ): ConductorRunSnapshot {
   const now = Date.now();
-  const runId = `conductor:${input.ownerKey}:${nextRunSequence}`;
-  nextRunSequence += 1;
+  const runId = `conductor:${input.ownerKey}:${sequence}`;
 
   return {
     runId,
@@ -292,10 +302,11 @@ export function createRunRegistry(input: CreateRunRegistryInput): IRunRegistry {
       return {
         start(target, ownerKey, message): ConductorRunSnapshot {
           const snapshot = createBootstrapRunSnapshot({
+            target,
             ownerKey,
             reason: message ?? null,
-          });
-          store.store(target, snapshot, store.publish.bind(store));
+          }, store.nextSequenceNumber());
+          store.store(target, snapshot);
           return snapshot;
         },
         markCancelled(target, message, expectedRunId): void {
@@ -310,7 +321,7 @@ export function createRunRegistry(input: CreateRunRegistryInput): IRunRegistry {
             message: message ?? snapshot.message,
             updatedAt: Date.now(),
           };
-          store.store(target, updated, store.publish.bind(store));
+          store.store(target, updated);
         },
         markRunning(target, message, expectedRunId): void {
           const snapshot = store.getByTarget(buildRunTargetKey(target));
@@ -324,7 +335,7 @@ export function createRunRegistry(input: CreateRunRegistryInput): IRunRegistry {
             message: message ?? snapshot.message,
             updatedAt: Date.now(),
           };
-          store.store(target, updated, store.publish.bind(store));
+          store.store(target, updated);
         },
         markCompleted(target, message, expectedRunId): void {
           const snapshot = store.getByTarget(buildRunTargetKey(target));
@@ -339,7 +350,7 @@ export function createRunRegistry(input: CreateRunRegistryInput): IRunRegistry {
             message: message ?? snapshot.message,
             updatedAt: Date.now(),
           };
-          store.store(target, updated, store.publish.bind(store));
+          store.store(target, updated);
         },
         markFailed(target, errorMessage, expectedRunId): void {
           const targetKey = buildRunTargetKey(target);
@@ -349,9 +360,10 @@ export function createRunRegistry(input: CreateRunRegistryInput): IRunRegistry {
           }
 
           const baseSnapshot = existing ?? createBootstrapRunSnapshot({
+            target,
             ownerKey: `failed:${target.filePath}`,
             reason: null,
-          });
+          }, store.nextSequenceNumber());
 
           const updated = {
             ...baseSnapshot,
@@ -360,7 +372,7 @@ export function createRunRegistry(input: CreateRunRegistryInput): IRunRegistry {
             message: errorMessage,
             updatedAt: Date.now(),
           };
-          store.store(target, updated, store.publish.bind(store));
+          store.store(target, updated);
         },
       };
     },
@@ -398,12 +410,8 @@ export function createRunRegistry(input: CreateRunRegistryInput): IRunRegistry {
     },
 
     startRun(inputStart: ConductorStartRunInput): ConductorRunSnapshot {
-      const snapshot = createBootstrapRunSnapshot(inputStart);
-      store.store(
-        store.getRunTargetForRunId(snapshot.runId) ?? { nodeKind: "file", filePath: "" },
-        snapshot,
-        store.publish.bind(store)
-      );
+      const snapshot = createBootstrapRunSnapshot(inputStart, store.nextSequenceNumber());
+      store.store(inputStart.target, snapshot);
       return snapshot;
     },
 
@@ -424,7 +432,7 @@ export function createRunRegistry(input: CreateRunRegistryInput): IRunRegistry {
       store.getById(updated.runId);
       const target = store.getRunTargetForRunId(updated.runId);
       if (target !== null) {
-        store.store(target, updated, store.publish.bind(store));
+        store.store(target, updated);
       }
       return updated;
     },
@@ -445,7 +453,7 @@ export function createRunRegistry(input: CreateRunRegistryInput): IRunRegistry {
 
       const target = store.getRunTargetForRunId(updated.runId);
       if (target !== null) {
-        store.store(target, updated, store.publish.bind(store));
+        store.store(target, updated);
       }
 
       return updated;
@@ -467,7 +475,7 @@ export function createRunRegistry(input: CreateRunRegistryInput): IRunRegistry {
 
       const target = store.getRunTargetForRunId(updated.runId);
       if (target !== null) {
-        store.store(target, updated, store.publish.bind(store));
+        store.store(target, updated);
       }
 
       return updated;
@@ -488,7 +496,7 @@ export function createRunRegistry(input: CreateRunRegistryInput): IRunRegistry {
 
       const target = store.getRunTargetForRunId(updated.runId);
       if (target !== null) {
-        store.store(target, updated, store.publish.bind(store));
+        store.store(target, updated);
       }
 
       return updated;

@@ -1,3 +1,5 @@
+import * as vscode from "vscode";
+
 import type { ViewToHostMessage } from "../../../comms/shared/messageTypes";
 import {
   parseDockerRouteMap,
@@ -34,6 +36,20 @@ function mapEnvironmentKindToStatusClass(kind: "running" | "ok" | "error"): View
   }
 
   return "status-muted";
+}
+
+/**
+ * Resolves the active workspace folder path for environment operations.
+ *
+ * @returns {string | null} Active workspace folder path or null when unavailable.
+ */
+function resolveActiveWorkspaceFolderPath(): string | null {
+  const workspaceFolders = vscode.workspace.workspaceFolders ?? [];
+  if (workspaceFolders.length === 0) {
+    return null;
+  }
+
+  return workspaceFolders[0].uri.fsPath;
 }
 
 /**
@@ -306,9 +322,14 @@ export function createEnvironmentControlsChannelMessageHandler(
       void (async () => {
         try {
           const profilePath = input.stateMachine.getSnapshot().environmentControls.profilePath;
-          const result = await input.conductor.readEnvironment(
-            profilePath.trim().length > 0 ? profilePath : undefined
-          );
+          const workspaceFolderPath = resolveActiveWorkspaceFolderPath();
+          if (workspaceFolderPath === null) {
+            throw new Error("No workspace folder is open.");
+          }
+          const result = await input.conductor.readEnvironment({
+            workspaceFolderPath,
+            profilePath: profilePath.trim().length > 0 ? profilePath : undefined,
+          });
           applyEnvironmentProfileResult(input.stateMachine, result);
           syncRoutingEntries(input);
         } catch (error) {
@@ -445,9 +466,23 @@ export function createEnvironmentControlsChannelMessageHandler(
         });
         input.publishSnapshot();
 
-        const result = await input.conductor.checkEnvironment(
-          profilePath.trim().length > 0 ? profilePath : undefined
-        );
+        const workspaceFolderPath = resolveActiveWorkspaceFolderPath();
+        if (workspaceFolderPath === null) {
+          input.stateMachine.send({
+            type: "ENV_CHECK_ENV_STATUS_SET",
+            statusText: "No workspace folder is open.",
+            statusClassName: "status-error",
+            filteredOutput: "",
+            rawOutput: "",
+          });
+          input.publishSnapshot();
+          return;
+        }
+
+        const result = await input.conductor.checkEnvironment({
+          workspaceFolderPath,
+          profilePath: profilePath.trim().length > 0 ? profilePath : undefined,
+        });
         input.stateMachine.send({
           type: "ENV_CHECK_ENV_STATUS_SET",
           statusText: result.text,
@@ -473,10 +508,22 @@ export function createEnvironmentControlsChannelMessageHandler(
         });
         input.publishSnapshot();
 
-        const result = await input.conductor.copyIcons(
-          profilePath.trim().length > 0 ? profilePath : undefined,
-          copyIconsPath.trim().length > 0 ? copyIconsPath : undefined
-        );
+        const workspaceFolderPath = resolveActiveWorkspaceFolderPath();
+        if (workspaceFolderPath === null) {
+          input.stateMachine.send({
+            type: "ENV_COPY_ICONS_STATUS_SET",
+            statusText: "No workspace folder is open.",
+            statusClassName: "status-error",
+          });
+          input.publishSnapshot();
+          return;
+        }
+
+        const result = await input.conductor.copyIcons({
+          workspaceFolderPath,
+          profilePath: profilePath.trim().length > 0 ? profilePath : undefined,
+          iconsPath: copyIconsPath.trim().length > 0 ? copyIconsPath : undefined,
+        });
         input.stateMachine.send({
           type: "ENV_COPY_ICONS_STATUS_SET",
           statusText: result.text,
@@ -493,9 +540,15 @@ export function createEnvironmentControlsChannelMessageHandler(
         const profilePath = snapshot.environmentControls.profilePath;
 
         try {
-          const result = await input.conductor.readEnvironment(
-            profilePath.trim().length > 0 ? profilePath : undefined
-          );
+          const workspaceFolderPath = resolveActiveWorkspaceFolderPath();
+          if (workspaceFolderPath === null) {
+            throw new Error("No workspace folder is open.");
+          }
+
+          const result = await input.conductor.readEnvironment({
+            workspaceFolderPath,
+            profilePath: profilePath.trim().length > 0 ? profilePath : undefined,
+          });
           applyEnvironmentProfileResult(input.stateMachine, result);
           syncRoutingEntries(input);
         } catch (error) {
@@ -570,13 +623,21 @@ export function createEnvironmentControlsChannelMessageHandler(
             sshMap.delete(languageEntry.languageKey);
           }
 
+          const workspaceFolderPath = resolveActiveWorkspaceFolderPath();
+          if (workspaceFolderPath === null) {
+            throw new Error("No workspace folder is open.");
+          }
+
           const writeResult = await input.conductor.writeEnvironment({
-            profilePath: profilePath.trim().length > 0 ? profilePath : undefined,
-            values: buildEnvironmentWriteValuesFromSnapshot(
-              snapshot,
-              serializeRouteMap(dockerMap),
-              serializeRouteMap(sshMap)
-            ),
+            workspaceFolderPath,
+            request: {
+              profilePath: profilePath.trim().length > 0 ? profilePath : undefined,
+              values: buildEnvironmentWriteValuesFromSnapshot(
+                snapshot,
+                serializeRouteMap(dockerMap),
+                serializeRouteMap(sshMap)
+              ),
+            },
           });
 
           applyEnvironmentProfileResult(input.stateMachine, writeResult);
@@ -654,13 +715,21 @@ export function createEnvironmentControlsChannelMessageHandler(
             }
           }
 
+          const workspaceFolderPath = resolveActiveWorkspaceFolderPath();
+          if (workspaceFolderPath === null) {
+            throw new Error("No workspace folder is open.");
+          }
+
           const writeResult = await input.conductor.writeEnvironment({
-            profilePath: profilePath.trim().length > 0 ? profilePath : undefined,
-            values: buildEnvironmentWriteValuesFromSnapshot(
-              snapshot,
-              serializeRouteMap(dockerMap),
-              serializeRouteMap(sshMap)
-            ),
+            workspaceFolderPath,
+            request: {
+              profilePath: profilePath.trim().length > 0 ? profilePath : undefined,
+              values: buildEnvironmentWriteValuesFromSnapshot(
+                snapshot,
+                serializeRouteMap(dockerMap),
+                serializeRouteMap(sshMap)
+              ),
+            },
           });
 
           applyEnvironmentProfileResult(input.stateMachine, writeResult);
@@ -714,9 +783,17 @@ export function createEnvironmentControlsChannelMessageHandler(
         const profilePath = snapshot.environmentControls.profilePath;
 
         try {
+          const workspaceFolderPath = resolveActiveWorkspaceFolderPath();
+          if (workspaceFolderPath === null) {
+            throw new Error("No workspace folder is open.");
+          }
+
           const writeResult = await input.conductor.writeEnvironment({
-            profilePath: profilePath.trim().length > 0 ? profilePath : undefined,
-            values: buildEnvironmentWriteValuesFromSnapshot(snapshot),
+            workspaceFolderPath,
+            request: {
+              profilePath: profilePath.trim().length > 0 ? profilePath : undefined,
+              values: buildEnvironmentWriteValuesFromSnapshot(snapshot),
+            },
           });
 
           applyEnvironmentProfileResult(input.stateMachine, writeResult);

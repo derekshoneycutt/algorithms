@@ -26,16 +26,21 @@ import type {
   ConductorWorkspaceRootsInvalidationInput,
   ConductorInitWorkspaceSupportedContextInput,
   ConductorRefreshWorkspaceSupportedContextInput,
+  ConductorReadEnvironmentInput,
+  ConductorWriteEnvironmentInput,
+  ConductorCheckEnvironmentInput,
+  ConductorCopyIconsInput,
   IConductor,
   CheckEnvResult,
   CopyIconsResult,
   EnvironmentReadResult,
-  EnvironmentWriteRequest,
   EnvironmentWriteResult,
 } from "./IConductor";
 import type { ViewToHostMessage } from "../comms/shared/messageTypes";
 import type { IAlgorithmsTerminalRunAdapter, ICommandLine } from "../commandline";
 import type { IFilesystem } from "../filesystem";
+import type { IEligibilityResolver } from "../filesystem";
+import type { IRootPathResolver } from "../algorithms";
 import {
   createRunControlsIntentReaction,
   createSmokeIntentReaction,
@@ -50,7 +55,6 @@ import {
   writeEnvironment,
   type ApplyConductorReactionDependencies,
 } from "./internal/environment";
-import { resolveSidebarState } from "../filesystem/eligibilityResolver";
 
 const DEFAULT_RUN_STATUS_RETENTION_MS = 120_000;
 
@@ -74,8 +78,9 @@ export interface CreateConductorServiceInput {
   algorithmsTerminalRunAdapter?: IAlgorithmsTerminalRunAdapter;
   commandLine?: ICommandLine;
   filesystem?: IFilesystem;
-  repositoryRoot?: string;
   runStatusRetentionMs?: number;
+  rootPathResolver?: IRootPathResolver;
+  eligibilityResolver?: IEligibilityResolver;
 }
 
 /**
@@ -238,6 +243,35 @@ export function createConductorService(
   const commandLine = input?.commandLine;
   const filesystem = input?.filesystem;
   const runStatusRetentionMs = input?.runStatusRetentionMs ?? DEFAULT_RUN_STATUS_RETENTION_MS;
+  const rootPathResolver = input?.rootPathResolver;
+  const eligibilityResolver = input?.eligibilityResolver;
+
+  /**
+   * Resolves the repository root from workspace folders at call time.
+   *
+   * @returns {Promise<string>} Repository root path or empty string when unavailable.
+   */
+  async function resolveRepositoryRoot(workspaceFolderPath: string): Promise<string> {
+    if (
+      filesystem === undefined
+      || workspaceFolderPath.trim().length === 0
+      || rootPathResolver === undefined
+    ) {
+      return "";
+    }
+
+    const algorithmsRoot = await rootPathResolver.resolveAlgorithmsRoot({
+      filesystem,
+      owningWorkspaceFolderPath: workspaceFolderPath,
+      workspaceFolderPaths: [workspaceFolderPath],
+    });
+
+    if (algorithmsRoot === null) {
+      return "";
+    }
+
+    return path.dirname(algorithmsRoot);
+  }
   const runRegistry = createRunRegistry({ runStatusRetentionMs });
   const runLifecycle = runRegistry.buildRunLifecycle();
   const smokeRegistry = createSmokeRegistry({
@@ -285,6 +319,7 @@ export function createConductorService(
         runLifecycle,
         smokeStatusRetentionLifecycle,
         activeSmokeExecutionByAlgorithm,
+        rootPathResolver,
       });
     },
 
@@ -360,7 +395,10 @@ export function createConductorService(
     },
 
     async initWorkspaceSupportedContext(input: ConductorInitWorkspaceSupportedContextInput): Promise<void> {
-      const sidebarState = resolveSidebarState(input.workspaceFolderPaths);
+      if (eligibilityResolver === undefined) {
+        return;
+      }
+      const sidebarState = eligibilityResolver.resolveSidebarState(input.workspaceFolderPaths);
       await vscode.commands.executeCommand(
         "setContext",
         "algos.workspaceSupported",
@@ -369,7 +407,10 @@ export function createConductorService(
     },
 
     async refreshWorkspaceSupportedContext(input: ConductorRefreshWorkspaceSupportedContextInput): Promise<void> {
-      const sidebarState = resolveSidebarState(input.workspaceFolderPaths);
+      if (eligibilityResolver === undefined) {
+        return;
+      }
+      const sidebarState = eligibilityResolver.resolveSidebarState(input.workspaceFolderPaths);
       await vscode.commands.executeCommand(
         "setContext",
         "algos.workspaceSupported",
@@ -401,7 +442,7 @@ export function createConductorService(
       return runRegistry.getRun(runId);
     },
 
-    async readEnvironment(profilePath?: string): Promise<EnvironmentReadResult> {
+    async readEnvironment(inputRead: ConductorReadEnvironmentInput): Promise<EnvironmentReadResult> {
       if (!commandLine || !input?.filesystem) {
         throw new Error("Environment operations require commandLine and filesystem dependencies");
       }
@@ -410,13 +451,13 @@ export function createConductorService(
         {
           filesystem: input.filesystem,
           commandLine,
-          repositoryRoot: input.repositoryRoot || "",
+          repositoryRoot: await resolveRepositoryRoot(inputRead.workspaceFolderPath),
         },
-        profilePath
+        inputRead.profilePath
       );
     },
 
-    async writeEnvironment(request: EnvironmentWriteRequest): Promise<EnvironmentWriteResult> {
+    async writeEnvironment(inputWrite: ConductorWriteEnvironmentInput): Promise<EnvironmentWriteResult> {
       if (!commandLine || !input?.filesystem) {
         throw new Error("Environment operations require commandLine and filesystem dependencies");
       }
@@ -425,13 +466,13 @@ export function createConductorService(
         {
           filesystem: input.filesystem,
           commandLine,
-          repositoryRoot: input.repositoryRoot || "",
+          repositoryRoot: await resolveRepositoryRoot(inputWrite.workspaceFolderPath),
         },
-        request
+        inputWrite.request
       );
     },
 
-    async checkEnvironment(profilePath?: string): Promise<CheckEnvResult> {
+    async checkEnvironment(inputCheck: ConductorCheckEnvironmentInput): Promise<CheckEnvResult> {
       if (!commandLine || !input?.filesystem) {
         throw new Error("Environment operations require commandLine and filesystem dependencies");
       }
@@ -440,13 +481,13 @@ export function createConductorService(
         {
           filesystem: input.filesystem,
           commandLine,
-          repositoryRoot: input.repositoryRoot || "",
+          repositoryRoot: await resolveRepositoryRoot(inputCheck.workspaceFolderPath),
         },
-        profilePath
+        inputCheck.profilePath
       );
     },
 
-    async copyIcons(profilePath?: string, iconsPath?: string): Promise<CopyIconsResult> {
+    async copyIcons(inputCopy: ConductorCopyIconsInput): Promise<CopyIconsResult> {
       if (!commandLine || !input?.filesystem) {
         throw new Error("Environment operations require commandLine and filesystem dependencies");
       }
@@ -455,10 +496,10 @@ export function createConductorService(
         {
           filesystem: input.filesystem,
           commandLine,
-          repositoryRoot: input.repositoryRoot || "",
+          repositoryRoot: await resolveRepositoryRoot(inputCopy.workspaceFolderPath),
         },
-        profilePath,
-        iconsPath
+        inputCopy.profilePath,
+        inputCopy.iconsPath
       );
     },
 

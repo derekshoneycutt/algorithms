@@ -12,15 +12,21 @@ import {
 import { createConductorService } from "./conductor";
 import type { IConductor } from "./conductor";
 import {
+  createEligibilityResolver,
   createFilesystem,
 } from "./filesystem";
 import type { IFilesystem } from "./filesystem";
+import type { IEligibilityResolver } from "./filesystem";
 import {
   buildSmokeLanguageSelections,
   createLanguages,
   GENERATED_LANGUAGE_DATA,
 } from "./languages";
 import type { ILanguages } from "./languages";
+import {
+  createRootPathResolver,
+} from "./algorithms";
+import type { IRootPathResolver } from "./algorithms";
 import {
   createNotificationRouter,
   createConductorNotificationDispatcher,
@@ -56,15 +62,32 @@ interface CoordinatorViewIds {
   workspaceStandardLibraryTreeViewId: string;
 }
 
+/**
+ * Assembled coordinator components required to wire the root disposable.
+ */
+interface CoordinatorComponents {
+  channels: {
+    environmentControlsChannel: vscode.Disposable;
+    runControlsChannel: vscode.Disposable;
+    smokeControlsChannel: vscode.Disposable;
+  };
+  commands: IExtensionCommands;
+  conductor: IConductor;
+  stateMachine: vscode.Disposable;
+  viewLayer: CoordinatorViewLayer;
+}
+
 interface CoordinatorRuntimeServices {
   algorithmsTerminalRunAdapter: ReturnType<typeof createAlgorithmsTerminalRunAdapter>;
   commandLine: ReturnType<typeof createCommandLine>;
   conductor: IConductor;
+  eligibilityResolver: IEligibilityResolver;
   filesystem: IFilesystem;
   filterModeService: IFilterModeService;
   languages: ILanguages;
   notificationDispatcher: ReturnType<typeof createConductorNotificationDispatcher>;
   notificationRouter: INotificationRouter;
+  rootPathResolver: IRootPathResolver;
   stateMachine: IStateMachine;
   viewModeService: IViewModeService;
   workspaceFolderPaths: readonly string[];
@@ -104,11 +127,14 @@ function createCoordinatorRuntimeServices(): CoordinatorRuntimeServices {
   const viewModeService: IViewModeService = createViewModeService();
   const filterModeService: IFilterModeService = createFilterModeService();
   const notificationRouter: INotificationRouter = createNotificationRouter();
+  const rootPathResolver = createRootPathResolver();
+  const eligibilityResolver = createEligibilityResolver();
   const conductor: IConductor = createConductorService({
     algorithmsTerminalRunAdapter,
     commandLine,
     filesystem,
-    repositoryRoot: workspaceFolderPaths[0] ?? "",
+    rootPathResolver,
+    eligibilityResolver,
   });
   void conductor.initWorkspaceSupportedContext({ workspaceFolderPaths });
   const notificationDispatcher = createConductorNotificationDispatcher(notificationRouter);
@@ -117,17 +143,51 @@ function createCoordinatorRuntimeServices(): CoordinatorRuntimeServices {
     algorithmsTerminalRunAdapter,
     commandLine,
     conductor,
+    eligibilityResolver,
     filesystem,
     filterModeService,
     languages,
     notificationDispatcher,
     notificationRouter,
+    rootPathResolver,
     stateMachine,
     viewModeService,
     workspaceFolderPaths,
   };
 }
 
+/**
+ * Wires all coordinator components into the root extension disposable.
+ *
+ * @param {CoordinatorComponents} components Fully constructed coordinator components.
+ * @returns {vscode.Disposable} Root disposable for the bootstrap runtime.
+ */
+function buildCoordinatorDisposables(
+  components: CoordinatorComponents
+): vscode.Disposable {
+  const conductorDisposer = {
+    dispose(): void {
+      components.conductor.dispose?.();
+    },
+  };
+
+  return vscode.Disposable.from(
+    components.stateMachine,
+    components.viewLayer.communicationHub,
+    components.channels.smokeControlsChannel,
+    components.channels.runControlsChannel,
+    components.channels.environmentControlsChannel,
+    components.viewLayer.workspaceAlgorithmsTreeRegistration,
+    components.viewLayer.workspaceStandardLibraryTreeRegistration,
+    components.viewLayer.workspaceWatcherRegistration,
+    components.viewLayer.runStatusTreeRefreshSubscription,
+    conductorDisposer,
+    components.viewLayer.languageStatusDecorationRegistration,
+    components.viewLayer.viewHost,
+    components.viewLayer.viewsRegistration,
+    registerCommands(components.commands)
+  );
+}
 
 /**
  * Creates the coordinator for the bootstrap extension runtime.
@@ -152,10 +212,7 @@ export function createCoordinator(
     workspaceStandardLibraryTreeViewId: getWorkspaceStandardLibraryTreeViewId(),
   };
   const runtimeServices = createCoordinatorRuntimeServices();
-  const {
-    conductor,
-    stateMachine,
-  } = runtimeServices;
+  const { conductor, stateMachine, rootPathResolver } = runtimeServices;
   const viewLayer: CoordinatorViewLayer = createCoordinatorViewLayer({
     conductor,
     context,
@@ -171,18 +228,7 @@ export function createCoordinator(
     viewModeService: runtimeServices.viewModeService,
     workspaceFolderPaths: runtimeServices.workspaceFolderPaths,
   });
-  const {
-    communicationHub,
-    languageStatusDecorationRegistration,
-    runStatusTreeRefreshSubscription,
-    viewHost,
-    viewsRegistration,
-    workspaceAlgorithmsTreeProvider,
-    workspaceAlgorithmsTreeRegistration,
-    workspaceStandardLibraryTreeProvider,
-    workspaceStandardLibraryTreeRegistration,
-    workspaceWatcherRegistration,
-  } = viewLayer;
+  const { communicationHub, viewHost } = viewLayer;
   const {
     smokeControlsChannel,
     runControlsChannel,
@@ -210,32 +256,22 @@ export function createCoordinator(
     flaggedLanguages: viewLayer.flaggedLanguages,
     languages: runtimeServices.languages,
     notificationRouter: runtimeServices.notificationRouter,
+    rootPathResolver,
     stateMachine,
     viewModeService: runtimeServices.viewModeService,
     workspaceAlgorithmsTreeProvider: viewLayer.workspaceAlgorithmsTreeProvider,
     workspaceStandardLibraryTreeProvider: viewLayer.workspaceStandardLibraryTreeProvider,
   });
 
-  const conductorDisposer = {
-    dispose(): void {
-      conductor.dispose?.();
+  return buildCoordinatorDisposables({
+    channels: {
+      environmentControlsChannel,
+      runControlsChannel,
+      smokeControlsChannel,
     },
-  };
-
-  return vscode.Disposable.from(
+    commands,
+    conductor,
     stateMachine,
-    communicationHub,
-    smokeControlsChannel,
-    runControlsChannel,
-    environmentControlsChannel,
-    workspaceAlgorithmsTreeRegistration,
-    workspaceStandardLibraryTreeRegistration,
-    workspaceWatcherRegistration,
-    runStatusTreeRefreshSubscription,
-    conductorDisposer,
-    languageStatusDecorationRegistration,
-    viewHost,
-    viewsRegistration,
-    registerCommands(commands)
-  );
+    viewLayer,
+  });
 }

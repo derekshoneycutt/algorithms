@@ -9,6 +9,7 @@ describe("conductor — createConductorService", () => {
     const conductor = createConductorService();
 
     const snapshot = conductor.startRun({
+      target: { nodeKind: "file", filePath: "/repo/src/bootstrap/bootstrap.py" },
       ownerKey: "bootstrap",
       reason: "initial run",
     });

@@ -3,6 +3,7 @@ import * as vscode from "vscode";
 import type { IConductor } from "../conductor";
 import type { IFilesystem } from "../filesystem";
 import type { IFlaggedLanguagesService } from "../algorithms";
+import type { IRootPathResolver } from "../algorithms";
 import type { ILanguages } from "../languages";
 import type { INotificationRouter } from "../notifications";
 import type {
@@ -61,6 +62,7 @@ export interface CreateCoordinatorCommandsInput {
   flaggedLanguages: IFlaggedLanguagesService;
   languages: ILanguages;
   notificationRouter: INotificationRouter;
+  rootPathResolver: IRootPathResolver | undefined;
   stateMachine: IStateMachine;
   viewModeService: IViewModeService;
   workspaceAlgorithmsTreeProvider: RefreshableWorkspaceTreeDataProvider;
@@ -89,46 +91,54 @@ export function createCoordinatorCommands(
       filesystem: input.filesystem,
       notificationRouter: input.notificationRouter,
       refreshStandardLibraryTree: input.workspaceStandardLibraryTreeProvider.refresh,
+      rootPathResolver: input.rootPathResolver,
     }),
     standardLibraryCreateFolder: createStandardLibraryCreateFolderCommand({
       filesystem: input.filesystem,
       notificationRouter: input.notificationRouter,
       refreshStandardLibraryTree: input.workspaceStandardLibraryTreeProvider.refresh,
+      rootPathResolver: input.rootPathResolver,
     }),
     standardLibraryDelete: createStandardLibraryDeleteCommand({
       filesystem: input.filesystem,
       notificationRouter: input.notificationRouter,
       refreshStandardLibraryTree: input.workspaceStandardLibraryTreeProvider.refresh,
+      rootPathResolver: input.rootPathResolver,
     }),
     algorithmsCreateFolderAtRoot: createAlgorithmsCreateFolderAtRootCommand({
       filesystem: input.filesystem,
       languages: input.languages,
       notificationRouter: input.notificationRouter,
       refreshAlgorithmsTree: input.workspaceAlgorithmsTreeProvider.refresh,
+      rootPathResolver: input.rootPathResolver,
     }),
     algorithmsCreateFolder: createAlgorithmsCreateFolderCommand({
       filesystem: input.filesystem,
       languages: input.languages,
       notificationRouter: input.notificationRouter,
       refreshAlgorithmsTree: input.workspaceAlgorithmsTreeProvider.refresh,
+      rootPathResolver: input.rootPathResolver,
     }),
     algorithmsCreateFile: createAlgorithmsCreateFileCommand({
       filesystem: input.filesystem,
       languages: input.languages,
       notificationRouter: input.notificationRouter,
       refreshAlgorithmsTree: input.workspaceAlgorithmsTreeProvider.refresh,
+      rootPathResolver: input.rootPathResolver,
     }),
     algorithmsAddIncludeFile: createAlgorithmsAddIncludeFileCommand({
       filesystem: input.filesystem,
       languages: input.languages,
       notificationRouter: input.notificationRouter,
       refreshAlgorithmsTree: input.workspaceAlgorithmsTreeProvider.refresh,
+      rootPathResolver: input.rootPathResolver,
     }),
     algorithmsDelete: createAlgorithmsDeleteCommand({
       filesystem: input.filesystem,
       languages: input.languages,
       notificationRouter: input.notificationRouter,
       refreshAlgorithmsTree: input.workspaceAlgorithmsTreeProvider.refresh,
+      rootPathResolver: input.rootPathResolver,
     }),
     algorithmsSidebarShowFileView: createAlgorithmsSidebarShowFileViewCommand(
       input.viewModeService

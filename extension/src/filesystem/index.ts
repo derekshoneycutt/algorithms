@@ -13,6 +13,8 @@ export {
   resolveEligibilityState,
   resolveSidebarState,
 } from "./eligibilityResolver";
+export type { IEligibilityResolver } from "./IEligibilityResolver";
+export { createEligibilityResolver } from "./eligibilityResolverProvider";
 export type {
   CreateFilesystemInput,
   DeletePathOptions,

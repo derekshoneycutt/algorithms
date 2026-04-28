@@ -14,6 +14,7 @@ This document summarizes the architecture of `vscextension` as a module system w
 - [8. Dependency Rules](#8-dependency-rules)
 - [9. Where Code Goes](#9-where-code-goes)
 - [10. Summary](#10-summary)
+- [11. Temporary Addendum: Contract-First Module Boundaries](#11-temporary-addendum-contract-first-module-boundaries)
 
 ## 1. System Snapshot
 
@@ -205,3 +206,111 @@ Example:
 7. `comms` is not a decision-maker; it is a transport abstraction.
 
 Goal: clear ownership boundaries with flexible internal structure, without nanomodule fragmentation.
+
+## 11. Temporary Addendum: Contract-First Module Boundaries
+
+This section is a temporary addendum capturing the current intended direction for stricter module boundaries. It is intentionally more analytical and verbose than the rest of this document so the policy is documented before it is shortened and merged into the main architecture rules.
+
+### 11.1 Direction
+
+The desired direction is stronger than "Coordinator should be smaller".
+
+The desired direction is:
+
+1. Each top-level module should expose one explicit public boundary.
+2. Cross-module dependencies should be expressed only in terms of interfaces exported by that boundary.
+3. Coordinator remains the composition root, but Coordinator should compose module contracts rather than internal construction details.
+4. Internal module structure may remain layered or subdivided, but those layers should remain behind the module boundary.
+
+Stated another way: the real architectural goal is not merely to shorten `src/coordinator.ts`; the goal is to move contract responsibility back into the owning module so Coordinator does not need to know how that module is internally assembled.
+
+### 11.2 What "One Entry Point" Means
+
+"One entry point" does not necessarily mean one giant interface.
+
+It means one public module boundary.
+
+That boundary may:
+
+1. Expose one primary interface such as `IConductor`.
+2. Expose a small family of closely related interfaces owned by the same module.
+3. Expose narrow subinterfaces when that helps separate concerns without leaking implementation.
+
+The important constraint is that other modules should depend on the public contract surface of the provider module, not on its internal helper structure, concrete implementation details, or private assembly steps.
+
+If a module must surface subordinate capabilities, that should still happen through the module's owned contract surface. The purpose is to avoid turning Coordinator into the place where every internal relationship across the system is understood and maintained.
+
+### 11.3 Coordinator's Role Under This Policy
+
+Coordinator still owns construction order, concrete instantiation, and dependency graph assembly.
+
+Coordinator should not own the detailed contract semantics of each subsystem.
+
+Under this direction, Coordinator is responsible for:
+
+1. Constructing concrete implementations.
+2. Passing only allowed interfaces across module boundaries.
+3. Binding subscriptions, callbacks, and startup sequencing.
+4. Disposing the runtime graph.
+
+Coordinator should not need to know:
+
+1. Which internal helpers a module uses to satisfy its public contract.
+2. Which private substructures exist inside a module.
+3. How one subsystem's internal layers collaborate, so long as the module boundary contract is satisfied.
+
+This keeps Coordinator as the composition root without letting it become the de facto owner of every subsystem contract.
+
+### 11.4 Why This Is Better Than a Pure "Function Length" Rule
+
+A rule like "Coordinator must be shorter" is useful as a smell, but weak as architecture guidance.
+
+Length alone does not identify the true failure mode.
+
+The stronger rule is:
+
+1. Coordinator may compose only public module contracts.
+2. Contract responsibility belongs to the owning module.
+3. Internal implementation structure stays inside the owning module.
+
+This is stronger because it gives a clear failure signal. If Coordinator needs to import or understand a concrete internal implementation detail from another module in order to continue wiring the system, then the boundary is leaking.
+
+That is a better architectural diagnostic than line count alone.
+
+### 11.5 Practical Interpretation For This Repository
+
+Applied to this repository, the intended direction is:
+
+1. `conductor`, `views`, `commands`, `notifications`, `filesystem`, `languages`, and `state` should be treated as public module boundaries.
+2. Each such module may have rich internal structure, but that structure should remain private to the module.
+3. Coordinator should assemble those modules through their exported contracts rather than manually reproducing their internal assembly logic.
+
+This does not forbid internal helper extraction in Coordinator when that improves readability.
+
+It does mean that helper extraction alone is not enough if Coordinator still owns too much knowledge about how another module is built.
+
+### 11.6 Cautions
+
+This direction should be applied pragmatically.
+
+It should not be interpreted as a requirement to create ceremonial `IWhatever` interfaces for every small utility or stateless helper. Pure utility code can remain simple.
+
+The stricter contract-first rule is most valuable for:
+
+1. Stateful modules.
+2. Runtime integration modules.
+3. Modules that are consumed across ownership boundaries.
+4. Modules whose internals are likely to evolve independently.
+
+The intent is stronger boundaries, not interface inflation.
+
+### 11.7 Working Standard
+
+Until this addendum is merged into the main body of the document, the working standard should be interpreted as follows:
+
+1. Coordinator is the only composition root.
+2. Non-coordinator modules should communicate across module boundaries only through provider-owned contracts.
+3. If Coordinator must understand another module's private construction details to wire the runtime, that is an architecture smell and usually a boundary violation.
+4. Refactors that reduce Coordinator size are good only when they also reduce Coordinator's knowledge of other modules' internals.
+
+This is the current intended direction for future architecture cleanup and review.
