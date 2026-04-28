@@ -1,5 +1,6 @@
 import * as vscode from "vscode";
 
+import { createActivationServices } from "./activator";
 import { createCoordinator } from "./coordinator";
 
 /**
@@ -9,7 +10,8 @@ import { createCoordinator } from "./coordinator";
  * @returns {void} No return value.
  */
 export function activate(context: vscode.ExtensionContext): void {
-  const coordinator = createCoordinator(context);
+  const activationServices = createActivationServices();
+  const coordinator = createCoordinator(context, activationServices);
   context.subscriptions.push(coordinator);
 }
 

@@ -42,19 +42,19 @@ import type { IFilesystem } from "../filesystem";
 import type { IEligibilityResolver } from "../filesystem";
 import type { IRootPathResolver } from "../algorithms";
 import {
+  createRunRegistry,
+  createSmokeRegistry,
   createRunControlsIntentReaction,
   createSmokeIntentReaction,
-} from "./internal/reactions";
-import { createRunRegistry } from "./internal/runRegistry";
-import { createSmokeRegistry } from "./internal/smokeRegistry";
-import { orchestrateRunFile } from "./internal/runFile";
+  orchestrateRunFile,
+} from "./runner";
 import {
   executeCheckEnv,
   executeCopyIcons,
   readEnvironment,
   writeEnvironment,
   type ApplyConductorReactionDependencies,
-} from "./internal/environment";
+} from "./environment";
 
 const DEFAULT_RUN_STATUS_RETENTION_MS = 120_000;
 

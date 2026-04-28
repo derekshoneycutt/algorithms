@@ -14,7 +14,6 @@ This document summarizes the architecture of `vscextension` as a module system w
 - [8. Dependency Rules](#8-dependency-rules)
 - [9. Where Code Goes](#9-where-code-goes)
 - [10. Summary](#10-summary)
-- [11. Temporary Addendum: Contract-First Module Boundaries](#11-temporary-addendum-contract-first-module-boundaries)
 
 ## 1. System Snapshot
 
@@ -23,7 +22,7 @@ The extension is host-authoritative:
 1. Host owns canonical state and policy.
 2. Webviews render host snapshots and send typed write-intent messages.
 3. Shared contracts define host/webview protocol shape.
-4. Coordinator composes modules; domain logic remains in domain modules.
+4. Bootstrap path is `extension.ts` -> `activator.ts` -> `coordinator.ts`; domain logic remains in domain modules.
 
 Current UI scope is five sidebar panels:
 
@@ -43,7 +42,7 @@ Current UI scope is five sidebar panels:
 6. Testing: VS Code extension-host tests through the npm test pipeline.
 7. Packaging/publishing: VSCE (`@vscode/vsce`).
 8. Linting/quality: ESLint + TypeScript typechecking.
-9. Contracts/architecture: typed host-webview protocol in `src/comms/shared` with coordinator-owned DI via interface/port contracts.
+9. Contracts/architecture: typed host-webview protocol in `src/comms/shared` with bootstrap-layer DI via interface/port contracts.
 
 ## 3. Design Philosophy
 
@@ -60,7 +59,7 @@ Quality checks:
 2. Distinct ownership boundary.
 3. Distinct external contract.
 4. Distinct failure modes.
-5. Interface-first dependency flow: cross-module runtime behavior uses injected contracts, not concrete imports outside Coordinator.
+5. Interface-first dependency flow: cross-module runtime behavior uses injected contracts, not concrete imports outside the bootstrap layer.
 
 ## 4. Category Definitions
 
@@ -86,7 +85,7 @@ Purpose: wire modules into a running system.
 
 Responsibilities: startup ordering, concrete construction, interface binding, and subscription registration.
 
-Modules: `coordinator`.
+Modules: `activator`, `coordinator`.
 
 ### 4.4 Utility Support Surfaces
 
@@ -110,19 +109,21 @@ Surfaces: `src/views/media/shared/`, `test/`.
 | `notifications` | Host notification policy and routing | `src/notifications/`, notification adaptation and routing | Product domain decisions | `INotificationRouter` |
 | `state` | Canonical host state | `src/state/`, XState machine/actor lifecycle, snapshot selectors, and filter/view mode selectors | Asset I/O, transport ownership, UI rendering ownership | `IStateMachine` |
 | `views` | Webview provider, tree provider, template, and frontend runtime | `src/views/`, `src/views/media/` (environment/smoke/run panels), `src/views/media/shared/`, `src/views/trees/` | Canonical workflow state, orchestration policy, filesystem I/O presentation & triggering | `IViewHost` |
-| `coordinator` | Composition root | `src/coordinator.ts` | Deep domain logic | Composition wiring and concrete construction |
+| `activator` | Activation-time bootstrap construction | `src/activator.ts`, workspace-folder discovery, runtime service graph construction, startup-side effects | Workflow orchestration policy, view/channel/command behavior policy | `ActivationServicesGraph` |
+| `coordinator` | Host wiring and disposable assembly | `src/coordinator.ts`, view/channel/command wiring and root disposable assembly from prebuilt services | Deep domain logic, runtime graph construction, workflow orchestration policy | `vscode.Disposable` |
 
 ## 6. Runtime Flow
 
 1. `src/extension.ts` activates extension runtime.
-2. `src/coordinator.ts` constructs concrete modules and binds them together.
-3. `views` registers the Environment Controls, Smoke Controls, and Run Controls webviews plus the Algorithms and Standard Library tree providers, then connects VS Code view lifecycle to the host runtime.
-4. `coordinator` wires `ICommunicationHub.subscribe` with conductor-owned channel handlers.
-5. `comms` receives typed host/webview traffic and delivers inbound messages to subscribed handlers.
-6. `conductor` owns ready/intent handling, computes reactions, applies state effects, dispatches notifications, and decides whether snapshots should be republished.
-7. `comms.post` transports outbound snapshots back to the webview when asked.
-8. `state` remains canonical throughout; snapshots are derived from host state rather than treated as source of truth.
-9. Commands are registered from `commands`; command handlers derive output from host state and route user-visible status via `notifications`.
+2. `src/activator.ts` discovers activation-time host inputs, constructs the runtime service graph, and performs startup-side effects.
+3. `src/coordinator.ts` receives that graph and wires views, channels, commands, and the root disposable into VS Code.
+4. `views` registers the Environment Controls, Smoke Controls, and Run Controls webviews plus the Algorithms and Standard Library tree providers, then connects VS Code view lifecycle to the host runtime.
+5. `coordinator` wires `ICommunicationHub.subscribe` with conductor-owned channel handlers.
+6. `comms` receives typed host/webview traffic and delivers inbound messages to subscribed handlers.
+7. `conductor` owns ready/intent handling, computes reactions, applies state effects, dispatches notifications, and decides whether snapshots should be republished.
+8. `comms.post` transports outbound snapshots back to the webview when asked.
+9. `state` remains canonical throughout; snapshots are derived from host state rather than treated as source of truth.
+10. Commands are registered from `commands`; command handlers derive output from host state and route user-visible status via `notifications`.
 
 ## 7. Internal Structure Policy
 
@@ -147,8 +148,9 @@ These internals are intentionally layered. Each row documents one layer's respon
 | `views` | Run Controls panel | `src/views/media/runControls/` | Run panel bridge and UI rendering. | No canonical host state ownership or cross-panel policy ownership. |
 | `views` | Tree providers | `src/views/trees/` | Algorithms and standard-library tree data providers, restricted file shaping, and context value assignment for command dispatch. | No canonical host state ownership or cross-panel policy ownership. Context values are derived from tree item properties (depth, type) and keyed to enable menu-driven command routing via `when` clauses. |
 | `conductor` | Orchestration service | `src/conductor/service.ts` | Own intent reactions, effect application, and host-side channel handling. | No direct transport implementation ownership. |
-| `conductor` | Environment subsystem | `src/conductor/internal/environment/` | Environment variable adaptation, environment channel handling, and environment operation helpers. | No direct transport implementation ownership. |
-| `conductor` | Core runtime helpers | `src/conductor/internal/` (non-environment helpers) | Shared conductor internals for run/smoke registries, run execution flow, output parsing, and reaction/effect utilities. | No direct transport implementation ownership or canonical state ownership. |
+| `conductor` | Environment subsystem | `src/conductor/environment/` | Environment variable adaptation, environment channel handling, and environment operation helpers. | No direct transport implementation ownership. |
+| `conductor` | Runner subsystem | `src/conductor/runner/` | Shared run/smoke helpers for run registries, run execution flow, output parsing, and reaction/effect utilities. | No direct transport implementation ownership or canonical state ownership. |
+| `conductor` | Channel shared types | `src/conductor/channels/` | Shared channel-handler dependency types and cross-channel wiring contracts. | No domain workflow decision ownership. |
 | `comms` | Shared protocol | `src/comms/shared/` | Define transport-agnostic message contracts and guards. | No host/frontend runtime side effects. |
 | `comms` | Transport hub | `src/comms/communicationHub.ts`, `src/comms/ICommunicationHub.ts` | Deliver subscribed messages and outbound transport posting. | No workflow/domain policy ownership. |
 | `comms` | Payload/publish helpers | `src/comms/builders/` | Shape snapshots and construct transport-facing publish helpers. | No domain decision ownership. |
@@ -161,29 +163,30 @@ These are internal layers inside module boundaries, not separate top-level modul
 
 ## 8. Dependency Rules
 
-The job of the Coordinator is to initate all modules and handle the dependency graph. All other logic should be in appropriate modules otherwise, linked through the dependency graph owned by Coordinator.
+The bootstrap layer owns runtime construction and host wiring. Domain and support logic should remain in the appropriate modules and connect through provider-owned contracts.
 
 MUST rules:
 
-1. Only `src/coordinator.ts` may construct or runtime-import concrete cross-module implementations.
-2. All non-coordinator modules must depend on contract types (interfaces or ports), not concrete runtime imports.
-3. Contracts must be defined by the provider module and consumed as injected dependencies.
-4. Shared protocol exception: modules may import `src/comms/shared` for transport contract types and guards only, not transport implementation.
-5. Webview frontend code may depend on shared frontend surfaces under `src/views/media/shared`, but not host-only module internals.
-6. Coordinator may bind subscriptions and callbacks because that is dependency-graph wiring; Coordinator must not decide runtime behavior.
-7. Conductor owns orchestration logic for reactions, effect application, and channel-handler behavior.
-8. Comms is restricted to communication abstraction only: front/back transport, subscription delivery, message posting, and payload/publish helper support.
-9. If comms decides behavior instead of forwarding or delivering, that is an architecture violation.
-10. Violations should fail CI through targeted architecture assertions in the test suite.
+1. Only `src/activator.ts` may construct concrete cross-module implementations for the host runtime graph.
+2. `src/coordinator.ts` may wire and subscribe prebuilt services, but should not rebuild runtime graph construction.
+3. All non-bootstrap modules must depend on contract types (interfaces or ports), not concrete runtime imports.
+4. Contracts must be defined by the provider module and consumed as injected dependencies.
+5. Shared protocol exception: modules may import `src/comms/shared` for transport contract types and guards only, not transport implementation.
+6. Webview frontend code may depend on shared frontend surfaces under `src/views/media/shared`, but not host-only module internals.
+7. Coordinator may bind subscriptions and callbacks because that is host wiring; Coordinator must not decide runtime behavior.
+8. Conductor owns orchestration logic for reactions, effect application, and channel-handler behavior.
+9. Comms is restricted to communication abstraction only: front/back transport, subscription delivery, message posting, and payload/publish helper support.
+10. If comms decides behavior instead of forwarding or delivering, that is an architecture violation.
+11. Violations should fail CI through targeted architecture assertions in the test suite.
 
 Example:
 
-1. `INotificationRouter` is defined in `notifications`, consumed as an injected contract in dependent modules, and concrete wiring remains in `src/coordinator.ts`.
+1. `INotificationRouter` is defined in `notifications`, consumed as an injected contract in dependent modules, constructed in `src/activator.ts`, and wired into host subscriptions in `src/coordinator.ts`.
 
 ## 9. Where Code Goes
 
 1. Messaging contracts/transports: `src/comms/`
-2. Host-side orchestration and channel handling: `src/conductor/` (including `src/conductor/internal/environment/`)
+2. Host-side orchestration and channel handling: `src/conductor/` (including `src/conductor/environment/`, `src/conductor/runner/`, and `src/conductor/channels/`)
 3. Packaged asset I/O/discovery: `src/filesystem/`
 4. Notification policy/routing: `src/notifications/`
 5. Canonical host state and mode selectors: `src/state/`
@@ -192,8 +195,9 @@ Example:
 8. Process execution boundary and shell-profile internals: `src/commandline/`
 9. Algorithm and stdlib discovery: `src/algorithms/`
 10. Webview provider and frontend runtime: `src/views/`, `src/views/media/`, `src/views/trees/`
-11. Composition root: `src/coordinator.ts`
-12. Utility support surfaces: `src/views/media/shared/`, `test/`
+11. Activation-time runtime construction and startup side effects: `src/activator.ts`
+12. Host wiring and root disposable assembly: `src/coordinator.ts`
+13. Utility support surfaces: `src/views/media/shared/`, `test/`
 
 ## 10. Summary
 
@@ -201,116 +205,8 @@ Example:
 2. Boundary/support modules adapt runtime concerns.
 3. Composition modules wire the runtime.
 4. Utility support surfaces provide shared support without domain ownership.
-5. Coordinator is the sole composition root; it owns the concrete dependency graph and subscription wiring.
+5. Bootstrap is split: Activator constructs activation-time runtime services; Coordinator wires those services into host registrations and root disposal.
 6. `conductor` is a first-class domain owner; it conducts workflow transitions and host-side orchestration.
 7. `comms` is not a decision-maker; it is a transport abstraction.
 
 Goal: clear ownership boundaries with flexible internal structure, without nanomodule fragmentation.
-
-## 11. Temporary Addendum: Contract-First Module Boundaries
-
-This section is a temporary addendum capturing the current intended direction for stricter module boundaries. It is intentionally more analytical and verbose than the rest of this document so the policy is documented before it is shortened and merged into the main architecture rules.
-
-### 11.1 Direction
-
-The desired direction is stronger than "Coordinator should be smaller".
-
-The desired direction is:
-
-1. Each top-level module should expose one explicit public boundary.
-2. Cross-module dependencies should be expressed only in terms of interfaces exported by that boundary.
-3. Coordinator remains the composition root, but Coordinator should compose module contracts rather than internal construction details.
-4. Internal module structure may remain layered or subdivided, but those layers should remain behind the module boundary.
-
-Stated another way: the real architectural goal is not merely to shorten `src/coordinator.ts`; the goal is to move contract responsibility back into the owning module so Coordinator does not need to know how that module is internally assembled.
-
-### 11.2 What "One Entry Point" Means
-
-"One entry point" does not necessarily mean one giant interface.
-
-It means one public module boundary.
-
-That boundary may:
-
-1. Expose one primary interface such as `IConductor`.
-2. Expose a small family of closely related interfaces owned by the same module.
-3. Expose narrow subinterfaces when that helps separate concerns without leaking implementation.
-
-The important constraint is that other modules should depend on the public contract surface of the provider module, not on its internal helper structure, concrete implementation details, or private assembly steps.
-
-If a module must surface subordinate capabilities, that should still happen through the module's owned contract surface. The purpose is to avoid turning Coordinator into the place where every internal relationship across the system is understood and maintained.
-
-### 11.3 Coordinator's Role Under This Policy
-
-Coordinator still owns construction order, concrete instantiation, and dependency graph assembly.
-
-Coordinator should not own the detailed contract semantics of each subsystem.
-
-Under this direction, Coordinator is responsible for:
-
-1. Constructing concrete implementations.
-2. Passing only allowed interfaces across module boundaries.
-3. Binding subscriptions, callbacks, and startup sequencing.
-4. Disposing the runtime graph.
-
-Coordinator should not need to know:
-
-1. Which internal helpers a module uses to satisfy its public contract.
-2. Which private substructures exist inside a module.
-3. How one subsystem's internal layers collaborate, so long as the module boundary contract is satisfied.
-
-This keeps Coordinator as the composition root without letting it become the de facto owner of every subsystem contract.
-
-### 11.4 Why This Is Better Than a Pure "Function Length" Rule
-
-A rule like "Coordinator must be shorter" is useful as a smell, but weak as architecture guidance.
-
-Length alone does not identify the true failure mode.
-
-The stronger rule is:
-
-1. Coordinator may compose only public module contracts.
-2. Contract responsibility belongs to the owning module.
-3. Internal implementation structure stays inside the owning module.
-
-This is stronger because it gives a clear failure signal. If Coordinator needs to import or understand a concrete internal implementation detail from another module in order to continue wiring the system, then the boundary is leaking.
-
-That is a better architectural diagnostic than line count alone.
-
-### 11.5 Practical Interpretation For This Repository
-
-Applied to this repository, the intended direction is:
-
-1. `conductor`, `views`, `commands`, `notifications`, `filesystem`, `languages`, and `state` should be treated as public module boundaries.
-2. Each such module may have rich internal structure, but that structure should remain private to the module.
-3. Coordinator should assemble those modules through their exported contracts rather than manually reproducing their internal assembly logic.
-
-This does not forbid internal helper extraction in Coordinator when that improves readability.
-
-It does mean that helper extraction alone is not enough if Coordinator still owns too much knowledge about how another module is built.
-
-### 11.6 Cautions
-
-This direction should be applied pragmatically.
-
-It should not be interpreted as a requirement to create ceremonial `IWhatever` interfaces for every small utility or stateless helper. Pure utility code can remain simple.
-
-The stricter contract-first rule is most valuable for:
-
-1. Stateful modules.
-2. Runtime integration modules.
-3. Modules that are consumed across ownership boundaries.
-4. Modules whose internals are likely to evolve independently.
-
-The intent is stronger boundaries, not interface inflation.
-
-### 11.7 Working Standard
-
-Until this addendum is merged into the main body of the document, the working standard should be interpreted as follows:
-
-1. Coordinator is the only composition root.
-2. Non-coordinator modules should communicate across module boundaries only through provider-owned contracts.
-3. If Coordinator must understand another module's private construction details to wire the runtime, that is an architecture smell and usually a boundary violation.
-4. Refactors that reduce Coordinator size are good only when they also reduce Coordinator's knowledge of other modules' internals.
-
-This is the current intended direction for future architecture cleanup and review.

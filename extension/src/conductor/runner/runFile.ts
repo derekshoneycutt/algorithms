@@ -5,11 +5,13 @@ import type {
   IAlgorithmsTerminalRunAdapter,
   ICommandLine,
 } from "../../commandline";
-import type { RunControlsSettings, SmokeControlsSettings } from "../../state";
 import type { IRootPathResolver } from "../../algorithms";
 import { parseSmokeStatusLine } from "./outputParsing";
-import type { RunFileStatusLifecycle } from "./runRegistry";
-import type { ActiveSmokeExecution, SmokeStatusRetentionLifecycle } from "./smokeRegistry";
+import type {
+  ActiveSmokeExecution,
+  RunFileOrchestrationDependencies,
+  RunFileStatusLifecycle,
+} from "./types";
 import {
   actionRequiresConcreteTargetFile,
   actionSupportsPassthroughArguments,
@@ -21,18 +23,6 @@ import {
   getCommandIdForAction,
   resolveRunActionKind,
 } from "./runActionHelpers";
-
-/**
- * Dependencies injected into run-file orchestration from the conductor factory.
- */
-export interface RunFileOrchestrationDependencies {
-  runAdapter: IAlgorithmsTerminalRunAdapter | undefined;
-  commandLine: ICommandLine | undefined;
-  runLifecycle: RunFileStatusLifecycle;
-  smokeStatusRetentionLifecycle: SmokeStatusRetentionLifecycle;
-  activeSmokeExecutionByAlgorithm: Map<string, ActiveSmokeExecution>;
-  rootPathResolver: IRootPathResolver | undefined;
-}
 
 /**
  * Resolved preflight context required to execute one run target.
@@ -231,6 +221,48 @@ function resolveRepositoryRootFromAlgorithmsRootPath(
 
     cursor = parentPath;
   }
+}
+
+/**
+ * Resolves one algorithms root path from available run context when no resolver is injected.
+ *
+ * @param {ConductorRunFileInput} input Run-file orchestration input.
+ * @param {RunnableTreeNode} treeNode Runnable tree node.
+ * @returns {string | null} Best-effort algorithms root path.
+ */
+function resolveAlgorithmsRootPathWithoutResolver(
+  input: ConductorRunFileInput,
+  treeNode: RunnableTreeNode
+): string | null {
+  const treePath = treeNode.filePath;
+  const normalizedTreePath = treePath.replace(/\\/g, "/");
+  const srcSegmentIndex = normalizedTreePath.indexOf("/src/");
+
+  if (srcSegmentIndex >= 0) {
+    return path.normalize(`${normalizedTreePath.slice(0, srcSegmentIndex)}/src`);
+  }
+
+  if (input.owningWorkspaceFolderPath !== undefined && input.owningWorkspaceFolderPath.length > 0) {
+    return path.join(input.owningWorkspaceFolderPath, "src");
+  }
+
+  if (input.workspaceFolderPaths.length > 0) {
+    const matchingWorkspacePath = input.workspaceFolderPaths.find((workspacePath) => {
+      const normalizedWorkspacePath = workspacePath.replace(/\\/g, "/");
+      return (
+        normalizedTreePath === normalizedWorkspacePath
+        || normalizedTreePath.startsWith(`${normalizedWorkspacePath}/`)
+      );
+    });
+
+    if (matchingWorkspacePath !== undefined) {
+      return path.join(matchingWorkspacePath, "src");
+    }
+
+    return path.join(input.workspaceFolderPaths[0], "src");
+  }
+
+  return null;
 }
 
 /**
@@ -599,15 +631,13 @@ async function resolveRunFilesystemContext(
   treeNode: RunnableTreeNode,
   rootPathResolver: IRootPathResolver | undefined
 ): Promise<RunFilesystemContext | null> {
-  if (rootPathResolver === undefined) {
-    await input.notificationRouter.error("Root path resolver is not configured.");
-    return null;
-  }
-  const algorithmsRootPath = await rootPathResolver.resolveAlgorithmsRoot({
-    filesystem: input.filesystem,
-    owningWorkspaceFolderPath: input.owningWorkspaceFolderPath,
-    workspaceFolderPaths: input.workspaceFolderPaths,
-  });
+  const algorithmsRootPath = rootPathResolver === undefined
+    ? resolveAlgorithmsRootPathWithoutResolver(input, treeNode)
+    : await rootPathResolver.resolveAlgorithmsRoot({
+        filesystem: input.filesystem,
+        owningWorkspaceFolderPath: input.owningWorkspaceFolderPath,
+        workspaceFolderPaths: input.workspaceFolderPaths,
+      });
 
   if (algorithmsRootPath === null) {
     await input.notificationRouter.warn("Algorithms root is unavailable.");
@@ -823,7 +853,7 @@ export async function orchestrateRunFile(
   input: ConductorRunFileInput,
   deps: RunFileOrchestrationDependencies
 ): Promise<void> {
-  const { runAdapter, commandLine, runLifecycle, smokeStatusRetentionLifecycle, activeSmokeExecutionByAlgorithm, rootPathResolver } = deps;
+  const { runAdapter, commandLine, runLifecycle, rootPathResolver } = deps;
   const actionKind = resolveRunActionKind(input);
   const actionLabel = getActionLabel(actionKind);
   const shouldUseCommandLineSmokeExecution = actionKind === "smoke-test" && commandLine !== undefined;
@@ -842,12 +872,9 @@ export async function orchestrateRunFile(
 
   const {
     algorithmDirectoryPath,
-    canonicalAlgorithmsRoot,
-    canonicalTargetFilePath,
     languageKey,
     runScriptPath,
     runTarget,
-    treeNode,
   } = executionContext;
   const executionPlan = await buildRunExecutionPlan(input, deps, actionKind, executionContext);
   if (executionPlan === null) {

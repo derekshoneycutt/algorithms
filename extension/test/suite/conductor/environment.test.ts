@@ -4,10 +4,10 @@ import {
   buildCheckEnvCommand,
   buildCopyIconsCommand,
   parseCheckEnvOutput,
-} from "../../../src/conductor/internal/environment";
+} from "../../../src/conductor/environment";
 import { parseDockerRouteMap } from "../../../src/commandline";
 
-describe("conductor/internal — environment operations", () => {
+describe("conductor/environment — environment operations", () => {
   describe("parseCheckEnvOutput", () => {
     it("extracts error lines from output", () => {
       const output = [

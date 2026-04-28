@@ -2,7 +2,7 @@ import type {
   AlgorithmsProfileWritableValues,
   ShellProfileLoadResult,
   ShellProfileWriteResult,
-} from "../../../commandline";
+} from "../../commandline";
 
 /**
  * Explicit operation state for check-environment diagnostics.

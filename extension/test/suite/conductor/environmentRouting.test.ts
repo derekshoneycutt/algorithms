@@ -1,6 +1,6 @@
 import * as assert from "assert";
 
-describe("conductor/internal — environment routing integration", () => {
+describe("conductor/environment — environment routing integration", () => {
   describe("Per-language routing save validation", () => {
     it("blocks save when docker enabled with empty value", () => {
       const dockerEnabled = true;

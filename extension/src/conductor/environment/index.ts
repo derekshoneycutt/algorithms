@@ -26,7 +26,7 @@ export type {
 export {
   createEnvironmentControlsChannelMessageHandler,
 } from "./environmentChannelHandler";
-export type { ApplyConductorReactionDependencies } from "../channelHandlerTypes";
+export type { ApplyConductorReactionDependencies } from "../channels/types";
 
 /**
  * Creates an initial environment operation state.

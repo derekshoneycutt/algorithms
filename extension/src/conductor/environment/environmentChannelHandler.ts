@@ -1,14 +1,14 @@
 import * as vscode from "vscode";
 
-import type { ViewToHostMessage } from "../../../comms/shared/messageTypes";
+import type { ViewToHostMessage } from "../../comms/shared/messageTypes";
 import {
   parseDockerRouteMap,
   type AlgorithmsProfileWritableValues,
-} from "../../../commandline";
-import type { ILanguages } from "../../../languages";
-import type { IStateMachine, ViewStatusClassName } from "../../../state";
-import type { IConductor } from "../../IConductor";
-import type { ApplyConductorReactionDependencies } from "../channelHandlerTypes";
+} from "../../commandline";
+import type { ILanguages } from "../../languages";
+import type { IStateMachine, ViewStatusClassName } from "../../state";
+import type { IConductor } from "../IConductor";
+import type { ApplyConductorReactionDependencies } from "../channels/types";
 
 /**
  * Dependencies used to create one environment-controls channel handler.

@@ -4,15 +4,20 @@ This directory maintains a dedicated VS Code extension for the algorithms projec
 basically making a small IDE out of VS Code, wrapping around the run.sh and init.sh
 scripts for the project.
 
-Please review [Architecture Summary](ArchitectureSummary.md) and [Coding Standards](CodingStandards.md)
-for appropriate architecture and coding standards for this extension.
+Please review documentation in docs/ for appropriate architecture and coding standards
+for this extension.
+
+- [Coding Standards](docs/CodingStandards.md)
+- [Architecture Summary](docs/ArchitectureSummary.md)
+- [Dependency Contracts](docs/DependencyContracts.md)
+- docs/specs sheets for specific behaviors
 
 Basically the only reason this extension exists is because this entire project began
 in between jobs. While staring at every other job listing and interview asking me about
 my demonstrable history using AI tools for coding, I came to the conclusion to at least
-try it out. The first version of this extension was really my first attempt at using AI
-coding tools. It was in Javascript and started with just simple prompting, asking the
-AI to read my existing scripting and build a VS Code Extension based on it.
+try it out fully. The first version of this extension was really my first attempt at
+using AI coding tools. It was in Javascript and started with just simple prompting,
+asking the AI to read my existing scripting and build a VS Code Extension based on it.
 
 The existing code reference, I have learned, did help keep it specifically on track to
 the point of having entirely usable code. However, as I kept looking at the code, I kept

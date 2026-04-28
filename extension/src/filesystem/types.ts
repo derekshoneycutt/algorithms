@@ -23,8 +23,7 @@ export interface ReadTextOptions {
 /**
  * Options for checking one path type.
  */
-export interface PathLookupOptions extends FilesystemCacheOptions {
-}
+export type PathLookupOptions = FilesystemCacheOptions;
 
 /**
  * Options for directory listing.

@@ -35,8 +35,8 @@ export type {
   EnvironmentReadResult,
   EnvironmentWriteRequest,
   EnvironmentWriteResult,
-} from "./internal/environment";
-export type { ApplyConductorReactionDependencies } from "./internal/environment";
+} from "./environment";
+export type { ApplyConductorReactionDependencies } from "./channels/types";
 export type {
   CreateRunControlsChannelMessageHandlerInput,
   CreateSmokeControlsChannelMessageHandlerInput,
@@ -45,7 +45,7 @@ export type {
 } from "./service";
 export type {
   CreateEnvironmentControlsChannelMessageHandlerInput,
-} from "./internal/environment";
+} from "./environment";
 export {
   applyConductorReaction,
   createRunControlsChannelMessageHandler,
@@ -56,4 +56,4 @@ export {
 } from "./service";
 export {
   createEnvironmentControlsChannelMessageHandler,
-} from "./internal/environment";
+} from "./environment";

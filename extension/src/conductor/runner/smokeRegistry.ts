@@ -1,60 +1,14 @@
 import type {
   ConductorClearSmokeResultsInput,
-  ConductorRunTargetRef,
   ConductorStopSmokeTestInput,
 } from "../IConductor";
-import type {
-  CommandLineResult,
-  ICommandLineProcessHandle,
-} from "../../commandline";
 import type { IStateMachine } from "../../state";
-
-/**
- * One active smoke execution tracked for stop support.
- */
-export interface ActiveSmokeExecution {
-  algorithmPath: string;
-  handle: ICommandLineProcessHandle;
-  result: Promise<CommandLineResult>;
-  runId: string;
-  stopRequested: boolean;
-  target: ConductorRunTargetRef;
-}
-
-/**
- * Deferred smoke status retention operations.
- */
-export interface SmokeStatusRetentionLifecycle {
-  clearNow(
-    algorithmPath: string,
-    hostState: IStateMachine,
-    refreshAlgorithmsTree: () => void
-  ): boolean;
-  markStarted(algorithmPath: string, runId: string): void;
-  markFinished(
-    algorithmPath: string,
-    runId: string,
-    hostState: IStateMachine,
-    refreshAlgorithmsTree: () => void
-  ): void;
-}
-
-/**
- * Smoke registry API for conductor composition.
- */
-export interface ISmokeRegistry {
-  clearSmokeResults(input: ConductorClearSmokeResultsInput): boolean;
-  getActiveSmokeExecutionByAlgorithm(): Map<string, ActiveSmokeExecution>;
-  getSmokeStatusRetentionLifecycle(): SmokeStatusRetentionLifecycle;
-  stopSmokeTest(input: ConductorStopSmokeTestInput): Promise<boolean>;
-}
-
-/**
- * Input required to create one smoke registry.
- */
-export interface CreateSmokeRegistryInput {
-  smokeStatusRetentionMs: number;
-}
+import type {
+  ActiveSmokeExecution,
+  CreateSmokeRegistryInput,
+  ISmokeRegistry,
+  SmokeStatusRetentionLifecycle,
+} from "./types";
 
 /**
  * Creates one smoke registry instance.

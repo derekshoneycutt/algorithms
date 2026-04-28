@@ -1,11 +1,11 @@
 import * as assert from "assert";
 
-import { createSmokeRegistry } from "../../../src/conductor/internal/smokeRegistry";
-import type { ActiveSmokeExecution } from "../../../src/conductor/internal/smokeRegistry";
+import { createSmokeRegistry } from "../../../src/conductor/runner";
+import type { ActiveSmokeExecution } from "../../../src/conductor/runner";
 import type { CommandLineResult } from "../../../src/commandline";
 import { createHostStateService } from "../../../src/state";
 
-describe("conductor/internal — createSmokeRegistry smoke retention lifecycle", () => {
+describe("conductor/runner — createSmokeRegistry smoke retention lifecycle", () => {
   it("clearNow returns false when no run is tracked", () => {
     const registry = createSmokeRegistry({ smokeStatusRetentionMs: 0 });
     const lifecycle = registry.getSmokeStatusRetentionLifecycle();

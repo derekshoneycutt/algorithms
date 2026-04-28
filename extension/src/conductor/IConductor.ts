@@ -11,7 +11,7 @@ import type {
   EnvironmentReadResult,
   EnvironmentWriteRequest,
   EnvironmentWriteResult,
-} from "./internal/environment";
+} from "./environment";
 
 
 /**
@@ -536,4 +536,4 @@ export type {
   EnvironmentReadResult,
   EnvironmentWriteRequest,
   EnvironmentWriteResult,
-} from "./internal/environment";
+} from "./environment";

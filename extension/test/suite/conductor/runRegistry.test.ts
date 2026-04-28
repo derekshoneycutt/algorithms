@@ -2,10 +2,10 @@ import * as assert from "assert";
 
 import {
   createRunRegistry,
-} from "../../../src/conductor/internal/runRegistry";
+} from "../../../src/conductor/runner";
 import type { ConductorRunTargetRef } from "../../../src/conductor/IConductor";
 
-describe("conductor/internal — createRunRegistry", () => {
+describe("conductor/runner — createRunRegistry", () => {
   const fileTarget: ConductorRunTargetRef = {
     nodeKind: "file",
     filePath: "/repo/src/algo/solution.py",

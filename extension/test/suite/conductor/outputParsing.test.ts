@@ -1,8 +1,8 @@
 import * as assert from "assert";
 
-import { parseSmokeStatusLine } from "../../../src/conductor/internal/outputParsing";
+import { parseSmokeStatusLine } from "../../../src/conductor/runner";
 
-describe("conductor/internal — parseSmokeStatusLine", () => {
+describe("conductor/runner — parseSmokeStatusLine", () => {
   it("parses a RUNNING status line", () => {
     const line = "SMOKE [1/5] something lang=python [RUNNING]";
     const result = parseSmokeStatusLine(line);

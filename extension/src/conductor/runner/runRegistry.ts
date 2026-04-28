@@ -9,62 +9,11 @@ import type {
   ConductorStartRunInput,
   ConductorSubscription,
 } from "../IConductor";
-
-/**
- * Lifecycle operations used by run-file orchestration.
- */
-export interface RunFileStatusLifecycle {
-  markCancelled(
-    target: ConductorRunTargetRef,
-    message?: string | null,
-    expectedRunId?: string
-  ): void;
-  markCompleted(
-    target: ConductorRunTargetRef,
-    message?: string | null,
-    expectedRunId?: string
-  ): void;
-  markFailed(
-    target: ConductorRunTargetRef,
-    errorMessage: string,
-    expectedRunId?: string
-  ): void;
-  markRunning(
-    target: ConductorRunTargetRef,
-    message?: string | null,
-    expectedRunId?: string
-  ): void;
-  start(
-    target: ConductorRunTargetRef,
-    ownerKey: string,
-    message?: string | null
-  ): ConductorRunSnapshot;
-}
-
-/**
- * Run registry API for conductor composition.
- */
-export interface IRunRegistry {
-  buildRunLifecycle(): RunFileStatusLifecycle;
-  clearRunResults(target: ConductorRunTargetRef): boolean;
-  getRun(runId: string): ConductorRunSnapshot | null;
-  getRunForTarget(target: ConductorRunTargetRef): ConductorRunSnapshot | null;
-  markCompleted(input: ConductorMarkCompletedInput): ConductorRunSnapshot | null;
-  markFailed(input: ConductorMarkFailedInput): ConductorRunSnapshot | null;
-  markProgress(input: ConductorMarkProgressInput): ConductorRunSnapshot | null;
-  cancelRun(input: ConductorCancelRunInput): ConductorRunSnapshot | null;
-  startRun(input: ConductorStartRunInput): ConductorRunSnapshot;
-  subscribeRunTargetStatus(
-    listener: (change: ConductorRunTargetStatusChange) => void
-  ): ConductorSubscription;
-}
-
-/**
- * Input required to create one run registry.
- */
-export interface CreateRunRegistryInput {
-  runStatusRetentionMs: number;
-}
+import type {
+  CreateRunRegistryInput,
+  IRunRegistry,
+  RunFileStatusLifecycle,
+} from "./types";
 
 /**
  * Manages run snapshot storage, timers, and listener notifications.

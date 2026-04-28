@@ -1,9 +1,9 @@
-import type { ICommandLine } from "../../../commandline";
+import type { ICommandLine } from "../../commandline";
 import {
   loadShellProfile,
   writeShellProfile,
-} from "../../../commandline";
-import type { IFilesystem } from "../../../filesystem";
+} from "../../commandline";
+import type { IFilesystem } from "../../filesystem";
 import {
   buildCheckEnvCommand,
   buildCopyIconsCommand,
