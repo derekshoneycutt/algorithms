@@ -1,6 +1,11 @@
+=for comment
+    This program takes a list of values and outputs the maximum value of those
+=cut comment
+
 use strict;
 use warnings;
 
+# Find the max from the given list
 sub max {
     my @list = @_;
     my $current = 0;

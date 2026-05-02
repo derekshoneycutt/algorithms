@@ -1,4 +1,15 @@
+# This program gets the maximum value of a sequence of values
 
+# Finds the maximum value in a list of numbers.
+# 
+# Parameters
+# ----------
+# list
+#     The list to find the maximum value from
+#
+# Returns
+# ---------
+#     The maximum value of the list
 proc max {values} {
     set current 0
     foreach value $values {
@@ -10,7 +21,6 @@ proc max {values} {
     }
     return $current
 }
-
 
 set values $argv
 if {$argc < 1} {

@@ -1,4 +1,15 @@
 <?php
+/*
+ *  This program takes a list of values and outputs the maximum value of those
+ */
+
+/**
+ * Finds the maximum value in a list of numbers.
+ * 
+ * @param list The list of numbers to find the maximum value from.
+ * @return int The maximum value in the list.
+
+ */
 function max_list($list) {
     $current = 0;
     foreach ($list as $value) {

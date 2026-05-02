@@ -1,5 +1,9 @@
+(*
+    Gets the maximum value of some sequence of values
+*)
+
 MODULE max;
-IMPORT Args, Out;
+IMPORT Args, Out, StringUtils;
 
 TYPE IntArrayPtr = POINTER TO ARRAY OF INTEGER;
 
@@ -8,8 +12,10 @@ VAR
     i, max, n: INTEGER;
     arg : ARRAY 22 OF CHAR;
 
+(* Gets the maximum value of some sequence of integers *)
 PROCEDURE Max(count: INTEGER; VAR values: IntArrayPtr) : INTEGER;
-    VAR current, i : INTEGER;
+    VAR
+        current, i : INTEGER;
     BEGIN
         current := 0;
         FOR i := 0 TO count - 1 DO
@@ -20,26 +26,13 @@ PROCEDURE Max(count: INTEGER; VAR values: IntArrayPtr) : INTEGER;
         RETURN current;
     END Max;
 
-PROCEDURE StringToInt(s: ARRAY OF CHAR; VAR value: INTEGER): BOOLEAN;
-    VAR index, res: INTEGER;
-BEGIN
-    res := 0;
-    index := 0;
-    WHILE (s[index] >= "0") & (s[index] <= "9") DO
-        res := res * 10 + (ORD(s[index]) - ORD("0"));
-        INC(index)
-    END;
-    value := res;
-    RETURN (index > 0);
-END StringToInt;
-
 BEGIN
     n := 0;
     IF Args.argc > 1 THEN
         NEW(values, Args.argc - 1);
         FOR i := 1 TO Args.argc - 1 DO
             Args.Get(i, arg);
-            IF StringToInt(arg, max) THEN
+            IF StringUtils.StringToInt(arg, max) THEN
                 values[i - 1] := max;
                 n := n + 1
             END

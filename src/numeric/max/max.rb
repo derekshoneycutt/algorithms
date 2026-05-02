@@ -1,4 +1,8 @@
+=begin
+    This program finds the max value of a sequence of values
+=end
 
+# Find the max value inside a list
 def max_list(list)
     current = 0
     list.each do |value|

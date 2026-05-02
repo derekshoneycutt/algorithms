@@ -101,7 +101,7 @@ free to do my own thing here as well.
 **NOTE**: The current code is in progress with some algorithms further ahead
 than the formal current position. Mostly, this is because of unsure exactly
 what I was doing at first and have been solidifying it with further enhancements.
-Hello world is complete, and Euclid GCD is currently under progress. As I catch
+Euclid GCD is complete while Max is currently under progress. As I catch
 up, this should be reduced to a single algorithm ahead at times, perhaps with
 some MMIX (and assembly stdlib) exploring otherwise.
 

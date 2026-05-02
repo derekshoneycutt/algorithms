@@ -1,4 +1,9 @@
+comment
+    This program finds the maximum of a sequence of values
+;
 begin
+
+    ! Get the max of the sequence;
     integer procedure max(x, n);
         integer array x;
         integer n;
@@ -13,6 +18,7 @@ begin
         max := current;
     end;
 
+    ! No command line arguments in simula, so we just seed some data;
     integer array numbers(1:10);
     integer i;
     numbers(1) := 23;

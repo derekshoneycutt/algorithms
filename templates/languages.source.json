@@ -1303,7 +1303,7 @@
     },
     {
       "key": "oberon",
-      "extension": "mod",
+      "extension": "Mod",
       "displayLabel": "Oberon",
       "icon": {
         "fileName": "oberon.svg"
@@ -1330,7 +1330,7 @@
           "oberon"
         ],
         "fileExtensions": [
-          ".mod"
+          ".Mod"
         ]
       }
     },

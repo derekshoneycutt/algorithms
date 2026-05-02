@@ -1,5 +1,10 @@
+%{
+    This program takes an array of values and outputs the maximum value of those
+%}
 
 values = [];
+
+% Finds the max of the values passed
 function output = max_of(values)
     current = 0;
     for value = values
@@ -10,6 +15,7 @@ function output = max_of(values)
     output = current;
 end
 
+% get all command line arguments as numbers
 args = argv();
 if length(args) > 0
     for index = 1:length(args)

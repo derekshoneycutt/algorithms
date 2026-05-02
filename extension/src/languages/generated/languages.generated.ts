@@ -1307,7 +1307,7 @@ export const GENERATED_LANGUAGE_DATA: GeneratedLanguageData = {
     },
     {
       "key": "oberon",
-      "extension": "mod",
+      "extension": "Mod",
       "displayLabel": "Oberon",
       "icon": {
         "fileName": "oberon.svg"
@@ -1334,7 +1334,7 @@ export const GENERATED_LANGUAGE_DATA: GeneratedLanguageData = {
           "oberon"
         ],
         "fileExtensions": [
-          ".mod"
+          ".Mod"
         ]
       }
     },

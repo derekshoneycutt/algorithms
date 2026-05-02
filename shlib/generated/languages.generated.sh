@@ -41,7 +41,7 @@ modula3|m3|./output/AMD64_LINUX/prog
 mojo|mojo|./output/$fileName
 nasm|nasm|./output/$fileNameWithoutExt
 nim|nim|./output/$fileNameWithoutExt
-oberon|mod|./output/$fileNameWithoutExt
+oberon|Mod|./output/$fileNameWithoutExt
 objectivec|m|./output/$fileNameWithoutExt
 ocaml|ml|./output/$fileNameWithoutExt
 octave|mat|./output/${fileNameWithoutExt}shaved.m
