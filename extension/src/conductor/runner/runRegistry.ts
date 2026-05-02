@@ -172,6 +172,41 @@ function buildRunTargetKey(target: ConductorRunTargetRef): string {
 }
 
 /**
+ * Resolves equivalent run-target refs that may map to the same visible row.
+ *
+ * @param {ConductorRunTargetRef} target Requested target.
+ * @returns {ConductorRunTargetRef[]} Equivalent targets in lookup order.
+ */
+function getEquivalentRunTargets(target: ConductorRunTargetRef): ConductorRunTargetRef[] {
+  if (target.nodeKind === "algorithmDir") {
+    return [target];
+  }
+
+  const orderedKinds: ConductorRunTargetRef["nodeKind"][] = [
+    target.nodeKind,
+    "mainFile",
+    "languageSummary",
+    "file",
+  ];
+
+  const seenKinds = new Set<ConductorRunTargetRef["nodeKind"]>();
+  const resolvedTargets: ConductorRunTargetRef[] = [];
+  for (const nodeKind of orderedKinds) {
+    if (seenKinds.has(nodeKind)) {
+      continue;
+    }
+
+    seenKinds.add(nodeKind);
+    resolvedTargets.push({
+      nodeKind,
+      filePath: target.filePath,
+    });
+  }
+
+  return resolvedTargets;
+}
+
+/**
  * Validates whether a value is a valid node kind.
  *
  * @param {string} value Value to validate.
@@ -327,19 +362,25 @@ export function createRunRegistry(input: CreateRunRegistryInput): IRunRegistry {
     },
 
     clearRunResults(target: ConductorRunTargetRef): boolean {
-      const targetKey = buildRunTargetKey(target);
-      const snapshot = store.getByTarget(targetKey);
-      if (snapshot === undefined) {
-        return false;
+      let clearedAny = false;
+      const equivalentTargets = getEquivalentRunTargets(target);
+      for (const equivalentTarget of equivalentTargets) {
+        const targetKey = buildRunTargetKey(equivalentTarget);
+        const snapshot = store.getByTarget(targetKey);
+        if (snapshot === undefined) {
+          continue;
+        }
+
+        if (snapshot.status === "starting" || snapshot.status === "running") {
+          continue;
+        }
+
+        store.deleteTarget(targetKey, snapshot.runId);
+        store.publish(equivalentTarget, snapshot);
+        clearedAny = true;
       }
 
-      if (snapshot.status === "starting" || snapshot.status === "running") {
-        return false;
-      }
-
-      store.deleteTarget(targetKey, snapshot.runId);
-      store.publish(target, snapshot);
-      return true;
+      return clearedAny;
     },
 
     getRunForTarget(target: ConductorRunTargetRef): ConductorRunSnapshot | null {

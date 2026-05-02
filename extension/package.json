@@ -331,13 +331,6 @@
       }
     ],
     "menus": {
-      "editor/title": [
-        {
-          "command": "algos.algorithmsEditorTitleRunFile",
-          "when": "resourceScheme == file && resourcePath =~ /[\\\\/]src[\\\\/][^\\\\/]+[\\\\/][^\\\\/]+[\\\\/][^\\\\/]+$/",
-          "group": "1_run@1"
-        }
-      ],
       "editor/title/run": [
         {
           "command": "algos.algorithmsEditorTitleRunFile",

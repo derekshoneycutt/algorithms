@@ -10,6 +10,10 @@ describe("conductor/runner — createRunRegistry", () => {
     nodeKind: "file",
     filePath: "/repo/src/algo/solution.py",
   };
+  const languageSummaryTarget: ConductorRunTargetRef = {
+    nodeKind: "languageSummary",
+    filePath: "/repo/src/algo/solution.py",
+  };
 
   it("buildRunLifecycle — start + markCompleted round-trip", () => {
     const registry = createRunRegistry({ runStatusRetentionMs: 0 });
@@ -102,6 +106,19 @@ describe("conductor/runner — createRunRegistry", () => {
     const cleared = registry.clearRunResults(fileTarget);
     assert.strictEqual(cleared, false);
     assert.ok(registry.getRunForTarget(fileTarget) !== null);
+  });
+
+  it("clearRunResults — clears equivalent target kind snapshots", () => {
+    const registry = createRunRegistry({ runStatusRetentionMs: 0 });
+    const lifecycle = registry.buildRunLifecycle();
+
+    lifecycle.start(fileTarget, "owner", null);
+    lifecycle.markCompleted(fileTarget, "done", undefined);
+
+    const cleared = registry.clearRunResults(languageSummaryTarget);
+    assert.strictEqual(cleared, true);
+    assert.strictEqual(registry.getRunForTarget(fileTarget), null);
+    assert.strictEqual(registry.getRunForTarget(languageSummaryTarget), null);
   });
 
   it("subscribeRunTargetStatus — fires on every lifecycle transition", () => {
