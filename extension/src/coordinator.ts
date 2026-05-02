@@ -39,6 +39,7 @@ interface CoordinatorComponents {
   conductor: IConductor;
   stateMachine: vscode.Disposable;
   viewLayer: CoordinatorViewLayer;
+  activeEditorRevealSubscription: vscode.Disposable;
 }
 
 /**
@@ -59,6 +60,7 @@ function buildCoordinatorDisposables(
   return vscode.Disposable.from(
     components.stateMachine,
     components.viewLayer.communicationHub,
+    components.activeEditorRevealSubscription,
     components.channels.smokeControlsChannel,
     components.channels.runControlsChannel,
     components.channels.environmentControlsChannel,
@@ -146,7 +148,24 @@ export function createCoordinator(
     workspaceStandardLibraryTreeProvider: viewLayer.workspaceStandardLibraryTreeProvider,
   });
 
+  const activeEditorRevealSubscription = vscode.window.onDidChangeActiveTextEditor(
+    async (editor) => {
+      if (!editor) { return; }
+      const filePath = editor.document.uri.fsPath;
+      const result =
+        await viewLayer.workspaceAlgorithmsTreeProvider.findNodeForFilePath(filePath) ??
+        await viewLayer.workspaceStandardLibraryTreeProvider.findNodeForFilePath(filePath);
+      if (!result) { return; }
+      await viewLayer.viewHost.revealInTree(
+        result.viewId,
+        result.node,
+        { select: true, focus: false }
+      );
+    }
+  );
+
   return buildCoordinatorDisposables({
+    activeEditorRevealSubscription,
     channels: {
       environmentControlsChannel,
       runControlsChannel,

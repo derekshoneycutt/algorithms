@@ -23,9 +23,11 @@ import {
   createWorkspaceAlgorithmsTreeDataProvider,
   createWorkspaceStandardLibraryTreeDataProvider,
   createWorkspaceWatcherAdapter,
+  type ITreeViewHandle,
   type IViewHost,
   type IWorkspaceWatcherAdapter,
   type RefreshableWorkspaceTreeDataProvider,
+  type WorkspaceTreeNode,
 } from "./index";
 import type { ICommunicationHub } from "../comms";
 
@@ -61,9 +63,9 @@ export interface CoordinatorViewLayer {
   viewHost: IViewHost;
   viewsRegistration: vscode.Disposable;
   workspaceAlgorithmsTreeProvider: RefreshableWorkspaceTreeDataProvider;
-  workspaceAlgorithmsTreeRegistration: vscode.Disposable;
+  workspaceAlgorithmsTreeRegistration: ITreeViewHandle<WorkspaceTreeNode>;
   workspaceStandardLibraryTreeProvider: RefreshableWorkspaceTreeDataProvider;
-  workspaceStandardLibraryTreeRegistration: vscode.Disposable;
+  workspaceStandardLibraryTreeRegistration: ITreeViewHandle<WorkspaceTreeNode>;
   workspaceWatcherAdapter: IWorkspaceWatcherAdapter;
   workspaceWatcherRegistration: vscode.Disposable;
 }
@@ -95,6 +97,7 @@ export function createCoordinatorViewLayer(
       algorithmsIndex,
       conductor: input.conductor,
       hostState: input.stateMachine,
+      viewId: input.viewIds.workspaceAlgorithmsTreeViewId,
       languages: input.languages,
     });
   const runStatusTreeRefreshSubscription = input.conductor.subscribeRunTargetStatus(() => {
@@ -110,6 +113,7 @@ export function createCoordinatorViewLayer(
   });
   const workspaceStandardLibraryTreeProvider: RefreshableWorkspaceTreeDataProvider =
     createWorkspaceStandardLibraryTreeDataProvider({
+      viewId: input.viewIds.workspaceStandardLibraryTreeViewId,
       algorithmsIndex,
     });
   const workspaceWatcherAdapter: IWorkspaceWatcherAdapter = createWorkspaceWatcherAdapter({

@@ -226,6 +226,7 @@ export async function getChildrenAlgorithmDir(
     kind: "file" as const,
     filePath,
     languageKey: languages.normalizeFileExtension(filePath),
+    parentAlgorithmPath: algorithmPath,
     isFlagged: (() => {
       const languageKey = languages.normalizeFileExtension(filePath);
       if (languageKey === undefined) {

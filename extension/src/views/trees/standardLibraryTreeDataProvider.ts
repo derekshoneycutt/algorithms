@@ -1,3 +1,5 @@
+import * as path from "node:path";
+
 import * as vscode from "vscode";
 
 import type {
@@ -16,14 +18,79 @@ import { createTreeItem } from "./treeProviders";
 export function createWorkspaceStandardLibraryTreeDataProvider(
   dependencies: StandardLibraryTreeDataProviderDependencies
 ): RefreshableWorkspaceTreeDataProvider {
-  const { algorithmsIndex } = dependencies;
+  const { algorithmsIndex, viewId } = dependencies;
   const onDidChangeTreeDataEmitter = new vscode.EventEmitter<
     WorkspaceTreeNode | undefined | null | void
   >();
 
+  let cachedStdlibRoot: string | undefined;
+
+  /**
+   * Resolves and memoizes the stdlib root directory path.
+   *
+   * @returns {Promise<string | undefined>} Stdlib root path when discoverable.
+   */
+  async function getStdlibRoot(): Promise<string | undefined> {
+    if (cachedStdlibRoot !== undefined) {
+      return cachedStdlibRoot;
+    }
+    const rootEntries = await algorithmsIndex.getStandardLibraryEntries();
+    if (rootEntries.length > 0) {
+      cachedStdlibRoot = path.dirname(rootEntries[0].path);
+    }
+    return cachedStdlibRoot;
+  }
+
+  /**
+   * Recursively searches the stdlib tree for one target file path.
+   *
+   * @param {string} targetPath Absolute path to find.
+   * @param {string | undefined} dirPath Current stdlib directory path.
+   * @returns {Promise<WorkspaceTreeNode | null>} Matching node when found.
+   */
+  async function findInStdlib(
+    targetPath: string,
+    dirPath: string | undefined
+  ): Promise<WorkspaceTreeNode | null> {
+    const entries = await algorithmsIndex.getStandardLibraryEntries(dirPath);
+    for (const entry of entries) {
+      if (entry.path === targetPath) {
+        return {
+          kind: entry.kind === "directory" ? "directory" : "file",
+          filePath: entry.path,
+        };
+      }
+      if (entry.kind === "directory" && targetPath.startsWith(entry.path + path.sep)) {
+        return findInStdlib(targetPath, entry.path);
+      }
+    }
+    return null;
+  }
+
   return {
     onDidChangeTreeData: onDidChangeTreeDataEmitter.event,
 
+    /**
+     * Resolves one parent node for a standard-library element.
+     *
+     * @param {WorkspaceTreeNode} element Tree element.
+     * @returns {Promise<WorkspaceTreeNode | undefined>} Parent node when present.
+     */
+    async getParent(element: WorkspaceTreeNode): Promise<WorkspaceTreeNode | undefined> {
+      const stdlibRoot = await getStdlibRoot();
+      const parentDirPath = path.dirname(element.filePath);
+      if (parentDirPath === stdlibRoot || stdlibRoot === undefined) {
+        return undefined;
+      }
+      return { kind: "directory", filePath: parentDirPath };
+    },
+
+    /**
+     * Resolves child nodes for the given parent element.
+     *
+     * @param {WorkspaceTreeNode} [element] Parent element.
+     * @returns {Promise<WorkspaceTreeNode[]>} Child nodes.
+     */
     async getChildren(element?: WorkspaceTreeNode): Promise<WorkspaceTreeNode[]> {
       const dirPath = element !== undefined
         ? (element.kind === "directory" ? element.filePath : undefined)
@@ -48,8 +115,29 @@ export function createWorkspaceStandardLibraryTreeDataProvider(
       return createTreeItem(element, "algos.standardLibraryFile");
     },
 
+    /**
+     * Triggers a tree refresh.
+     *
+     * @returns {void}
+     */
     refresh(): void {
       onDidChangeTreeDataEmitter.fire();
+    },
+
+    /**
+     * Finds one tree node that corresponds to the given file path.
+     *
+     * @param {string} filePath Absolute file path.
+     * @returns {Promise<{ node: WorkspaceTreeNode; viewId: string } | null>} Found node and owner view id, or null.
+     */
+    async findNodeForFilePath(
+      filePath: string
+    ): Promise<{ node: WorkspaceTreeNode; viewId: string } | null> {
+      const node = await findInStdlib(filePath, undefined);
+      if (node === null) {
+        return null;
+      }
+      return { node, viewId };
     },
   };
 }

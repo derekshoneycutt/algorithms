@@ -80,6 +80,13 @@ export interface RefreshableWorkspaceTreeDataProvider
    * @returns {void}
    */
   refresh(): void;
+  /**
+   * Finds the tree node for one file path, if the file is present in this tree.
+   *
+   * @param {string} filePath Absolute file path to locate.
+   * @returns {Promise<{ node: WorkspaceTreeNode; viewId: string } | null>} Found node with view id, or null.
+   */
+  findNodeForFilePath(filePath: string): Promise<{ node: WorkspaceTreeNode; viewId: string } | null>;
 }
 
 /**
@@ -100,6 +107,7 @@ export interface AlgorithmsTreeDataProviderDependencies {
   viewModeService: IViewModeService;
   filterModeService: IFilterModeService;
   languages: ILanguages;
+  viewId: string;
 }
 
 /**
@@ -107,4 +115,5 @@ export interface AlgorithmsTreeDataProviderDependencies {
  */
 export interface StandardLibraryTreeDataProviderDependencies {
   algorithmsIndex: IAlgorithmsIndex;
+  viewId: string;
 }

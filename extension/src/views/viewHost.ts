@@ -6,7 +6,7 @@ import * as vscode from "vscode";
 
 import type { HostToViewMessage, ViewToHostMessage } from "../comms";
 import { isViewToHostMessage } from "../comms";
-import type { IViewHost } from "./IViewHost";
+import type { ITreeViewHandle, IViewHost } from "./IViewHost";
 import {
   getEnvironmentControlsSidebarViewId,
   getRunControlsSidebarViewId,
@@ -315,6 +315,7 @@ export function createViewHost(context: vscode.ExtensionContext): IViewHost {
   const resolvedViews = new Map<string, vscode.WebviewView>();
   let registration: vscode.Disposable | undefined;
   const treeRegistrations: vscode.Disposable[] = [];
+  const treeViewsByViewId = new Map<string, vscode.TreeView<unknown>>();
   const inboundListenersByViewId = new Map<
     string,
     Set<(message: ViewToHostMessage) => void>
@@ -340,6 +341,11 @@ export function createViewHost(context: vscode.ExtensionContext): IViewHost {
   }
 
   return {
+    /**
+     * Registers contributed sidebar webview providers.
+     *
+     * @returns {vscode.Disposable} Registration handle.
+     */
     register(): vscode.Disposable {
       if (registration !== undefined) {
         return registration;
@@ -398,19 +404,63 @@ export function createViewHost(context: vscode.ExtensionContext): IViewHost {
       return registration;
     },
 
+    /**
+     * Registers one tree data provider and returns a reveal-capable handle.
+     *
+     * @template T Element type returned by the provider.
+     * @param {string} viewId Tree view identifier.
+     * @param {vscode.TreeDataProvider<T>} provider Tree data provider.
+     * @returns {ITreeViewHandle<T>} Registered tree view handle.
+     */
     registerTreeDataProvider<T>(
       viewId: string,
       provider: vscode.TreeDataProvider<T>
-    ): vscode.Disposable {
-      const treeRegistration = vscode.window.registerTreeDataProvider(viewId, provider);
-      treeRegistrations.push(treeRegistration);
-      return treeRegistration;
+    ): ITreeViewHandle<T> {
+      const treeView = vscode.window.createTreeView(viewId, {
+        treeDataProvider: provider,
+      });
+      treeViewsByViewId.set(viewId, treeView as vscode.TreeView<unknown>);
+      treeRegistrations.push(treeView);
+      return treeView as unknown as ITreeViewHandle<T>;
     },
 
+    /**
+     * Focuses one contributed sidebar view.
+     *
+     * @param {string} viewId Sidebar view identifier.
+     * @returns {Thenable<void>} Completion signal.
+     */
     focusView(viewId: string): Thenable<void> {
       return vscode.commands.executeCommand(`${viewId}.focus`);
     },
 
+    /**
+     * Reveals one element in a registered tree view when the tree is visible.
+     *
+     * @param {string} viewId Tree view identifier.
+     * @param {unknown} element Tree element to reveal.
+     * @param {{ select?: boolean; focus?: boolean; expand?: boolean | number }} [options] Reveal options.
+     * @returns {Thenable<void>} Completion signal.
+     */
+    revealInTree(
+      viewId: string,
+      element: unknown,
+      options?: { select?: boolean; focus?: boolean; expand?: boolean | number }
+    ): Thenable<void> {
+      const treeView = treeViewsByViewId.get(viewId);
+      if (treeView === undefined || !treeView.visible) {
+        return Promise.resolve();
+      }
+      return treeView.reveal(element, options);
+    },
+
+    /**
+     * Subscribes one listener to inbound messages for a resolved webview.
+     *
+     * @param {string} viewId Sidebar view identifier.
+     * @param {(message: ViewToHostMessage) => void} listener Typed message listener.
+     * @returns {vscode.Disposable} Disposable subscription handle.
+     */
     onDidReceiveMessage(
       viewId: string,
       listener: (message: ViewToHostMessage) => void
@@ -423,6 +473,13 @@ export function createViewHost(context: vscode.ExtensionContext): IViewHost {
       });
     },
 
+    /**
+     * Posts a typed host message to one resolved webview.
+     *
+     * @param {string} viewId Sidebar view identifier.
+     * @param {HostToViewMessage} message Typed host-to-view payload.
+     * @returns {Thenable<boolean> | undefined} Delivery result when resolved.
+     */
     postMessageToWebview(
       viewId: string,
       message: HostToViewMessage
@@ -430,6 +487,13 @@ export function createViewHost(context: vscode.ExtensionContext): IViewHost {
       return resolvedViews.get(viewId)?.webview.postMessage(message);
     },
 
+    /**
+     * Converts one extension URI into a webview-safe URI string.
+     *
+     * @param {string} viewId Sidebar view identifier.
+     * @param {vscode.Uri} resourceUri Extension resource URI.
+     * @returns {string | undefined} Webview-safe URI when the view is resolved.
+     */
     toWebviewResourceUri(
       viewId: string,
       resourceUri: vscode.Uri
@@ -437,11 +501,17 @@ export function createViewHost(context: vscode.ExtensionContext): IViewHost {
       return resolvedViews.get(viewId)?.webview.asWebviewUri(resourceUri).toString();
     },
 
+    /**
+     * Disposes all view-host registrations and listeners.
+     *
+     * @returns {void}
+     */
     dispose(): void {
       inboundListenersByViewId.clear();
       for (const treeRegistration of treeRegistrations.splice(0)) {
         treeRegistration.dispose();
       }
+      treeViewsByViewId.clear();
       registration?.dispose();
       registration = undefined;
       resolvedViews.clear();

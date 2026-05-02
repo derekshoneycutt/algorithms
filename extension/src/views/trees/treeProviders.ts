@@ -383,6 +383,18 @@ export function createTreeItem(
   element: WorkspaceTreeNode,
   contextValue?: string
 ): vscode.TreeItem {
+  /**
+   * Computes a stable unique id for a tree item element.
+   * Required so VS Code can match elements by identity when reveal() is called
+   * with a freshly constructed node object (not a cached reference).
+   */
+  function getTreeItemId(el: WorkspaceTreeNode): string {
+    if (el.kind === "languageSummary") {
+      return `languageSummary:${el.filePath}:${el.languageKey ?? ""}`;
+    }
+    return `${el.kind}:${el.filePath}`;
+  }
+
   let resourceUri = vscode.Uri.file(element.filePath);
 
   // Apply URI fragment based on isFlagged and isMissing state.
@@ -445,6 +457,7 @@ export function createTreeItem(
     if (element.smokeStatusTooltip !== undefined) {
       treeItem.tooltip = element.smokeStatusTooltip;
     }
+    treeItem.id = getTreeItemId(element);
     return treeItem;
   }
 
@@ -473,6 +486,7 @@ export function createTreeItem(
     if (element.runStatusTooltip !== undefined) {
       treeItem.tooltip = element.runStatusTooltip;
     }
+    treeItem.id = getTreeItemId(element);
     return treeItem;
   }
 
@@ -485,6 +499,7 @@ export function createTreeItem(
     if (contextValue !== undefined) {
       treeItem.contextValue = contextValue;
     }
+    treeItem.id = getTreeItemId(element);
     return treeItem;
   }
 
@@ -501,6 +516,7 @@ export function createTreeItem(
   if (element.runStatusTooltip !== undefined) {
     treeItem.tooltip = element.runStatusTooltip;
   }
+  treeItem.id = getTreeItemId(element);
   return treeItem;
 }
 

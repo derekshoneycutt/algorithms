@@ -8,6 +8,31 @@ import type {
 /**
  * DI contract for host-side view interactions.
  */
+/**
+ * Handle for a registered tree view, providing reveal and disposal.
+ *
+ * @template T Element type.
+ */
+export interface ITreeViewHandle<T> extends vscode.Disposable {
+  /** True when the tree view panel is currently visible. */
+  readonly visible: boolean;
+
+  /**
+   * Reveals one element in the tree view.
+   *
+   * @param {T} element Element to reveal.
+   * @param {{ select?: boolean; focus?: boolean; expand?: boolean | number }} [options] Reveal options.
+   * @returns {Thenable<void>} Completion signal.
+   */
+  reveal(
+    element: T,
+    options?: { select?: boolean; focus?: boolean; expand?: boolean | number }
+  ): Thenable<void>;
+}
+
+/**
+ * DI contract for host-side view interactions.
+ */
 export interface IViewHost extends vscode.Disposable {
   /**
    * Registers the current set of view providers.
@@ -27,7 +52,7 @@ export interface IViewHost extends vscode.Disposable {
   registerTreeDataProvider<T>(
     viewId: string,
     provider: vscode.TreeDataProvider<T>
-  ): vscode.Disposable;
+  ): ITreeViewHandle<T>;
 
   /**
     * Focuses one registered sidebar webview.
@@ -72,4 +97,19 @@ export interface IViewHost extends vscode.Disposable {
     viewId: string,
     resourceUri: vscode.Uri
   ): string | undefined;
+
+  /**
+   * Reveals one element in a registered tree view if it is currently visible.
+   * Silently no-ops when the tree panel is collapsed or the view id is unknown.
+   *
+   * @param {string} viewId Tree view identifier.
+   * @param {unknown} element Element to reveal.
+   * @param {{ select?: boolean; focus?: boolean; expand?: boolean | number }} [options] Reveal options.
+   * @returns {Thenable<void>} Completion signal.
+   */
+  revealInTree(
+    viewId: string,
+    element: unknown,
+    options?: { select?: boolean; focus?: boolean; expand?: boolean | number }
+  ): Thenable<void>;
 }

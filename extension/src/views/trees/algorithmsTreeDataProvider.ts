@@ -1,3 +1,5 @@
+import * as path from "node:path";
+
 import * as vscode from "vscode";
 
 import type {
@@ -234,6 +236,7 @@ export function createWorkspaceAlgorithmsTreeDataProvider(
     viewModeService,
     languages,
   } = dependencies;
+  const { viewId } = dependencies;
   const onDidChangeTreeDataEmitter = new vscode.EventEmitter<
     WorkspaceTreeNode | undefined | null | void
   >();
@@ -381,8 +384,136 @@ export function createWorkspaceAlgorithmsTreeDataProvider(
     onDidChangeTreeData: onDidChangeTreeDataEmitter.event,
     getChildren: getChildrenForElement,
     getTreeItem: getTreeItemForElement,
+
+    /**
+     * Triggers a tree refresh.
+     *
+     * @returns {void}
+     */
     refresh(): void {
       onDidChangeTreeDataEmitter.fire();
+    },
+
+    /**
+     * Resolves the logical parent for one tree element.
+     *
+     * @param {WorkspaceTreeNode} element Tree element to resolve.
+     * @returns {Promise<WorkspaceTreeNode | undefined>} Parent node when present.
+     */
+    async getParent(element: WorkspaceTreeNode): Promise<WorkspaceTreeNode | undefined> {
+      if (
+        element.kind === "file"
+        && element.isIncludeFile === true
+        && element.parentAlgorithmPath !== undefined
+        && element.languageKey !== undefined
+      ) {
+        const implementations = await algorithmsIndex.getImplementations(
+          element.parentAlgorithmPath
+        );
+        const impl = implementations.find((i) => i.languageKey === element.languageKey);
+        if (impl === undefined) {
+          return undefined;
+        }
+        const viewMode = viewModeService.getViewMode();
+        return {
+          kind: viewMode === "language" ? "languageSummary" : "mainFile",
+          filePath: impl.filePath,
+          languageKey: element.languageKey,
+          parentAlgorithmPath: element.parentAlgorithmPath,
+          hasIncludes: impl.hasIncludes,
+        };
+      }
+
+      if (
+        element.kind === "file"
+        && element.isIncludeFile !== true
+        && element.parentAlgorithmPath !== undefined
+      ) {
+        return { kind: "algorithmDir", filePath: element.parentAlgorithmPath };
+      }
+
+      if (
+        (element.kind === "mainFile" || element.kind === "languageSummary")
+        && element.parentAlgorithmPath !== undefined
+      ) {
+        return { kind: "algorithmDir", filePath: element.parentAlgorithmPath };
+      }
+
+      if (element.kind === "algorithmDir") {
+        return { kind: "directory", filePath: path.dirname(element.filePath) };
+      }
+
+      return undefined;
+    },
+
+    /**
+     * Finds one tree node that corresponds to the given file path.
+     *
+     * @param {string} filePath Absolute file path.
+     * @returns {Promise<{ node: WorkspaceTreeNode; viewId: string } | null>} Found node and owner view id, or null.
+     */
+    async findNodeForFilePath(
+      filePath: string
+    ): Promise<{ node: WorkspaceTreeNode; viewId: string } | null> {
+      const categories = await algorithmsIndex.getCategories();
+      for (const category of categories) {
+        const algorithms = await algorithmsIndex.getAlgorithms(category.path);
+        for (const algorithm of algorithms) {
+          const implementations = await algorithmsIndex.getImplementations(algorithm.path);
+          for (const impl of implementations) {
+            if (impl.filePath === filePath) {
+              const viewMode = viewModeService.getViewMode();
+              const node: WorkspaceTreeNode = viewMode === "language"
+                ? {
+                    kind: "languageSummary",
+                    filePath: impl.filePath,
+                    languageKey: impl.languageKey,
+                    parentAlgorithmPath: algorithm.path,
+                    hasIncludes: impl.hasIncludes,
+                  }
+                : {
+                    kind: "mainFile",
+                    filePath: impl.filePath,
+                    languageKey: impl.languageKey,
+                    parentAlgorithmPath: algorithm.path,
+                    hasIncludes: impl.hasIncludes,
+                  };
+              return { node, viewId };
+            }
+
+            for (const extraFilePath of impl.filePaths) {
+              if (extraFilePath !== impl.filePath && extraFilePath === filePath) {
+                return {
+                  node: {
+                    kind: "file",
+                    filePath,
+                    languageKey: impl.languageKey,
+                    parentAlgorithmPath: algorithm.path,
+                    isFlagged: impl.isFlagged,
+                  },
+                  viewId,
+                };
+              }
+            }
+
+            for (const includeFilePath of impl.includeFilePaths) {
+              if (includeFilePath === filePath) {
+                return {
+                  node: {
+                    kind: "file",
+                    filePath,
+                    languageKey: impl.languageKey,
+                    isIncludeFile: true,
+                    parentAlgorithmPath: algorithm.path,
+                  },
+                  viewId,
+                };
+              }
+            }
+          }
+        }
+      }
+      return null;
     },
   };
 }
