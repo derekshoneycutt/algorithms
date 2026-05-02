@@ -179,6 +179,47 @@ function createAlgorithmsIndexStub(
     async getImplementations() {
       return implementations;
     },
+    async getImplementationByFilePath(filePath: string) {
+      for (const implementation of implementations) {
+        if (implementation.filePath === filePath) {
+          return {
+            filePath,
+            algorithmPath: implementation.filePath.split(path.sep).slice(0, -1).join(path.sep),
+            languageKey: implementation.languageKey,
+            mainFilePath: implementation.filePath,
+            hasIncludes: implementation.hasIncludes,
+            isFlagged: implementation.isFlagged,
+            fileKind: "main" as const,
+          };
+        }
+
+        if (implementation.filePaths.includes(filePath)) {
+          return {
+            filePath,
+            algorithmPath: implementation.filePath.split(path.sep).slice(0, -1).join(path.sep),
+            languageKey: implementation.languageKey,
+            mainFilePath: implementation.filePath,
+            hasIncludes: implementation.hasIncludes,
+            isFlagged: implementation.isFlagged,
+            fileKind: filePath === implementation.filePath ? "main" as const : "implementation" as const,
+          };
+        }
+
+        if (implementation.includeFilePaths.includes(filePath)) {
+          return {
+            filePath,
+            algorithmPath: implementation.filePath.split(path.sep).slice(0, -1).join(path.sep),
+            languageKey: implementation.languageKey,
+            mainFilePath: implementation.filePath,
+            hasIncludes: implementation.hasIncludes,
+            isFlagged: implementation.isFlagged,
+            fileKind: "include" as const,
+          };
+        }
+      }
+
+      return null;
+    },
     async getStandardLibraryEntries() {
       return standardLibraryEntries;
     },

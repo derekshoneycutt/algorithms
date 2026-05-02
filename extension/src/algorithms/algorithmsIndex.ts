@@ -5,6 +5,7 @@ import type { IFilesystem } from "../filesystem";
 import type { ILanguages } from "../languages";
 import type { IAlgorithmsIndex, AlgorithmsIndexDependencies } from "./IAlgorithmsIndex";
 import type {
+  AlgorithmFileLookup,
   AlgorithmCategory,
   AlgorithmEntry,
   AlgorithmImplementation,
@@ -346,6 +347,7 @@ export function createAlgorithmsIndex(
   const categoriesByRoot = new Map<string, AlgorithmCategory[]>();
   const algorithmsByCategoryPath = new Map<string, AlgorithmEntry[]>();
   const implementationsByAlgorithmPath = new Map<string, AlgorithmImplementation[]>();
+  const fileLookupByPath = new Map<string, AlgorithmFileLookup>();
   const standardLibraryEntriesByPath = new Map<string, StandardLibEntry[]>();
 
   /**
@@ -359,7 +361,66 @@ export function createAlgorithmsIndex(
     categoriesByRoot.clear();
     algorithmsByCategoryPath.clear();
     implementationsByAlgorithmPath.clear();
+    fileLookupByPath.clear();
     standardLibraryEntriesByPath.clear();
+  }
+
+  /**
+   * Caches reverse file-path lookups for one language implementation.
+   *
+   * @param {string} algorithmPath Parent algorithm directory.
+   * @param {AlgorithmImplementation} implementation Language implementation.
+   * @returns {void}
+   */
+  function cacheFileLookupEntries(
+    algorithmPath: string,
+    implementation: AlgorithmImplementation
+  ): void {
+    const sharedDescriptor = {
+      algorithmPath,
+      languageKey: implementation.languageKey,
+      mainFilePath: implementation.filePath,
+      hasIncludes: implementation.hasIncludes,
+      isFlagged: implementation.isFlagged,
+    };
+
+    fileLookupByPath.set(implementation.filePath, {
+      ...sharedDescriptor,
+      filePath: implementation.filePath,
+      fileKind: "main",
+    });
+
+    for (const implementationFilePath of implementation.filePaths) {
+      if (implementationFilePath === implementation.filePath) {
+        continue;
+      }
+
+      fileLookupByPath.set(implementationFilePath, {
+        ...sharedDescriptor,
+        filePath: implementationFilePath,
+        fileKind: "implementation",
+      });
+    }
+
+    for (const includeFilePath of implementation.includeFilePaths) {
+      fileLookupByPath.set(includeFilePath, {
+        ...sharedDescriptor,
+        filePath: includeFilePath,
+        fileKind: "include",
+      });
+    }
+  }
+
+  /**
+   * Returns a stable copy of one file lookup descriptor.
+   *
+   * @param {AlgorithmFileLookup} descriptor Cached descriptor.
+   * @returns {AlgorithmFileLookup} Descriptor copy.
+   */
+  function cloneFileLookupDescriptor(descriptor: AlgorithmFileLookup): AlgorithmFileLookup {
+    return {
+      ...descriptor,
+    };
   }
 
   /**
@@ -386,7 +447,7 @@ export function createAlgorithmsIndex(
     return cachedStdlibRoot;
   }
 
-  return {
+  const algorithmsIndex: IAlgorithmsIndex = {
     clearCache(_targetPath?: string): void {
       clearAllCaches();
     },
@@ -556,6 +617,11 @@ export function createAlgorithmsIndex(
       }
 
       implementations.sort((left, right) => left.languageKey.localeCompare(right.languageKey));
+
+      for (const implementation of implementations) {
+        cacheFileLookupEntries(canonicalAlgorithmPath, implementation);
+      }
+
       implementationsByAlgorithmPath.set(canonicalAlgorithmPath, implementations);
 
       return implementations.map((implementation) => ({
@@ -563,6 +629,29 @@ export function createAlgorithmsIndex(
         filePaths: [...implementation.filePaths],
         includeFilePaths: [...implementation.includeFilePaths],
       }));
+    },
+
+    async getImplementationByFilePath(filePath: string): Promise<AlgorithmFileLookup | null> {
+      const canonicalFilePath = await filesystem.realpath(filePath);
+      const cachedDescriptor = fileLookupByPath.get(canonicalFilePath);
+      if (cachedDescriptor !== undefined) {
+        return cloneFileLookupDescriptor(cachedDescriptor);
+      }
+
+      const categories = await algorithmsIndex.getCategories();
+      for (const category of categories) {
+        const algorithms = await algorithmsIndex.getAlgorithms(category.path);
+        for (const algorithm of algorithms) {
+          await algorithmsIndex.getImplementations(algorithm.path);
+        }
+      }
+
+      const populatedDescriptor = fileLookupByPath.get(canonicalFilePath);
+      if (populatedDescriptor === undefined) {
+        return null;
+      }
+
+      return cloneFileLookupDescriptor(populatedDescriptor);
     },
 
     async getStandardLibraryEntries(dirPath?: string): Promise<StandardLibEntry[]> {
@@ -627,4 +716,6 @@ export function createAlgorithmsIndex(
       }));
     },
   };
+
+  return algorithmsIndex;
 }

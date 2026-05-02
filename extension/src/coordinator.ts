@@ -148,14 +148,34 @@ export function createCoordinator(
     workspaceStandardLibraryTreeProvider: viewLayer.workspaceStandardLibraryTreeProvider,
   });
 
+  let lastRevealKey = "";
+
   const activeEditorRevealSubscription = vscode.window.onDidChangeActiveTextEditor(
     async (editor) => {
       if (!editor) { return; }
-      const filePath = editor.document.uri.fsPath;
+
+      const activeUri = editor.document.uri;
+      if (activeUri.scheme !== "file") {
+        return;
+      }
+
+      const filePath = activeUri.fsPath;
+      if (runtimeServices.languages.normalizeFileExtension(filePath) === undefined) {
+        return;
+      }
+
       const result =
         await viewLayer.workspaceAlgorithmsTreeProvider.findNodeForFilePath(filePath) ??
         await viewLayer.workspaceStandardLibraryTreeProvider.findNodeForFilePath(filePath);
       if (!result) { return; }
+
+      const revealKey = `${filePath}:${result.viewId}:${result.node.filePath}`;
+      if (revealKey === lastRevealKey) {
+        return;
+      }
+
+      lastRevealKey = revealKey;
+
       await viewLayer.viewHost.revealInTree(
         result.viewId,
         result.node,

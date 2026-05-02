@@ -251,6 +251,55 @@ describe("algorithms — domain index discovery", () => {
     }
   });
 
+  it("getImplementationByFilePath resolves main, implementation, include, and unknown files", async () => {
+    const workspaceRootPath = await createTempDirectory();
+    const filesystem = createFilesystem();
+
+    try {
+      const algorithmPath = path.join(workspaceRootPath, "src", "numeric", "euclidgcd");
+      await fs.mkdir(algorithmPath, { recursive: true });
+      await fs.mkdir(path.join(algorithmPath, "python_include"), { recursive: true });
+
+      const mainFilePath = path.join(algorithmPath, "euclidgcd.py");
+      const implementationFilePath = path.join(algorithmPath, "euclid.py");
+      const includeFilePath = path.join(algorithmPath, "python_include", "helper.py");
+
+      await fs.writeFile(mainFilePath, "");
+      await fs.writeFile(implementationFilePath, "");
+      await fs.writeFile(includeFilePath, "");
+      await fs.writeFile(path.join(algorithmPath, ".flag-lang"), "python\n");
+
+      const algorithmsIndex = createAlgorithmsIndex({
+        filesystem,
+        languages: createLanguageStub(),
+        workspaceFolderPaths: [workspaceRootPath],
+      });
+
+      const mainLookup = await algorithmsIndex.getImplementationByFilePath(mainFilePath);
+      assert.ok(mainLookup, "expected main file lookup");
+      assert.strictEqual(mainLookup.fileKind, "main");
+      assert.strictEqual(mainLookup.mainFilePath, mainFilePath);
+      assert.strictEqual(mainLookup.algorithmPath, algorithmPath);
+
+      const implementationLookup = await algorithmsIndex.getImplementationByFilePath(implementationFilePath);
+      assert.ok(implementationLookup, "expected implementation file lookup");
+      assert.strictEqual(implementationLookup.fileKind, "implementation");
+      assert.strictEqual(implementationLookup.mainFilePath, mainFilePath);
+
+      const includeLookup = await algorithmsIndex.getImplementationByFilePath(includeFilePath);
+      assert.ok(includeLookup, "expected include file lookup");
+      assert.strictEqual(includeLookup.fileKind, "include");
+      assert.strictEqual(includeLookup.mainFilePath, mainFilePath);
+
+      const unknownLookup = await algorithmsIndex.getImplementationByFilePath(
+        path.join(algorithmPath, "missing.py")
+      );
+      assert.strictEqual(unknownLookup, null);
+    } finally {
+      await fs.rm(workspaceRootPath, { recursive: true, force: true });
+    }
+  });
+
   it("getStandardLibraryEntries excludes output/, markdown, and shell scripts", async () => {
     const workspaceRootPath = await createTempDirectory();
     const filesystem = createFilesystem();

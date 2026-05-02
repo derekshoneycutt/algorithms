@@ -455,65 +455,54 @@ export function createWorkspaceAlgorithmsTreeDataProvider(
     async findNodeForFilePath(
       filePath: string
     ): Promise<{ node: WorkspaceTreeNode; viewId: string } | null> {
-      const categories = await algorithmsIndex.getCategories();
-      for (const category of categories) {
-        const algorithms = await algorithmsIndex.getAlgorithms(category.path);
-        for (const algorithm of algorithms) {
-          const implementations = await algorithmsIndex.getImplementations(algorithm.path);
-          for (const impl of implementations) {
-            if (impl.filePath === filePath) {
-              const viewMode = viewModeService.getViewMode();
-              const node: WorkspaceTreeNode = viewMode === "language"
-                ? {
-                    kind: "languageSummary",
-                    filePath: impl.filePath,
-                    languageKey: impl.languageKey,
-                    parentAlgorithmPath: algorithm.path,
-                    hasIncludes: impl.hasIncludes,
-                  }
-                : {
-                    kind: "mainFile",
-                    filePath: impl.filePath,
-                    languageKey: impl.languageKey,
-                    parentAlgorithmPath: algorithm.path,
-                    hasIncludes: impl.hasIncludes,
-                  };
-              return { node, viewId };
-            }
-
-            for (const extraFilePath of impl.filePaths) {
-              if (extraFilePath !== impl.filePath && extraFilePath === filePath) {
-                return {
-                  node: {
-                    kind: "file",
-                    filePath,
-                    languageKey: impl.languageKey,
-                    parentAlgorithmPath: algorithm.path,
-                    isFlagged: impl.isFlagged,
-                  },
-                  viewId,
-                };
-              }
-            }
-
-            for (const includeFilePath of impl.includeFilePaths) {
-              if (includeFilePath === filePath) {
-                return {
-                  node: {
-                    kind: "file",
-                    filePath,
-                    languageKey: impl.languageKey,
-                    isIncludeFile: true,
-                    parentAlgorithmPath: algorithm.path,
-                  },
-                  viewId,
-                };
-              }
-            }
-          }
-        }
+      const lookup = await algorithmsIndex.getImplementationByFilePath(filePath);
+      if (lookup === null) {
+        return null;
       }
-      return null;
+
+      if (lookup.fileKind === "main") {
+        const viewMode = viewModeService.getViewMode();
+        const node: WorkspaceTreeNode = viewMode === "language"
+          ? {
+              kind: "languageSummary",
+              filePath: lookup.mainFilePath,
+              languageKey: lookup.languageKey,
+              parentAlgorithmPath: lookup.algorithmPath,
+              hasIncludes: lookup.hasIncludes,
+            }
+          : {
+              kind: "mainFile",
+              filePath: lookup.mainFilePath,
+              languageKey: lookup.languageKey,
+              parentAlgorithmPath: lookup.algorithmPath,
+              hasIncludes: lookup.hasIncludes,
+            };
+        return { node, viewId };
+      }
+
+      if (lookup.fileKind === "implementation") {
+        return {
+          node: {
+            kind: "file",
+            filePath: lookup.filePath,
+            languageKey: lookup.languageKey,
+            parentAlgorithmPath: lookup.algorithmPath,
+            isFlagged: lookup.isFlagged,
+          },
+          viewId,
+        };
+      }
+
+      return {
+        node: {
+          kind: "file",
+          filePath: lookup.filePath,
+          languageKey: lookup.languageKey,
+          isIncludeFile: true,
+          parentAlgorithmPath: lookup.algorithmPath,
+        },
+        viewId,
+      };
     },
   };
 }

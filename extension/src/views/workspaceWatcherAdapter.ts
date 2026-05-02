@@ -36,36 +36,54 @@ export interface CreateWorkspaceWatcherAdapterInput {
 export function createWorkspaceWatcherAdapter(
   input: CreateWorkspaceWatcherAdapterInput
 ): IWorkspaceWatcherAdapter {
+  /**
+   * Registers one file watcher and forwards events to workspace-path invalidation.
+   *
+   * @param {string} globPattern Glob pattern to watch.
+   * @returns {vscode.Disposable} Combined watcher disposable.
+   */
+  function registerPathWatcher(globPattern: string): vscode.Disposable {
+    const workspaceWatcher = vscode.workspace.createFileSystemWatcher(globPattern);
+    const workspaceCreateWatcher = workspaceWatcher.onDidCreate((uri) => {
+      input.conductor.handleWorkspacePathChanged?.({
+        targetPath: uri.fsPath,
+        filesystem: input.filesystem,
+        algorithmsIndex: input.algorithmsIndex,
+        refreshAlgorithmsTree: input.refreshAlgorithmsTree,
+        refreshStandardLibraryTree: input.refreshStandardLibraryTree,
+      });
+    });
+    const workspaceChangeWatcher = workspaceWatcher.onDidChange((uri) => {
+      input.conductor.handleWorkspacePathChanged?.({
+        targetPath: uri.fsPath,
+        filesystem: input.filesystem,
+        algorithmsIndex: input.algorithmsIndex,
+        refreshAlgorithmsTree: input.refreshAlgorithmsTree,
+        refreshStandardLibraryTree: input.refreshStandardLibraryTree,
+      });
+    });
+    const workspaceDeleteWatcher = workspaceWatcher.onDidDelete((uri) => {
+      input.conductor.handleWorkspacePathChanged?.({
+        targetPath: uri.fsPath,
+        filesystem: input.filesystem,
+        algorithmsIndex: input.algorithmsIndex,
+        refreshAlgorithmsTree: input.refreshAlgorithmsTree,
+        refreshStandardLibraryTree: input.refreshStandardLibraryTree,
+      });
+    });
+
+    return vscode.Disposable.from(
+      workspaceWatcher,
+      workspaceCreateWatcher,
+      workspaceChangeWatcher,
+      workspaceDeleteWatcher
+    );
+  }
+
   return {
     activate(): vscode.Disposable {
-      const workspaceWatcher = vscode.workspace.createFileSystemWatcher("**/*");
-      const workspaceCreateWatcher = workspaceWatcher.onDidCreate((uri) => {
-        input.conductor.handleWorkspacePathChanged?.({
-          targetPath: uri.fsPath,
-          filesystem: input.filesystem,
-          algorithmsIndex: input.algorithmsIndex,
-          refreshAlgorithmsTree: input.refreshAlgorithmsTree,
-          refreshStandardLibraryTree: input.refreshStandardLibraryTree,
-        });
-      });
-      const workspaceChangeWatcher = workspaceWatcher.onDidChange((uri) => {
-        input.conductor.handleWorkspacePathChanged?.({
-          targetPath: uri.fsPath,
-          filesystem: input.filesystem,
-          algorithmsIndex: input.algorithmsIndex,
-          refreshAlgorithmsTree: input.refreshAlgorithmsTree,
-          refreshStandardLibraryTree: input.refreshStandardLibraryTree,
-        });
-      });
-      const workspaceDeleteWatcher = workspaceWatcher.onDidDelete((uri) => {
-        input.conductor.handleWorkspacePathChanged?.({
-          targetPath: uri.fsPath,
-          filesystem: input.filesystem,
-          algorithmsIndex: input.algorithmsIndex,
-          refreshAlgorithmsTree: input.refreshAlgorithmsTree,
-          refreshStandardLibraryTree: input.refreshStandardLibraryTree,
-        });
-      });
+      const srcWatcher = registerPathWatcher("**/src/**/*");
+      const stdlibWatcher = registerPathWatcher("**/stdlib/**/*");
       const workspaceFoldersChangeWatcher = vscode.workspace.onDidChangeWorkspaceFolders(() => {
         const updatedFolderPaths = (vscode.workspace.workspaceFolders ?? []).map(
           (workspaceFolder) => workspaceFolder.uri.fsPath
@@ -82,10 +100,8 @@ export function createWorkspaceWatcherAdapter(
       });
 
       return vscode.Disposable.from(
-        workspaceWatcher,
-        workspaceCreateWatcher,
-        workspaceChangeWatcher,
-        workspaceDeleteWatcher,
+        srcWatcher,
+        stdlibWatcher,
         workspaceFoldersChangeWatcher
       );
     },

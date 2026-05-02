@@ -39,6 +39,26 @@ export interface AlgorithmImplementation {
 }
 
 /**
+ * One resolved algorithm file lookup descriptor keyed by absolute file path.
+ */
+export interface AlgorithmFileLookup {
+  /** Resolved file path associated with this lookup entry. */
+  filePath: string;
+  /** Absolute path to the parent algorithm directory. */
+  algorithmPath: string;
+  /** Language key associated with the file. */
+  languageKey: string;
+  /** Representative main file path for this language implementation. */
+  mainFilePath: string;
+  /** True when the language implementation has include files. */
+  hasIncludes: boolean;
+  /** True when the language implementation is currently flagged. */
+  isFlagged: boolean;
+  /** Category of the resolved file within the algorithm implementation. */
+  fileKind: "main" | "implementation" | "include";
+}
+
+/**
  * One entry in the standard library tree.
  */
 export interface StandardLibEntry {

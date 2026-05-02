@@ -1,6 +1,7 @@
 import type { IFilesystem } from "../filesystem";
 import type { ILanguages } from "../languages";
 import type {
+  AlgorithmFileLookup,
   AlgorithmCategory,
   AlgorithmEntry,
   AlgorithmImplementation,
@@ -66,6 +67,14 @@ export interface IAlgorithmsIndex {
    * @returns {Promise<AlgorithmImplementation[]>} Implementation list sorted by language key.
    */
   getImplementations(algorithmPath: string): Promise<AlgorithmImplementation[]>;
+
+  /**
+   * Returns one resolved algorithm-file descriptor for an absolute file path.
+   *
+   * @param {string} filePath Absolute file path.
+   * @returns {Promise<AlgorithmFileLookup | null>} Lookup descriptor when found.
+   */
+  getImplementationByFilePath(filePath: string): Promise<AlgorithmFileLookup | null>;
 
   /**
    * Returns the visible entries (directories and supported files) under a

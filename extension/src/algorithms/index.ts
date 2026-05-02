@@ -1,5 +1,6 @@
 export type { IAlgorithmsIndex, AlgorithmsIndexDependencies } from "./IAlgorithmsIndex";
 export type {
+  AlgorithmFileLookup,
   AlgorithmCategory,
   AlgorithmEntry,
   AlgorithmImplementation,
