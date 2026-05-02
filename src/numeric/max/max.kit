@@ -1,0 +1,50 @@
+# This application finds the maximum value in a sequence
+module MyMax
+
+## Gets the maximum value of a list, starting with a seeded value
+##
+## Parameters:
+##  list - the list of values to get the max of
+##  max - the starting seed value
+mymax-seeded = fn(list, max) =>
+    match list
+    | [] -> max
+    | [x | xs] -> mymax-seeded(xs, if x > max then x else max)
+
+## Gets the maximum value of a list
+##
+## Parameters:
+##  list - the list of values to get the max of
+mymax = fn(list) =>
+    match list
+    | [] -> 0
+    | [x | xs] -> mymax-seeded(xs, x)
+
+## Convert a string to an integer, or zero if that fails
+toint-orzero = fn(arg) =>
+    n-temp = Int.parse arg
+    if (is-ok? n-temp) then Result.unwrap n-temp else 0
+
+## Get the command line arguments as integers (or 0)
+arg-ints = fn(args) =>
+    match args
+    | [] -> [15, 10]
+    | _ -> map (toint-orzero) args
+
+## Print the list of values to the screen
+print-vals = fn(vals) =>
+    match vals
+    | [] -> Nil
+    | [x | xs] ->
+        println "   ${x}"
+        print-vals xs
+
+## The main entrypoint to the application
+main = fn (env: Env) =>
+    println "values:"
+    values = arg-ints (drop 3 env.args)
+    print-vals values
+    max = mymax values
+    println "test ${max}"
+
+main
