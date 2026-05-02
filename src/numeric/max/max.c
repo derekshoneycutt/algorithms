@@ -1,6 +1,17 @@
-#include <stdio.h>
+/*
+ *  Get the maximum value of a sequence of values
+ */
+
+ #include <stdio.h>
 #include <stdlib.h>
 
+/**
+ * Get the maximum integer from an array of integers
+ * 
+ * @param x The array of integers to get the max of
+ * @param n The number of integers to find the max for
+ * @return The maximum value
+ */
 int max(int x[], int n)
 {
     int current = 0;
@@ -14,7 +25,13 @@ int max(int x[], int n)
     return current;
 }
 
-
+/**
+ * The main entry point to the application
+ * 
+ * @param argc The number of arguments on the command line
+ * @param argv The array of command line arguments given
+ * @returns 0
+ */
 int main(int argc, char *argv[])
 {
     int n;

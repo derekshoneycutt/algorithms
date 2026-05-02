@@ -1,24 +1,31 @@
+      *    Get the maximum value of a sequence of integers
        IDENTIFICATION DIVISION.
        PROGRAM-ID. MAIN.
 
        DATA DIVISION.
          WORKING-STORAGE SECTION.
+      /    The values from the command line; or 15, 10 default
          01 ARG-RAW PIC X(10).
          01 ARG-NUM PIC 9.
 
+      /    The array and its size used to store the integer values
          01 ARRAY-SIZE PIC 9(4) VALUE 0.
          01 ARRAY-PTR USAGE POINTER.
 
+      /    The values used to iterate and store the max value
          01 N PIC 9(4) VALUE 0.
          01 MAXVALUE PIC 9(4) VALUE 0.
          01 OUTVALUE PIC Z(1)9.
 
          LINKAGE SECTION.
+      /    The array as will be passed to the MAXVALUE program
          01 INTEGER-ARRAY BASED.
            05 INTEGER-ITEM PIC 9(4) OCCURS 1 TO 100 TIMES
                                    DEPENDING ON ARRAY-SIZE.
 
        PROCEDURE DIVISION.
+      /    First, we get the command line arguments by allocating an
+      /      array; default to 15 10 if no arguments given
            ACCEPT ARG-NUM FROM ARGUMENT-NUMBER.
            IF ARG-NUM >= 1
              MOVE ARG-NUM TO ARRAY-SIZE
@@ -38,6 +45,7 @@
              MOVE 10 TO INTEGER-ITEM(2)
            END-IF
 
+      /    When we have the values, call MAXVALUE and print it all out
            CALL 'MAXVALUE' USING ARRAY-PTR, ARRAY-SIZE, MAXVALUE.
 
            DISPLAY "values:"
@@ -55,6 +63,7 @@
 
        END PROGRAM MAIN.
 
+      *    Gets the maximum of an array of values
        IDENTIFICATION DIVISION.
        PROGRAM-ID. MAXVALUE.
 
@@ -62,6 +71,7 @@
          WORKING-STORAGE SECTION.
          01 COUNTER PIC 9(4).
          LINKAGE SECTION.
+      /    The array and resulting max value to work with the caller
          01 FINALVALUE PIC 9(4).
          01 ARRAY-PTR USAGE POINTER.
          01 ARRAY-SIZE PIC 9(4).

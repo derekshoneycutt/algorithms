@@ -1,9 +1,19 @@
+/*
+ *  Get the maximum of a sequence of values
+ */
 import std.stdio;
 import std.conv;
 
-int max(int[] values)
+/++
+ + Get the maximum value of an array of values.
+ +
+ + Params:
+ +  values = The values to get the maximum of
+ + Returns: The maximum value
+ +/
+T max(T)(T[] values)
 {
-    int current = 0;
+    T current = values[0];
     foreach (value; values)
     {
         if (value > current)
@@ -14,6 +24,12 @@ int max(int[] values)
     return current;
 }
 
+/++
+ + Main entry point to the application
+ +
+ + Params:
+ +  args = The command line arguments passed to the application
+ +/
 void main(string[] args)
 {
     int[] values;

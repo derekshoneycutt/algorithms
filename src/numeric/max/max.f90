@@ -1,3 +1,5 @@
+! This program finds the maximum integer value of a list of integers
+
 program MaxValues
     implicit none
 
@@ -5,6 +7,7 @@ program MaxValues
     integer :: stat, maxValue, i, num_args
     character(len=100) :: buffer
 
+    ! We allocate an array of integers based on arg list and use that, or default
     num_args = command_argument_count()
     if (num_args > 0) then
         allocate(list(1:num_args), stat=stat)
@@ -27,6 +30,7 @@ program MaxValues
 
 contains
 
+    ! Get the max value of a list
     function max_list(array) result(maxValue)
         integer, dimension(:), intent(in) :: array
         integer :: maxValue, index

@@ -1,4 +1,8 @@
+/'
+    Find the maximum value of a sequence of integers
+'/
 
+' Find the maximum integer of a given array
 Function Max(X() As Integer) As Integer
     Dim current As Integer = 0
     For value As Integer = LBound(X) To UBound(X)
@@ -9,6 +13,8 @@ Function Max(X() As Integer) As Integer
     Return current
 End Function
 
+' We use a dynamically sized array for this in FreeBASIC
+' No generics since we don't really have them here. Just arrays.
 Dim Values() As Integer
 
 If __FB_ARGC__ > 1 Then

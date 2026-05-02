@@ -1,7 +1,20 @@
+/*
+ *  Get the maximum value of a sequence of values
+ */
+
 #include <print>
 #include <cstdlib>
 #include <vector>
 
+/**
+ * Get the maximum value from a range of elements.
+ * 
+ * @tparam T The type of the elements.
+ * @tparam iter The type of the iterator.
+ * @param begin The beginning of the range.
+ * @param end The end of the range.
+ * @return The maximum value in the range.
+ */
 template<typename T, std::input_iterator iter>
 int max(iter begin, iter end)
 {
@@ -16,7 +29,13 @@ int max(iter begin, iter end)
     return current;
 }
 
-
+/**
+ * The main entry point to the application
+ * 
+ * @param argc The number of arguments on the command line
+ * @param argv The array of command line arguments given
+ * @returns 0
+ */
 int main(int argc, char *argv[])
 {
     std::vector<int> values{};

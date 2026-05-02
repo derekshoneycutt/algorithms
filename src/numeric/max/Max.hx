@@ -1,7 +1,17 @@
-
+/**
+ * Gets the maximum value of a sequence of numbers.
+ */
 class Max {
-    static public function max(values: List<Int>): Int {
-        var current: Int = 0;
+
+    /**
+     * Gets the maximum value of a list of numbers.
+     * 
+     * @param T The type of the values in the list; Int or Float both work with Float for Haxe here.
+     * @param values The values to get the maximum of.
+     * @return The max value
+     */
+    @:generic static public function max<T: Float>(values: List<T>): T {
+        var current: T = values.first();
         for (value in values) {
             if (value > current) {
                 current = value;
@@ -10,6 +20,9 @@ class Max {
         return current;
     }
 
+    /**
+     * The main entry point to the application
+     */
     static public function main(): Void {
         var args: Array<String> = Sys.args();
         var values: List<Int> = new List<Int>();

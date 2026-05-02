@@ -11,54 +11,30 @@ inherit
 create
 	make
 
-feature -- The Max algorithm
-    maximum (values: LINKED_LIST [INTEGER]): INTEGER
-        local
-            c: INTEGER
-        do
-            across values as value loop
-                if value > c then
-                    c := value
-                end
-            end
-            Result := c
-        end
-
-feature {NONE}
-
+feature -- Main entry point
 	make
         local
             i, m: INTEGER
-            values: LINKED_LIST [INTEGER]
-            arg : STRING
+            parser: ARG_PARSER
+            maximum: MAXIMUM [INTEGER]
 		do
-            create values.make
+            -- Parse the command line args, get the max, and print it
+            create parser
+            parser.parse
 
-            -- this time we loop through all integer arguments given and get max of all
-            if argument_count > 0 then
-                from
-                    i := 1
-                until
-                    i > argument_count
-                loop
-                    arg := argument (i)
-                    if arg.is_integer then
-                        values.extend (arg.to_integer)
-                    end
-                    i := i + 1
-                end
-            end
-            if values.count < 1 then
-                -- failing the above, just do 15 and 10 again
-                values.extend (15)
-                values.extend (10)
-            end
-
-            m := maximum(values)
+            create maximum
+            m := maximum.max(parser.values)
 
             print ("values: [")
             i := 0
-            across values as value loop
+            -- NOTE: Liberty Eiffel standard doesn't like the across loops
+            --  because it's not the old standard that it follows. EiffelStudio
+            --  offers newer, nice features like this loop style. We will go
+            --  ahead and use that here, knowing the limitation. This sample
+            --  no longer works with LibertyEiffel
+            across
+                parser.values as value
+            loop
                 if i < 1 then
                     print (value.item.out)
                 else

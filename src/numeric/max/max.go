@@ -1,13 +1,18 @@
 package main
+/*
+	Get the maximum value of a sequence of numbers
+ */
 
 import (
+	"cmp"
 	"fmt"
 	"os"
 	"strconv"
 )
 
-func max(list []int) int {
-	var curr int
+// Get the maximum from some list of orderable values
+func max[T cmp.Ordered](list []T) T {
+	var curr T
 	for _, value := range list {
 		if value > curr {
 			curr = value
@@ -16,6 +21,7 @@ func max(list []int) int {
 	return curr
 }
 
+// The main entrypoint of the application
 func main() {
 	var list []int
 	var parsed int
