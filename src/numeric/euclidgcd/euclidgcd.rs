@@ -1,4 +1,4 @@
-/***********************************************
+/*
  *  Calculate the GCD of two values and print it all to the screen
  */
 

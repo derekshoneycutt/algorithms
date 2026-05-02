@@ -1,7 +1,14 @@
+/*
+	Get the maximum value of some sequence of values
+*/
 import os
 
-fn max(values []int) int {
-	mut current := 0
+// Get the maximum value of some list
+fn max[T](values []T) ?T {
+	if values.len < 1 {
+		return none
+	}
+	mut current := values[0]
 	for value in values {
 		if value > current {
 			current = value
@@ -10,6 +17,7 @@ fn max(values []int) int {
 	return current
 }
 
+// The main entry point to the application
 fn main() {
 	mut values := []int{}
 	if os.args.len > 1 {
@@ -23,7 +31,7 @@ fn main() {
 		values << [15, 10]
 	}
 
-	maximum := max(values)
+	maximum := max(values) or { 0}
 
 	println('values: $values')
 	println('max: $maximum')

@@ -1,9 +1,24 @@
+/*
+    Get the maximum value of some sequence of values
+*/
+
 import Foundation
 
-func max_list(list: [Int]) -> Int {
-    var current = 0
+/// Get the maximum value of some list
+/// 
+/// 
+/// Parameters
+/// ----------
+/// - `list`: The list of values to find the maximum of
+/// 
+/// Returns
+/// ----------
+/// The maximum value
+func max_list<T: Comparable>(list: [T]) -> T? {
+    guard !list.isEmpty else { return nil }
+    var current = list[0]
     for value in list {
-        if (value > current) {
+        if value > current {
             current = value
         }
     }
@@ -11,12 +26,13 @@ func max_list(list: [Int]) -> Int {
 }
 
 var list = [15, 10]
-
 if (CommandLine.argc > 1) {
     list = CommandLine.arguments.dropFirst(1).map { Int($0) ?? 0 }
 }
 
-let max_value = max_list(list: list)
-
 print("values: \(list)")
-print("max: \(max_value)")
+if let max_value = max_list(list: list) {
+    print("max: \(max_value)")
+} else {
+    print("max: n/a")
+}

@@ -1,24 +1,17 @@
-MODULE Main EXPORTS Main;
-IMPORT Params,IO,Fmt,Text,Scan;
+(*
+    Get the maximum value of a sequence of values
 
-PROCEDURE Max(values: REF ARRAY OF INTEGER) : INTEGER =
-    VAR current, i : INTEGER;
-    BEGIN
-        current := 0;
-        FOR i := 0 TO LAST(values^) DO
-            IF values[i] > current THEN
-                current := values[i];
-            END;
-        END;
-        RETURN current;
-    END Max;
+    See additional modules e.g. IntMax from modula3_include/
+*)
+MODULE Main EXPORTS Main;
+IMPORT Params,IO,Fmt,Text,Scan,IntMax;
 
 VAR
     values: REF ARRAY OF INTEGER;
     i, max: INTEGER;
 
 BEGIN
-
+    (* Modula-3 makes the parameters pretty easy to get into integers *)
     IF Params.Count > 1 THEN
         values := NEW(REF ARRAY OF INTEGER, Params.Count - 1);
         FOR i := 1 TO Params.Count - 1 DO
@@ -30,7 +23,8 @@ BEGIN
         values[1] := 10;
     END;
 
-    max := Max(values);
+    (* Compute the maximum value using the IntMax module *)
+    max := IntMax.Compute(values);
 
     IO.Put("values: [" & Fmt.Int(values[0]));
     FOR i := 1 TO LAST(values^) DO

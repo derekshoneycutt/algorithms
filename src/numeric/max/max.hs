@@ -1,24 +1,30 @@
+{-
+    Get the maximum value of some sequence of values
+ -}
 import System.Environment (getArgs)
 import Data.List (intersperse)
 
-max_list :: [Integer] -> Integer
-max_list [] = 0
-max_list (x : xs) = max_list_state xs x
+-- | Get the maximum value of some list
+max_list :: Ord a => [a] -> Maybe a
+max_list [] = Nothing
+max_list (x : xs) = Just (reduce_max xs x)
+    where
+        reduce_max [] max = max
+        reduce_max (x : xs) max
+            | x > max = reduce_max xs x
+            | otherwise = reduce_max xs max
 
-max_list_state :: [Integer] -> Integer -> Integer
-max_list_state [] max = max
-max_list_state (x : xs) max
-    | x > max = max_list_state xs x
-    | otherwise = max_list_state xs max
-
+-- | Get the arguments as integers
 argsAsInts :: [String] -> (Maybe [Integer])
 argsAsInts [] = Nothing
 argsAsInts args = Just [read arg :: Integer | arg <- args]
 
+-- | Get just the given list or a default list if its Nothing
 orDefault :: (Maybe [Integer]) -> [Integer] -> [Integer]
 orDefault Nothing list = list
 orDefault (Just list) _ = list
 
+-- | The main entry point to the application
 main :: IO ()
 main = do
     args <- getArgs
@@ -26,4 +32,6 @@ main = do
     let maxValue = max_list intArgs
 
     putStrLn $ "values: [" ++ (concat (intersperse " " (map show intArgs))) ++ "]"
-    putStrLn $ "max: " ++ show maxValue
+    putStrLn $ "max: " ++ case maxValue of
+        Nothing -> "n/a"
+        Just value -> show value

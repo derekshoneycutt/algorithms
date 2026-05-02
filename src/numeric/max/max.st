@@ -1,5 +1,9 @@
+"
+    Get the maximum value of values entered, or 15, 10
+"
 
 Array extend [
+    " Get the maximum value of some array "
     max [
         | current |
         current := 0.

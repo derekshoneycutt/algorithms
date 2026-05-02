@@ -1,15 +1,23 @@
+{
+    Get the maximum value of a sequence of values
+}
+
 program max;
+{$mode objfpc} // generics is a freepascal feature; we break other pascal possibly here
     uses SysUtils;
 
-    function max(values : array of integer) : integer;
-        var current, i : integer;
+    (* Get the maximum value of a sequence of values of type T *)
+    generic function max<T>(values : array of T) : T;
+        var
+            current : T;
+            i : integer;
     begin
-        current := 0;
+        current := values[0];
         for i := Low(values) to High(values) do begin
             if values[i] > current then
                 current := values[i];
         end;
-        max := current;
+        Result := current;
     end;
 
     var values : array of integer;
@@ -27,7 +35,7 @@ begin
         values[1] := 10;
     end;
 
-    maximum := max(values);
+    maximum := specialize max<integer>(values);
 
     Write('values: [', values[0]);
     for i := 1 to High(values) do begin
