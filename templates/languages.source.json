@@ -1195,7 +1195,10 @@
           "modula3"
         ],
         "fileExtensions": [
-          ".m3"
+          ".m3",
+          ".i3",
+          ".mg",
+          ".ig"
         ]
       }
     },

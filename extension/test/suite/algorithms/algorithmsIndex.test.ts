@@ -31,6 +31,10 @@ function createLanguageStub(): ILanguages {
     [".go", "go"],
     [".ts", "typescript"],
     [".sh", "shell"],
+    [".m3", "modula3"],
+    [".i3", "modula3"],
+    [".mg", "modula3"],
+    [".ig", "modula3"],
   ]);
 
   return {
@@ -205,6 +209,43 @@ describe("algorithms — domain index discovery", () => {
       const go = implementations.find((implementation) => implementation.languageKey === "go");
       assert.ok(go, "expected go implementation");
       assert.strictEqual(go.isFlagged, false);
+    } finally {
+      await fs.rm(workspaceRootPath, { recursive: true, force: true });
+    }
+  });
+
+  it("getImplementations includes Modula-3 include files from .i3/.m3/.ig/.mg", async () => {
+    const workspaceRootPath = await createTempDirectory();
+    const filesystem = createFilesystem();
+
+    try {
+      const algorithmPath = path.join(workspaceRootPath, "src", "numeric", "max");
+      await fs.mkdir(algorithmPath, { recursive: true });
+      await fs.mkdir(path.join(algorithmPath, "modula3_include"), { recursive: true });
+
+      await fs.writeFile(path.join(algorithmPath, "max.m3"), "");
+      await fs.writeFile(path.join(algorithmPath, "modula3_include", "Max.i3"), "");
+      await fs.writeFile(path.join(algorithmPath, "modula3_include", "Max.m3"), "");
+      await fs.writeFile(path.join(algorithmPath, "modula3_include", "Max.ig"), "");
+      await fs.writeFile(path.join(algorithmPath, "modula3_include", "Max.mg"), "");
+
+      const algorithmsIndex = createAlgorithmsIndex({
+        filesystem,
+        languages: createLanguageStub(),
+        workspaceFolderPaths: [workspaceRootPath],
+      });
+
+      const implementations = await algorithmsIndex.getImplementations(algorithmPath);
+      const modula3 = implementations.find((implementation) => implementation.languageKey === "modula3");
+
+      assert.ok(modula3, "expected modula3 implementation");
+      assert.strictEqual(modula3.hasIncludes, true);
+      assert.deepStrictEqual(modula3.includeFilePaths, [
+        path.join(algorithmPath, "modula3_include", "Max.i3"),
+        path.join(algorithmPath, "modula3_include", "Max.ig"),
+        path.join(algorithmPath, "modula3_include", "Max.m3"),
+        path.join(algorithmPath, "modula3_include", "Max.mg"),
+      ]);
     } finally {
       await fs.rm(workspaceRootPath, { recursive: true, force: true });
     }

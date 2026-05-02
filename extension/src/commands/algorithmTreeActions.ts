@@ -455,12 +455,17 @@ export function createAlgorithmsAddIncludeFileCommand(
       return;
     }
 
-    const inputExtension = path.extname(trimmedInput);
-    const expectedExtension = path.extname(treeNode.filePath);
+    const inputLanguageKey = dependencies.languages.normalizeFileExtension(trimmedInput);
 
-    if (inputExtension !== expectedExtension) {
+    if (inputLanguageKey !== languageKey) {
+      const expectedExtensions = dependencies.languages.getByKey(languageKey)
+        ?.aliases.fileExtensions
+        .join(", ");
+      const expectedExtensionsText = expectedExtensions === undefined || expectedExtensions.length === 0
+        ? `for language ${languageKey}`
+        : `one of: ${expectedExtensions}`;
       await dependencies.notificationRouter.warn(
-        `Include file must have extension ${expectedExtension}.`
+        `Include file extension must be ${expectedExtensionsText}.`
       );
       return;
     }

@@ -1199,7 +1199,10 @@ export const GENERATED_LANGUAGE_DATA: GeneratedLanguageData = {
           "modula3"
         ],
         "fileExtensions": [
-          ".m3"
+          ".m3",
+          ".i3",
+          ".mg",
+          ".ig"
         ]
       }
     },
