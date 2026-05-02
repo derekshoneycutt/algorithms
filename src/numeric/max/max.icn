@@ -1,0 +1,33 @@
+# This takes a sequence of values and finds the maximum value
+
+# Finds the maximum value in a list
+procedure max(values)
+    local curr, value
+    curr := 0
+    every value := !values do {
+        if value > curr then {
+            curr := value
+        }
+    }
+    return curr
+end
+
+# The main entry point to the application
+procedure main(args)
+    local values, maxval
+
+    if *args >= 2 then {
+        values := args
+    }
+    else {
+        values := [15, 10]
+    }
+
+    maxval := max(values)
+
+    write("values: ")
+    every value := !values do {
+        write("   ", value)
+    }
+    write("max: ", maxval)
+end
