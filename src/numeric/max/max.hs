@@ -3,6 +3,8 @@
  -}
 import System.Environment (getArgs)
 import Data.List (intersperse)
+import Data.Maybe (fromMaybe)
+import Text.Read (readMaybe)
 
 -- | Get the maximum value of some list
 max_list :: Ord a => [a] -> Maybe a
@@ -17,18 +19,13 @@ max_list (x : xs) = Just (reduce_max xs x)
 -- | Get the arguments as integers
 argsAsInts :: [String] -> (Maybe [Integer])
 argsAsInts [] = Nothing
-argsAsInts args = Just [read arg :: Integer | arg <- args]
-
--- | Get just the given list or a default list if its Nothing
-orDefault :: (Maybe [Integer]) -> [Integer] -> [Integer]
-orDefault Nothing list = list
-orDefault (Just list) _ = list
+argsAsInts args = traverse readMaybe args
 
 -- | The main entry point to the application
 main :: IO ()
 main = do
     args <- getArgs
-    let intArgs = orDefault (argsAsInts args) [15, 10]
+    let intArgs = fromMaybe [15, 10] (argsAsInts args)
     let maxValue = max_list intArgs
 
     putStrLn $ "values: [" ++ (concat (intersperse " " (map show intArgs))) ++ "]"
