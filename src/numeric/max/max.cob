@@ -6,7 +6,7 @@
          WORKING-STORAGE SECTION.
       /    The values from the command line; or 15, 10 default
          01 ARG-RAW PIC X(10).
-         01 ARG-NUM PIC 9.
+         01 ARG-NUM PIC 9(10).
 
       /    The array and its size used to store the integer values
          01 ARRAY-SIZE PIC 9(4) VALUE 0.
@@ -14,13 +14,13 @@
 
       /    The values used to iterate and store the max value
          01 N PIC 9(4) VALUE 0.
-         01 MAXVALUE PIC 9(4) VALUE 0.
-         01 OUTVALUE PIC Z(1)9.
+         01 MAXVALUE PIC 9(10) VALUE 0.
+         01 OUTVALUE PIC Z(10)9.
 
          LINKAGE SECTION.
       /    The array as will be passed to the MAXVALUE program
          01 INTEGER-ARRAY BASED.
-           05 INTEGER-ITEM PIC 9(4) OCCURS 1 TO 100 TIMES
+           05 INTEGER-ITEM PIC 9(10) OCCURS 1 TO 100 TIMES
                                    DEPENDING ON ARRAY-SIZE.
 
        PROCEDURE DIVISION.
@@ -30,7 +30,6 @@
            IF ARG-NUM >= 1
              MOVE ARG-NUM TO ARRAY-SIZE
              ALLOCATE INTEGER-ARRAY INITIALIZED RETURNING ARRAY-PTR
-             SET ADDRESS OF INTEGER-ARRAY TO ARRAY-PTR
 
              PERFORM VARYING N FROM 1 BY 1 UNTIL N > ARG-NUM
                ACCEPT ARG-RAW FROM ARGUMENT-VALUE
@@ -39,7 +38,6 @@
            ELSE
              MOVE 2 TO ARRAY-SIZE
              ALLOCATE INTEGER-ARRAY INITIALIZED RETURNING ARRAY-PTR
-             SET ADDRESS OF INTEGER-ARRAY TO ARRAY-PTR
 
              MOVE 15 TO INTEGER-ITEM(1)
              MOVE 10 TO INTEGER-ITEM(2)
@@ -50,12 +48,12 @@
 
            DISPLAY "values:"
            PERFORM VARYING N FROM 1 BY 1 UNTIL N > ARRAY-SIZE
-             MOVE FUNCTION TRIM(INTEGER-ITEM(N)) TO OUTVALUE
-             DISPLAY OUTVALUE
+             MOVE INTEGER-ITEM(N) TO OUTVALUE
+             DISPLAY '  ' FUNCTION TRIM(OUTVALUE LEADING)
            END-PERFORM.
 
-           MOVE FUNCTION TRIM(MAXVALUE) TO OUTVALUE.
-           DISPLAY 'max:' OUTVALUE.
+           MOVE MAXVALUE TO OUTVALUE.
+           DISPLAY 'max: ' FUNCTION TRIM(OUTVALUE LEADING)
 
            FREE ARRAY-PTR.
            SET ARRAY-PTR TO NULL.
@@ -72,12 +70,12 @@
          01 COUNTER PIC 9(4).
          LINKAGE SECTION.
       /    The array and resulting max value to work with the caller
-         01 FINALVALUE PIC 9(4).
+         01 FINALVALUE PIC 9(10).
          01 ARRAY-PTR USAGE POINTER.
          01 ARRAY-SIZE PIC 9(4).
 
          01 INTEGER-ARRAY BASED.
-           05 INTEGER-ITEM PIC 9(4) OCCURS 1 TO 100 TIMES
+           05 INTEGER-ITEM PIC 9(10) OCCURS 1 TO 100 TIMES
                                    DEPENDING ON ARRAY-SIZE.
 
        PROCEDURE DIVISION USING ARRAY-PTR, ARRAY-SIZE, FINALVALUE.

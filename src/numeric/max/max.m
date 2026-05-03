@@ -6,20 +6,57 @@
 #include <stdlib.h>
 
 /**
- * Get the maximum value from an array of integers.
- *
- * @param values An array of integers.
- * @param count The number of elements in the array.
- * @return The maximum value in the array.
+ * A generic value type for use with the max function
  */
-int max(int values[], int count) {
-    int current = 0;
-    for (int i = 0; i < count; ++i) {
-        if (values[i] > current) {
-            current = values[i];
+typedef void* value_t;
+
+/**
+ * A comparison function type for use with the max function
+ */
+typedef int (*cmp_func)(const value_t, const value_t);
+
+/**
+ * A value type for integers
+ */
+typedef int* intvalue_t;
+
+/**
+ * Get the maximum value from an array of values of some type
+ * 
+ * @param values The array of values to get the max of
+ * @param n The number of values to find the max for
+ * @param size The size of the data type in the variable
+ * @param cmp A comparison function that returns a positive value if the first argument is greater than the second, zero if they are equal, and a negative value if the first argument is less than the second
+ * @return The maximum value
+ */
+value_t max(const value_t values, size_t n, size_t size, cmp_func cmp)
+{
+    // pointer math is a lil dangerous...
+    value_t current = (value_t)values;
+    for (size_t i = 1; i < n; ++i)
+    {
+        value_t element = (value_t)((char*)values + i * size);
+        if (cmp(element, current) > 0)
+        {
+            current = element;
         }
     }
     return current;
+}
+
+/**
+ * Compare two integers from 2 const value_t pointers
+ * 
+ * @param a The first integer to compare
+ * @param b The second integer to compare
+ * @return A positive value if a > b, zero if a == b, and a negative value if a < b
+ */
+int cmp_int(const value_t a, const value_t b)
+{
+    // those are ints, right? right...
+    int int_a = *(intvalue_t)a;
+    int int_b = *(intvalue_t)b;
+    return int_a - int_b;
 }
 
 /**
@@ -49,14 +86,14 @@ int main(int argc, const char * argv[]) {
         n = 2;
     }
 
-    int pmax = max(values, n);
+    int pmax = *(intvalue_t)max(values, n, sizeof(int), cmp_int);
 
     @autoreleasepool {
         NSLog(@"values:");
         for (int i = 0; i < n; ++i) {
             NSLog(@"%d", values[i]);
         }
-        NSLog(@"gcd: %d", pmax);
+        NSLog(@"max: %d", pmax);
     }
 
     free(values);
