@@ -5,7 +5,7 @@
     space: .byte ' ',0
     endl: .byte 10,0
     gcdmsg:
-        .ascii "gcd: \0 "
+        .ascii "gcd: \00"
     default_m: .byte 15
     default_n: .byte 10
 

@@ -1,9 +1,6 @@
 /* Find the maximum value of a sequence of numbers */
 
 .section .rodata
-    space:
-        .ascii " "
-        .byte 0
     endl: .byte 10,0
     valuesmsg:
         .ascii "values: "
@@ -11,8 +8,8 @@
     maxmsg:
         .ascii "max: "
         .byte 0
-    default_m: .byte 15
-    default_n: .byte 10
+    default1: .byte 15
+    default2: .byte 10
 
 .global main
 
@@ -95,10 +92,10 @@ main:
     /* For default values, just load the 2 and set the counter on top of the stack */
     .defaultValues:
         mov $0, %rcx
-        mov default_m(%rip), %rcx
+        mov default1(%rip), %rcx
         pushq %rcx
         mov $0, %rcx
-        mov default_n(%rip), %rcx
+        mov default2(%rip), %rcx
         pushq %rcx
         mov $2, count
         pushq count
