@@ -1,7 +1,7 @@
 # This program gets the maximum value of a sequence of values
 import sys
 
-def max_list(list):
+def max_list[T](list: list[T]) -> T:
     """
     Finds the maximum value in a list of numbers.
 

@@ -8,7 +8,7 @@
 /// <param name="list">The list of integers to find the maximum value for</param>
 /// <param name="max">The current maximum value</param>
 /// <returns>The maximum value in the list</returns>
-let rec max_state list max =
+let rec max_state<'T when 'T : comparison> (list: 'T list) (max: 'T) =
     match list with
     | [] -> max
     | head :: tail ->
@@ -19,9 +19,9 @@ let rec max_state list max =
 /// </summary>
 /// <param name="list">The list of integers to find the maximum value for</param>
 /// <returns>The maximum value in the list</returns>
-let max list =
+let max<'T when 'T : comparison> (list: 'T list) =
     match list with
-    | [] -> 0
+    | [] -> Unchecked.defaultof<'T>
     | head :: tail ->
         max_state tail head
 

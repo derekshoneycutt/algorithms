@@ -2,7 +2,6 @@ comment
     This program finds the maximum of a sequence of values
 ;
 begin
-
     ! Get the max of the sequence;
     integer procedure max(x, n);
         integer array x;
@@ -18,23 +17,25 @@ begin
         max := current;
     end;
 
-    ! No command line arguments in simula, so we just seed some data;
-    integer array numbers(1:10);
-    integer i;
-    numbers(1) := 23;
-    numbers(2) := 43;
-    numbers(3) := 1;
-    numbers(4) := 63;
-    numbers(5) := 35;
-    numbers(6) := 72;
-    numbers(7) := 12;
-    numbers(8) := 29;
-    numbers(9) := 50;
-    numbers(10) := 6;
+    integer size;
+    size := 10;
 
-    outtext("values:"); outimage;
-    for i := 1 step 1 until 10 do begin
-        outint(numbers(i),2); outimage;
-    end;
-    outtext("max: "); outint(max(numbers, 10), 2); outimage;
+    begin
+        ! No command line arguments in simula, so we just seed some data;
+        integer array numbers(1:size);
+        integer i;
+        text dt;
+        integer seed;
+        dt :- datetime;
+        seed := ((dt.sub(15, 2).getint * 10000)) + ((dt.sub(18, 2).getint * 100)) + (dt.sub(21, 2).getint);
+        for i := 1 step 1 until size do begin
+            numbers(i) := uniform(1, 99, seed)
+        end;
+
+        outtext("values:"); outimage;
+        for i := 1 step 1 until size do begin
+            outint(numbers(i), 2); outimage;
+        end;
+        outtext("max: "); outint(max(numbers, size), 2); outimage;
+    end
 end

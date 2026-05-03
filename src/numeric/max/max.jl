@@ -7,8 +7,8 @@ Finds the maximum of a set of values
 
 Julia's type system makes this inherently generic by not specifying a type
 """
-function max(values)
-    current = 0
+function max(values::Vector{T}) where T <: Number
+    current = zero(T)
     for value in values
         if current < value
             current = value

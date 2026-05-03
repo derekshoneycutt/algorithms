@@ -3,14 +3,20 @@ USING: arrays command-line formatting io kernel math math.parser namespaces pret
 IN: mymax
 
 ! Maximum of 2 values
-: mymax ( a b -- maxval )
+GENERIC: mymax ( a b -- maxval )
+
+! Maximum of 2 values
+M: integer mymax
     2dup >
     [ drop ]
     [ nip ]
     if ;
 
 ! Maximum of a sequence on the stack
-: maxof ( seq -- maxval )
+GENERIC: maxof ( seq -- maxval )
+
+! Maximum of a sequence on the stack
+M: sequence maxof
     dup rest swap first
     [ mymax ] reduce ;
 

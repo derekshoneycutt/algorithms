@@ -4,9 +4,9 @@
 .data
     endl: .byte 10,0
     valuesmsg:
-        .ascii "values:\00"
+        .asciz "values:"
     maxmsg:
-        .ascii "max: \00"
+        .asciz "max: "
     default1: .byte 15
     default2: .byte 10
 
