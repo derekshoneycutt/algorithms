@@ -126,6 +126,18 @@
         "icon": "$(trash)"
       },
       {
+        "command": "algos.algorithmsDocsCreateFile",
+        "title": "Create Documentation File",
+        "category": "Derek's Algorithms",
+        "icon": "$(new-file)"
+      },
+      {
+        "command": "algos.algorithmsDocsDeleteFile",
+        "title": "Delete Documentation File",
+        "category": "Derek's Algorithms",
+        "icon": "$(trash)"
+      },
+      {
         "command": "algos.algorithmsAddIncludeFile",
         "title": "Add Include File",
         "category": "Derek's Algorithms",
@@ -545,6 +557,16 @@
           "submenu": "algos.algorithmsRunActionsSubmenu",
           "when": "view == algos.workspaceAlgorithmsTreeView && (viewItem == algos.algorithmFileUnflagged || viewItem == algos.algorithmFileFlagged || viewItem == algos.algorithmFileRunResultsUnflagged || viewItem == algos.algorithmFileRunResultsFlagged || viewItem == algos.algorithmsMainFileUnflagged || viewItem == algos.algorithmsMainFileFlagged || viewItem == algos.algorithmsMainFileRunResultsUnflagged || viewItem == algos.algorithmsMainFileRunResultsFlagged || viewItem == algos.algorithmsLanguageSummaryUnflagged || viewItem == algos.algorithmsLanguageSummaryFlagged || viewItem == algos.algorithmsLanguageSummaryRunResultsUnflagged || viewItem == algos.algorithmsLanguageSummaryRunResultsFlagged)",
           "group": "inline@99"
+        },
+        {
+          "command": "algos.algorithmsDocsCreateFile",
+          "when": "view == algos.workspaceAlgorithmsTreeView && viewItem == algos.algorithmsDocsFolder",
+          "group": "inline@10"
+        },
+        {
+          "command": "algos.algorithmsDocsDeleteFile",
+          "when": "view == algos.workspaceAlgorithmsTreeView && viewItem == algos.algorithmsDocsFile",
+          "group": "inline@10"
         }
       ],
       "algos.algorithmsRunActionsSubmenu": [

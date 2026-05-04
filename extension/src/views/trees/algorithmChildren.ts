@@ -137,6 +137,20 @@ export async function getChildrenAlgorithmDir(
   filterMode: FilterMode,
   viewMode: ViewMode
 ): Promise<WorkspaceTreeNode[]> {
+  const documentationFiles = filterMode === "problems"
+    ? []
+    : await algorithmsIndex.getDocumentationFiles(algorithmPath);
+  const documentationFolderRows: WorkspaceTreeNode[] = documentationFiles.length > 0
+    ? [
+        {
+          kind: "docsFolder",
+          filePath: algorithmPath,
+          parentAlgorithmPath: algorithmPath,
+          docsFileCount: documentationFiles.length,
+        },
+      ]
+    : [];
+
   const implementations = await algorithmsIndex.getImplementations(algorithmPath);
   const implementationsByLanguage = new Map(
     implementations.map((implementation) => {
@@ -167,7 +181,8 @@ export async function getChildrenAlgorithmDir(
       };
     });
 
-    return filterProblemRows(languageRows, filterMode);
+    const filteredLanguageRows = filterProblemRows(languageRows, filterMode);
+    return [...documentationFolderRows, ...filteredLanguageRows];
   }
 
   // FILES view: return main files and extra files
@@ -204,7 +219,29 @@ export async function getChildrenAlgorithmDir(
   }));
 
   const fileRows = [...mainFileNodes, ...extraFileNodes];
-  return filterProblemRows(fileRows, filterMode);
+  const filteredFileRows = filterProblemRows(fileRows, filterMode);
+  return [...documentationFolderRows, ...filteredFileRows];
+}
+
+/**
+ * Gets documentation file children for one docs folder row.
+ *
+ * @param {WorkspaceTreeNode} element Docs folder node.
+ * @param {IAlgorithmsIndex} algorithmsIndex Algorithms index dependency.
+ * @returns {Promise<WorkspaceTreeNode[]>} Documentation file nodes.
+ */
+export async function getChildrenDocsFolder(
+  element: WorkspaceTreeNode,
+  algorithmsIndex: IAlgorithmsIndex
+): Promise<WorkspaceTreeNode[]> {
+  const algorithmPath = element.parentAlgorithmPath ?? element.filePath;
+  const documentationFiles = await algorithmsIndex.getDocumentationFiles(algorithmPath);
+
+  return documentationFiles.map((filePath) => ({
+    kind: "docsFile" as const,
+    filePath,
+    parentAlgorithmPath: algorithmPath,
+  }));
 }
 
 /**

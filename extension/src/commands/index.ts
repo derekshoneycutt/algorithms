@@ -40,6 +40,8 @@ export {
 	getExplorerCheckOnlySshCommandId,
 	getExplorerCleanCommandId,
 	getExplorerLocalCleanCommandId,
+	getAlgorithmsDocsCreateFileCommandId,
+	getAlgorithmsDocsDeleteFileCommandId,
 } from "./commandIds";
 export { registerCommands } from "./registerCommands";
 export { createShowBootstrapStatusCommand } from "./showBootstrapStatus";
@@ -71,6 +73,8 @@ export {
 	createAlgorithmsStopSmokeTestCommand,
 	createAlgorithmsClearSmokeResultsCommand,
 	createAlgorithmsClearRunResultsCommand,
+	createAlgorithmsDocsCreateFileCommand,
+	createAlgorithmsDocsDeleteFileCommand,
 } from "./algorithmTreeActions";
 export {
 	createAlgorithmsEditorTitleRunFileCommand,

@@ -72,6 +72,7 @@ export function buildEnvironmentControlsSnapshot(
 ): EnvironmentControlsViewSnapshot {
   return {
     stateValue: snapshot.stateValue,
+    persistSessionEnabled: snapshot.environmentControls.persistSessionEnabled,
     profilePath: snapshot.environmentControls.profilePath,
     profilePlaceholder: snapshot.environmentControls.profilePlaceholder,
     effectiveProfilePath: snapshot.environmentControls.effectiveProfilePath,

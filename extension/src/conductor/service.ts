@@ -157,6 +157,7 @@ export interface ReactAndApplyRunControlsIntentDependencies
  */
 export interface CreateSmokeControlsChannelMessageHandlerInput
   extends ReactAndApplySmokeIntentDependencies {
+  onIntentApplied?: () => void | Promise<void>;
   publishSnapshot: () => void;
 }
 
@@ -165,6 +166,7 @@ export interface CreateSmokeControlsChannelMessageHandlerInput
  */
 export interface CreateRunControlsChannelMessageHandlerInput
   extends ReactAndApplyRunControlsIntentDependencies {
+  onIntentApplied?: () => void | Promise<void>;
   publishSnapshot: () => void;
 }
 
@@ -251,6 +253,7 @@ export function createSmokeControlsChannelMessageHandler(
     const shouldPublishSnapshot = reactAndApplySmokeIntent(message.payload, input);
 
     if (shouldPublishSnapshot) {
+      void input.onIntentApplied?.();
       input.publishSnapshot();
     }
   };
@@ -278,6 +281,7 @@ export function createRunControlsChannelMessageHandler(
     const shouldPublishSnapshot = reactAndApplyRunControlsIntent(message.payload, input);
 
     if (shouldPublishSnapshot) {
+      void input.onIntentApplied?.();
       input.publishSnapshot();
     }
   };

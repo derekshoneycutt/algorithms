@@ -14,7 +14,9 @@ import type { IStateMachine, SmokeLanguageRunStatus } from "../../state";
  * Node kinds:
  * - "directory": generic folder (category-level dir, stdlib dir)
  * - "algorithmDir": algorithm directory (second-level in algorithms tree, has implementations)
+ * - "docsFolder": synthetic docs container under one algorithm directory
  * - "file": plain file (non-collapsible)
+ * - "docsFile": documentation file under one docs folder
  * - "mainFile": algorithm main file (collapsible, may have includes)
  * - "languageSummary": language grouping row for LANGUAGE view (collapsible)
  *
@@ -41,11 +43,13 @@ import type { IStateMachine, SmokeLanguageRunStatus } from "../../state";
  * - isIncludeFile: true
  */
 export interface WorkspaceTreeNode {
-  kind: "directory" | "algorithmDir" | "file" | "mainFile" | "languageSummary";
+  kind: "directory" | "algorithmDir" | "docsFolder" | "file" | "docsFile" | "mainFile" | "languageSummary";
   filePath: string;
   filePathsByLanguage?: Record<string, string[]>;
   languageKey?: string;
   parentAlgorithmPath?: string;
+  /** Optional documentation file count shown on synthetic docs folder rows. */
+  docsFileCount?: number;
   isIncludeFile?: boolean;
   isFlagged?: boolean;
   isMissing?: boolean;

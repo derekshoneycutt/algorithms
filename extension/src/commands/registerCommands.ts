@@ -42,8 +42,9 @@ import {
     getExplorerCheckOnlySshCommandId,
     getExplorerCleanCommandId,
     getExplorerLocalCleanCommandId,
+  getAlgorithmsDocsCreateFileCommandId,
+  getAlgorithmsDocsDeleteFileCommandId,
 } from "./commandIds";
-
 /**
  * Registers the full extension command set using the provided commands interface.
  *
@@ -213,6 +214,14 @@ export function registerCommands(
       vscode.commands.registerCommand(
         getExplorerLocalCleanCommandId(),
         commands.explorerLocalClean
+      ),
+      vscode.commands.registerCommand(
+        getAlgorithmsDocsCreateFileCommandId(),
+        commands.algorithmsDocsCreateFile
+      ),
+      vscode.commands.registerCommand(
+        getAlgorithmsDocsDeleteFileCommandId(),
+        commands.algorithmsDocsDeleteFile
       )
   );
 }

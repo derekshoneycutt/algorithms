@@ -38,6 +38,11 @@ type SupportedVariableKey =
   | "gxx13Name";
 
 const SECTION_ICON_SVG_BY_NAME: Readonly<Record<string, string>> = Object.freeze({
+  session:
+    '<svg class="sectionIcon" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-hidden="true">'
+    + '<path d="M8 2.5L12.5 4.5V8.8C12.5 11 10.95 13.02 8 13.8C5.05 13.02 3.5 11 3.5 8.8V4.5L8 2.5Z" stroke="currentColor" stroke-width="1"/>'
+    + '<path d="M6.1 8.1L7.4 9.3L10.1 6.7" stroke="currentColor" stroke-width="1.1" stroke-linecap="round" stroke-linejoin="round"/>'
+    + "</svg>",
   profile:
     '<svg class="sectionIcon" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-hidden="true">'
     + '<path d="M8 8C9.66 8 11 6.66 11 5C11 3.34 9.66 2 8 2C6.34 2 5 3.34 5 5C5 6.66 6.34 8 8 8Z" stroke="currentColor" stroke-width="1.1"/>'
@@ -253,6 +258,19 @@ function renderEnvironmentControlsTemplate(
   return html`
     <section class="panel" aria-label="Environment controls">
       <p class="panelDescription">Controls environment factors for the algorithms project via init.sh.</p>
+
+      <section class="section">
+        ${renderSectionHeader("Persist Session", "session")}
+        <label class="toggleRow">
+          <input
+            type="checkbox"
+            data-role="persist-session-enabled"
+            ?checked=${snapshot.persistSessionEnabled}
+          />
+          <span class="checkboxText">Persist Run and Smoke options for this workspace</span>
+        </label>
+        <div class="helperText">When enabled, Run and Smoke controls are restored across extension reloads in this workspace.</div>
+      </section>
 
       <section class="section">
         ${renderSectionHeader(
@@ -486,6 +504,7 @@ export function createEnvironmentControlsUi(): IEnvironmentControlsUi {
 
   applySnapshot(appRoot, {
     stateValue: "ready",
+    persistSessionEnabled: false,
     profilePath: "",
     profilePlaceholder: "",
     effectiveProfilePath: "",
@@ -524,6 +543,14 @@ export function createEnvironmentControlsUi(): IEnvironmentControlsUi {
       emit({
         kind: "setProfilePath",
         profilePath: target.value,
+      });
+      return;
+    }
+
+    if (role === "persist-session-enabled") {
+      emit({
+        kind: "setPersistSessionEnabled",
+        enabled: target.checked,
       });
       return;
     }

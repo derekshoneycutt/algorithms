@@ -1,5 +1,6 @@
 import * as path from "node:path";
 import type { Dirent } from "node:fs";
+import { existsSync } from "node:fs";
 
 import * as vscode from "vscode";
 
@@ -7,6 +8,32 @@ import type { ConductorRunStatus } from "../../conductor";
 import type { IFilesystem } from "../../filesystem";
 import type { ILanguages } from "../../languages";
 import type { RestrictedTreeDiscoveryDependencies, WorkspaceTreeNode } from "./types";
+
+/**
+ * Resolves the icon URI for synthetic docs folders.
+ *
+ * @returns {vscode.Uri | vscode.ThemeIcon} Icon URI when available, fallback theme icon otherwise.
+ */
+function getDocsFolderIconPath(): vscode.Uri | vscode.ThemeIcon {
+  const extensionPath = vscode.extensions.getExtension(
+    "derekshoneycutt.algorithms-runner-extension"
+  )?.extensionUri.fsPath;
+  const iconPathCandidates = [
+    extensionPath !== undefined
+      ? path.join(extensionPath, "icons", "languages", "readme.svg")
+      : "",
+    path.resolve(__dirname, "../icons/languages/readme.svg"),
+    path.resolve(__dirname, "../../icons/languages/readme.svg"),
+  ];
+
+  for (const iconPathCandidate of iconPathCandidates) {
+    if (existsSync(iconPathCandidate)) {
+      return vscode.Uri.file(iconPathCandidate);
+    }
+  }
+
+  return new vscode.ThemeIcon("book");
+}
 
 /**
  * Returns true when a path segment should be hidden from tree views.
@@ -485,6 +512,37 @@ export function createTreeItem(
     }
     if (element.runStatusTooltip !== undefined) {
       treeItem.tooltip = element.runStatusTooltip;
+    }
+    treeItem.id = getTreeItemId(element);
+    return treeItem;
+  }
+
+  if (element.kind === "docsFolder") {
+    const treeItem = new vscode.TreeItem(
+      "docs",
+      vscode.TreeItemCollapsibleState.Collapsed
+    );
+    treeItem.iconPath = getDocsFolderIconPath();
+    if (element.docsFileCount !== undefined) {
+      treeItem.description = String(element.docsFileCount);
+    }
+    if (contextValue !== undefined) {
+      treeItem.contextValue = contextValue;
+    }
+    treeItem.id = getTreeItemId(element);
+    return treeItem;
+  }
+
+  if (element.kind === "docsFile") {
+    const treeItem = new vscode.TreeItem(resourceUri, vscode.TreeItemCollapsibleState.None);
+    treeItem.resourceUri = resourceUri;
+    treeItem.command = {
+      command: "vscode.open",
+      title: "Open File",
+      arguments: [resourceUri],
+    };
+    if (contextValue !== undefined) {
+      treeItem.contextValue = contextValue;
     }
     treeItem.id = getTreeItemId(element);
     return treeItem;

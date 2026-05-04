@@ -22,6 +22,7 @@ export interface CreateEnvironmentControlsChannelMessageHandlerInput
   extends ApplyConductorReactionDependencies {
   conductor: IConductor;
   languages: ILanguages;
+  onPersistSessionEnabledChanged?: (enabled: boolean) => void | Promise<void>;
   publishSnapshot: () => void;
 }
 
@@ -363,6 +364,25 @@ function handleSetProfilePath(
   profilePath: string
 ): void {
   input.stateMachine.send({ type: "ENV_PROFILE_PATH_SET", profilePath });
+  input.publishSnapshot();
+}
+
+/**
+ * Handles `setPersistSessionEnabled` intent: updates persistence toggle state.
+ *
+ * @param {CreateEnvironmentControlsChannelMessageHandlerInput} input Channel handler dependencies.
+ * @param {boolean} enabled Next persist-session toggle value.
+ * @returns {void}
+ */
+function handleSetPersistSessionEnabled(
+  input: CreateEnvironmentControlsChannelMessageHandlerInput,
+  enabled: boolean
+): void {
+  input.stateMachine.send({
+    type: "ENV_PERSIST_SESSION_ENABLED_SET",
+    enabled,
+  });
+  void input.onPersistSessionEnabledChanged?.(enabled);
   input.publishSnapshot();
 }
 
@@ -883,6 +903,11 @@ export function createEnvironmentControlsChannelMessageHandler(
 
     if (payload.kind === "setProfilePath") {
       handleSetProfilePath(input, payload.profilePath);
+      return;
+    }
+
+    if (payload.kind === "setPersistSessionEnabled") {
+      handleSetPersistSessionEnabled(input, payload.enabled);
       return;
     }
 

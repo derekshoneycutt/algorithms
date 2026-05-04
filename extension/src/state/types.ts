@@ -113,6 +113,7 @@ export interface EnvironmentRoutingLanguageSetting {
  * Canonical environment controls settings stored in host state.
  */
 export interface EnvironmentControlsSettings {
+  persistSessionEnabled: boolean;
   profilePath: string;
   profilePlaceholder: string;
   effectiveProfilePath: string;
@@ -489,6 +490,7 @@ export interface InitialRunControlsSettingsInput {
  * Input overrides for initial environment controls settings.
  */
 export interface InitialEnvironmentControlsSettingsInput {
+  persistSessionEnabled?: boolean;
   profilePath?: string;
   profilePlaceholder?: string;
   effectiveProfilePath?: string;
@@ -589,6 +591,7 @@ export type ExtensionHostEvent =
       statusClassName: ViewStatusClassName;
     }
   | { type: "ENV_PROFILE_PATH_SET"; profilePath: string }
+  | { type: "ENV_PERSIST_SESSION_ENABLED_SET"; enabled: boolean }
   | { type: "ENV_PROFILE_PLACEHOLDER_SET"; profilePlaceholder: string }
   | { type: "ENV_EFFECTIVE_PROFILE_PATH_SET"; effectiveProfilePath: string }
   | { type: "ENV_COPY_ICONS_PATH_SET"; copyIconsPath: string }
@@ -823,6 +826,7 @@ export function createInitialEnvironmentControlsSettings(
   input?: InitialEnvironmentControlsSettingsInput
 ): EnvironmentControlsSettings {
   return {
+    persistSessionEnabled: input?.persistSessionEnabled ?? false,
     profilePath: input?.profilePath ?? "",
     profilePlaceholder: input?.profilePlaceholder ?? "",
     effectiveProfilePath: input?.effectiveProfilePath ?? "",

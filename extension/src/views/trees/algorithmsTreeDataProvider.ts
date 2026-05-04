@@ -11,6 +11,7 @@ import {
   getChildrenRoot,
   getChildrenCategory,
   getChildrenAlgorithmDir,
+  getChildrenDocsFolder,
   getChildrenLanguageOrMainFile,
 } from "./algorithmChildren";
 import { createTreeItem } from "./treeProviders";
@@ -158,6 +159,14 @@ function buildSmokeStatusTooltip(
  * @returns {string | undefined} Context value for menu targeting.
  */
 function getTreeItemContextValue(element: WorkspaceTreeNode): string | undefined {
+  if (element.kind === "docsFolder") {
+    return "algos.algorithmsDocsFolder";
+  }
+
+  if (element.kind === "docsFile") {
+    return "algos.algorithmsDocsFile";
+  }
+
   if (element.kind === "languageSummary" && element.languageKey) {
     if (hasRetainedRunResults(element.runStatus) && element.hasOpenTarget !== false) {
       return element.isFlagged === true
@@ -261,6 +270,10 @@ export function createWorkspaceAlgorithmsTreeDataProvider(
   ): Promise<WorkspaceTreeNode[]> {
     const viewMode = viewModeService.getViewMode();
     const filterMode = filterModeService.getFilterMode();
+
+    if (element !== undefined && element.kind === "docsFolder") {
+      return getChildrenDocsFolder(element, algorithmsIndex);
+    }
 
     // Include file parents: return include files from precomputed paths
     if (
@@ -399,6 +412,21 @@ export function createWorkspaceAlgorithmsTreeDataProvider(
      * @returns {Promise<WorkspaceTreeNode | undefined>} Parent node when present.
      */
     async getParent(element: WorkspaceTreeNode): Promise<WorkspaceTreeNode | undefined> {
+      if (element.kind === "docsFolder" && element.parentAlgorithmPath !== undefined) {
+        return {
+          kind: "algorithmDir",
+          filePath: element.parentAlgorithmPath,
+        };
+      }
+
+      if (element.kind === "docsFile" && element.parentAlgorithmPath !== undefined) {
+        return {
+          kind: "docsFolder",
+          filePath: element.parentAlgorithmPath,
+          parentAlgorithmPath: element.parentAlgorithmPath,
+        };
+      }
+
       if (
         element.kind === "file"
         && element.isIncludeFile === true
@@ -453,6 +481,25 @@ export function createWorkspaceAlgorithmsTreeDataProvider(
     async findNodeForFilePath(
       filePath: string
     ): Promise<{ node: WorkspaceTreeNode; viewId: string } | null> {
+      const extension = path.extname(filePath).toLowerCase();
+      if (extension === ".md" || extension === ".txt") {
+        const parentAlgorithmPath = path.dirname(filePath);
+        const documentationFiles = await algorithmsIndex.getDocumentationFiles(
+          parentAlgorithmPath
+        );
+
+        if (documentationFiles.includes(filePath)) {
+          return {
+            node: {
+              kind: "docsFile",
+              filePath,
+              parentAlgorithmPath,
+            },
+            viewId,
+          };
+        }
+      }
+
       const lookup = await algorithmsIndex.getImplementationByFilePath(filePath);
       if (lookup === null) {
         return null;

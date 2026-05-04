@@ -103,6 +103,7 @@ export interface EnvironmentControlsBatchRouting {
  */
 export interface EnvironmentControlsViewSnapshot {
   stateValue: string;
+  persistSessionEnabled: boolean;
   profilePath: string;
   profilePlaceholder: string;
   effectiveProfilePath: string;
@@ -151,6 +152,7 @@ export type ViewRunControlsIntent =
  * Environment controls intent sent from the webview.
  */
 export type ViewEnvironmentControlsIntent =
+  | { kind: "setPersistSessionEnabled"; enabled: boolean }
   | { kind: "setProfilePath"; profilePath: string }
   | { kind: "setCopyIconsPath"; copyIconsPath: string }
   | { kind: "runCheckEnvironment" }
@@ -407,6 +409,8 @@ function isEnvironmentControlsViewSnapshot(value: unknown): value is Environment
   return (
     "stateValue" in value &&
     typeof value.stateValue === "string" &&
+    "persistSessionEnabled" in value &&
+    typeof value.persistSessionEnabled === "boolean" &&
     "profilePath" in value &&
     typeof value.profilePath === "string" &&
     "profilePlaceholder" in value &&
@@ -578,6 +582,10 @@ export function isViewEnvironmentControlsIntent(
 
   if (value.kind === "setProfilePath") {
     return "profilePath" in value && typeof value.profilePath === "string";
+  }
+
+  if (value.kind === "setPersistSessionEnabled") {
+    return "enabled" in value && typeof value.enabled === "boolean";
   }
 
   if (value.kind === "setCopyIconsPath") {

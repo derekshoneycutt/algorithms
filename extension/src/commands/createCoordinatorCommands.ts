@@ -26,6 +26,8 @@ import {
   createAlgorithmsCreateFolderAtRootCommand,
   createAlgorithmsCreateFolderCommand,
   createAlgorithmsDeleteCommand,
+  createAlgorithmsDocsCreateFileCommand,
+  createAlgorithmsDocsDeleteFileCommand,
   createAlgorithmsEditorTitleCheckOnlyDockerCommand,
   createAlgorithmsEditorTitleCheckOnlyNativeCommand,
   createAlgorithmsEditorTitleCheckOnlySshCommand,
@@ -317,5 +319,19 @@ export function createCoordinatorCommands(
     explorerCheckOnlySsh: input.explorerRunCommands.checkOnlySsh,
     explorerClean: input.explorerRunCommands.clean,
     explorerLocalClean: input.explorerRunCommands.localClean,
+    algorithmsDocsCreateFile: createAlgorithmsDocsCreateFileCommand({
+      filesystem: input.filesystem,
+      languages: input.languages,
+      notificationRouter: input.notificationRouter,
+      refreshAlgorithmsTree: input.workspaceAlgorithmsTreeProvider.refresh,
+      rootPathResolver: input.rootPathResolver,
+    }),
+    algorithmsDocsDeleteFile: createAlgorithmsDocsDeleteFileCommand({
+      filesystem: input.filesystem,
+      languages: input.languages,
+      notificationRouter: input.notificationRouter,
+      refreshAlgorithmsTree: input.workspaceAlgorithmsTreeProvider.refresh,
+      rootPathResolver: input.rootPathResolver,
+    }),
   };
 }

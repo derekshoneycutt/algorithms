@@ -189,6 +189,17 @@ function isSupportedLanguageFile(languages: ILanguages, filePath: string): boole
 }
 
 /**
+ * Returns true when one file name should be treated as algorithm documentation.
+ *
+ * @param {string} fileName File base name.
+ * @returns {boolean} True when the file extension is `.md` or `.txt`.
+ */
+function isDocumentationFileName(fileName: string): boolean {
+  const extension = path.extname(fileName).toLowerCase();
+  return extension === ".md" || extension === ".txt";
+}
+
+/**
  * Returns a normalized identifier used for fuzzy basename scoring.
  *
  * @param {string} value Candidate value.
@@ -349,6 +360,7 @@ export function createAlgorithmsIndex(
   const implementationsByAlgorithmPath = new Map<string, AlgorithmImplementation[]>();
   const fileLookupByPath = new Map<string, AlgorithmFileLookup>();
   const filePathsByAlgorithmPath = new Map<string, Set<string>>();
+  const documentationFilesByAlgorithmPath = new Map<string, string[]>();
   const problemRowsByAlgorithmAndViewMode = new Map<string, boolean>();
   const pendingProblemRowsByAlgorithmAndViewMode = new Map<string, Promise<boolean>>();
   const standardLibraryEntriesByPath = new Map<string, StandardLibEntry[]>();
@@ -366,6 +378,7 @@ export function createAlgorithmsIndex(
     implementationsByAlgorithmPath.clear();
     fileLookupByPath.clear();
     filePathsByAlgorithmPath.clear();
+    documentationFilesByAlgorithmPath.clear();
     problemRowsByAlgorithmAndViewMode.clear();
     pendingProblemRowsByAlgorithmAndViewMode.clear();
     standardLibraryEntriesByPath.clear();
@@ -524,9 +537,13 @@ export function createAlgorithmsIndex(
         ? targetPath
         : path.dirname(targetPath);
 
-      if (implementationsByAlgorithmPath.has(algorithmDirCandidate)) {
+      if (
+        implementationsByAlgorithmPath.has(algorithmDirCandidate)
+        || documentationFilesByAlgorithmPath.has(algorithmDirCandidate)
+      ) {
         // Scoped invalidation: evict only this algorithm directory.
         implementationsByAlgorithmPath.delete(algorithmDirCandidate);
+        documentationFilesByAlgorithmPath.delete(algorithmDirCandidate);
         clearProblemRowsCacheForAlgorithm(algorithmDirCandidate);
         const tracked = filePathsByAlgorithmPath.get(algorithmDirCandidate);
         if (tracked !== undefined) {
@@ -541,6 +558,12 @@ export function createAlgorithmsIndex(
       if (algorithmsByCategoryPath.has(targetPath)) {
         // Category-level invalidation: evict only this category's algorithm list.
         algorithmsByCategoryPath.delete(targetPath);
+        const categoryPrefix = `${targetPath}${path.sep}`;
+        for (const algorithmPath of documentationFilesByAlgorithmPath.keys()) {
+          if (algorithmPath.startsWith(categoryPrefix)) {
+            documentationFilesByAlgorithmPath.delete(algorithmPath);
+          }
+        }
         clearProblemRowsCacheForCategory(targetPath);
         return;
       }
@@ -726,6 +749,35 @@ export function createAlgorithmsIndex(
         filePaths: [...implementation.filePaths],
         includeFilePaths: [...implementation.includeFilePaths],
       }));
+    },
+
+    async getDocumentationFiles(algorithmPath: string): Promise<string[]> {
+      const canonicalAlgorithmPath = await filesystem.realpath(algorithmPath);
+      const cachedDocumentationFiles = documentationFilesByAlgorithmPath.get(canonicalAlgorithmPath);
+
+      if (cachedDocumentationFiles !== undefined) {
+        return [...cachedDocumentationFiles];
+      }
+
+      const dirents = await listDirents(canonicalAlgorithmPath, filesystem);
+      const documentationFiles = dirents
+        .filter((dirent) => {
+          if (!dirent.isFile()) {
+            return false;
+          }
+
+          if (isHiddenName(dirent.name)) {
+            return false;
+          }
+
+          return isDocumentationFileName(dirent.name);
+        })
+        .map((dirent) => path.join(canonicalAlgorithmPath, dirent.name));
+
+      documentationFiles.sort((leftPath, rightPath) => leftPath.localeCompare(rightPath));
+      documentationFilesByAlgorithmPath.set(canonicalAlgorithmPath, documentationFiles);
+
+      return [...documentationFiles];
     },
 
     async hasProblemRowsForAlgorithm(

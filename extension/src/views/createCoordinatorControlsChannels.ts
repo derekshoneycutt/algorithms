@@ -19,6 +19,7 @@ import {
 import type { ILanguages } from "../languages";
 import { createConductorNotificationDispatcher } from "../notifications";
 import type { IObservability } from "../observability";
+import type { IWorkspaceSettingsPersistenceService } from "../persistence";
 import type { IStateMachine } from "../state";
 import type { ICommunicationHub } from "../comms";
 import type { IViewHost } from "./IViewHost";
@@ -37,8 +38,10 @@ export interface CreateCoordinatorControlsChannelsInput {
   languages: ILanguages;
   notificationDispatcher: ReturnType<typeof createConductorNotificationDispatcher>;
   observability: IObservability;
+  persistenceService?: IWorkspaceSettingsPersistenceService;
   stateMachine: IStateMachine;
   viewHost: IViewHost;
+  workspacePersistenceKey?: string;
   viewIds: {
     environmentControlsViewId: string;
     runControlsViewId: string;
@@ -55,6 +58,61 @@ export interface CreateCoordinatorControlsChannelsInput {
 export function createCoordinatorControlsChannels(
   input: CreateCoordinatorControlsChannelsInput
 ): ControlsChannelRegistrations {
+  /**
+   * Saves workspace-scoped run/smoke settings when persistence is enabled.
+   *
+   * @returns {Promise<void>} Resolves when persistence write is attempted.
+   */
+  async function persistWorkspaceSettingsIfEnabled(): Promise<void> {
+    const persistenceService = input.persistenceService;
+    const workspacePersistenceKey = input.workspacePersistenceKey?.trim() ?? "";
+
+    if (persistenceService === undefined || workspacePersistenceKey.length === 0) {
+      return;
+    }
+
+    const snapshot = input.stateMachine.getSnapshot();
+    if (!snapshot.environmentControls.persistSessionEnabled) {
+      return;
+    }
+
+    try {
+      await persistenceService.saveWorkspaceSettings(workspacePersistenceKey, {
+        persistSessionEnabled: snapshot.environmentControls.persistSessionEnabled,
+        runControls: snapshot.runControls,
+        smokeControls: snapshot.smokeControls,
+      });
+    } catch {
+      // Persistence failures should not block runtime state changes.
+    }
+  }
+
+  /**
+   * Saves workspace settings after a persist-session toggle update.
+   *
+   * @param {boolean} enabled New persist-session toggle value.
+   * @returns {Promise<void>} Resolves when persistence write is attempted.
+   */
+  async function handlePersistSessionEnabledChanged(enabled: boolean): Promise<void> {
+    const persistenceService = input.persistenceService;
+    const workspacePersistenceKey = input.workspacePersistenceKey?.trim() ?? "";
+
+    if (persistenceService === undefined || workspacePersistenceKey.length === 0) {
+      return;
+    }
+
+    try {
+      const snapshot = input.stateMachine.getSnapshot();
+      await persistenceService.saveWorkspaceSettings(workspacePersistenceKey, {
+        persistSessionEnabled: enabled,
+        runControls: snapshot.runControls,
+        smokeControls: snapshot.smokeControls,
+      });
+    } catch {
+      // Persistence failures should not block runtime state changes.
+    }
+  }
+
   /**
    * Wraps one snapshot publisher with panel observability instrumentation.
    *
@@ -140,12 +198,14 @@ export function createCoordinatorControlsChannels(
     conductor: input.conductor,
     stateMachine: input.stateMachine,
     dispatchNotification: input.notificationDispatcher.dispatch,
+    onIntentApplied: persistWorkspaceSettingsIfEnabled,
     publishSnapshot: publishSmokeSnapshotInstrumented,
   });
   const runControlsChannelHandler = createRunControlsChannelMessageHandler({
     conductor: input.conductor,
     stateMachine: input.stateMachine,
     dispatchNotification: input.notificationDispatcher.dispatch,
+    onIntentApplied: persistWorkspaceSettingsIfEnabled,
     publishSnapshot: publishRunSnapshotInstrumented,
   });
   const environmentControlsChannelHandler = createEnvironmentControlsChannelMessageHandler({
@@ -153,6 +213,7 @@ export function createCoordinatorControlsChannels(
     languages: input.languages,
     stateMachine: input.stateMachine,
     dispatchNotification: input.notificationDispatcher.dispatch,
+    onPersistSessionEnabledChanged: handlePersistSessionEnabledChanged,
     publishSnapshot: publishEnvironmentSnapshotInstrumented,
   });
 

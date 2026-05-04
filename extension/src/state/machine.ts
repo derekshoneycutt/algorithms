@@ -8,6 +8,7 @@ import {
   type EnvironmentRoutingLanguageSetting,
   type EnvironmentVariableSetting,
   type ExtensionHostEvent,
+  type InitialEnvironmentControlsSettingsInput,
   type InitialRunControlsSettingsInput,
   type InitialSmokeControlsSettingsInput,
   type SmokeLanguageSelection,
@@ -19,6 +20,7 @@ import {
 export interface ExtensionHostMachineInput {
   initialSmokeControls?: InitialSmokeControlsSettingsInput;
   initialRunControls?: InitialRunControlsSettingsInput;
+  initialEnvironmentControls?: InitialEnvironmentControlsSettingsInput;
 }
 
 /**
@@ -267,7 +269,9 @@ export function createExtensionHostMachine() {
       activeSmokeRunAlgorithmPath: null,
       activeSmokeRunIdByAlgorithm: {},
       runControls: createInitialRunControlsSettings(input.initialRunControls),
-      environmentControls: createInitialEnvironmentControlsSettings(),
+      environmentControls: createInitialEnvironmentControlsSettings(
+        input.initialEnvironmentControls
+      ),
       filesystemCacheTtlMs: 2000,
       filesystemStatCacheByPath: {},
       filesystemDirectoryCacheByPath: {},
@@ -276,6 +280,16 @@ export function createExtensionHostMachine() {
     };
   },
   on: {
+    ENV_PERSIST_SESSION_ENABLED_SET: {
+      actions: assign({
+        environmentControls: ({ context, event }) => {
+          return {
+            ...context.environmentControls,
+            persistSessionEnabled: event.enabled,
+          };
+        },
+      }),
+    },
     FILESYSTEM_CACHE_TTL_SET: {
       actions: assign({
         filesystemCacheTtlMs: ({ context, event }) => {

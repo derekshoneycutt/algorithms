@@ -357,3 +357,21 @@ export function getExplorerCleanCommandId(): string {
 export function getExplorerLocalCleanCommandId(): string {
   return "algos.explorerLocalClean";
 }
+
+/**
+ * Command identifier for creating one documentation file in an algorithm docs folder.
+ *
+ * @returns {string} Command identifier.
+ */
+export function getAlgorithmsDocsCreateFileCommandId(): string {
+  return "algos.algorithmsDocsCreateFile";
+}
+
+/**
+ * Command identifier for deleting one documentation file from an algorithm docs folder.
+ *
+ * @returns {string} Command identifier.
+ */
+export function getAlgorithmsDocsDeleteFileCommandId(): string {
+  return "algos.algorithmsDocsDeleteFile";
+}

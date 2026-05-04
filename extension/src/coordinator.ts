@@ -1,3 +1,4 @@
+import * as path from "path";
 import * as vscode from "vscode";
 
 import type { ActivationServicesGraph } from "./activator";
@@ -128,8 +129,10 @@ export function createCoordinator(
     languages: runtimeServices.languages,
     notificationDispatcher: runtimeServices.notificationDispatcher,
     observability: runtimeServices.observability,
+    persistenceService: runtimeServices.persistenceService,
     stateMachine,
     viewHost,
+    workspacePersistenceKey: runtimeServices.workspacePersistenceKey,
     viewIds: {
       environmentControlsViewId: viewIds.environmentControlsViewId,
       runControlsViewId: viewIds.runControlsViewId,
@@ -164,7 +167,9 @@ export function createCoordinator(
       }
 
       const filePath = activeUri.fsPath;
-      if (runtimeServices.languages.normalizeFileExtension(filePath) === undefined) {
+      const docFileExt = path.extname(filePath).toLowerCase();
+      const isDocFile = docFileExt === ".md" || docFileExt === ".txt";
+      if (runtimeServices.languages.normalizeFileExtension(filePath) === undefined && !isDocFile) {
         return;
       }
 

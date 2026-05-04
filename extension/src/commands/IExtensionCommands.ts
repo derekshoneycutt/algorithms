@@ -323,4 +323,20 @@ export interface IExtensionCommands {
      * @returns {Promise<void>}
      */
     explorerLocalClean: (clickedUri?: Uri) => Promise<void>;
+
+  /**
+   * Creates one documentation file inside the selected algorithm docs folder.
+   *
+   * @param {WorkspaceTreeNode} [treeNode] Hovered docs folder tree node.
+   * @returns {Promise<void>}
+   */
+  algorithmsDocsCreateFile: (treeNode?: WorkspaceTreeNode) => Promise<void>;
+
+  /**
+   * Deletes one documentation file from an algorithm docs folder.
+   *
+   * @param {WorkspaceTreeNode} [treeNode] Hovered docs file tree node.
+   * @returns {Promise<void>}
+   */
+  algorithmsDocsDeleteFile: (treeNode?: WorkspaceTreeNode) => Promise<void>;
 }

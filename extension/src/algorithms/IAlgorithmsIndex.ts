@@ -71,6 +71,17 @@ export interface IAlgorithmsIndex {
   getImplementations(algorithmPath: string): Promise<AlgorithmImplementation[]>;
 
   /**
+   * Returns top-level documentation files for one algorithm directory.
+   *
+   * Documentation files are restricted to direct children with `.md` or `.txt`
+   * extensions and do not include nested directories.
+   *
+   * @param {string} algorithmPath Absolute path to the algorithm directory.
+   * @returns {Promise<string[]>} Sorted absolute documentation file paths.
+   */
+  getDocumentationFiles(algorithmPath: string): Promise<string[]>;
+
+  /**
    * Returns whether one algorithm has problem rows for the requested tree view mode.
    *
    * In `files` view mode, a problem row means any flagged implementation file.

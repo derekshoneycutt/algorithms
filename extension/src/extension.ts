@@ -10,7 +10,7 @@ import { createCoordinator } from "./coordinator";
  * @returns {void} No return value.
  */
 export function activate(context: vscode.ExtensionContext): void {
-  const activationServices = createActivationServices();
+  const activationServices = createActivationServices(context);
   const coordinator = createCoordinator(context, activationServices);
   context.subscriptions.push(coordinator);
 }

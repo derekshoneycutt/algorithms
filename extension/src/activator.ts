@@ -32,6 +32,13 @@ import {
 } from "./observability";
 import type { IObservability } from "./observability";
 import {
+  createWorkspacePersistenceKey,
+  createWorkspaceSettingsPersistenceService,
+  createWorkspaceStatePersistenceStore,
+  WORKSPACE_PERSISTENCE_STORAGE_KEY,
+} from "./persistence";
+import type { IWorkspaceSettingsPersistenceService } from "./persistence";
+import {
   createFilterModeService,
   createHostStateService,
   createStateFilesystemBridge,
@@ -57,10 +64,12 @@ export interface ActivationServicesGraph {
   notificationDispatcher: ReturnType<typeof createConductorNotificationDispatcher>;
   notificationRouter: INotificationRouter;
   observability: IObservability;
+  persistenceService: IWorkspaceSettingsPersistenceService;
   rootPathResolver: IRootPathResolver;
   stateMachine: IStateMachine;
   viewModeService: IViewModeService;
   workspaceFolderPaths: readonly string[];
+  workspacePersistenceKey: string;
 }
 
 /**
@@ -79,12 +88,89 @@ function getWorkspaceFolderPaths(): readonly string[] {
  *
  * @returns {ActivationServicesGraph} Constructed runtime service graph.
  */
-export function createActivationServices(): ActivationServicesGraph {
+export function createActivationServices(
+  context: vscode.ExtensionContext
+): ActivationServicesGraph {
   const workspaceFolderPaths = getWorkspaceFolderPaths();
+  const workspacePersistenceKey = workspaceFolderPaths.length > 0
+    ? createWorkspacePersistenceKey(workspaceFolderPaths[0])
+    : "";
+  const persistenceStore = createWorkspaceStatePersistenceStore({
+    context,
+    storageKey: WORKSPACE_PERSISTENCE_STORAGE_KEY,
+  });
+  const persistenceService = createWorkspaceSettingsPersistenceService(persistenceStore);
+  const persistedWorkspaceSettings = workspacePersistenceKey.length > 0
+    ? persistenceService.loadWorkspaceSettings(workspacePersistenceKey)
+    : null;
   const languages: ILanguages = createLanguages(GENERATED_LANGUAGE_DATA);
+  const defaultSmokeLanguages = buildSmokeLanguageSelections(languages);
+  const persistedSmokeSelectionByKey = new Map(
+    persistedWorkspaceSettings?.domains.smokeControls?.languages.map((language) => {
+      return [language.languageKey.trim().toLowerCase(), language.selected] as const;
+    }) ?? []
+  );
+  const hydratedSmokeLanguages = defaultSmokeLanguages.map((language) => {
+    const persistedSelection = persistedSmokeSelectionByKey.get(
+      language.languageKey.trim().toLowerCase()
+    );
+
+    if (persistedSelection === undefined || language.disabled) {
+      return language;
+    }
+
+    return {
+      ...language,
+      selected: persistedSelection,
+    };
+  });
+  const shouldHydratePersistedSettings = persistedWorkspaceSettings?.persistSessionEnabled === true;
   const stateMachine: IStateMachine = createHostStateService({
     initialSmokeControls: {
-      languages: buildSmokeLanguageSelections(languages),
+      reportEnabled: shouldHydratePersistedSettings
+        ? persistedWorkspaceSettings?.domains.smokeControls?.reportEnabled
+        : undefined,
+      markdownPath: shouldHydratePersistedSettings
+        ? persistedWorkspaceSettings?.domains.smokeControls?.markdownPath
+        : undefined,
+      timeoutSeconds: shouldHydratePersistedSettings
+        ? persistedWorkspaceSettings?.domains.smokeControls?.timeoutSeconds
+        : undefined,
+      slowTimeoutSeconds: shouldHydratePersistedSettings
+        ? persistedWorkspaceSettings?.domains.smokeControls?.slowTimeoutSeconds
+        : undefined,
+      languages: shouldHydratePersistedSettings
+        ? hydratedSmokeLanguages
+        : defaultSmokeLanguages,
+    },
+    initialRunControls: {
+      runArgsEnabled: shouldHydratePersistedSettings
+        ? persistedWorkspaceSettings?.domains.runControls?.runArgsEnabled
+        : undefined,
+      runArgsText: shouldHydratePersistedSettings
+        ? persistedWorkspaceSettings?.domains.runControls?.runArgsText
+        : undefined,
+      sourceProfileEnabled: shouldHydratePersistedSettings
+        ? persistedWorkspaceSettings?.domains.runControls?.sourceProfileEnabled
+        : undefined,
+      sourceProfileText: shouldHydratePersistedSettings
+        ? persistedWorkspaceSettings?.domains.runControls?.sourceProfileText
+        : undefined,
+      runChecksMode: shouldHydratePersistedSettings
+        ? persistedWorkspaceSettings?.domains.runControls?.runChecksMode
+        : undefined,
+      runChecksRoute: shouldHydratePersistedSettings
+        ? persistedWorkspaceSettings?.domains.runControls?.runChecksRoute
+        : undefined,
+      cleanStdlibEnabled: shouldHydratePersistedSettings
+        ? persistedWorkspaceSettings?.domains.runControls?.cleanStdlibEnabled
+        : undefined,
+      cleanArchivesEnabled: shouldHydratePersistedSettings
+        ? persistedWorkspaceSettings?.domains.runControls?.cleanArchivesEnabled
+        : undefined,
+    },
+    initialEnvironmentControls: {
+      persistSessionEnabled: persistedWorkspaceSettings?.persistSessionEnabled,
     },
   });
   const filesystemStateBridge = createStateFilesystemBridge(stateMachine);
@@ -128,9 +214,11 @@ export function createActivationServices(): ActivationServicesGraph {
     notificationDispatcher,
     notificationRouter,
     observability,
+    persistenceService,
     rootPathResolver,
     stateMachine,
     viewModeService,
     workspaceFolderPaths,
+    workspacePersistenceKey,
   };
 }

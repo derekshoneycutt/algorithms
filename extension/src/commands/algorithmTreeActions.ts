@@ -674,6 +674,153 @@ export function createAlgorithmsDeleteCommand(
 }
 
 /**
+ * Creates one command that creates a documentation file in an algorithm docs folder.
+ *
+ * @param {AlgorithmTreeActionDependencies} dependencies Action dependencies.
+ * @returns {(treeNode?: WorkspaceTreeNode) => Promise<void>} Command handler.
+ */
+export function createAlgorithmsDocsCreateFileCommand(
+  dependencies: AlgorithmTreeActionDependencies
+): (treeNode?: WorkspaceTreeNode) => Promise<void> {
+  return async (treeNode?: WorkspaceTreeNode): Promise<void> => {
+    if (treeNode === undefined || treeNode.kind !== "docsFolder") {
+      await dependencies.notificationRouter.warn(
+        "Select a documentation folder to create a file in."
+      );
+      return;
+    }
+
+    const targetDirectoryPath = treeNode.filePath;
+
+    const inputName = await promptForRelativeName(
+      "Create documentation file",
+      "notes.md"
+    );
+
+    if (inputName === undefined) {
+      return;
+    }
+
+    const trimmedInput = inputName.trim();
+
+    if (trimmedInput.length === 0) {
+      await dependencies.notificationRouter.warn("File name cannot be empty.");
+      return;
+    }
+
+    if (path.isAbsolute(trimmedInput) || trimmedInput.includes(path.sep)) {
+      await dependencies.notificationRouter.warn(
+        "Use a simple file name without path separators."
+      );
+      return;
+    }
+
+    const candidatePath = path.join(targetDirectoryPath, trimmedInput);
+
+    const targetExists =
+      (await dependencies.filesystem.isFile(candidatePath))
+      || (await dependencies.filesystem.isDirectory(candidatePath));
+
+    if (targetExists) {
+      await dependencies.notificationRouter.warn(
+        "A file with that name already exists."
+      );
+      return;
+    }
+
+    const ext = path.extname(trimmedInput).toLowerCase();
+    const willShow = ext === ".md" || ext === ".txt";
+
+    if (!willShow) {
+      const confirmation = await vscode.window.showWarningMessage(
+        `"${trimmedInput}" won't appear under the docs folder in this extension (only .md and .txt files are shown). Create it anyway?`,
+        { modal: true },
+        "Create Anyway"
+      );
+      if (confirmation !== "Create Anyway") {
+        return;
+      }
+    }
+
+    try {
+      await dependencies.filesystem.writeText(candidatePath, "");
+      await vscode.window.showTextDocument(vscode.Uri.file(candidatePath));
+      dependencies.refreshAlgorithmsTree();
+      await dependencies.notificationRouter.info(
+        `Created documentation file: ${path.basename(candidatePath)}`
+      );
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      await dependencies.notificationRouter.error(
+        `Failed to create file: ${errorMessage}`
+      );
+    }
+  };
+}
+
+/**
+ * Creates one command that deletes a documentation file from an algorithm docs folder.
+ *
+ * @param {AlgorithmTreeActionDependencies} dependencies Action dependencies.
+ * @returns {(treeNode?: WorkspaceTreeNode) => Promise<void>} Command handler.
+ */
+export function createAlgorithmsDocsDeleteFileCommand(
+  dependencies: AlgorithmTreeActionDependencies
+): (treeNode?: WorkspaceTreeNode) => Promise<void> {
+  return async (treeNode?: WorkspaceTreeNode): Promise<void> => {
+    if (treeNode === undefined || treeNode.kind !== "docsFile") {
+      await dependencies.notificationRouter.warn(
+        "Select a documentation file to delete."
+      );
+      return;
+    }
+
+    const targetPath = treeNode.filePath;
+    const basename = path.basename(targetPath);
+
+    const targetExists = await dependencies.filesystem.isFile(targetPath);
+
+    if (!targetExists) {
+      await dependencies.notificationRouter.warn("File no longer exists.");
+      dependencies.refreshAlgorithmsTree();
+      return;
+    }
+
+    const confirmation = await vscode.window.showWarningMessage(
+      `Delete file ${basename}?`,
+      { modal: true, detail: targetPath },
+      "Delete"
+    );
+
+    if (confirmation !== "Delete") {
+      return;
+    }
+
+    try {
+      await vscode.workspace.fs.delete(vscode.Uri.file(targetPath), {
+        useTrash: true,
+      });
+      dependencies.refreshAlgorithmsTree();
+      await dependencies.notificationRouter.info(`Moved to trash: ${basename}`);
+      return;
+    } catch {
+      // Fall through to permanent deletion.
+    }
+
+    try {
+      await dependencies.filesystem.deletePath(targetPath, { recursive: false });
+      dependencies.refreshAlgorithmsTree();
+      await dependencies.notificationRouter.info(`Deleted permanently: ${basename}`);
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      await dependencies.notificationRouter.error(
+        `Failed to delete file: ${errorMessage}`
+      );
+    }
+  };
+}
+
+/**
  * Creates one command to switch to file view in the algorithms sidebar.
  *
  * @param {IViewModeService} viewModeService View mode service dependency.

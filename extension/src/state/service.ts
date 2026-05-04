@@ -7,6 +7,7 @@ import type {
   ExtensionHostEvent,
   ExtensionHostSnapshot,
   ExtensionHostStateValue,
+  InitialEnvironmentControlsSettingsInput,
   InitialRunControlsSettingsInput,
   InitialSmokeControlsSettingsInput,
   RunControlsSettings,
@@ -22,6 +23,7 @@ export type { IStateMachine } from "./IStateMachine";
 export interface CreateHostStateServiceInput {
   initialSmokeControls?: InitialSmokeControlsSettingsInput;
   initialRunControls?: InitialRunControlsSettingsInput;
+  initialEnvironmentControls?: InitialEnvironmentControlsSettingsInput;
 }
 
 /**
@@ -41,6 +43,7 @@ export function createHostStateService(
     input: {
       initialSmokeControls: input?.initialSmokeControls,
       initialRunControls: input?.initialRunControls,
+      initialEnvironmentControls: input?.initialEnvironmentControls,
     },
   });
   let started = false;
