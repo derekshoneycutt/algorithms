@@ -42,6 +42,7 @@ export type {
   CreateSmokeControlsChannelMessageHandlerInput,
   ReactAndApplyRunControlsIntentDependencies,
   ReactAndApplySmokeIntentDependencies,
+  CreateActiveEditorRevealSubscriptionInput,
 } from "./service";
 export type {
   CreateEnvironmentControlsChannelMessageHandlerInput,
@@ -53,6 +54,7 @@ export {
   createConductorService,
   reactAndApplyRunControlsIntent,
   reactAndApplySmokeIntent,
+  createActiveEditorRevealSubscription,
 } from "./service";
 export {
   createEnvironmentControlsChannelMessageHandler,

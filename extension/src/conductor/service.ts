@@ -41,7 +41,9 @@ import type { IAlgorithmsTerminalRunAdapter, ICommandLine } from "../commandline
 import type { IFilesystem } from "../filesystem";
 import type { IEligibilityResolver } from "../filesystem";
 import type { IRootPathResolver } from "../algorithms";
+import type { ILanguages } from "../languages";
 import type { IObservability } from "../observability";
+import type { WorkspaceTreeNode } from "../views";
 import {
   createRunRegistry,
   createSmokeRegistry,
@@ -159,6 +161,80 @@ export interface CreateSmokeControlsChannelMessageHandlerInput
   extends ReactAndApplySmokeIntentDependencies {
   onIntentApplied?: () => void | Promise<void>;
   publishSnapshot: () => void;
+}
+
+/**
+ * Dependencies required to create the active-editor reveal subscription.
+ */
+export interface CreateActiveEditorRevealSubscriptionInput {
+  languages: ILanguages;
+  algorithmsTreeRegistration: { readonly visible: boolean };
+  standardLibraryTreeRegistration: { readonly visible: boolean };
+  algorithmsTreeProvider: {
+    findNodeForFilePath(filePath: string): Promise<{ node: WorkspaceTreeNode; viewId: string } | null>;
+  };
+  standardLibraryTreeProvider: {
+    findNodeForFilePath(filePath: string): Promise<{ node: WorkspaceTreeNode; viewId: string } | null>;
+  };
+  viewHost: {
+    revealInTree(
+      viewId: string,
+      element: unknown,
+      options?: { select?: boolean; focus?: boolean }
+    ): Thenable<void>;
+  };
+}
+
+/**
+ * Creates a VS Code disposable that reveals the corresponding tree node whenever
+ * the active editor changes to a recognized algorithm or documentation file.
+ *
+ * @param {CreateActiveEditorRevealSubscriptionInput} input Reveal subscription dependencies.
+ * @returns {vscode.Disposable} Disposable subscription handle.
+ */
+export function createActiveEditorRevealSubscription(
+  input: CreateActiveEditorRevealSubscriptionInput
+): vscode.Disposable {
+  let lastRevealKey = "";
+
+  return vscode.window.onDidChangeActiveTextEditor(async (editor) => {
+    if (!editor) { return; }
+
+    const activeUri = editor.document.uri;
+    if (activeUri.scheme !== "file") {
+      return;
+    }
+
+    const filePath = activeUri.fsPath;
+    const docFileExt = path.extname(filePath).toLowerCase();
+    const isDocFile = docFileExt === ".md" || docFileExt === ".txt";
+    if (input.languages.normalizeFileExtension(filePath) === undefined && !isDocFile) {
+      return;
+    }
+
+    if (!input.algorithmsTreeRegistration.visible &&
+        !input.standardLibraryTreeRegistration.visible) {
+      return;
+    }
+
+    const result =
+      await input.algorithmsTreeProvider.findNodeForFilePath(filePath) ??
+      await input.standardLibraryTreeProvider.findNodeForFilePath(filePath);
+    if (!result) { return; }
+
+    const revealKey = `${filePath}:${result.viewId}:${result.node.filePath}`;
+    if (revealKey === lastRevealKey) {
+      return;
+    }
+
+    lastRevealKey = revealKey;
+
+    await input.viewHost.revealInTree(
+      result.viewId,
+      result.node,
+      { select: true, focus: false }
+    );
+  });
 }
 
 /**

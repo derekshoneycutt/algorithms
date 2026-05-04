@@ -77,7 +77,7 @@ Purpose: adapt domain behavior to runtime concerns.
 
 Responsibilities: typed transport adaptation, view lifecycle integration, filesystem/process boundaries, notification routing, view classification for command dispatch, and host-side instrumentation.
 
-Modules: `comms`, `views`, `notifications`, `filesystem`, `commandline`, `observability`.
+Modules: `comms`, `views`, `notifications`, `filesystem`, `commandline`, `observability`, `persistence`.
 
 ### 4.3 Composition Modules
 
@@ -109,6 +109,7 @@ Surfaces: `src/views/media/shared/`, `test/`.
 | `notifications` | Host notification policy and routing | `src/notifications/`, notification adaptation and routing | Product domain decisions | `INotificationRouter` |
 | `state` | Canonical host state | `src/state/`, XState machine/actor lifecycle, snapshot selectors, and filter/view mode selectors | Asset I/O, transport ownership, UI rendering ownership | `IStateMachine` |
 | `observability` | Host-side instrumentation and diagnostics | `src/observability/`, category-gated structured logging, counter metrics, and duration timing; noop provider for production/test contexts | Domain workflow decisions, transport ownership, canonical state ownership | `IObservability` |
+| `persistence` | Workspace settings persistence | `src/persistence/`, workspace-settings load/save (run controls, smoke controls), schema versioning, and workspace-state store adapter | Domain workflow decisions, canonical state ownership, transport ownership | `IWorkspaceSettingsPersistenceService`, `IPersistenceStore` |
 | `views` | Webview provider, tree provider, template, and frontend runtime | `src/views/`, `src/views/media/` (environment/smoke/run panels), `src/views/media/shared/`, `src/views/trees/` | Canonical workflow state, orchestration policy, filesystem I/O presentation & triggering | `IViewHost` |
 | `activator` | Activation-time bootstrap construction | `src/activator.ts`, workspace-folder discovery, runtime service graph construction, startup-side effects | Workflow orchestration policy, view/channel/command behavior policy | `ActivationServicesGraph` |
 | `coordinator` | Host wiring and disposable assembly | `src/coordinator.ts`, view/channel/command wiring and root disposable assembly from prebuilt services | Deep domain logic, runtime graph construction, workflow orchestration policy | `vscode.Disposable` |
@@ -198,11 +199,12 @@ Example:
 7. Language catalog and lookups: `src/languages/`
 8. Process execution boundary and shell-profile internals: `src/commandline/`
 9. Algorithm and stdlib discovery: `src/algorithms/`
-10. Webview provider and frontend runtime: `src/views/`, `src/views/media/`, `src/views/trees/`
-11. Activation-time runtime construction and startup side effects: `src/activator.ts`
-12. Host wiring and root disposable assembly: `src/coordinator.ts`
-13. Host-side instrumentation: `src/observability/`
-14. Utility support surfaces: `src/views/media/shared/`, `test/`
+10. Workspace settings persistence: `src/persistence/`
+11. Webview provider and frontend runtime: `src/views/`, `src/views/media/`, `src/views/trees/`
+12. Activation-time runtime construction and startup side effects: `src/activator.ts`
+13. Host wiring and root disposable assembly: `src/coordinator.ts`
+14. Host-side instrumentation: `src/observability/`
+15. Utility support surfaces: `src/views/media/shared/`, `test/`
 
 ## 10. Summary
 
