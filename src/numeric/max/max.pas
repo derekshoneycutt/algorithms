@@ -20,8 +20,9 @@ program max;
         Result := current;
     end;
 
-    var values : array of integer;
-    var i, maximum : integer;
+    var
+        values : array of integer;
+        i, maximum : integer;
 begin
     if ParamCount > 0 then begin
         SetLength(values, ParamCount);

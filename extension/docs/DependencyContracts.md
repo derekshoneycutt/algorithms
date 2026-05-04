@@ -21,6 +21,7 @@ Planner Quick Start:
 - [8. Verification Checklist](#8-verification-checklist)
 - [9. Examples: Correct vs. Incorrect Imports](#9-examples-correct-vs-incorrect-imports)
 - [10. Where Code Goes](#10-where-code-goes)
+- [11. Spec Alignment](#11-spec-alignment)
 
 ---
 
@@ -33,6 +34,7 @@ Planner Quick Start:
 | **algorithms** | `IAlgorithmsIndex` | `IRootPathResolver` | commands, views; conductor (for repo root) | Algorithm tree discovery, caching; root resolution |
 | **languages** | `ILanguages` | (none) | conductor, algorithms, comms, views | Immutable language catalog; normalization |
 | **commandline** | `ICommandLine` | `IAlgorithmsTerminalRunAdapter` | conductor, commandline handlers | Shell profile read/write; platform helpers |
+| **persistence** | `IWorkspaceSettingsPersistenceService` | `IPersistenceStore` | activator (construction), views (channels) | Workspace settings load/save; schema versioning; VS Code `workspaceState` adapter |
 | **conductor** | `IConductor` | (none, but exports internal reaction factories) | commands, views, comms, notifications | Workflow orchestration; run/smoke management |
 | **activator** | `ActivationServicesGraph` | `createActivationServices` | extension.ts, coordinator | Activation-time runtime graph construction; startup side effects |
 | **coordinator** | `vscode.Disposable` | `createCoordinator` | extension.ts bootstrap | Wires views, channels, commands, and root disposal from a prebuilt graph |
@@ -40,6 +42,7 @@ Planner Quick Start:
 | **views** | `IViewHost` | `ICommunicationHub`, tree providers, watcher adapter | comms, conductor (for status), state (for modes) | VS Code view lifecycle; webview adapter |
 | **comms** | `ICommunicationHub` | (none, but snapshot builders exported) | conductor, views | Host ↔ webview messaging; type-safe frames |
 | **notifications** | `INotificationRouter` | `IConductorNotificationDispatcher` | conductor, commands | Info/warn/error facade over vscode.window.* |
+| **observability** | `IObservability` | (none) | activator (construction), conductor, views | Host-side instrumentation with category-gated logs, counters, and timings |
 
 ---
 
@@ -64,8 +67,12 @@ extension.ts (VS Code entrypoint)
 │  ├─ creates languages → ILanguages (immutable records)
 │  ├─ creates rootPathResolver → IRootPathResolver (algorithms + stdlib discovery)
 │  ├─ creates eligibilityResolver → IEligibilityResolver (sidebar state, cache invalidation)
+│  ├─ creates persistenceStore → IPersistenceStore (VS Code workspaceState adapter)
+│  ├─ creates persistenceService → IWorkspaceSettingsPersistenceService
+│  │  └─ receives: IPersistenceStore; loads initial workspace settings at activation
+│  ├─ creates observability → IObservability
 │  ├─ creates conductor → IConductor
-│  │  ├─ receives: IFilesystem, ICommandLine, IRootPathResolver, IEligibilityResolver
+│  │  ├─ receives: IFilesystem, ICommandLine, IRootPathResolver, IEligibilityResolver, IObservability
 │  │  └─ internally uses: run registry, smoke registry, reaction factories
 │  ├─ creates notifications → INotificationRouter
 │  └─ performs activation-time startup side effects (marker-fast context init + deferred full canary refresh)
@@ -73,7 +80,7 @@ extension.ts (VS Code entrypoint)
   ├─ creates viewLayer → IViewHost + ICommunicationHub
   │  └─ receives prebuilt domain services via ActivationServicesGraph
   ├─ creates channels (controls → conductor message handlers)
-  │  └─ receives: ICommunicationHub, IConductor, IStateMachine
+  │  └─ receives: ICommunicationHub, IConductor, IStateMachine, IWorkspaceSettingsPersistenceService
   ├─ creates commands → IExtensionCommands (38+ command registry)
   │  └─ receives all domain modules via injected interfaces
   └─ assembles root extension disposable
@@ -81,8 +88,9 @@ extension.ts (VS Code entrypoint)
 Domain module cross-references (no coordinator mediating):
 ├─ conductor → filesystem (query methods only)
 ├─ conductor → languages (query methods only)
+├─ conductor → observability (instrumentation calls only)
 ├─ commands → conductor, filesystem, state, languages (all via interfaces)
-├─ views → conductor, state, languages (all via interfaces)
+├─ views → conductor, state, languages, observability, persistence (all via interfaces)
 ├─ comms → state, languages (message builders)
 └─ [circular dependencies: NONE]
 ```
@@ -146,6 +154,8 @@ The matrix above is the full ownership map. This section captures only high-risk
 | ------ | ----------------------- |
 | `algorithms` | Resolver internals stay private; consumers use `IRootPathResolver` only. |
 | `conductor` | Workflow orchestration owner; no direct transport/view ownership. |
+| `observability` | Instrumentation only; no domain decision ownership or policy branching. |
+| `persistence` | Storage and serialization owner only; no domain workflow decisions or transport ownership. |
 | `activator` | Builds activation-time runtime graph and startup side effects only. |
 | `coordinator` | Wires prebuilt services only; does not rebuild runtime graph. |
 | `comms` | Transport layer only; no decision policy ownership. |
@@ -271,3 +281,6 @@ export function createConductorService() {
 - **Host wiring + root disposable assembly**: `extension/src/coordinator.ts`
 - **VS Code extension activation entrypoint**: `extension/src/extension.ts`
 - **Workflow orchestration implementation anchor**: `extension/src/conductor/service.ts`
+- **Host-side instrumentation contracts + providers**: `extension/src/observability/`
+- **Workspace settings persistence contracts + providers**: `extension/src/persistence/`
+- **Module-level architecture specs**: `extension/docs/specs/`

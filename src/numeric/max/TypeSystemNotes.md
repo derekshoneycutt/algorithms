@@ -164,7 +164,7 @@ static, weak implicit typing
 
 char, int, long, short, float double etc, structs, void, pointers and void*.
 
-"new" types can be defined based on complex type definitions via typedef.
+"new" types can be defined based on complex type definitions via typedef. also structs
 
 We get a generic type programming via void* and typedefs.
 
@@ -176,11 +176,25 @@ Literally the same as C for this use case
 
 ### Fortran
 
+static and strongly typed; Integer, Real, Complex, Logical, Character
+
+Allows generics via interface and modules
+
+interesting intent, allocatable and dimension for dynamic arrays
+
+allocate and deallocate explicit
+
 ### Ada
+
+strong, static types; allows custom types
+
+Integer, array, etc. Arrays are interesting and use custom type definitions
+
+generics are extremely explicit with type definitions
 
 ### Factor
 
-Much higher level, but still have everything in words on the stack. We do have booleans, numbers, and collections including sequences and strings. The main place this comes up in current code is via use of seq and [] quotations.
+Much higher level than forth, but still have everything in words on the stack. We do have booleans, numbers, and collections including sequences and strings. The main place this comes up in current code is via use of seq and [] quotations.
 
 In factor, all values are objects, but dynamically typed at runtime
 
@@ -188,49 +202,149 @@ Factor has generic words, which are defined specifically for type via GENERIC: a
 
 ### Zig
 
+static, nominal type using i32 and the like, with standard collections like ArrayList(T)
+
+comptime enables generics and fun
+
+uses allocators lol
+
 ### C++
 
+Basically C + classes lol
+
 ### C\#
+
+static, everything is an object inheriting Object; only single inheritance except interfaces
+
+value types & ref types; native values like int, double, etc. in System.Int32 etc.
+
+value types sometimes get boxes as ref types
+
+strong use of generics in the language
 
 nullable contexts provide strong warnings
 
 ### Visual Basic .NET
 
+basically C#'s lol
+
 ### F\#
+
+basically C#'s lol
 
 ### Dart
 
-### Go
+sound -- prevents invalid type, and also null safety (kinda like eiffel lol)
+
+static type, though strongly inferred
+
+generics with constraits quite easily
 
 ### Rust
 
-### Kotlin
+static typed
 
-### Java
+primitives, sequence, user-defined types, functions, pointers, traits
 
-### Scala
+includes algebraic data types and type inference. generics with constraints in pretty syntax i64, Vec<_>, other fun stuff
 
-### Haxe
+### Go
 
-### Swift
+static and strong typing, but with structural interfaces implicitly meeting
 
-### Mojo
+prefers composition over inheritance
 
-### Pascal (FreePascal)
-
-### D
+generics with constraints pretty standard
 
 ### V
 
+heavily influenced by go, including static, strong typing with strong type inference and immutability by default. has simple generics
+
 ### Nim
+
+static typing, with strong inference and immutability by default, looks a lot like Go too
+
+primarily structural typing vs nominal
+
+### Java
+
+static and strong types; generics with constraints pretty clear
+
+OOPy with primitive types byte short int long char etc and reference types; primitives aren't objects
+
+### Kotlin
+
+Adds null safety and a unified hierarchy to java, basically the same generics
+
+primitives are objects too
+
+### Scala
+
+Basically the same as Java/Kotlin with unified type hierarchy everything's an object. Basically the same generics just different syntax. Some functional and algebraic enhancements
+
+### Haxe
+
+strict and strongly type, very OOP, everything's class, enum, structure, function, abstract, dynamic, monomorph
+
+structural subtyping, generics, has null safety opt-in and typedefs, etc.
+
+### Swift
+
+static typing, often inferred. nominal typing including OOPy.
+
+value & ref types, optionals, protocols and generics
+
+### Mojo
+
+static typing, highly inferred. simple custom struct types. generics with constraints pretty easy
+
+does allow some gradual typing for python integration
+
+### Pascal (FreePascal)
+
+strong, static typing, variables declared ahead in dedicated var block
+
+integer, array of integer, etc. FreePascal allows generics
+
+Does have user defined types, enumerated types, etc.
+
+### D
+
+Kinda between C++ and Java/C#. static, strong typing, with some type inference
+
+has templating closer to C++ but initial syntax unique c#ish
 
 ### Gleam
 
+static and strong typing with no nulls and full inference
+
+basically just uses a placeholder as a generic and goes
+
+built on erlang's dynamic system, which is fun
+
+included algebraic types, opaque, types, immutability, etc.
+
 ### Haskell
+
+strong static typing with nice churchy definitions as the norm
+
+generics have the cool Ord a placeholder syntax that kinda feels like nothing lol
 
 ### Idris
 
+types are a first-class member so you can just fuck all and be a lil bitch to the types like a good lil programmer
+
+oh yeah, haskell basically
+
+oh yeah, full dependent types and quantitative type theory (0 erased, 1 linear, unrestricted many)
+
 ### Mercury
+
+also, basically haskell includes aglebraic data types and type classes to fit haskell etc. has the whole determinism thing that can be fun even in the type system
+
+### Ocaml
+
+Ocaml has typing like Kit, or vice versa. It hardly looks like it, but it is ultimately static with Hindley-Milnery type interface
 
 ### Kit
 
@@ -250,25 +364,37 @@ Can use like dynamic languages, or specify, including with constraints to specif
 
 ### Typescript
 
-compiles to javascript which is funny
+compiles to javascript which is funny, but that means type erasure, which isn't exactly unique if you think about it for 2 seconds lmfao
+
+static but structural typing
+
+types are sets ultimately, which is kinda like the ballerina way... because ballerina is wannabe javascript kinda lmfao
 
 ## Dynamically Typed Languages
 
-### Python
-
-generics are entirely just syntax foo on top of a dynamic type system which is hilarious
+Literally all these are dynamically typed, I'll say anything if there's anything interesting. Python is intentionally becoming interesting. Smalltalk is like the most interesting idk bro
 
 ### Smalltalk
 
 Everything is an object, but everything is defined by what it can do instead of its own structure; no declared types on values, just send messages to them Duck typing and Late binding
 
-### Prolog
+### Python
 
-### Elixir
+generics are entirely just syntax foo on top of a dynamic type system which is hilarious
 
 ### Erlang
 
-### Ocaml
+does have a strong runtime typing, including type declarations and has been built on to outright static typing in gleam lol
+
+### Elixir
+
+enforces soundness and graduality for a set-theoretic foundation, but yeah, it's just dynamic erlang types lmfao
+
+### PHP
+
+Actually has some weird gradual typing, but even looser and weirder than any others lmfao
+
+### Prolog
 
 ### Clojure
 
@@ -285,8 +411,6 @@ Everything is an object, but everything is defined by what it can do instead of 
 ### Octave (MATLAB)
 
 ### Perl
-
-### PHP
 
 ### R
 
