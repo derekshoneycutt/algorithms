@@ -143,6 +143,7 @@ function createHostStateStub(runControls: RunControlsSettings): IStateMachine {
       batchRoutingSshValue: "",
       batchRoutingConflict: false,
       variables: [],
+      persistSessionEnabled: false,
     },
     filesystemCacheTtlMs: 2000,
     filesystemStatCacheByPath: {},

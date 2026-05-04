@@ -223,6 +223,15 @@ function createAlgorithmsIndexStub(
     async getStandardLibraryEntries() {
       return standardLibraryEntries;
     },
+    async getDocumentationFiles(_algorithmPath: string): Promise<string[]> {
+      return [];
+    },
+    async hasProblemRowsForAlgorithm(
+      _algorithmPath: string,
+      _viewMode: "files" | "language"
+    ): Promise<boolean> {
+      return false;
+    },
   };
 }
 
@@ -303,6 +312,7 @@ describe("views/trees — algorithms FILE view", () => {
       viewModeService: createViewModeServiceStub("files"),
       filterModeService: createFilterModeServiceStub("all"),
       languages: createLanguageStub(),
+      viewId: "test",
     });
 
     const rootChildren = (await provider.getChildren()) ?? [];
@@ -359,6 +369,7 @@ describe("views/trees — algorithms LANGUAGE view", () => {
       viewModeService: createViewModeServiceStub("language"),
       filterModeService: createFilterModeServiceStub("all"),
       languages: createLanguageStub(),
+      viewId: "test",
     });
 
     const rootChildren = (await provider.getChildren()) ?? [];
@@ -393,6 +404,7 @@ describe("views/trees — standard-library item context values", () => {
         { kind: "directory", name: "io", path: "/repo/stdlib/io" },
         { kind: "file", name: "hello.py", path: "/repo/stdlib/hello.py" },
       ]),
+      viewId: "test",
     });
 
     const directoryTreeItem = await provider.getTreeItem({
@@ -434,6 +446,7 @@ describe("views/trees — algorithms item context values", () => {
       viewModeService: createViewModeServiceStub("files"),
       filterModeService: createFilterModeServiceStub("all"),
       languages: createLanguageStub(),
+      viewId: "test",
     });
 
     const fileRoot = (await fileProvider.getChildren()) ?? [];
@@ -453,6 +466,7 @@ describe("views/trees — algorithms item context values", () => {
       viewModeService: createViewModeServiceStub("language"),
       filterModeService: createFilterModeServiceStub("all"),
       languages: createLanguageStub(),
+      viewId: "test",
     });
 
     const languageRoot = (await languageProvider.getChildren()) ?? [];
@@ -502,6 +516,7 @@ describe("views/trees — flag and problems behavior", () => {
         viewModeService: createViewModeServiceStub("files"),
         filterModeService: createFilterModeServiceStub("problems"),
         languages,
+        viewId: "test",
       });
 
       const fileRoot = (await fileProblemsProvider.getChildren()) ?? [];
@@ -521,6 +536,7 @@ describe("views/trees — flag and problems behavior", () => {
         viewModeService: createViewModeServiceStub("language"),
         filterModeService: createFilterModeServiceStub("all"),
         languages,
+        viewId: "test",
       });
 
       const languageRoot = (await languageProvider.getChildren()) ?? [];
@@ -571,6 +587,7 @@ describe("views/trees — URI fragments and FileDecoration provider", () => {
         viewModeService: createViewModeServiceStub("language"),
         filterModeService: createFilterModeServiceStub("all"),
         languages,
+        viewId: "test",
       });
 
       const languageRoot = (await languageProvider.getChildren()) ?? [];
@@ -767,6 +784,7 @@ describe("views/trees — run file status projection", () => {
       viewModeService: createViewModeServiceStub("files"),
       filterModeService: createFilterModeServiceStub("all"),
       languages: createLanguageStub(),
+      viewId: "test",
     });
 
     const rootChildren = (await provider.getChildren()) ?? [];
@@ -899,6 +917,7 @@ describe("views/trees — run file status projection", () => {
       viewModeService: createViewModeServiceStub("files"),
       filterModeService: createFilterModeServiceStub("all"),
       languages: createLanguageStub(),
+      viewId: "test",
     });
 
     const rootChildren = (await provider.getChildren()) ?? [];
@@ -1025,6 +1044,7 @@ describe("views/trees — run file status projection", () => {
       viewModeService: createViewModeServiceStub("language"),
       filterModeService: createFilterModeServiceStub("all"),
       languages: createLanguageStub(),
+      viewId: "test",
     });
 
     const rootChildren = (await provider.getChildren()) ?? [];
@@ -1153,6 +1173,7 @@ describe("views/trees — run file status projection", () => {
       viewModeService: createViewModeServiceStub("files"),
       filterModeService: createFilterModeServiceStub("all"),
       languages: createLanguageStub(),
+      viewId: "test",
     });
 
     const rootChildren = (await provider.getChildren()) ?? [];
@@ -1281,6 +1302,7 @@ describe("views/trees — run file status projection", () => {
       viewModeService: createViewModeServiceStub("language"),
       filterModeService: createFilterModeServiceStub("all"),
       languages: createLanguageStub(),
+      viewId: "test",
     });
 
     const rootChildren = (await provider.getChildren()) ?? [];
@@ -1349,6 +1371,7 @@ describe("views/trees — run file status projection", () => {
         filterModeService: createFilterModeServiceStub("all"),
         hostState,
         languages: createLanguageStub(),
+        viewId: "test",
       });
 
       const rootChildren = (await provider.getChildren()) ?? [];
@@ -1392,6 +1415,7 @@ describe("views/trees — run file status projection", () => {
         filterModeService: createFilterModeServiceStub("all"),
         hostState,
         languages: createLanguageStub(),
+        viewId: "test",
       });
 
       const rootChildren = (await provider.getChildren()) ?? [];

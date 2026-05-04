@@ -316,6 +316,7 @@ describe("state — buildBootstrapStatusMessage", () => {
     batchRoutingSshValue: "",
     batchRoutingConflict: false,
     variables: [],
+    persistSessionEnabled: false,
   };
 
   it("returns base message when no command has run yet", () => {
