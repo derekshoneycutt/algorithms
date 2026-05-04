@@ -394,24 +394,18 @@ enforces soundness and graduality for a set-theoretic foundation, but yeah, it's
 
 Actually has some weird gradual typing, but even looser and weirder than any others lmfao
 
-### Prolog
+### I mean, honestly, dynamic languages
 
-### Clojure
+Some of the remaining languages are interesting in their own right but their type systems are just basically dynamic for anything to be spoken of at this point, to the point of leaving little more to say...
 
-### Scheme
-
-### Racket
-
-### Javascript
-
-### Icon
-
-### Lua
-
-### Octave (MATLAB)
-
-### Perl
-
-### R
-
-### Ruby
+- Prolog
+- Clojure
+- Scheme
+- Racket (some fun wannabe typing)
+- Javascript (JSDoc and weird template based class hierarchy I guess but just weird as shit)
+- Icon
+- Lua
+- Octave (MATLAB)
+- Perl
+- R
+- Ruby
