@@ -117,15 +117,16 @@ Surfaces: `src/views/media/shared/`, `test/`.
 
 1. `src/extension.ts` activates extension runtime.
 2. `src/activator.ts` discovers activation-time host inputs, constructs the runtime service graph, and performs startup-side effects.
-3. `src/coordinator.ts` receives that graph and wires views, channels, commands, and the root disposable into VS Code.
-4. `views` registers the Environment Controls, Smoke Controls, and Run Controls webviews plus the Algorithms and Standard Library tree providers, then connects VS Code view lifecycle to the host runtime.
-5. `coordinator` wires `ICommunicationHub.subscribe` with conductor-owned channel handlers.
-6. `comms` receives typed host/webview traffic and delivers inbound messages to subscribed handlers.
-7. `conductor` owns ready/intent handling, computes reactions, applies state effects, dispatches notifications, and decides whether snapshots should be republished.
-8. `comms.post` transports outbound snapshots back to the webview when asked.
-9. `state` remains canonical throughout; snapshots are derived from host state rather than treated as source of truth.
-10. Commands are registered from `commands`; command handlers derive output from host state and route user-visible status via `notifications`.
-11. `observability` instruments categories selectively; callers gate instrumentation with `isEnabled` before emitting log events, counter increments, or duration timings.
+3. Startup workspace support context is initialized in two phases: marker-only eligibility first, then deferred full canary validation refresh.
+4. `src/coordinator.ts` receives that graph and wires views, channels, commands, and the root disposable into VS Code.
+5. `views` registers the Environment Controls, Smoke Controls, and Run Controls webviews plus the Algorithms and Standard Library tree providers, then connects VS Code view lifecycle to the host runtime.
+6. `coordinator` wires `ICommunicationHub.subscribe` with conductor-owned channel handlers.
+7. `comms` receives typed host/webview traffic and delivers inbound messages to subscribed handlers.
+8. `conductor` owns ready/intent handling, computes reactions, applies state effects, dispatches notifications, and decides whether snapshots should be republished.
+9. `comms.post` transports outbound snapshots back to the webview when asked.
+10. `state` remains canonical throughout; snapshots are derived from host state rather than treated as source of truth.
+11. Commands are registered from `commands`; command handlers derive output from host state and route user-visible status via `notifications`.
+12. `observability` instruments categories selectively; callers gate instrumentation with `isEnabled` before emitting log events, counter increments, or duration timings.
 
 ## 7. Internal Structure Policy
 

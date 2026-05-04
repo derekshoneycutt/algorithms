@@ -357,46 +357,45 @@ function evaluateWorkspaceFolder(
   };
 }
 
-// ─── Aggregated state ─────────────────────────────────────────────────────────
+/**
+ * Deduplicates workspace evaluations by resolved root path.
+ *
+ * @param {readonly WorkspaceEligibilityEvaluation[]} evaluations Raw workspace evaluations.
+ * @returns {WorkspaceEligibilityEvaluation[]} One evaluation per resolved root.
+ */
+function dedupeEvaluationsByResolvedRoot(
+  evaluations: readonly WorkspaceEligibilityEvaluation[]
+): WorkspaceEligibilityEvaluation[] {
+  const dedupMap = new Map<string, WorkspaceEligibilityEvaluation>();
+  for (const evaluation of evaluations) {
+    if (!dedupMap.has(evaluation.resolvedRoot)) {
+      dedupMap.set(evaluation.resolvedRoot, evaluation);
+    }
+  }
+
+  return Array.from(dedupMap.values());
+}
 
 /**
- * Resolves overall eligibility across all open workspace folders.
+ * Resolves aggregate workspace eligibility from precomputed evaluations.
  *
- * Deduplicates by resolved root so multiple entries pointing to the same
- * repository root are treated as one.
- *
- * @param {string[]} workspaceFolderPaths Workspace folder fs paths.
- * @param {{ skipCanary?: boolean }} [options] Evaluation options.
+ * @param {readonly WorkspaceEligibilityEvaluation[]} evaluations Deduplicated workspace evaluations.
  * @returns {WorkspaceEligibilityState} Aggregated eligibility state.
  */
-export function resolveEligibilityState(
-  workspaceFolderPaths: readonly string[],
-  options?: { skipCanary?: boolean }
+function resolveEligibilityStateFromEvaluations(
+  evaluations: WorkspaceEligibilityEvaluation[]
 ): WorkspaceEligibilityState {
-  if (!Array.isArray(workspaceFolderPaths) || workspaceFolderPaths.length === 0) {
+  if (evaluations.length === 0) {
     return {
       status: "ineligible",
-      reason: "no-workspace-folders",
-      guidance: "No workspace folders are open.",
+      reason: "no-eligible-root",
+      guidance: "Workspace is ineligible. Open a repository root that contains required markers.",
       supported: false,
       selected: null,
       evaluations: [],
     };
   }
 
-  const rawEvaluations = workspaceFolderPaths.map((folderPath) =>
-    evaluateWorkspaceFolder(folderPath, options)
-  );
-
-  // Deduplicate by resolved root.
-  const dedupMap = new Map<string, WorkspaceEligibilityEvaluation>();
-  for (const evaluation of rawEvaluations) {
-    if (!dedupMap.has(evaluation.resolvedRoot)) {
-      dedupMap.set(evaluation.resolvedRoot, evaluation);
-    }
-  }
-
-  const evaluations = Array.from(dedupMap.values());
   const eligibleEvaluations = evaluations.filter((ev) => ev.status === "eligible");
 
   if (eligibleEvaluations.length > 1) {
@@ -444,6 +443,41 @@ export function resolveEligibilityState(
     selected: evaluations[0] ?? null,
     evaluations,
   };
+}
+
+// ─── Aggregated state ─────────────────────────────────────────────────────────
+
+/**
+ * Resolves overall eligibility across all open workspace folders.
+ *
+ * Deduplicates by resolved root so multiple entries pointing to the same
+ * repository root are treated as one.
+ *
+ * @param {string[]} workspaceFolderPaths Workspace folder fs paths.
+ * @param {{ skipCanary?: boolean }} [options] Evaluation options.
+ * @returns {WorkspaceEligibilityState} Aggregated eligibility state.
+ */
+export function resolveEligibilityState(
+  workspaceFolderPaths: readonly string[],
+  options?: { skipCanary?: boolean }
+): WorkspaceEligibilityState {
+  if (!Array.isArray(workspaceFolderPaths) || workspaceFolderPaths.length === 0) {
+    return {
+      status: "ineligible",
+      reason: "no-workspace-folders",
+      guidance: "No workspace folders are open.",
+      supported: false,
+      selected: null,
+      evaluations: [],
+    };
+  }
+
+  const rawEvaluations = workspaceFolderPaths.map((folderPath) =>
+    evaluateWorkspaceFolder(folderPath, options)
+  );
+
+  const evaluations = dedupeEvaluationsByResolvedRoot(rawEvaluations);
+  return resolveEligibilityStateFromEvaluations(evaluations);
 }
 
 // ─── Supported sidebar folder check ──────────────────────────────────────────
@@ -509,22 +543,30 @@ export function resolveSidebarState(
     };
   }
 
-  for (const folderPath of workspaceFolderPaths) {
-    const folderState = resolveEligibilityState([folderPath], options);
-    const selected = folderState.selected;
-    const workspaceFolderPath = selected?.workspaceFolderPath;
-    const resolvedRoot = selected?.resolvedRoot;
+  const rawEvaluations = workspaceFolderPaths.map((folderPath) => {
+    return evaluateWorkspaceFolder(folderPath, options);
+  });
 
+  for (const folderEvaluation of rawEvaluations) {
     if (
-      folderState.status === "eligible" &&
-      workspaceFolderPath &&
-      resolvedRoot &&
-      isSupportedSidebarFolder(workspaceFolderPath, resolvedRoot)
+      folderEvaluation.status === "eligible" &&
+      isSupportedSidebarFolder(
+        folderEvaluation.workspaceFolderPath,
+        folderEvaluation.resolvedRoot
+      )
     ) {
-      return { ...folderState, supported: true };
+      const singleFolderState = resolveEligibilityStateFromEvaluations([
+        folderEvaluation,
+      ]);
+      return { ...singleFolderState, supported: true };
     }
   }
 
   // Fall back to aggregate state with supported = false.
-  return { ...resolveEligibilityState(workspaceFolderPaths, options), supported: false };
+  return {
+    ...resolveEligibilityStateFromEvaluations(
+      dedupeEvaluationsByResolvedRoot(rawEvaluations)
+    ),
+    supported: false,
+  };
 }

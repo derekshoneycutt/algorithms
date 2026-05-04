@@ -94,28 +94,61 @@ export function createWorkspaceWatcherAdapter(
     );
   }
 
+  /**
+   * Registers watchers for marker scripts that affect eligibility canary outcomes.
+   *
+   * @returns {vscode.Disposable} Combined marker watcher disposable.
+   */
+  function registerEligibilityMarkerWatcher(): vscode.Disposable {
+    const markerWatcher = vscode.workspace.createFileSystemWatcher("**/{run.sh,init.sh}");
+
+    const refreshWorkspaceSupported = (): void => {
+      input.conductor.invalidateWorkspaceSupportCache?.();
+      void input.conductor.refreshWorkspaceSupportedContext({
+        workspaceFolderPaths: getWorkspaceFolderPaths(),
+      });
+    };
+
+    const markerCreateWatcher = markerWatcher.onDidCreate(() => {
+      refreshWorkspaceSupported();
+    });
+    const markerChangeWatcher = markerWatcher.onDidChange(() => {
+      refreshWorkspaceSupported();
+    });
+    const markerDeleteWatcher = markerWatcher.onDidDelete(() => {
+      refreshWorkspaceSupported();
+    });
+
+    return vscode.Disposable.from(
+      markerWatcher,
+      markerCreateWatcher,
+      markerChangeWatcher,
+      markerDeleteWatcher
+    );
+  }
+
   return {
     activate(): vscode.Disposable {
       const srcWatcher = registerPathWatcher("**/src/**/*");
       const stdlibWatcher = registerPathWatcher("**/stdlib/**/*");
+      const eligibilityMarkerWatcher = registerEligibilityMarkerWatcher();
       const workspaceFoldersChangeWatcher = vscode.workspace.onDidChangeWorkspaceFolders(() => {
         const updatedFolderPaths = (vscode.workspace.workspaceFolders ?? []).map(
           (workspaceFolder) => workspaceFolder.uri.fsPath
         );
-        void input.conductor.refreshWorkspaceSupportedContext({
-          workspaceFolderPaths: updatedFolderPaths,
-        });
         input.conductor.handleWorkspaceRootsChanged?.({
           filesystem: input.filesystem,
           algorithmsIndex: input.algorithmsIndex,
           refreshAlgorithmsTree: input.refreshAlgorithmsTree,
           refreshStandardLibraryTree: input.refreshStandardLibraryTree,
+          workspaceFolderPaths: updatedFolderPaths,
         });
       });
 
       return vscode.Disposable.from(
         srcWatcher,
         stdlibWatcher,
+        eligibilityMarkerWatcher,
         workspaceFoldersChangeWatcher
       );
     },

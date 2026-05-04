@@ -258,6 +258,7 @@ export interface ConductorWorkspaceRootsChangeInput {
   algorithmsIndex: IAlgorithmsIndex;
   refreshAlgorithmsTree: () => void;
   refreshStandardLibraryTree: () => void;
+  workspaceFolderPaths: readonly string[];
 }
 
 /**
@@ -404,6 +405,14 @@ export interface IConductor {
    * @returns {Promise<void>} Resolves when context has been updated.
    */
   refreshWorkspaceSupportedContext(input: ConductorRefreshWorkspaceSupportedContextInput): Promise<void>;
+
+  /**
+   * Invalidates workspace-support eligibility cache entries.
+   *
+   * @param {string} [rootPath] Optional root path to invalidate.
+   * @returns {void}
+   */
+  invalidateWorkspaceSupportCache?(rootPath?: string): void;
 
   /**
    * Applies conductor-owned cache invalidation policy for one changed path.

@@ -334,6 +334,30 @@ export function createConductorService(
   const activeSmokeExecutionByAlgorithm = smokeRegistry.getActiveSmokeExecutionByAlgorithm();
   const smokeStatusRetentionLifecycle = smokeRegistry.getSmokeStatusRetentionLifecycle();
   let refreshTreeViewsTimer: ReturnType<typeof setTimeout> | null = null;
+  let workspaceSupportRefreshGeneration = 0;
+
+  /**
+   * Computes workspace support state and applies it to VS Code context.
+   *
+   * @param {readonly string[]} workspaceFolderPaths Workspace folder paths.
+   * @param {{ skipCanary?: boolean }} [options] Optional eligibility resolution options.
+   * @returns {Promise<void>} Resolves when context has been updated.
+   */
+  async function setWorkspaceSupportedContext(
+    workspaceFolderPaths: readonly string[],
+    options?: { skipCanary?: boolean }
+  ): Promise<void> {
+    if (eligibilityResolver === undefined) {
+      return;
+    }
+
+    const sidebarState = eligibilityResolver.resolveSidebarState(workspaceFolderPaths, options);
+    await vscode.commands.executeCommand(
+      "setContext",
+      "algos.workspaceSupported",
+      sidebarState.supported
+    );
+  }
 
   /**
    * Schedules one debounced refresh for both tree providers.
@@ -469,6 +493,10 @@ export function createConductorService(
       input.algorithmsIndex.clearCache();
     },
 
+    invalidateWorkspaceSupportCache(rootPath?: string): void {
+      eligibilityResolver?.invalidateCanaryCache(rootPath);
+    },
+
     handleWorkspacePathChanged(input: ConductorWorkspacePathChangeInput): void {
       const wasInvalidated = this.invalidateWorkspacePath?.({
         targetPath: input.targetPath,
@@ -490,6 +518,10 @@ export function createConductorService(
         filesystem: input.filesystem,
         algorithmsIndex: input.algorithmsIndex,
       });
+      this.invalidateWorkspaceSupportCache?.();
+      void this.refreshWorkspaceSupportedContext({
+        workspaceFolderPaths: input.workspaceFolderPaths,
+      });
       scheduleTreeRefresh(
         input.refreshAlgorithmsTree,
         input.refreshStandardLibraryTree
@@ -497,27 +529,26 @@ export function createConductorService(
     },
 
     async initWorkspaceSupportedContext(input: ConductorInitWorkspaceSupportedContextInput): Promise<void> {
-      if (eligibilityResolver === undefined) {
-        return;
-      }
-      const sidebarState = eligibilityResolver.resolveSidebarState(input.workspaceFolderPaths);
-      await vscode.commands.executeCommand(
-        "setContext",
-        "algos.workspaceSupported",
-        sidebarState.supported
-      );
+      workspaceSupportRefreshGeneration += 1;
+      const refreshGeneration = workspaceSupportRefreshGeneration;
+
+      // Fast startup pass: avoid canary process execution during activation context initialization.
+      await setWorkspaceSupportedContext(input.workspaceFolderPaths, { skipCanary: true });
+
+      setTimeout(() => {
+        if (refreshGeneration !== workspaceSupportRefreshGeneration) {
+          return;
+        }
+
+        void this.refreshWorkspaceSupportedContext({
+          workspaceFolderPaths: input.workspaceFolderPaths,
+        });
+      }, 0);
     },
 
     async refreshWorkspaceSupportedContext(input: ConductorRefreshWorkspaceSupportedContextInput): Promise<void> {
-      if (eligibilityResolver === undefined) {
-        return;
-      }
-      const sidebarState = eligibilityResolver.resolveSidebarState(input.workspaceFolderPaths);
-      await vscode.commands.executeCommand(
-        "setContext",
-        "algos.workspaceSupported",
-        sidebarState.supported
-      );
+      workspaceSupportRefreshGeneration += 1;
+      await setWorkspaceSupportedContext(input.workspaceFolderPaths);
     },
 
     startRun(input: ConductorStartRunInput): ConductorRunSnapshot {

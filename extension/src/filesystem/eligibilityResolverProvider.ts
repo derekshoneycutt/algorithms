@@ -9,7 +9,7 @@
 
 import type { IEligibilityResolver } from "./IEligibilityResolver";
 import type { WorkspaceEligibilityState } from "./eligibilityTypes";
-import { resolveSidebarState } from "./eligibilityResolver";
+import { invalidateCanaryCache, resolveSidebarState } from "./eligibilityResolver";
 
 /**
  * Creates an eligibility resolver provider.
@@ -23,6 +23,10 @@ export function createEligibilityResolver(): IEligibilityResolver {
       options?: { skipCanary?: boolean }
     ): WorkspaceEligibilityState {
       return resolveSidebarState(workspaceFolderPaths, options);
+    },
+
+    invalidateCanaryCache(rootPath?: string): void {
+      invalidateCanaryCache(rootPath);
     },
   };
 }

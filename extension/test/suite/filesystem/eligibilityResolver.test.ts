@@ -204,4 +204,21 @@ describe("filesystem/eligibilityResolver — resolveSidebarState", () => {
       await fs.rm(tmpDir, { recursive: true, force: true });
     }
   });
+
+  it("returns supported true when one folder is supported and another is too deep", async () => {
+    const tmpDir = await createTempDirectory();
+    try {
+      await writeHardMarkers(tmpDir);
+      const deepPath = path.join(tmpDir, "src", "category", "algorithm", "variant");
+      await fs.mkdir(deepPath, { recursive: true });
+      invalidateCanaryCache(tmpDir);
+
+      const state = resolveSidebarState([deepPath, tmpDir], { skipCanary: true });
+      assert.strictEqual(state.supported, true);
+      assert.strictEqual(state.status, "eligible");
+      assert.strictEqual(state.selected?.workspaceFolderPath, tmpDir);
+    } finally {
+      await fs.rm(tmpDir, { recursive: true, force: true });
+    }
+  });
 });

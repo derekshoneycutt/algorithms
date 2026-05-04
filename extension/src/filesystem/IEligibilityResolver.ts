@@ -26,4 +26,12 @@ export interface IEligibilityResolver {
     workspaceFolderPaths: readonly string[],
     options?: { skipCanary?: boolean }
   ): WorkspaceEligibilityState;
+
+  /**
+   * Invalidates cached canary results.
+   *
+   * @param {string} [rootPath] Optional root path to invalidate.
+   * @returns {void}
+   */
+  invalidateCanaryCache(rootPath?: string): void;
 }

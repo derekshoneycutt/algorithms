@@ -29,7 +29,7 @@ Planner Quick Start:
 | Module | Primary Interface | Secondary Interfaces | Consumers | Notes |
 | ------ | ----------------- | -------------------- | --------- | ----- |
 | **state** | `IStateMachine` | `IViewModeService`, `IFilterModeService` | views, commands, conductor, comms | XState machine; immutable canary factory |
-| **filesystem** | `IFilesystem` | `IEligibilityResolver`, `FilesystemStateBridge` | conductor, algorithms, state, views; notifier | Cross-platform file ops; cache TTL control |
+| **filesystem** | `IFilesystem` | `IEligibilityResolver`, `FilesystemStateBridge` | conductor, algorithms, state, views; notifier | Cross-platform file ops; cache TTL control; marker-fast and canary-full eligibility helpers |
 | **algorithms** | `IAlgorithmsIndex` | `IRootPathResolver` | commands, views; conductor (for repo root) | Algorithm tree discovery, caching; root resolution |
 | **languages** | `ILanguages` | (none) | conductor, algorithms, comms, views | Immutable language catalog; normalization |
 | **commandline** | `ICommandLine` | `IAlgorithmsTerminalRunAdapter` | conductor, commandline handlers | Shell profile read/write; platform helpers |
@@ -63,12 +63,12 @@ extension.ts (VS Code entrypoint)
 │  │  └─ provides IEligibilityResolver (workspace folder eligibility)
 │  ├─ creates languages → ILanguages (immutable records)
 │  ├─ creates rootPathResolver → IRootPathResolver (algorithms + stdlib discovery)
-│  ├─ creates eligibilityResolver → IEligibilityResolver (sidebar state)
+│  ├─ creates eligibilityResolver → IEligibilityResolver (sidebar state, cache invalidation)
 │  ├─ creates conductor → IConductor
 │  │  ├─ receives: IFilesystem, ICommandLine, IRootPathResolver, IEligibilityResolver
 │  │  └─ internally uses: run registry, smoke registry, reaction factories
 │  ├─ creates notifications → INotificationRouter
-│  └─ performs activation-time startup side effects
+│  └─ performs activation-time startup side effects (marker-fast context init + deferred full canary refresh)
 └─ creates coordinator → vscode.Disposable
   ├─ creates viewLayer → IViewHost + ICommunicationHub
   │  └─ receives prebuilt domain services via ActivationServicesGraph
