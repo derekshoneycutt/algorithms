@@ -1,14 +1,17 @@
 // This application takes any number of integer arguments and prints the maximum value
 import ballerina/io;
 
+# Union type for supported number types in the generic max method
+type Number int|float|decimal;
+
 # Get the maximum value of a set of values
 # 
 # + values - The values to get the maximum of
 # + return - The maximum value among the provided values
-function max(int... values) returns int {
-    int current = 0;
-    foreach int value in values {
-        if value > current {
+function max(Number... values) returns Number {
+    Number current = 0;
+    foreach Number value in values {
+        if <decimal>value > <decimal>current {
             current = value;
         }
     }
