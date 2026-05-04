@@ -41,6 +41,7 @@ import type { IAlgorithmsTerminalRunAdapter, ICommandLine } from "../commandline
 import type { IFilesystem } from "../filesystem";
 import type { IEligibilityResolver } from "../filesystem";
 import type { IRootPathResolver } from "../algorithms";
+import type { IObservability } from "../observability";
 import {
   createRunRegistry,
   createSmokeRegistry,
@@ -72,11 +73,63 @@ function hasPathSegment(candidatePath: string, segment: string): boolean {
 }
 
 /**
+ * Returns true when candidatePath is equal to or nested under rootPath.
+ *
+ * @param {string} candidatePath Candidate absolute path.
+ * @param {string} rootPath Root absolute path.
+ * @returns {boolean} True when candidatePath is within rootPath.
+ */
+function isPathWithinRoot(candidatePath: string, rootPath: string): boolean {
+  const normalizedCandidatePath = path.resolve(candidatePath);
+  const normalizedRootPath = path.resolve(rootPath);
+
+  if (normalizedCandidatePath === normalizedRootPath) {
+    return true;
+  }
+
+  return normalizedCandidatePath.startsWith(`${normalizedRootPath}${path.sep}`);
+}
+
+/**
+ * Resolves likely algorithms/stdlib roots for one workspace folder path.
+ *
+ * @param {string} workspaceFolderPath Workspace folder path.
+ * @returns {string[]} Candidate roots for watcher-path scoping.
+ */
+function resolveWatcherScopeRootsForWorkspaceFolder(workspaceFolderPath: string): string[] {
+  const resolvedWorkspaceFolderPath = path.resolve(workspaceFolderPath);
+  const roots = [
+    path.join(resolvedWorkspaceFolderPath, "src"),
+    path.join(resolvedWorkspaceFolderPath, "stdlib"),
+  ];
+
+  const workspaceBaseName = path.basename(resolvedWorkspaceFolderPath);
+  if (workspaceBaseName === "src") {
+    const repositoryRootPath = path.dirname(resolvedWorkspaceFolderPath);
+    roots.push(
+      resolvedWorkspaceFolderPath,
+      path.join(repositoryRootPath, "stdlib")
+    );
+  }
+
+  if (workspaceBaseName === "stdlib") {
+    const repositoryRootPath = path.dirname(resolvedWorkspaceFolderPath);
+    roots.push(
+      resolvedWorkspaceFolderPath,
+      path.join(repositoryRootPath, "src")
+    );
+  }
+
+  return roots;
+}
+
+/**
  * Dependencies required to create the conductor service.
  */
 export interface CreateConductorServiceInput {
   algorithmsTerminalRunAdapter?: IAlgorithmsTerminalRunAdapter;
   commandLine?: ICommandLine;
+  observability?: IObservability;
   filesystem?: IFilesystem;
   runStatusRetentionMs?: number;
   rootPathResolver?: IRootPathResolver;
@@ -241,6 +294,7 @@ export function createConductorService(
 ): IConductor {
   const runAdapter = input?.algorithmsTerminalRunAdapter;
   const commandLine = input?.commandLine;
+  const observability = input?.observability;
   const filesystem = input?.filesystem;
   const runStatusRetentionMs = input?.runStatusRetentionMs ?? DEFAULT_RUN_STATUS_RETENTION_MS;
   const rootPathResolver = input?.rootPathResolver;
@@ -352,15 +406,62 @@ export function createConductorService(
 
     invalidateWorkspacePath(input: ConductorWorkspacePathInvalidationInput): boolean {
       const canonicalPath = input.targetPath;
+      const observabilityCategory = "watcher.invalidation";
+      const startedAt = observability?.isEnabled(observabilityCategory) === true
+        ? Date.now()
+        : 0;
+
+      /**
+       * Records one invalidation decision.
+       *
+       * @param {boolean} accepted Whether invalidation is accepted.
+       * @param {"missing-segment" | "out-of-scope" | "accepted"} reason Decision reason.
+       * @returns {boolean} Accepted value.
+       */
+      const recordDecision = (
+        accepted: boolean,
+        reason: "missing-segment" | "out-of-scope" | "accepted"
+      ): boolean => {
+        observability?.increment(
+          accepted
+            ? "watcher.invalidation.accepted"
+            : "watcher.invalidation.skipped",
+          1,
+          {
+            reason,
+          }
+        );
+
+        if (startedAt > 0) {
+          observability?.log("debug", "watcher.invalidation.decision.completed", {
+            accepted,
+            durationMs: Date.now() - startedAt,
+            reason,
+          });
+        }
+
+        return accepted;
+      };
 
       if (!hasPathSegment(canonicalPath, "src") && !hasPathSegment(canonicalPath, "stdlib")) {
-        return false;
+        return recordDecision(false, "missing-segment");
+      }
+
+      const watcherScopeRoots = input.workspaceFolderPaths.flatMap((workspaceFolderPath) => {
+        return resolveWatcherScopeRootsForWorkspaceFolder(workspaceFolderPath);
+      });
+
+      if (
+        watcherScopeRoots.length > 0
+        && !watcherScopeRoots.some((rootPath) => isPathWithinRoot(canonicalPath, rootPath))
+      ) {
+        return recordDecision(false, "out-of-scope");
       }
 
       input.filesystem.clearCache?.(canonicalPath);
       input.filesystem.clearCache?.(path.dirname(canonicalPath));
       input.algorithmsIndex.clearCache(canonicalPath);
-      return true;
+      return recordDecision(true, "accepted");
     },
 
     invalidateWorkspaceRoots(input: ConductorWorkspaceRootsInvalidationInput): void {
@@ -373,6 +474,7 @@ export function createConductorService(
         targetPath: input.targetPath,
         filesystem: input.filesystem,
         algorithmsIndex: input.algorithmsIndex,
+        workspaceFolderPaths: input.workspaceFolderPaths,
       });
 
       if (wasInvalidated) {

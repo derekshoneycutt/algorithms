@@ -75,9 +75,9 @@ Modules: `algorithms`, `commands`, `conductor`, `languages`, `state`.
 
 Purpose: adapt domain behavior to runtime concerns.
 
-Responsibilities: typed transport adaptation, view lifecycle integration, filesystem/process boundaries, notification routing, and view classification for command dispatch.
+Responsibilities: typed transport adaptation, view lifecycle integration, filesystem/process boundaries, notification routing, view classification for command dispatch, and host-side instrumentation.
 
-Modules: `comms`, `views`, `notifications`, `filesystem`, `commandline`.
+Modules: `comms`, `views`, `notifications`, `filesystem`, `commandline`, `observability`.
 
 ### 4.3 Composition Modules
 
@@ -108,6 +108,7 @@ Surfaces: `src/views/media/shared/`, `test/`.
 | `languages` | Canonical language catalog and lookup behavior | `src/languages/`, generated data adaptation, language lookup/normalization, smoke selection rules | Command execution ownership, transport ownership, UI rendering ownership | `ILanguages` |
 | `notifications` | Host notification policy and routing | `src/notifications/`, notification adaptation and routing | Product domain decisions | `INotificationRouter` |
 | `state` | Canonical host state | `src/state/`, XState machine/actor lifecycle, snapshot selectors, and filter/view mode selectors | Asset I/O, transport ownership, UI rendering ownership | `IStateMachine` |
+| `observability` | Host-side instrumentation and diagnostics | `src/observability/`, category-gated structured logging, counter metrics, and duration timing; noop provider for production/test contexts | Domain workflow decisions, transport ownership, canonical state ownership | `IObservability` |
 | `views` | Webview provider, tree provider, template, and frontend runtime | `src/views/`, `src/views/media/` (environment/smoke/run panels), `src/views/media/shared/`, `src/views/trees/` | Canonical workflow state, orchestration policy, filesystem I/O presentation & triggering | `IViewHost` |
 | `activator` | Activation-time bootstrap construction | `src/activator.ts`, workspace-folder discovery, runtime service graph construction, startup-side effects | Workflow orchestration policy, view/channel/command behavior policy | `ActivationServicesGraph` |
 | `coordinator` | Host wiring and disposable assembly | `src/coordinator.ts`, view/channel/command wiring and root disposable assembly from prebuilt services | Deep domain logic, runtime graph construction, workflow orchestration policy | `vscode.Disposable` |
@@ -124,6 +125,7 @@ Surfaces: `src/views/media/shared/`, `test/`.
 8. `comms.post` transports outbound snapshots back to the webview when asked.
 9. `state` remains canonical throughout; snapshots are derived from host state rather than treated as source of truth.
 10. Commands are registered from `commands`; command handlers derive output from host state and route user-visible status via `notifications`.
+11. `observability` instruments categories selectively; callers gate instrumentation with `isEnabled` before emitting log events, counter increments, or duration timings.
 
 ## 7. Internal Structure Policy
 
@@ -157,6 +159,7 @@ These internals are intentionally layered. Each row documents one layer's respon
 | `commandline` | Adapter layer | `src/commandline/adapters/` | Isolated process execution adapter boundary. | No workflow orchestration policy ownership. |
 | `commandline` | Shell profile internals | `src/commandline/internal/` | Platform-aware shell profile parsing, catalog lookup, and profile-writing helpers. | No workflow orchestration policy ownership. |
 | `state` | Mode selectors | `src/state/filterMode.ts`, `src/state/viewMode.ts` | Host-side view/filter mode representation and selectors. | No transport or filesystem ownership. |
+| `observability` | Noop provider | `createNoopObservability` | Silent implementation used in test and production contexts where instrumentation is disabled. | No side effects; all methods are no-ops. |
 | `languages` | Generated catalog data | `src/languages/generated/` | Source language metadata consumed by the language service. | No state/transport ownership. |
 
 These are internal layers inside module boundaries, not separate top-level modules.
@@ -197,7 +200,8 @@ Example:
 10. Webview provider and frontend runtime: `src/views/`, `src/views/media/`, `src/views/trees/`
 11. Activation-time runtime construction and startup side effects: `src/activator.ts`
 12. Host wiring and root disposable assembly: `src/coordinator.ts`
-13. Utility support surfaces: `src/views/media/shared/`, `test/`
+13. Host-side instrumentation: `src/observability/`
+14. Utility support surfaces: `src/views/media/shared/`, `test/`
 
 ## 10. Summary
 

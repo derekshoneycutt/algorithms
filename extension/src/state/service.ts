@@ -3,11 +3,15 @@ import { createActor } from "xstate";
 import type { IStateMachine } from "./IStateMachine";
 import { createExtensionHostMachine } from "./machine";
 import type {
+  EnvironmentControlsSettings,
   ExtensionHostEvent,
   ExtensionHostSnapshot,
   ExtensionHostStateValue,
   InitialRunControlsSettingsInput,
   InitialSmokeControlsSettingsInput,
+  RunControlsSettings,
+  SmokeControlsSettings,
+  SmokeRunStatusByLanguage,
 } from "./types";
 
 export type { IStateMachine } from "./IStateMachine";
@@ -137,6 +141,89 @@ export function createHostStateService(
         ),
         filesystemOperationErrorByPath: {
           ...snapshot.context.filesystemOperationErrorByPath,
+        },
+      };
+    },
+
+    getSmokeRunStatusForAlgorithm(algorithmPath: string): SmokeRunStatusByLanguage | undefined {
+      return actor.getSnapshot().context.smokeRunStatusByAlgorithm[algorithmPath];
+    },
+
+    getActiveSmokeRunAlgorithmPath(): string | null {
+      return actor.getSnapshot().context.activeSmokeRunAlgorithmPath;
+    },
+
+    getEnvironmentControls(): EnvironmentControlsSettings {
+      return {
+        ...actor.getSnapshot().context.environmentControls,
+      };
+    },
+
+    getRunControlsSnapshot(): {
+      readonly stateValue: ExtensionHostStateValue;
+      readonly runControls: RunControlsSettings;
+    } {
+      const snapshot = actor.getSnapshot();
+      const stateValue =
+        typeof snapshot.value === "string"
+          ? (snapshot.value as ExtensionHostStateValue)
+          : "ready";
+
+      return {
+        stateValue,
+        runControls: {
+          ...snapshot.context.runControls,
+        },
+      };
+    },
+
+    getSmokeControlsSnapshot(): {
+      readonly stateValue: ExtensionHostStateValue;
+      readonly smokeControls: SmokeControlsSettings;
+    } {
+      const snapshot = actor.getSnapshot();
+      const stateValue =
+        typeof snapshot.value === "string"
+          ? (snapshot.value as ExtensionHostStateValue)
+          : "ready";
+
+      return {
+        stateValue,
+        smokeControls: {
+          ...snapshot.context.smokeControls,
+          languages: snapshot.context.smokeControls.languages.map((language) => {
+            return {
+              ...language,
+            };
+          }),
+        },
+      };
+    },
+
+    getEnvironmentControlsSnapshot(): {
+      readonly stateValue: ExtensionHostStateValue;
+      readonly environmentControls: EnvironmentControlsSettings;
+    } {
+      const snapshot = actor.getSnapshot();
+      const stateValue =
+        typeof snapshot.value === "string"
+          ? (snapshot.value as ExtensionHostStateValue)
+          : "ready";
+
+      return {
+        stateValue,
+        environmentControls: {
+          ...snapshot.context.environmentControls,
+          routingEntries: snapshot.context.environmentControls.routingEntries.map((entry) => {
+            return {
+              ...entry,
+            };
+          }),
+          variables: snapshot.context.environmentControls.variables.map((variable) => {
+            return {
+              ...variable,
+            };
+          }),
         },
       };
     },

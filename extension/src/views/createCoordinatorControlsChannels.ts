@@ -18,6 +18,7 @@ import {
 } from "../conductor";
 import type { ILanguages } from "../languages";
 import { createConductorNotificationDispatcher } from "../notifications";
+import type { IObservability } from "../observability";
 import type { IStateMachine } from "../state";
 import type { ICommunicationHub } from "../comms";
 import type { IViewHost } from "./IViewHost";
@@ -35,6 +36,7 @@ export interface CreateCoordinatorControlsChannelsInput {
   context: vscode.ExtensionContext;
   languages: ILanguages;
   notificationDispatcher: ReturnType<typeof createConductorNotificationDispatcher>;
+  observability: IObservability;
   stateMachine: IStateMachine;
   viewHost: IViewHost;
   viewIds: {
@@ -53,6 +55,38 @@ export interface CreateCoordinatorControlsChannelsInput {
 export function createCoordinatorControlsChannels(
   input: CreateCoordinatorControlsChannelsInput
 ): ControlsChannelRegistrations {
+  /**
+   * Wraps one snapshot publisher with panel observability instrumentation.
+   *
+   * @param {"environment" | "run" | "smoke"} panel Panel key.
+   * @param {() => void} publishRaw Raw publisher.
+   * @returns {() => void} Instrumented publisher.
+   */
+  function instrumentPanelPublish(
+    panel: "environment" | "run" | "smoke",
+    publishRaw: () => void
+  ): () => void {
+    return (): void => {
+      const observabilityCategory = "panel.snapshot";
+      const startedAt = input.observability.isEnabled(observabilityCategory)
+        ? Date.now()
+        : 0;
+
+      publishRaw();
+
+      input.observability.increment("panel.snapshot.publish.count", 1, {
+        panel,
+      });
+
+      if (startedAt > 0) {
+        input.observability.log("debug", "panel.snapshot.publish.duration", {
+          durationMs: Date.now() - startedAt,
+          panel,
+        });
+      }
+    };
+  }
+
   const resolveSmokeLanguageIconUri = createSmokeLanguageIconUriResolver({
     languages: input.languages,
     viewHost: input.viewHost,
@@ -62,23 +96,24 @@ export function createCoordinatorControlsChannels(
   const buildSmokeControlsSnapshot = createSmokeSnapshotBuilder(
     resolveSmokeLanguageIconUri
   );
-  const getStateSnapshot = input.stateMachine.getSnapshot.bind(input.stateMachine);
   const publishSmokeSnapshot = createSmokeSnapshotPublisher({
     postMessage: input.communicationHub.post.bind(
       input.communicationHub,
       input.viewIds.smokeControlsViewId
     ),
-    getSnapshot: getStateSnapshot,
+    getSnapshot: input.stateMachine.getSmokeControlsSnapshot.bind(input.stateMachine),
     buildSnapshot: buildSmokeControlsSnapshot,
   });
+  const publishSmokeSnapshotInstrumented = instrumentPanelPublish("smoke", publishSmokeSnapshot);
   const publishRunSnapshot = createRunControlsSnapshotPublisher({
     postMessage: input.communicationHub.post.bind(
       input.communicationHub,
       input.viewIds.runControlsViewId
     ),
-    getSnapshot: getStateSnapshot,
+    getSnapshot: input.stateMachine.getRunControlsSnapshot.bind(input.stateMachine),
     buildSnapshot: buildRunControlsSnapshot,
   });
+  const publishRunSnapshotInstrumented = instrumentPanelPublish("run", publishRunSnapshot);
   const resolveEnvironmentLanguageIconUri = createEnvironmentLanguageIconUriResolver({
     languages: input.languages,
     viewHost: input.viewHost,
@@ -93,28 +128,32 @@ export function createCoordinatorControlsChannels(
       input.communicationHub,
       input.viewIds.environmentControlsViewId
     ),
-    getSnapshot: getStateSnapshot,
+    getSnapshot: input.stateMachine.getEnvironmentControlsSnapshot.bind(input.stateMachine),
     buildSnapshot: buildEnvironmentControlsSnapshot,
   });
+  const publishEnvironmentSnapshotInstrumented = instrumentPanelPublish(
+    "environment",
+    publishEnvironmentSnapshot
+  );
 
   const smokeControlsChannelHandler = createSmokeControlsChannelMessageHandler({
     conductor: input.conductor,
     stateMachine: input.stateMachine,
     dispatchNotification: input.notificationDispatcher.dispatch,
-    publishSnapshot: publishSmokeSnapshot,
+    publishSnapshot: publishSmokeSnapshotInstrumented,
   });
   const runControlsChannelHandler = createRunControlsChannelMessageHandler({
     conductor: input.conductor,
     stateMachine: input.stateMachine,
     dispatchNotification: input.notificationDispatcher.dispatch,
-    publishSnapshot: publishRunSnapshot,
+    publishSnapshot: publishRunSnapshotInstrumented,
   });
   const environmentControlsChannelHandler = createEnvironmentControlsChannelMessageHandler({
     conductor: input.conductor,
     languages: input.languages,
     stateMachine: input.stateMachine,
     dispatchNotification: input.notificationDispatcher.dispatch,
-    publishSnapshot: publishEnvironmentSnapshot,
+    publishSnapshot: publishEnvironmentSnapshotInstrumented,
   });
 
   return registerControlsChannels({

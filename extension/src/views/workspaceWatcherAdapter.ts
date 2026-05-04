@@ -37,6 +37,17 @@ export function createWorkspaceWatcherAdapter(
   input: CreateWorkspaceWatcherAdapterInput
 ): IWorkspaceWatcherAdapter {
   /**
+   * Returns current workspace folder paths.
+   *
+   * @returns {readonly string[]} Current workspace folder paths.
+   */
+  function getWorkspaceFolderPaths(): readonly string[] {
+    return (vscode.workspace.workspaceFolders ?? []).map((workspaceFolder) => {
+      return workspaceFolder.uri.fsPath;
+    });
+  }
+
+  /**
    * Registers one file watcher and forwards events to workspace-path invalidation.
    *
    * @param {string} globPattern Glob pattern to watch.
@@ -49,6 +60,7 @@ export function createWorkspaceWatcherAdapter(
         targetPath: uri.fsPath,
         filesystem: input.filesystem,
         algorithmsIndex: input.algorithmsIndex,
+        workspaceFolderPaths: getWorkspaceFolderPaths(),
         refreshAlgorithmsTree: input.refreshAlgorithmsTree,
         refreshStandardLibraryTree: input.refreshStandardLibraryTree,
       });
@@ -58,6 +70,7 @@ export function createWorkspaceWatcherAdapter(
         targetPath: uri.fsPath,
         filesystem: input.filesystem,
         algorithmsIndex: input.algorithmsIndex,
+        workspaceFolderPaths: getWorkspaceFolderPaths(),
         refreshAlgorithmsTree: input.refreshAlgorithmsTree,
         refreshStandardLibraryTree: input.refreshStandardLibraryTree,
       });
@@ -67,6 +80,7 @@ export function createWorkspaceWatcherAdapter(
         targetPath: uri.fsPath,
         filesystem: input.filesystem,
         algorithmsIndex: input.algorithmsIndex,
+        workspaceFolderPaths: getWorkspaceFolderPaths(),
         refreshAlgorithmsTree: input.refreshAlgorithmsTree,
         refreshStandardLibraryTree: input.refreshStandardLibraryTree,
       });

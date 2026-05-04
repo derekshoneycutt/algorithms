@@ -1,9 +1,14 @@
 import * as vscode from "vscode";
 
 import type { ILanguages } from "../../languages";
-import type { ExtensionHostSnapshot } from "../../state";
+import type { ExtensionHostStateValue, SmokeControlsSettings } from "../../state";
 import type { IViewHost } from "../../views";
 import type { HostToViewMessage, SmokeControlsViewSnapshot } from "../shared/messageTypes";
+
+interface SmokeSnapshotSource {
+  stateValue: ExtensionHostStateValue;
+  smokeControls: SmokeControlsSettings;
+}
 
 /**
  * Dependencies for creating one smoke language icon URI resolver.
@@ -59,7 +64,7 @@ export function createSmokeLanguageIconUriResolver(
  * @returns {SmokeControlsViewSnapshot} Typed smoke controls payload ready for transport.
  */
 export function buildSmokeSnapshot(
-  snapshot: ExtensionHostSnapshot,
+  snapshot: SmokeSnapshotSource,
   resolveIconUri: (languageKey: string) => string | undefined
 ): SmokeControlsViewSnapshot {
   return {
@@ -90,8 +95,8 @@ export function buildSmokeSnapshot(
  */
 export function createSmokeSnapshotBuilder(
   resolveIconUri: (languageKey: string) => string | undefined
-): (snapshot: ExtensionHostSnapshot) => SmokeControlsViewSnapshot {
-  return (snapshot: ExtensionHostSnapshot): SmokeControlsViewSnapshot => {
+): (snapshot: SmokeSnapshotSource) => SmokeControlsViewSnapshot {
+  return (snapshot: SmokeSnapshotSource): SmokeControlsViewSnapshot => {
     return buildSmokeSnapshot(snapshot, resolveIconUri);
   };
 }
@@ -101,8 +106,8 @@ export function createSmokeSnapshotBuilder(
  */
 export interface CreateSmokeSnapshotPublisherInput {
   postMessage: (message: HostToViewMessage) => Thenable<boolean> | undefined;
-  getSnapshot: () => ExtensionHostSnapshot;
-  buildSnapshot: (snapshot: ExtensionHostSnapshot) => SmokeControlsViewSnapshot;
+  getSnapshot: () => SmokeSnapshotSource;
+  buildSnapshot: (snapshot: SmokeSnapshotSource) => SmokeControlsViewSnapshot;
 }
 
 /**

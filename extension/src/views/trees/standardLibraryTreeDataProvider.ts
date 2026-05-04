@@ -24,6 +24,7 @@ export function createWorkspaceStandardLibraryTreeDataProvider(
   >();
 
   let cachedStdlibRoot: string | undefined;
+  const filePathToStdlibNode = new Map<string, WorkspaceTreeNode>();
 
   /**
    * Resolves and memoizes the stdlib root directory path.
@@ -101,10 +102,14 @@ export function createWorkspaceStandardLibraryTreeDataProvider(
       }
 
       const entries = await algorithmsIndex.getStandardLibraryEntries(dirPath);
-      return entries.map((entry) => ({
-        kind: entry.kind === "directory" ? "directory" as const : "file" as const,
-        filePath: entry.path,
-      }));
+      return entries.map((entry) => {
+        const node: WorkspaceTreeNode = {
+          kind: entry.kind === "directory" ? "directory" as const : "file" as const,
+          filePath: entry.path,
+        };
+        filePathToStdlibNode.set(entry.path, node);
+        return node;
+      });
     },
 
     getTreeItem(element: WorkspaceTreeNode): vscode.TreeItem {
@@ -121,6 +126,8 @@ export function createWorkspaceStandardLibraryTreeDataProvider(
      * @returns {void}
      */
     refresh(): void {
+      cachedStdlibRoot = undefined;
+      filePathToStdlibNode.clear();
       onDidChangeTreeDataEmitter.fire();
     },
 
@@ -133,6 +140,10 @@ export function createWorkspaceStandardLibraryTreeDataProvider(
     async findNodeForFilePath(
       filePath: string
     ): Promise<{ node: WorkspaceTreeNode; viewId: string } | null> {
+      const cached = filePathToStdlibNode.get(filePath);
+      if (cached !== undefined) {
+        return { node: cached, viewId };
+      }
       const node = await findInStdlib(filePath, undefined);
       if (node === null) {
         return null;

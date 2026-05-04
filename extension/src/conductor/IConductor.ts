@@ -180,6 +180,7 @@ export interface ConductorWorkspacePathInvalidationInput {
   targetPath: string;
   filesystem: IFilesystem;
   algorithmsIndex: IAlgorithmsIndex;
+  workspaceFolderPaths: readonly string[];
 }
 
 /**
@@ -244,6 +245,7 @@ export interface ConductorWorkspacePathChangeInput {
   targetPath: string;
   filesystem: IFilesystem;
   algorithmsIndex: IAlgorithmsIndex;
+  workspaceFolderPaths: readonly string[];
   refreshAlgorithmsTree: () => void;
   refreshStandardLibraryTree: () => void;
 }

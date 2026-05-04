@@ -1,12 +1,17 @@
 import * as vscode from "vscode";
 
 import type { ILanguages } from "../../languages";
-import type { ExtensionHostSnapshot } from "../../state";
+import type { EnvironmentControlsSettings, ExtensionHostStateValue } from "../../state";
 import type { IViewHost } from "../../views";
 import type {
   EnvironmentControlsViewSnapshot,
   HostToViewMessage,
 } from "../shared/messageTypes";
+
+interface EnvironmentSnapshotSource {
+  stateValue: ExtensionHostStateValue;
+  environmentControls: EnvironmentControlsSettings;
+}
 
 /**
  * Dependencies for creating one environment language icon URI resolver.
@@ -62,7 +67,7 @@ export function createEnvironmentLanguageIconUriResolver(
  * @returns {EnvironmentControlsViewSnapshot} Typed environment controls payload ready for transport.
  */
 export function buildEnvironmentControlsSnapshot(
-  snapshot: ExtensionHostSnapshot,
+  snapshot: EnvironmentSnapshotSource,
   resolveIconUri: (languageKey: string) => string | undefined
 ): EnvironmentControlsViewSnapshot {
   return {
@@ -112,8 +117,8 @@ export function buildEnvironmentControlsSnapshot(
  */
 export function createEnvironmentControlsSnapshotBuilder(
   resolveIconUri: (languageKey: string) => string | undefined
-): (snapshot: ExtensionHostSnapshot) => EnvironmentControlsViewSnapshot {
-  return (snapshot: ExtensionHostSnapshot): EnvironmentControlsViewSnapshot => {
+): (snapshot: EnvironmentSnapshotSource) => EnvironmentControlsViewSnapshot {
+  return (snapshot: EnvironmentSnapshotSource): EnvironmentControlsViewSnapshot => {
     return buildEnvironmentControlsSnapshot(snapshot, resolveIconUri);
   };
 }
@@ -123,8 +128,8 @@ export function createEnvironmentControlsSnapshotBuilder(
  */
 export interface CreateEnvironmentControlsSnapshotPublisherInput {
   postMessage: (message: HostToViewMessage) => Thenable<boolean> | undefined;
-  getSnapshot: () => ExtensionHostSnapshot;
-  buildSnapshot: (snapshot: ExtensionHostSnapshot) => EnvironmentControlsViewSnapshot;
+  getSnapshot: () => EnvironmentSnapshotSource;
+  buildSnapshot: (snapshot: EnvironmentSnapshotSource) => EnvironmentControlsViewSnapshot;
 }
 
 /**

@@ -155,6 +155,56 @@ function createHostStateStub(runControls: RunControlsSettings): IStateMachine {
     getSnapshot(): ExtensionHostSnapshot {
       return snapshot;
     },
+    getSmokeRunStatusForAlgorithm(): undefined {
+      return undefined;
+    },
+    getActiveSmokeRunAlgorithmPath(): null {
+      return null;
+    },
+    getEnvironmentControls() {
+      return {
+        ...snapshot.environmentControls,
+      };
+    },
+    getRunControlsSnapshot() {
+      return {
+        stateValue: snapshot.stateValue,
+        runControls: {
+          ...snapshot.runControls,
+        },
+      };
+    },
+    getSmokeControlsSnapshot() {
+      return {
+        stateValue: snapshot.stateValue,
+        smokeControls: {
+          ...snapshot.smokeControls,
+          languages: snapshot.smokeControls.languages.map((language) => {
+            return {
+              ...language,
+            };
+          }),
+        },
+      };
+    },
+    getEnvironmentControlsSnapshot() {
+      return {
+        stateValue: snapshot.stateValue,
+        environmentControls: {
+          ...snapshot.environmentControls,
+          routingEntries: snapshot.environmentControls.routingEntries.map((entry) => {
+            return {
+              ...entry,
+            };
+          }),
+          variables: snapshot.environmentControls.variables.map((variable) => {
+            return {
+              ...variable,
+            };
+          }),
+        },
+      };
+    },
     send(): void {
       return;
     },

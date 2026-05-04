@@ -1,5 +1,6 @@
 import type { IFilesystem } from "../filesystem";
 import type { ILanguages } from "../languages";
+import type { IObservability } from "../observability";
 import type {
   AlgorithmFileLookup,
   AlgorithmCategory,
@@ -14,6 +15,7 @@ import type {
 export interface AlgorithmsIndexDependencies {
   filesystem: IFilesystem;
   languages: ILanguages;
+  observability?: IObservability;
   /**
    * Workspace folder paths used for lazy root resolution.
    * The module resolves the algorithms and stdlib roots internally on first use.
@@ -67,6 +69,22 @@ export interface IAlgorithmsIndex {
    * @returns {Promise<AlgorithmImplementation[]>} Implementation list sorted by language key.
    */
   getImplementations(algorithmPath: string): Promise<AlgorithmImplementation[]>;
+
+  /**
+   * Returns whether one algorithm has problem rows for the requested tree view mode.
+   *
+   * In `files` view mode, a problem row means any flagged implementation file.
+   * In `language` view mode, a problem row means a flagged implementation or
+   * at least one missing language implementation.
+   *
+   * @param {string} algorithmPath Absolute path to the algorithm directory.
+   * @param {"files" | "language"} viewMode Active algorithms tree view mode.
+   * @returns {Promise<boolean>} True when at least one problem row exists.
+   */
+  hasProblemRowsForAlgorithm(
+    algorithmPath: string,
+    viewMode: "files" | "language"
+  ): Promise<boolean>;
 
   /**
    * Returns one resolved algorithm-file descriptor for an absolute file path.

@@ -37,6 +37,7 @@ interface CoordinatorComponents {
   };
   commands: IExtensionCommands;
   conductor: IConductor;
+  observability: vscode.Disposable;
   stateMachine: vscode.Disposable;
   viewLayer: CoordinatorViewLayer;
   activeEditorRevealSubscription: vscode.Disposable;
@@ -59,6 +60,7 @@ function buildCoordinatorDisposables(
 
   return vscode.Disposable.from(
     components.stateMachine,
+    components.observability,
     components.viewLayer.communicationHub,
     components.activeEditorRevealSubscription,
     components.channels.smokeControlsChannel,
@@ -105,6 +107,7 @@ export function createCoordinator(
     filterModeService: runtimeServices.filterModeService,
     languages: runtimeServices.languages,
     notificationRouter: runtimeServices.notificationRouter,
+    observability: runtimeServices.observability,
     stateMachine,
     viewIds: {
       workspaceAlgorithmsTreeViewId: viewIds.workspaceAlgorithmsTreeViewId,
@@ -124,6 +127,7 @@ export function createCoordinator(
     context,
     languages: runtimeServices.languages,
     notificationDispatcher: runtimeServices.notificationDispatcher,
+    observability: runtimeServices.observability,
     stateMachine,
     viewHost,
     viewIds: {
@@ -164,6 +168,11 @@ export function createCoordinator(
         return;
       }
 
+      if (!viewLayer.workspaceAlgorithmsTreeRegistration.visible &&
+          !viewLayer.workspaceStandardLibraryTreeRegistration.visible) {
+        return;
+      }
+
       const result =
         await viewLayer.workspaceAlgorithmsTreeProvider.findNodeForFilePath(filePath) ??
         await viewLayer.workspaceStandardLibraryTreeProvider.findNodeForFilePath(filePath);
@@ -193,6 +202,7 @@ export function createCoordinator(
     },
     commands,
     conductor,
+    observability: runtimeServices.observability,
     stateMachine,
     viewLayer,
   });

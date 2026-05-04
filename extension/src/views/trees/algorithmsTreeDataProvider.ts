@@ -331,9 +331,8 @@ export function createWorkspaceAlgorithmsTreeDataProvider(
       hostState !== undefined
       && element.kind === "algorithmDir"
     ) {
-      const snapshot = hostState.getSnapshot();
-      const hasSmokeResults = snapshot.smokeRunStatusByAlgorithm[element.filePath] !== undefined;
-      const isSmokeRunning = snapshot.activeSmokeRunAlgorithmPath === element.filePath;
+      const hasSmokeResults = hostState.getSmokeRunStatusForAlgorithm(element.filePath) !== undefined;
+      const isSmokeRunning = hostState.getActiveSmokeRunAlgorithmPath() === element.filePath;
 
       if (hasSmokeResults || isSmokeRunning) {
         resolvedElement = {
@@ -350,8 +349,7 @@ export function createWorkspaceAlgorithmsTreeDataProvider(
       && element.languageKey !== undefined
       && element.parentAlgorithmPath !== undefined
     ) {
-      const snapshot = hostState.getSnapshot();
-      const byLanguage = snapshot.smokeRunStatusByAlgorithm[element.parentAlgorithmPath];
+      const byLanguage = hostState.getSmokeRunStatusForAlgorithm(element.parentAlgorithmPath);
       const smokeStatus = byLanguage?.[element.languageKey.trim().toLowerCase()];
 
       if (smokeStatus !== undefined) {

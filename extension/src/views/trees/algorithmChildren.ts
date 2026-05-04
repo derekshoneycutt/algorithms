@@ -23,33 +23,10 @@ type ViewMode = "files" | "language";
  */
 export async function hasProblemRowsForAlgorithm(
   algorithmsIndex: IAlgorithmsIndex,
-  languages: ILanguages,
   algorithmPath: string,
   viewMode: ViewMode
 ): Promise<boolean> {
-  const implementations = await algorithmsIndex.getImplementations(algorithmPath);
-  const implementationsByLanguage = new Map(
-    implementations.map((implementation) => {
-      return [implementation.languageKey, implementation] as const;
-    })
-  );
-
-  if (viewMode === "files") {
-    return implementations.some((implementation) => {
-      return implementation.isFlagged;
-    });
-  }
-
-  for (const languageRecord of languages.getAll()) {
-    const implementation = implementationsByLanguage.get(languageRecord.key);
-    const isMissing = implementation === undefined;
-    const isFlagged = implementation?.isFlagged === true;
-    if (isMissing || isFlagged) {
-      return true;
-    }
-  }
-
-  return false;
+  return algorithmsIndex.hasProblemRowsForAlgorithm(algorithmPath, viewMode);
 }
 
 /**
@@ -93,27 +70,20 @@ export async function getChildrenRoot(
   if (filterMode !== "problems") {
     return categoryRows;
   }
-
-  const problemRows: WorkspaceTreeNode[] = [];
-  for (const row of categoryRows) {
+  const hasProblemsByCategory = await Promise.all(categoryRows.map(async (row) => {
     const algorithms = await algorithmsIndex.getAlgorithms(row.filePath);
-    let hasProblems = false;
-
-    for (const algorithm of algorithms) {
-      if (
-        await hasProblemRowsForAlgorithm(algorithmsIndex, languages, algorithm.path, viewMode)
-      ) {
-        hasProblems = true;
-        break;
-      }
+    if (algorithms.length === 0) {
+      return false;
     }
 
-    if (hasProblems) {
-      problemRows.push(row);
-    }
-  }
+    const byAlgorithm = await Promise.all(algorithms.map(async (algorithm) => {
+      return hasProblemRowsForAlgorithm(algorithmsIndex, algorithm.path, viewMode);
+    }));
 
-  return problemRows;
+    return byAlgorithm.some((value) => value);
+  }));
+
+  return categoryRows.filter((_, index) => hasProblemsByCategory[index]);
 }
 
 /**
@@ -143,14 +113,11 @@ export async function getChildrenCategory(
     return algorithmRows;
   }
 
-  const problemRows: WorkspaceTreeNode[] = [];
-  for (const row of algorithmRows) {
-    if (await hasProblemRowsForAlgorithm(algorithmsIndex, languages, row.filePath, viewMode)) {
-      problemRows.push(row);
-    }
-  }
+  const hasProblemsByAlgorithm = await Promise.all(algorithmRows.map(async (row) => {
+    return hasProblemRowsForAlgorithm(algorithmsIndex, row.filePath, viewMode);
+  }));
 
-  return problemRows;
+  return algorithmRows.filter((_, index) => hasProblemsByAlgorithm[index]);
 }
 
 /**

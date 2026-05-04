@@ -28,6 +28,10 @@ import {
 } from "./notifications";
 import type { INotificationRouter } from "./notifications";
 import {
+  createObservability,
+} from "./observability";
+import type { IObservability } from "./observability";
+import {
   createFilterModeService,
   createHostStateService,
   createStateFilesystemBridge,
@@ -52,6 +56,7 @@ export interface ActivationServicesGraph {
   languages: ILanguages;
   notificationDispatcher: ReturnType<typeof createConductorNotificationDispatcher>;
   notificationRouter: INotificationRouter;
+  observability: IObservability;
   rootPathResolver: IRootPathResolver;
   stateMachine: IStateMachine;
   viewModeService: IViewModeService;
@@ -92,11 +97,19 @@ export function createActivationServices(): ActivationServicesGraph {
   const viewModeService: IViewModeService = createViewModeService();
   const filterModeService: IFilterModeService = createFilterModeService();
   const notificationRouter: INotificationRouter = createNotificationRouter();
+  const observability: IObservability = createObservability({
+    enabledByCategory: {
+      "index.problems": true,
+      "watcher.invalidation": true,
+      "panel.snapshot": true,
+    },
+  });
   const rootPathResolver = createRootPathResolver();
   const eligibilityResolver = createEligibilityResolver();
   const conductor: IConductor = createConductorService({
     algorithmsTerminalRunAdapter,
     commandLine,
+    observability,
     filesystem,
     rootPathResolver,
     eligibilityResolver,
@@ -114,6 +127,7 @@ export function createActivationServices(): ActivationServicesGraph {
     languages,
     notificationDispatcher,
     notificationRouter,
+    observability,
     rootPathResolver,
     stateMachine,
     viewModeService,

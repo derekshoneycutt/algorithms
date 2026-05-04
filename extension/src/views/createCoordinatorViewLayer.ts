@@ -11,6 +11,7 @@ import {
 } from "../algorithms";
 import type { ILanguages } from "../languages";
 import type { INotificationRouter } from "../notifications";
+import type { IObservability } from "../observability";
 import type {
   IFilterModeService,
   IStateMachine,
@@ -41,6 +42,7 @@ export interface CreateCoordinatorViewLayerInput {
   filterModeService: IFilterModeService;
   languages: ILanguages;
   notificationRouter: INotificationRouter;
+  observability: IObservability;
   stateMachine: IStateMachine;
   viewIds: {
     workspaceAlgorithmsTreeViewId: string;
@@ -85,6 +87,7 @@ export function createCoordinatorViewLayer(
   const algorithmsIndex: IAlgorithmsIndex = createAlgorithmsIndex({
     filesystem: input.filesystem,
     languages: input.languages,
+    observability: input.observability,
     workspaceFolderPaths: input.workspaceFolderPaths,
   });
   const flaggedLanguages: IFlaggedLanguagesService = createFlaggedLanguagesService(

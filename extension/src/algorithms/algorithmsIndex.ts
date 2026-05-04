@@ -339,7 +339,7 @@ async function listDirents(
 export function createAlgorithmsIndex(
   dependencies: AlgorithmsIndexDependencies
 ): IAlgorithmsIndex {
-  const { filesystem, languages, workspaceFolderPaths } = dependencies;
+  const { filesystem, languages, observability, workspaceFolderPaths } = dependencies;
 
   // Lazy-resolved roots. undefined = not yet resolved; null = not found.
   let cachedAlgorithmsRoot: string | null | undefined = undefined;
@@ -348,6 +348,9 @@ export function createAlgorithmsIndex(
   const algorithmsByCategoryPath = new Map<string, AlgorithmEntry[]>();
   const implementationsByAlgorithmPath = new Map<string, AlgorithmImplementation[]>();
   const fileLookupByPath = new Map<string, AlgorithmFileLookup>();
+  const filePathsByAlgorithmPath = new Map<string, Set<string>>();
+  const problemRowsByAlgorithmAndViewMode = new Map<string, boolean>();
+  const pendingProblemRowsByAlgorithmAndViewMode = new Map<string, Promise<boolean>>();
   const standardLibraryEntriesByPath = new Map<string, StandardLibEntry[]>();
 
   /**
@@ -362,7 +365,59 @@ export function createAlgorithmsIndex(
     algorithmsByCategoryPath.clear();
     implementationsByAlgorithmPath.clear();
     fileLookupByPath.clear();
+    filePathsByAlgorithmPath.clear();
+    problemRowsByAlgorithmAndViewMode.clear();
+    pendingProblemRowsByAlgorithmAndViewMode.clear();
     standardLibraryEntriesByPath.clear();
+  }
+
+  /**
+   * Returns the cache key for one algorithm/view-mode problem rows decision.
+   *
+   * @param {string} algorithmPath Canonical algorithm path.
+   * @param {"files" | "language"} viewMode Algorithms tree view mode.
+   * @returns {string} Cache key.
+   */
+  function buildProblemRowsCacheKey(
+    algorithmPath: string,
+    viewMode: "files" | "language"
+  ): string {
+    return `${algorithmPath}|${viewMode}`;
+  }
+
+  /**
+   * Clears problem-row cache entries for one algorithm path.
+   *
+   * @param {string} algorithmPath Canonical algorithm path.
+   * @returns {void}
+   */
+  function clearProblemRowsCacheForAlgorithm(algorithmPath: string): void {
+    const filesKey = buildProblemRowsCacheKey(algorithmPath, "files");
+    const languageKey = buildProblemRowsCacheKey(algorithmPath, "language");
+    problemRowsByAlgorithmAndViewMode.delete(filesKey);
+    problemRowsByAlgorithmAndViewMode.delete(languageKey);
+    pendingProblemRowsByAlgorithmAndViewMode.delete(filesKey);
+    pendingProblemRowsByAlgorithmAndViewMode.delete(languageKey);
+  }
+
+  /**
+   * Clears problem-row cache entries whose algorithm path belongs to one category.
+   *
+   * @param {string} categoryPath Category directory path.
+   * @returns {void}
+   */
+  function clearProblemRowsCacheForCategory(categoryPath: string): void {
+    const categoryPrefix = `${categoryPath}${path.sep}`;
+    for (const cacheKey of problemRowsByAlgorithmAndViewMode.keys()) {
+      const separatorIndex = cacheKey.lastIndexOf("|");
+      const algorithmPath = separatorIndex >= 0
+        ? cacheKey.slice(0, separatorIndex)
+        : cacheKey;
+      if (algorithmPath === categoryPath || algorithmPath.startsWith(categoryPrefix)) {
+        problemRowsByAlgorithmAndViewMode.delete(cacheKey);
+        pendingProblemRowsByAlgorithmAndViewMode.delete(cacheKey);
+      }
+    }
   }
 
   /**
@@ -384,11 +439,18 @@ export function createAlgorithmsIndex(
       isFlagged: implementation.isFlagged,
     };
 
+    let trackedPaths = filePathsByAlgorithmPath.get(algorithmPath);
+    if (trackedPaths === undefined) {
+      trackedPaths = new Set<string>();
+      filePathsByAlgorithmPath.set(algorithmPath, trackedPaths);
+    }
+
     fileLookupByPath.set(implementation.filePath, {
       ...sharedDescriptor,
       filePath: implementation.filePath,
       fileKind: "main",
     });
+    trackedPaths.add(implementation.filePath);
 
     for (const implementationFilePath of implementation.filePaths) {
       if (implementationFilePath === implementation.filePath) {
@@ -400,6 +462,7 @@ export function createAlgorithmsIndex(
         filePath: implementationFilePath,
         fileKind: "implementation",
       });
+      trackedPaths.add(implementationFilePath);
     }
 
     for (const includeFilePath of implementation.includeFilePaths) {
@@ -408,6 +471,7 @@ export function createAlgorithmsIndex(
         filePath: includeFilePath,
         fileKind: "include",
       });
+      trackedPaths.add(includeFilePath);
     }
   }
 
@@ -448,7 +512,40 @@ export function createAlgorithmsIndex(
   }
 
   const algorithmsIndex: IAlgorithmsIndex = {
-    clearCache(_targetPath?: string): void {
+    clearCache(targetPath?: string): void {
+      if (targetPath === undefined) {
+        clearAllCaches();
+        return;
+      }
+
+      // Determine the candidate algorithm directory: either the path itself (if it
+      // is a known algorithm dir) or its parent (if it is a file inside one).
+      const algorithmDirCandidate = implementationsByAlgorithmPath.has(targetPath)
+        ? targetPath
+        : path.dirname(targetPath);
+
+      if (implementationsByAlgorithmPath.has(algorithmDirCandidate)) {
+        // Scoped invalidation: evict only this algorithm directory.
+        implementationsByAlgorithmPath.delete(algorithmDirCandidate);
+        clearProblemRowsCacheForAlgorithm(algorithmDirCandidate);
+        const tracked = filePathsByAlgorithmPath.get(algorithmDirCandidate);
+        if (tracked !== undefined) {
+          for (const fp of tracked) {
+            fileLookupByPath.delete(fp);
+          }
+          filePathsByAlgorithmPath.delete(algorithmDirCandidate);
+        }
+        return;
+      }
+
+      if (algorithmsByCategoryPath.has(targetPath)) {
+        // Category-level invalidation: evict only this category's algorithm list.
+        algorithmsByCategoryPath.delete(targetPath);
+        clearProblemRowsCacheForCategory(targetPath);
+        return;
+      }
+
+      // Unknown depth — fall back to a full clear.
       clearAllCaches();
     },
 
@@ -629,6 +726,101 @@ export function createAlgorithmsIndex(
         filePaths: [...implementation.filePaths],
         includeFilePaths: [...implementation.includeFilePaths],
       }));
+    },
+
+    async hasProblemRowsForAlgorithm(
+      algorithmPath: string,
+      viewMode: "files" | "language"
+    ): Promise<boolean> {
+      const canonicalAlgorithmPath = await filesystem.realpath(algorithmPath);
+      const cacheKey = buildProblemRowsCacheKey(canonicalAlgorithmPath, viewMode);
+      const observabilityCategory = "index.problems";
+
+      const cachedValue = problemRowsByAlgorithmAndViewMode.get(cacheKey);
+      if (cachedValue !== undefined) {
+        observability?.increment("index.problems.cache.hit", 1, {
+          viewMode,
+        });
+        return cachedValue;
+      }
+
+      const pending = pendingProblemRowsByAlgorithmAndViewMode.get(cacheKey);
+      if (pending !== undefined) {
+        observability?.increment("index.problems.cache.pending", 1, {
+          viewMode,
+        });
+        return pending;
+      }
+
+      observability?.increment("index.problems.cache.miss", 1, {
+        viewMode,
+      });
+
+      const evaluationPromise = (async () => {
+        const startedAt = observability?.isEnabled(observabilityCategory) === true
+          ? Date.now()
+          : 0;
+        const implementations = await algorithmsIndex.getImplementations(canonicalAlgorithmPath);
+
+        if (implementations.some((implementation) => implementation.isFlagged)) {
+          if (startedAt > 0) {
+            observability?.log("debug", "index.problems.evaluation.completed", {
+              durationMs: Date.now() - startedAt,
+              result: true,
+              viewMode,
+            });
+          }
+          return true;
+        }
+
+        if (viewMode === "files") {
+          if (startedAt > 0) {
+            observability?.log("debug", "index.problems.evaluation.completed", {
+              durationMs: Date.now() - startedAt,
+              result: false,
+              viewMode,
+            });
+          }
+          return false;
+        }
+
+        const implementedLanguageKeys = new Set(
+          implementations.map((implementation) => implementation.languageKey)
+        );
+
+        for (const languageRecord of languages.getAll()) {
+          if (!implementedLanguageKeys.has(languageRecord.key)) {
+            if (startedAt > 0) {
+              observability?.log("debug", "index.problems.evaluation.completed", {
+                durationMs: Date.now() - startedAt,
+                result: true,
+                viewMode,
+              });
+            }
+            return true;
+          }
+        }
+
+        if (startedAt > 0) {
+          observability?.log("debug", "index.problems.evaluation.completed", {
+            durationMs: Date.now() - startedAt,
+            result: false,
+            viewMode,
+          });
+        }
+
+        return false;
+      })();
+
+      pendingProblemRowsByAlgorithmAndViewMode.set(cacheKey, evaluationPromise);
+
+      try {
+        const result = await evaluationPromise;
+        problemRowsByAlgorithmAndViewMode.set(cacheKey, result);
+        return result;
+      } finally {
+        pendingProblemRowsByAlgorithmAndViewMode.delete(cacheKey);
+      }
     },
 
     async getImplementationByFilePath(filePath: string): Promise<AlgorithmFileLookup | null> {

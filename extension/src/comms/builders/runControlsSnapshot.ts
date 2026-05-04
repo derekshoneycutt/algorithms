@@ -1,5 +1,10 @@
-import type { ExtensionHostSnapshot } from "../../state";
+import type { ExtensionHostStateValue, RunControlsSettings } from "../../state";
 import type { HostToViewMessage, RunControlsViewSnapshot } from "../shared/messageTypes";
+
+interface RunControlsSnapshotSource {
+  stateValue: ExtensionHostStateValue;
+  runControls: RunControlsSettings;
+}
 
 /**
  * Builds a typed run controls snapshot payload from host state.
@@ -8,7 +13,7 @@ import type { HostToViewMessage, RunControlsViewSnapshot } from "../shared/messa
  * @returns {RunControlsViewSnapshot} Typed run controls payload ready for transport.
  */
 export function buildRunControlsSnapshot(
-  snapshot: ExtensionHostSnapshot
+  snapshot: RunControlsSnapshotSource
 ): RunControlsViewSnapshot {
   return {
     stateValue: snapshot.stateValue,
@@ -36,8 +41,8 @@ export function buildRunControlsSnapshot(
  */
 export interface CreateRunControlsSnapshotPublisherInput {
   postMessage: (message: HostToViewMessage) => Thenable<boolean> | undefined;
-  getSnapshot: () => ExtensionHostSnapshot;
-  buildSnapshot: (snapshot: ExtensionHostSnapshot) => RunControlsViewSnapshot;
+  getSnapshot: () => RunControlsSnapshotSource;
+  buildSnapshot: (snapshot: RunControlsSnapshotSource) => RunControlsViewSnapshot;
 }
 
 /**
