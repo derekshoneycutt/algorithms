@@ -1,0 +1,9 @@
+ /*
+   Prints hello world to the screen
+ */
+ 
+ hello: procedure options (main);
+   declare sysprint file external;
+
+   put edit('Hello, world!') (a);
+ end hello;

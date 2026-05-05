@@ -3,11 +3,15 @@
 
 get_generated_language_catalog() {
   cat <<'EOF'
+acton|act|./output/$fileNameWithoutExt
 ada|adb|./output/$fileNameWithoutExt
+apl|apl|./output/$fileName
 arm64asm|s|./output/$fileNameWithoutExt
 asm|asm|./output/$fileNameWithoutExt
 ballerina|bal|./output/$fileNameWithoutExt.jar
 c|c|./output/$fileNameWithoutExt
+c3|c3|./output/$fileNameWithoutExt
+clisp|lisp|./output/$fileNameWithoutExt.fasl
 clojure|clj|./output/target/uberjar/$fileNameWithoutExt-1.0.0-standalone.jar
 cobol|cob|./output/$fileNameWithoutExt
 cpp|cpp|./output/$fileNameWithoutExt
@@ -28,8 +32,11 @@ haskell|hs|./output/$fileNameWithoutExt
 haxe|hx|./$fileName
 icon|icn|./output/$fileNameWithoutExt
 idris|idr|./output/build/exec/$fileNameWithoutExt
+io|io|./output/$fileName
+j|ijs|./output/$fileName
 java|java|./output/$fileNameWithoutExt.jar
 javascript|js|./output/$fileName
+joy|joy|./output/$fileName
 julia|jl|./$fileName
 kit|kit|./$fileName
 kotlin|kt|./output/$fileNameWithoutExt.jar
@@ -45,17 +52,23 @@ oberon|Mod|./output/$fileNameWithoutExt
 objectivec|m|./output/$fileNameWithoutExt
 ocaml|ml|./output/$fileNameWithoutExt
 octave|mat|./output/${fileNameWithoutExt}shaved.m
+odin|odin|./output/$fileNameWithoutExt
 pascal|pas|./output/$fileNameWithoutExt
 perl|plx|./output/$fileName
+pli|pl1|./output/$fileNameWithoutExt
 php|php|./output/$fileName
 prolog|pl|./output/$fileNameWithoutExt
 python|py|./output/$fileName
+qnial|nls|./output/$fileName
 r|r|./output/$fileName
 racket|rkt|./output/$fileNameWithoutExt
+raku|raku|./output/$fileName
+rhombus|rhm|./output/$fileNameWithoutExt
 ruby|rb|./output/$fileName
 rust|rs|./output/$fileNameWithoutExt
 scala|scala|./output/$fileName
 scheme|scm|./$fileName
+self|self|./$fileName
 simula|sim|./output/$fileNameWithoutExt
 smalltalk|st|./$fileName
 swift|swift|./output/$fileNameWithoutExt
@@ -72,7 +85,7 @@ get_generated_supported_language_keys() {
   get_generated_language_catalog | awk -F'|' '{print $1}'
 }
 
-GENERATED_SMOKE_DEFAULT_KEYS='ada asm ballerina c clojure cobol cpp csharp d dart eiffel elixir erlang factor forth fortran freebasic fsharp gleam go haskell haxe icon idris java javascript julia kit kotlin llvmir lua mercury mmixal modula3 mojo nasm nim oberon objectivec ocaml octave pascal perl php prolog python r racket ruby rust scala scheme simula smalltalk swift tcl typescript v visualbasic wat zig'
+GENERATED_SMOKE_DEFAULT_KEYS='acton ada apl asm ballerina c c3 clisp clojure cobol cpp csharp d dart eiffel elixir erlang factor forth fortran freebasic fsharp gleam go haskell haxe icon idris io j java javascript joy julia kit kotlin llvmir lua mercury mmixal modula3 mojo nasm nim oberon objectivec ocaml octave odin pascal perl pli php prolog python qnial r racket raku rhombus ruby rust scala scheme self simula smalltalk swift tcl typescript v visualbasic wat zig'
 GENERATED_PROFILE_BLOCK_START='# >>> DEREKALGOS INIT >>>'
 GENERATED_PROFILE_BLOCK_END='# <<< DEREKALGOS INIT <<<'
 GENERATED_ROUTE_DOCKER_PATTERN='lang=image'

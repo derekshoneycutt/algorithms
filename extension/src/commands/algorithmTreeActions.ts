@@ -117,7 +117,7 @@ function resolveCreateTargetDirectoryPath(
     return rootPath;
   }
 
-  if (treeNode.kind === "directory") {
+  if (treeNode.kind === "directory" || treeNode.kind === "algorithmDir") {
     return treeNode.filePath;
   }
 

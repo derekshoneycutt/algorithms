@@ -1,0 +1,7 @@
+#lang rhombus
+/*
+    Prints hello world to the screen
+*/
+
+// Prints
+println("Hello world!");

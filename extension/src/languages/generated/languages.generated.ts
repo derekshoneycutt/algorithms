@@ -40,6 +40,39 @@ export const GENERATED_LANGUAGE_DATA: GeneratedLanguageData = {
   },
   "languages": [
     {
+      "key": "acton",
+      "extension": "act",
+      "displayLabel": "Acton",
+      "icon": {
+        "fileName": "acton.svg"
+      },
+      "sampleOutputTemplate": "./output/$fileNameWithoutExt",
+      "smoke": {
+        "defaultEnabled": true,
+        "visible": true
+      },
+      "constraints": {
+        "canRun": [
+          {
+            "platform": [
+              "*"
+            ],
+            "arch": [
+              "*"
+            ]
+          }
+        ]
+      },
+      "aliases": {
+        "languageIds": [
+          "acton"
+        ],
+        "fileExtensions": [
+          ".act"
+        ]
+      }
+    },
+    {
       "key": "ada",
       "extension": "adb",
       "displayLabel": "Ada",
@@ -69,6 +102,39 @@ export const GENERATED_LANGUAGE_DATA: GeneratedLanguageData = {
         ],
         "fileExtensions": [
           ".adb"
+        ]
+      }
+    },
+    {
+      "key": "apl",
+      "extension": "apl",
+      "displayLabel": "APL",
+      "icon": {
+        "fileName": "apl.svg"
+      },
+      "sampleOutputTemplate": "./output/$fileName",
+      "smoke": {
+        "defaultEnabled": true,
+        "visible": true
+      },
+      "constraints": {
+        "canRun": [
+          {
+            "platform": [
+              "*"
+            ],
+            "arch": [
+              "*"
+            ]
+          }
+        ]
+      },
+      "aliases": {
+        "languageIds": [
+          "apl"
+        ],
+        "fileExtensions": [
+          ".apl"
         ]
       }
     },
@@ -205,6 +271,72 @@ export const GENERATED_LANGUAGE_DATA: GeneratedLanguageData = {
         ],
         "fileExtensions": [
           ".c"
+        ]
+      }
+    },
+    {
+      "key": "c3",
+      "extension": "c3",
+      "displayLabel": "C3",
+      "icon": {
+        "fileName": "c3.svg"
+      },
+      "sampleOutputTemplate": "./output/$fileNameWithoutExt",
+      "smoke": {
+        "defaultEnabled": true,
+        "visible": true
+      },
+      "constraints": {
+        "canRun": [
+          {
+            "platform": [
+              "*"
+            ],
+            "arch": [
+              "*"
+            ]
+          }
+        ]
+      },
+      "aliases": {
+        "languageIds": [
+          "c3"
+        ],
+        "fileExtensions": [
+          ".c3"
+        ]
+      }
+    },
+    {
+      "key": "clisp",
+      "extension": "lisp",
+      "displayLabel": "Common Lisp",
+      "icon": {
+        "fileName": "lisp.svg"
+      },
+      "sampleOutputTemplate": "./output/$fileNameWithoutExt.fasl",
+      "smoke": {
+        "defaultEnabled": true,
+        "visible": true
+      },
+      "constraints": {
+        "canRun": [
+          {
+            "platform": [
+              "*"
+            ],
+            "arch": [
+              "*"
+            ]
+          }
+        ]
+      },
+      "aliases": {
+        "languageIds": [
+          "clisp"
+        ],
+        "fileExtensions": [
+          ".lisp"
         ]
       }
     },
@@ -871,6 +1003,72 @@ export const GENERATED_LANGUAGE_DATA: GeneratedLanguageData = {
       }
     },
     {
+      "key": "io",
+      "extension": "io",
+      "displayLabel": "Io",
+      "icon": {
+        "fileName": "io.svg"
+      },
+      "sampleOutputTemplate": "./output/$fileName",
+      "smoke": {
+        "defaultEnabled": true,
+        "visible": true
+      },
+      "constraints": {
+        "canRun": [
+          {
+            "platform": [
+              "*"
+            ],
+            "arch": [
+              "*"
+            ]
+          }
+        ]
+      },
+      "aliases": {
+        "languageIds": [
+          "io"
+        ],
+        "fileExtensions": [
+          ".io"
+        ]
+      }
+    },
+    {
+      "key": "j",
+      "extension": "ijs",
+      "displayLabel": "J",
+      "icon": {
+        "fileName": "j.svg"
+      },
+      "sampleOutputTemplate": "./output/$fileName",
+      "smoke": {
+        "defaultEnabled": true,
+        "visible": true
+      },
+      "constraints": {
+        "canRun": [
+          {
+            "platform": [
+              "*"
+            ],
+            "arch": [
+              "*"
+            ]
+          }
+        ]
+      },
+      "aliases": {
+        "languageIds": [
+          "j"
+        ],
+        "fileExtensions": [
+          ".ijs"
+        ]
+      }
+    },
+    {
       "key": "java",
       "extension": "java",
       "displayLabel": "Java",
@@ -933,6 +1131,39 @@ export const GENERATED_LANGUAGE_DATA: GeneratedLanguageData = {
         ],
         "fileExtensions": [
           ".js"
+        ]
+      }
+    },
+    {
+      "key": "joy",
+      "extension": "joy",
+      "displayLabel": "Joy",
+      "icon": {
+        "fileName": "joy.svg"
+      },
+      "sampleOutputTemplate": "./output/$fileName",
+      "smoke": {
+        "defaultEnabled": true,
+        "visible": true
+      },
+      "constraints": {
+        "canRun": [
+          {
+            "platform": [
+              "*"
+            ],
+            "arch": [
+              "*"
+            ]
+          }
+        ]
+      },
+      "aliases": {
+        "languageIds": [
+          "joy"
+        ],
+        "fileExtensions": [
+          ".joy"
         ]
       }
     },
@@ -1440,6 +1671,39 @@ export const GENERATED_LANGUAGE_DATA: GeneratedLanguageData = {
       }
     },
     {
+      "key": "odin",
+      "extension": "odin",
+      "displayLabel": "Odin",
+      "icon": {
+        "fileName": "odin.svg"
+      },
+      "sampleOutputTemplate": "./output/$fileNameWithoutExt",
+      "smoke": {
+        "defaultEnabled": true,
+        "visible": true
+      },
+      "constraints": {
+        "canRun": [
+          {
+            "platform": [
+              "*"
+            ],
+            "arch": [
+              "*"
+            ]
+          }
+        ]
+      },
+      "aliases": {
+        "languageIds": [
+          "odin"
+        ],
+        "fileExtensions": [
+          ".odin"
+        ]
+      }
+    },
+    {
       "key": "pascal",
       "extension": "pas",
       "displayLabel": "Pascal",
@@ -1503,6 +1767,39 @@ export const GENERATED_LANGUAGE_DATA: GeneratedLanguageData = {
         ],
         "fileExtensions": [
           ".plx"
+        ]
+      }
+    },
+    {
+      "key": "pli",
+      "extension": "pl1",
+      "displayLabel": "PL/I",
+      "icon": {
+        "fileName": "pli.svg"
+      },
+      "sampleOutputTemplate": "./output/$fileNameWithoutExt",
+      "smoke": {
+        "defaultEnabled": true,
+        "visible": true
+      },
+      "constraints": {
+        "canRun": [
+          {
+            "platform": [
+              "*"
+            ],
+            "arch": [
+              "*"
+            ]
+          }
+        ]
+      },
+      "aliases": {
+        "languageIds": [
+          "pli"
+        ],
+        "fileExtensions": [
+          ".pl1"
         ]
       }
     },
@@ -1606,6 +1903,39 @@ export const GENERATED_LANGUAGE_DATA: GeneratedLanguageData = {
       }
     },
     {
+      "key": "qnial",
+      "extension": "nls",
+      "displayLabel": "Q'Nial",
+      "icon": {
+        "fileName": "nial.svg"
+      },
+      "sampleOutputTemplate": "./output/$fileName",
+      "smoke": {
+        "defaultEnabled": true,
+        "visible": true
+      },
+      "constraints": {
+        "canRun": [
+          {
+            "platform": [
+              "*"
+            ],
+            "arch": [
+              "*"
+            ]
+          }
+        ]
+      },
+      "aliases": {
+        "languageIds": [
+          "qnial"
+        ],
+        "fileExtensions": [
+          ".nls"
+        ]
+      }
+    },
+    {
       "key": "r",
       "extension": "r",
       "displayLabel": "R",
@@ -1668,6 +1998,72 @@ export const GENERATED_LANGUAGE_DATA: GeneratedLanguageData = {
         ],
         "fileExtensions": [
           ".rkt"
+        ]
+      }
+    },
+    {
+      "key": "raku",
+      "extension": "raku",
+      "displayLabel": "Raku",
+      "icon": {
+        "fileName": "raku.svg"
+      },
+      "sampleOutputTemplate": "./output/$fileName",
+      "smoke": {
+        "defaultEnabled": true,
+        "visible": true
+      },
+      "constraints": {
+        "canRun": [
+          {
+            "platform": [
+              "*"
+            ],
+            "arch": [
+              "*"
+            ]
+          }
+        ]
+      },
+      "aliases": {
+        "languageIds": [
+          "raku"
+        ],
+        "fileExtensions": [
+          ".raku"
+        ]
+      }
+    },
+    {
+      "key": "rhombus",
+      "extension": "rhm",
+      "displayLabel": "Rhombus",
+      "icon": {
+        "fileName": "rhombus.svg"
+      },
+      "sampleOutputTemplate": "./output/$fileNameWithoutExt",
+      "smoke": {
+        "defaultEnabled": true,
+        "visible": true
+      },
+      "constraints": {
+        "canRun": [
+          {
+            "platform": [
+              "*"
+            ],
+            "arch": [
+              "*"
+            ]
+          }
+        ]
+      },
+      "aliases": {
+        "languageIds": [
+          "rhombus"
+        ],
+        "fileExtensions": [
+          ".rhm"
         ]
       }
     },
@@ -1800,6 +2196,39 @@ export const GENERATED_LANGUAGE_DATA: GeneratedLanguageData = {
         ],
         "fileExtensions": [
           ".scm"
+        ]
+      }
+    },
+    {
+      "key": "self",
+      "extension": "self",
+      "displayLabel": "Self",
+      "icon": {
+        "fileName": "self.svg"
+      },
+      "sampleOutputTemplate": "./$fileName",
+      "smoke": {
+        "defaultEnabled": true,
+        "visible": true
+      },
+      "constraints": {
+        "canRun": [
+          {
+            "platform": [
+              "*"
+            ],
+            "arch": [
+              "*"
+            ]
+          }
+        ]
+      },
+      "aliases": {
+        "languageIds": [
+          "self"
+        ],
+        "fileExtensions": [
+          ".self"
         ]
       }
     },

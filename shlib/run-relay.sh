@@ -245,6 +245,7 @@ run_docker_relay_or_exit() {
     RUN_AND_LOG_SKIP_SHARED_APPEND=1 \
       run_and_log_output "$docker_log" \
         docker run --rm --platform linux/amd64 \
+        --security-opt seccomp=unconfined \
         -v "$CURRENT_GIT_DIR":/build \
         -w "/build/src/$packName/$algoName/" \
         $runOnDocker sh -c "$docker_inner_sh" \
@@ -259,6 +260,7 @@ run_docker_relay_or_exit() {
     RUN_AND_LOG_SKIP_SHARED_APPEND=1 \
       run_and_log_output "$docker_log" \
         docker run --rm --platform linux/amd64 \
+        --security-opt seccomp=unconfined \
         -v "$CURRENT_GIT_DIR":/build \
         -w "/build/src/$packName/$algoName/" \
         $runOnDocker sh -c "$docker_inner_sh" \
@@ -273,6 +275,7 @@ run_docker_relay_or_exit() {
     RUN_AND_LOG_SKIP_SHARED_APPEND=1 \
       run_and_log_output "$docker_log" \
         docker run --rm --platform linux/amd64 \
+        --security-opt seccomp=unconfined \
         -v "$CURRENT_GIT_DIR":/build \
         -w "/build/src/$packName/$algoName/" \
         $runOnDocker sh -c "$docker_inner_sh" \

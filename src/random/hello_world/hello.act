@@ -1,0 +1,6 @@
+# This is a comment, which is ignored by the compiler.
+
+# An actor named 'main' is automatically discovered and recognized as the root actor.
+actor main(env):
+    print("Hello, world!")
+    env.exit(0)

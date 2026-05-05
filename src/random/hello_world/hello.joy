@@ -1,0 +1,3 @@
+# Prints hello world to the screen
+
+"Hello, world!\n" putchars .

@@ -5,37 +5,44 @@ FROM ubuntu:noble AS builder
 
 ENV DEBIAN_FRONTEND=noninteractive
 
-RUN apt update -y && apt install -y \
-        software-properties-common apt-transport-https && \
-    add-apt-repository -y ppa:ubuntu-toolchain-r/test && \
-    apt update -y && apt upgrade -y && \
-    apt install -y \
+RUN apt update -y
+RUN apt install -y \
+        software-properties-common apt-transport-https
+RUN add-apt-repository -y ppa:ubuntu-toolchain-r/test
+RUN dpkg --add-architecture i386
+RUN apt update -y
+RUN apt install -y \
         build-essential libtool libtool-bin cmake \
-        libstdc++-13-dev git wget rsync ca-certificates \
-        curl unzip xz-utils zip gawk \
+        libstdc++-13-dev rsync ca-certificates \
+        gcc-multilib g++-multilib
+RUN apt install -y \
+        git wget curl unzip xz-utils zip gawk \
         flex bison ninja-build \
         gnupg2 libcurl4-openssl-dev pkg-config
+RUN apt install -y \
+        libx11-dev libxext-dev libncurses-dev libtinfo-dev \
+        libx11-dev:i386 libxext-dev:i386 libncurses-dev:i386 libtinfo-dev:i386
 
 # Setup a temp build directory 
 RUN mkdir -p /build
 WORKDIR /build
 
 # ============================================
-#               Setup Some Basics, including Python
+#               Setup Some Basics, including Python, Clang
 #
 #       This section precedes builds requiring GCC13...
-#       We will install GCC15 and other, more advanced options,
+#       We will install GCC16 and other, more advanced options,
 #       after these builds
 # ============================================
 RUN apt install -y \
-        gnat nasm python3 python3-pip
+        gnat nasm python3 python3-pip clang
 
 RUN ln -s /usr/bin/python3 /usr/bin/python
 
 # ============================================
 #               Critical Mass Modula-3 Compiler
 #       Release and source available at:
-#        https://github.com/vishaps/voc
+#        https://github.com/modula3/cm3/
 # ============================================
 ENV CM3_VERSION=d5.11.10
 ENV CM3_DISTVERSION=AMD64_LINUX-None
@@ -112,11 +119,31 @@ WORKDIR /build
 RUN rm -rf *
 
 # ============================================
+#               Self
+# ============================================
+ENV SELF_GIT=https://github.com/russellallen/self/
+RUN git clone ${SELF_GIT} && \
+    cd self && \
+    cmake . -DCMAKE_C_STANDARD=90 -DCMAKE_C_STANDARD_REQUIRED=ON && \
+    cmake --build . && \
+    echo "'world.snap' _WriteSnapshot." >> saveWorld.self && \
+    echo "_Quit" | ./vm/Self -f objects/worldBuilder.self -b objects -o "" -f2 saveWorld.self && \
+    echo 'SCRIPT_DIR=$(dirname "$(readlink -f "$0")")' > ./run-self.sh && \
+    echo '"${SCRIPT_DIR}/vm/Self" -s "${SCRIPT_DIR}/world.snap" -f "$1" 2>/dev/null' >> ./run-self.sh && \
+    chmod a+x ./run-self.sh && \
+    cd .. && mv self /opt/self
+
+ENV PATH=/opt/self:/opt/self/vm:${PATH}
+
+WORKDIR /build
+RUN rm -rf *
+
+# ============================================
 #               Zig
 #       Release and source available at:
 #        https://ziglang.org/download/
 # ============================================
-ENV ZIG_VERSION=x86_64-linux-0.16.0-dev.2973+06b85a4fd
+ENV ZIG_VERSION=x86_64-linux-0.17.0-dev.251+0db721ec2
 ENV ZIG_MIRROR=https://ziglang.org/builds
 ENV ZIG_ROOT=/usr/local/zig
 RUN wget ${ZIG_MIRROR}/zig-${ZIG_VERSION}.tar.xz && \
@@ -137,7 +164,7 @@ RUN rm -rf *
 ENV RUSTUP_HOME=/usr/local/rustup
 ENV CARGO_HOME=/usr/local/cargo
 ENV PATH=${CARGO_HOME}/bin:${PATH}
-ENV RUSTUP_INIT_VERSION=1.28.2
+ENV RUSTUP_INIT_VERSION=1.29.0
 RUN wget -O /tmp/rustup-init "https://static.rust-lang.org/rustup/archive/${RUSTUP_INIT_VERSION}/x86_64-unknown-linux-gnu/rustup-init" && \
     chmod +x /tmp/rustup-init && \
     /tmp/rustup-init -y --no-modify-path --profile minimal --default-toolchain stable && \
@@ -150,18 +177,52 @@ WORKDIR /build
 RUN rm -rf *
 
 # ============================================
-#               G++ 15 - Included for extra C++ features
+#               WABT, WASI-SDK, WASMTIME
+#       Release and source available at:
+#        https://github.com/WebAssembly/wabt
+# ============================================
+ENV WABT_VERSION=1.0.40
+ENV WABT_GIT=https://github.com/WebAssembly/wabt.git
+ENV WASI_OS=linux
+ENV WASI_ARCH=x86_64
+ENV WASI_VERSION=27
+ENV WASI_VERSION_FULL=${WASI_VERSION}.0
+ENV WASI_MIRROR=https://github.com/WebAssembly/wasi-sdk/releases/download/wasi-sdk-${WASI_VERSION}
+ENV WASI_VERSIONED=wasi-sdk-${WASI_VERSION_FULL}-${WASI_ARCH}-${WASI_OS}
+ENV WASI_PACKAGE=${WASI_VERSIONED}.tar.gz
+ENV WASMTIME_SCRIPT=https://wasmtime.dev/install.sh
+RUN git clone ${WABT_GIT} --depth 1 --branch ${WABT_VERSION} && \
+    cd /build/wabt && \
+    git submodule update --init &&\
+    make && \
+    make install && \
+    wasm2wat --version
+RUN wget ${WASI_MIRROR}/${WASI_PACKAGE} && \
+    tar xvf ${WASI_PACKAGE} && \
+    mv ${WASI_VERSIONED} ~/wasi-sdk && \
+    rm -rf *
+RUN curl ${WASMTIME_SCRIPT} -sSf | bash
+
+ENV WASMTIME_HOME="${HOME}/.wasmtime"
+ENV PATH="${WASMTIME_HOME}/bin:${PATH}"
+
+WORKDIR /build
+RUN rm -rf *
+
+# ============================================
+#               G++ 16 - Included for extra C++ features
 # ============================================
 
 RUN add-apt-repository -y ppa:ubuntu-toolchain-r/test && \
-    apt update && apt install -y gcc-15 g++-15 \
-        clang gobjc-13 gobjc-15 libobjc-13-dev libobjc-15-dev gnustep gnustep-devel && \
+    apt update
+RUN apt install -y \
+        gcc-16 g++-16 gcc-16-multilib g++-16-multilib && \
     update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-13 300 && \
-    update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-15 500 && \
+    update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-16 500 && \
     update-alternatives --install /usr/bin/g++ g++ /usr/bin/g++-13 300 && \
-    update-alternatives --install /usr/bin/g++ g++ /usr/bin/g++-15 500 && \
-    update-alternatives --set gcc /usr/bin/gcc-15 && \
-    update-alternatives --set g++ /usr/bin/g++-15
+    update-alternatives --install /usr/bin/g++ g++ /usr/bin/g++-16 500 && \
+    update-alternatives --set gcc /usr/bin/gcc-16 && \
+    update-alternatives --set g++ /usr/bin/g++-16
 
 # ============================================
 #               Setup Some additional Basics, including Java, Erlang, LLVM
@@ -169,18 +230,33 @@ RUN add-apt-repository -y ppa:ubuntu-toolchain-r/test && \
 #       This section is about setting up some more advanced
 #       languages that may rely on cores like Java, Erlang, LLVM, etc.
 # ============================================
+RUN add-apt-repository -y universe && \
+    apt update -y
 RUN apt install -y \
+        gobjc-13 libobjc-13-dev \
+        gobjc-16 libobjc-16-dev \
+        gnustep gnustep-devel \
         default-jdk lua5.4 \
         gnucobol gforth gfortran ghc fpc tcl \
         erlang elixir \
-        guile-3.0 chezscheme racket \
+        sbcl guile-3.0 chezscheme racket \
         nodejs npm perl ruby php \
         kotlin \
-        dotnet-sdk-10.0 \
+        dotnet-sdk-8.0 dotnet-sdk-10.0 \
         nim ocaml octave gprolog
 
 WORKDIR /build
 RUN rm -rf *
+
+# ============================================
+#               Io
+# ============================================
+ENV IO_GIT=https://github.com/IoLanguage/io.git
+RUN git config --global url."https://github.com/".insteadOf git@github.com: && \
+    git clone ${IO_GIT} && \
+    cd io && git submodule update --init --recursive && make && \
+    mkdir -p /opt/io && \
+    mv ./build/* /opt/io/
 
 # ============================================
 #               Idris2
@@ -221,7 +297,7 @@ RUN rm -rf *
 #       Release and source available at:
 #        https://ballerina.io/downloads/
 # ============================================
-ENV BALLERINA_VERSION=2201.13.2
+ENV BALLERINA_VERSION=2201.13.3
 ENV BALLERINA_VERSION_NAME=swan-lake
 ENV BALLERINA_MIRROR=https://dist.ballerina.io/downloads
 RUN wget "${BALLERINA_MIRROR}/${BALLERINA_VERSION}/ballerina-${BALLERINA_VERSION}-${BALLERINA_VERSION_NAME}-linux-x64.deb" && \
@@ -314,7 +390,7 @@ RUN rm -rf *
 #       Release and source available at:
 #        https://julialang.org/
 # ============================================
-ENV JULIA_VERSION=1.12.5
+ENV JULIA_VERSION=1.12.6
 ENV JULIA_SERIES=1.12
 ENV JULIA_ROOT=/usr/local/julia
 ENV JULIA_SHA256=41b84d727e4e96fbf3ed9e92fa195d773d247b9097f73fad688f8b699758bae7
@@ -424,7 +500,7 @@ RUN rm -rf *
 #       Release and source available at:
 #        https://www.scala-lang.org/download/
 # ============================================
-ENV COURSIER_VERSION=2.1.24
+ENV COURSIER_VERSION=2.1.25-M24
 RUN curl -fL https://github.com/coursier/coursier/releases/download/v${COURSIER_VERSION}/cs-x86_64-pc-linux.gz | gzip -d > /usr/local/bin/cs && \
     chmod +x /usr/local/bin/cs && \
     cs install --dir /usr/local/bin scala scalac && \
@@ -479,26 +555,10 @@ RUN rm -rf *
 #       Release and source available at:
 #        https://www.typescriptlang.org/
 # ============================================
-ENV TYPESCRIPT_VERSION=6.0.2
+ENV TYPESCRIPT_VERSION=6.0.3
 RUN npm install -g typescript@${TYPESCRIPT_VERSION} && \
     npm i -g --save-dev @types/node && \
     tsc --version
-
-WORKDIR /build
-RUN rm -rf *
-
-# ============================================
-#               WABT
-#       Release and source available at:
-#        https://github.com/WebAssembly/wabt
-# ============================================
-ENV WABT_VERSION=1.0.40
-RUN git clone https://github.com/WebAssembly/wabt.git --depth 1 --branch ${WABT_VERSION}
-WORKDIR /build/wabt
-RUN git submodule update --init &&\
-    make && \
-    make install && \
-    wasm2wat --version
 
 WORKDIR /build
 RUN rm -rf *
@@ -508,7 +568,7 @@ RUN rm -rf *
 #       Release and source available at:
 #        https://gitlab.com/kit-lang
 # ============================================
-ENV KIT_VERSION=2026.4.7
+ENV KIT_VERSION=2026.5.3
 ENV KIT_ROOT=/usr/local/kit
 ENV PATH=${KIT_ROOT}/bin:${PATH}
 ENV KIT_STD_PATH=${KIT_ROOT}/std
@@ -526,7 +586,7 @@ RUN rm -rf *
 #       Release and source available at:
 #        https://gleam.run/
 # ============================================
-ENV GLEAM_VERSION=1.15.2
+ENV GLEAM_VERSION=1.16.0
 ENV GLEAM_MIRROR=https://github.com/gleam-lang
 RUN git clone ${GLEAM_MIRROR}/gleam.git --depth 1 --branch v${GLEAM_VERSION}
 WORKDIR /build/gleam
@@ -572,6 +632,115 @@ WORKDIR /build
 RUN rm -rf *
 
 # ============================================
+#               Rhombus
+# ============================================
+RUN raco pkg install --auto rhombus
+
+# ============================================
+#               Rakudo
+# ============================================
+ENV RAKUDO_MIRROR=https://dl.cloudsmith.io/public/nxadm-pkgs/rakudo-pkg/setup.deb.sh
+RUN curl -1sLf "${RAKUDO_MIRROR}" | bash && \
+    apt install -y rakudo
+
+# ============================================
+#               ODIN
+# ============================================
+ENV ODIN_GIT=https://github.com/odin-lang/Odin.git
+RUN git clone ${ODIN_GIT} --depth 1 && \
+    cd Odin && \
+    make release-native && \
+    mkdir -p /opt/odin && \
+    mv * /opt/odin/ && \
+    cd .. && \
+    rm -rf *
+
+ENV PATH=/opt/odin:${PATH}
+
+# ============================================
+#               PL/I - Iron Springs Software compiler
+# ============================================
+ENV PLI_VERSION=1.4.1
+ENV PLI_MIRROR=http://www.iron-spring.com/pli-${PLI_VERSION}
+RUN wget ${PLI_MIRROR}.tgz && \
+    tar zxvf pli-${PLI_VERSION}.tgz && \
+    cd pli-${PLI_VERSION} && \
+    make install && \
+    cd .. && \
+    rm -rf *
+
+# ============================================
+#               APL - Using Dyalog
+# ============================================
+ENV DYALOG_VERSION=20.0
+ENV DYALOG_FULLVERSION=${DYALOG_VERSION}.52753
+ENV DYALOG_MIRROR=https://www.dyalog.com/uploads/php/download.dyalog.com
+ENV DYALOG_DEB=linux_64_${DYALOG_FULLVERSION}_unicode.x86_64.deb
+ENV DYALOG_FULLURL=${DYALOG_MIRROR}/download.php?file=${DYALOG_FULLVERSION}/${DYALOG_DEB}
+RUN wget ${DYALOG_FULLURL} -O .${DYALOG_DEB} && \
+    apt install ./${DYALOG_DEB} && \
+    rm -rf *
+
+# ============================================
+#               Q'Nial
+# ============================================
+ENV QNIAL_MIRROR=https://github.com/niallang/Nial_Development/releases/download/Originals
+ENV QNIAL_ZIP=Linux64.zip
+ENV QNIAL_FULLADDR=${QNIAL_MIRROR}/${QNIAL_ZIP}
+ENV QNIAL_EXE=Linux/nial64
+RUN wget ${QNIAL_FULLADDR} -O ./${QNIAL_ZIP} && \
+    unzip ./${QNIAL_ZIP} && \
+    chmod a+x ./${QNIAL_EXE} && \
+    mv ./${QNIAL_EXE} /usr/bin/ &&\
+    rm -rf *
+
+# ============================================
+#               J
+# ============================================
+ENV J_VERSION=9.7
+ENV J_SCRIPT=jinstall.sh
+ENV J_MIRROR=jsoftware.com/download
+ENV J_FULLADDRESS=${J_MIRROR}/j${J_VERSION}/${J_SCRIPT}
+RUN curl -fsSL ${J_FULLADDRESS} -o ${J_SCRIPT} && \
+    chmod a+x ${J_SCRIPT} && \
+    echo "y" | ./${J_SCRIPT} -p /opt/ --qt full
+
+ENV PATH=/opt/j${J_VERSION}/bin:${PATH}
+
+# ============================================
+#               Joy
+# ============================================
+ENV JOY_GIT=https://github.com/Wodan58/Joy.git
+RUN git clone ${JOY_GIT} --depth 1 && \
+    cd Joy && mkdir -p build && cd build && \
+    cmake -G "Unix Makefiles" .. && \
+    cmake --build . && \
+    mv joy /usr/bin/
+
+# ============================================
+#               Acton
+# ============================================
+ENV ACTON_VERSION=0.26.0
+ENV ACTON_MIRROR=https://github.com/actonlang/acton/releases/download/v${ACTON_VERSION}
+ENV ACTON_PACKAGE=acton-linux-x86_64-${ACTON_VERSION}.tar.xz
+RUN wget ${ACTON_MIRROR}/${ACTON_PACKAGE} && \
+    tar xvf ${ACTON_PACKAGE} && \
+    mv ./acton /opt/acton
+
+ENV PATH=/opt/acton/bin:${PATH}
+
+# ============================================
+#               C3
+# ============================================
+ENV C3_MIRROR=https://github.com/c3lang/c3c/releases/latest/download
+ENV C3_PACKAGE=c3-linux.tar.gz
+RUN wget ${C3_MIRROR}/${C3_PACKAGE} && \
+    tar zxvf ${C3_PACKAGE} && \
+    mv c3 /opt/c3
+
+ENV PATH=/opt/c3:${PATH}
+
+# ============================================
 #               END -- Final cleanup and settings
 # ============================================
 
@@ -596,6 +765,6 @@ RUN rm -rf /build && rm -rf /var/lib/apt/lists/ && \
     echo "[ -z \"\$DEREKALGOS_GXX13NAME\" ] && export DEREKALGOS_GXX13NAME=\"g++-13\"" >> /root/.bash_profile && \
     echo "[ -z \"\$DEREKALGOS_RUNONDOCKER\" ] && export DEREKALGOS_RUNONDOCKER=\"\"" >> /root/.bash_profile && \
     echo "[ -z \"\$DEREKALGOS_RUNONSSH\" ] && export DEREKALGOS_RUNONSSH=\"\"" >> /root/.bash_profile
-ENV OBJC_INCLUDE_PATH="/usr/lib/gcc/x86_64-linux-gnu/15/include/:/usr/lib/gcc/x86_64-linux-gnu/13/include/:${OBJC_INCLUDE_PATH:-}"
-ENV OBJC_LIBRARY_PATH="/usr/lib/gcc/x86_64-linux-gnu/15:/usr/lib/gcc/x86_64-linux-gnu/13"
+ENV OBJC_INCLUDE_PATH="/usr/lib/gcc/x86_64-linux-gnu/16/include/:/usr/lib/gcc/x86_64-linux-gnu/13/include/:${OBJC_INCLUDE_PATH:-}"
+ENV OBJC_LIBRARY_PATH="/usr/lib/gcc/x86_64-linux-gnu/16:/usr/lib/gcc/x86_64-linux-gnu/13"
 ENV LIBRARY_PATH="${OBJC_LIBRARY_PATH}:${LIBRARY_PATH:-}"

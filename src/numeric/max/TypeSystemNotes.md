@@ -40,7 +40,7 @@ Direct manipulation of standard sp stack pointer
 
 ### NASM
 
-64bit registers starting r*, 32bit starting e* or ending *d, 16bit no pre or post *w, 8-bit *h *l *b varied.
+64bit registers starting r*, 32bit starting e* or ending *d, 16bit no pre or post \*w, 8-bit \*h, \*l, \*b varied.
 
 mov vs movsxd vs movsx
 
@@ -378,9 +378,27 @@ Literally all these are dynamically typed, I'll say anything if there's anything
 
 Everything is an object, but everything is defined by what it can do instead of its own structure; no declared types on values, just send messages to them Duck typing and Late binding
 
+### Prolog
+
+Everythig is a term; Atoms, numbers, variables, compound terms. But typing is implicit and basically ducked
+
+### Javascript
+
+dynamic, and notoriously weird. 8 primitives: string, number, bigint, boolean, undefined, null, symbol. Also objects, with a prototyping inheritance
+
+values given types, but implicitly converted, and weirdly. e.g "5" + 2 = "52" but '3' * '3' = 12. Or "5" + 1 = "51" but "5" - 1 = 4.
+
+truthy "0" 1 {} [] vs falsy 0 "" null and typed equality operators
+
+### Perl
+
+Dynamic, but $ for scalars, @ for arrays, % for hashes, & subroutines, * typeglobs
+
+automatic type conversion on operations "doing the right thing"; focus on operator determining how data is handled, with context--literally, where the op is called--highly important
+
 ### Python
 
-generics are entirely just syntax foo on top of a dynamic type system which is hilarious
+generics are entirely just syntax foo on top of a dynamic type system which is hilarious; gradual typing increasingly available, on top of dynamic system
 
 ### Erlang
 
@@ -394,18 +412,28 @@ enforces soundness and graduality for a set-theoretic foundation, but yeah, it's
 
 Actually has some weird gradual typing, but even looser and weirder than any others lmfao
 
+### Racket
+
+using dynamic typed version in this project, but there is a formal Typed Racket wiht static typing, union types, subtyping. Can mix Typed and untyped Racket in a single project for gradual typing.
+
+### Lua
+
+Normally dynamic, implicit, duck typed, but some extensions offer static typing on top of it
+
+### R
+
+Everything is stored as a vector. Does strong type coercion under the hood. 6 "atomic" vector types requiring all same type in vector: logical, numeric/double, integer, character, complex, raw
+
+### Ruby
+
+Dynamic, duck typing, but strongly errors on type mismatched operations. Later versions have some static typing available. Most things are objects, built-in types also include integer, float, etc., strings, symbols, collections.
+
 ### I mean, honestly, dynamic languages
 
 Some of the remaining languages are interesting in their own right but their type systems are just basically dynamic for anything to be spoken of at this point, to the point of leaving little more to say...
 
-- Prolog
 - Clojure
 - Scheme
-- Racket (some fun wannabe typing)
-- Javascript (JSDoc and weird template based class hierarchy I guess but just weird as shit)
 - Icon
-- Lua
 - Octave (MATLAB)
 - Perl
-- R
-- Ruby

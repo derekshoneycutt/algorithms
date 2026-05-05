@@ -68,6 +68,15 @@
         "vlanguage.vscode-vlang",
         "wso2.wso2-platform",
         "redhat.vscode-yaml",
-        "ziglang.vscode-zig"
+        "ziglang.vscode-zig",
+        "qingpeng.common-lisp",
+        "bscan.raku-navigator",
+        "danielgavin.ols",
+        "broadcommfd.pli-language-support",
+        "optimasystems.vscode-apl-language",
+        "tabbytranspose.nial-language",
+        "tikkanz.language-j",
+        "acton.acton",
+        "c3.vscode-c3"
     ]
 }
