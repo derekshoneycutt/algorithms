@@ -11,7 +11,7 @@
 
 ; Get a specified argument as an integer, or a default value otherwise
 (define (argAsInt args index default)
-    (if (>= (vector-length args) 2)
+    (if (>= (vector-length args) index)
         (string->number (vector-ref args index))
         default))
 

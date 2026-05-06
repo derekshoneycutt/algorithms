@@ -1,0 +1,26 @@
+#lang rhombus
+/*
+    Prints hello world to the screen
+*/
+import:
+    rhombus/cmdline
+
+// calculate gcd recursively
+fun euclidgcd(m, n):
+    if n == 0
+    | m
+    | euclidgcd(n, m mod n)
+
+// Get the values to calculate GCD for
+def args = cmdline.current_command_line().map(String.to_int)
+let m:
+    if args.length() > 0
+    | args[0]
+    | 15;
+let n:
+    if args.length() > 1
+    | args[1]
+    | 10;
+
+let gcd = euclidgcd(m, n);
+println(to_string(m) ++ " " ++ to_string(n) ++ "\ngcd: " ++ to_string(gcd));

@@ -1,4 +1,5 @@
 import * as path from "node:path";
+import { existsSync } from "node:fs";
 
 import * as vscode from "vscode";
 
@@ -150,6 +151,43 @@ function buildSmokeStatusTooltip(
 ): string {
   const algorithmName = algorithmPath.split(/[\\/]/).pop() ?? algorithmPath;
   return `Smoke Test: ${formatSmokeStatusLabel(status)} (${languageKey}) in ${algorithmName}`;
+}
+
+/**
+ * Resolves one language icon URI for tree rows.
+ *
+ * @param {ILanguages} languages Languages dependency.
+ * @param {string} languageKey Canonical language key.
+ * @returns {vscode.Uri | vscode.ThemeIcon} Resolved icon URI or fallback file icon.
+ */
+function getLanguageTreeIconPath(
+  languages: AlgorithmsTreeDataProviderDependencies["languages"],
+  languageKey: string
+): vscode.Uri | vscode.ThemeIcon {
+  const iconFileName = languages.getByKey(languageKey)?.icon.fileName.trim();
+
+  if (iconFileName === undefined || iconFileName.length === 0) {
+    return vscode.ThemeIcon.File;
+  }
+
+  const extensionPath = vscode.extensions.getExtension(
+    "derekshoneycutt.algorithms-runner-extension"
+  )?.extensionUri.fsPath;
+  const iconPathCandidates = [
+    extensionPath !== undefined
+      ? path.join(extensionPath, "icons", "languages", iconFileName)
+      : "",
+    path.resolve(__dirname, "../icons/languages", iconFileName),
+    path.resolve(__dirname, "../../icons/languages", iconFileName),
+  ];
+
+  for (const iconPathCandidate of iconPathCandidates) {
+    if (existsSync(iconPathCandidate)) {
+      return vscode.Uri.file(iconPathCandidate);
+    }
+  }
+
+  return vscode.ThemeIcon.File;
 }
 
 /**
@@ -386,6 +424,7 @@ export function createWorkspaceAlgorithmsTreeDataProvider(
       treeItem.label =
         languages.getDisplayLabel(element.languageKey)
         ?? element.languageKey;
+      treeItem.iconPath = getLanguageTreeIconPath(languages, element.languageKey);
     }
 
     return treeItem;

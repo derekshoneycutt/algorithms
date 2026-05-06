@@ -1,0 +1,27 @@
+# This will calculate and print the greatest common denominator of 2 numbers
+
+# Calculate the GCD using Euclid's method
+def gcd(m, n):
+    while n != 0:
+        m, n = n, m % n
+    return m
+
+# Actor used to print the GCD
+actor Printer():
+    # Print out the GCD when desired
+    def printgcd(m, n):
+        print(f"{m} {n}\ngcd: {gcd(m, n)}")
+
+# An actor named 'main' is automatically discovered and recognized as the root actor.
+actor main(env):
+    printer = Printer()
+
+    m = 15
+    n = 10
+    if len(env.argv) >= 3:
+        m = int(env.argv[-2])
+        n = int(env.argv[-1])
+
+    await async printer.printgcd(m, n)
+
+    env.exit(0)

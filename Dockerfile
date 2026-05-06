@@ -129,7 +129,7 @@ RUN git clone ${SELF_GIT} && \
     echo "'world.snap' _WriteSnapshot." >> saveWorld.self && \
     echo "_Quit" | ./vm/Self -f objects/worldBuilder.self -b objects -o "" -f2 saveWorld.self && \
     echo 'SCRIPT_DIR=$(dirname "$(readlink -f "$0")")' > ./run-self.sh && \
-    echo '"${SCRIPT_DIR}/vm/Self" -s "${SCRIPT_DIR}/world.snap" -f "$1" 2>/dev/null' >> ./run-self.sh && \
+    echo '"${SCRIPT_DIR}/vm/Self" -s "${SCRIPT_DIR}/world.snap" -f "$1" "$@" 2>/dev/null' >> ./run-self.sh && \
     chmod a+x ./run-self.sh && \
     cd .. && mv self /opt/self
 
