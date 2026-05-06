@@ -7,7 +7,7 @@ io_compile() {
 
 io_run() {
   cd ./output/
-  wasmtime --dir=. /opt/io/bin/io_static hello.io "$@"
+  ~/.wasmtime/bin/wasmtime --dir=. /opt/io/bin/io_static "$fileName" "$@"
   retValue="$?"
   cd ..
   return "$retValue"

@@ -167,7 +167,13 @@ mkdir -p "$smokeLogDir"
 if [ -n "$langsOverride" ]; then
   langs=$langsOverride
 else
-  langs=$(awk '/^get_language_catalog\(\)/{inside=1;next} inside && /^EOF$/{inside=0} inside{print $0}' "$repoRoot/run.sh" | grep '|' | cut -d'|' -f1 | grep -v '^arm64asm$')
+  # Source generated language defaults so smoke follows the canonical default set.
+  . "$repoRoot/shlib/generated/languages.generated.sh"
+  if [ -n "${GENERATED_SMOKE_DEFAULT_KEYS:-}" ]; then
+    langs=$GENERATED_SMOKE_DEFAULT_KEYS
+  else
+    langs=$(get_generated_supported_language_keys | grep -v '^arm64asm$' | tr '\n' ' ')
+  fi
 fi
 
 set -- $langs
@@ -197,7 +203,7 @@ for lang in $langs; do
 
   timeoutArg=$defaultTimeout
   case "$lang" in
-    mojo|ballerina)
+    mojo|ballerina|acton)
       timeoutArg=$slowTimeout
       ;;
     *) ;;
@@ -206,14 +212,19 @@ for lang in $langs; do
   render_smoke_status_line "$currentIndex" "$totalLangs" "$lang" "$timeoutArg" "RUNNING" "$ansiYellow"
 
   # Run one language build/run and keep a dedicated per-language smoke log.
+  # Keep run.sh's internal timeout in sync with this smoke timeout so the
+  # inner timeout layer does not terminate runs early (default is often 2m).
+  effectiveRunTimeout="-k 10s ${timeoutArg}"
   if command -v timeout > /dev/null 2>&1; then
     set +e
-    timeout --preserve-status "$timeoutArg" "$repoRoot/run.sh" "$lang" > "$langLogFile" 2>&1
+    DEREKALGOS_TIMEOUT="$effectiveRunTimeout" \
+      timeout --preserve-status "$timeoutArg" "$repoRoot/run.sh" "$lang" > "$langLogFile" 2>&1
     rc=$?
     set -e
   else
     set +e
-    "$repoRoot/run.sh" "$lang" > "$langLogFile" 2>&1
+    DEREKALGOS_TIMEOUT="$effectiveRunTimeout" \
+      "$repoRoot/run.sh" "$lang" > "$langLogFile" 2>&1
     rc=$?
     set -e
   fi

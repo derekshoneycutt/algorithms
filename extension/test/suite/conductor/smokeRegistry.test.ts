@@ -84,14 +84,13 @@ describe("conductor/runner — createSmokeRegistry smoke retention lifecycle", (
     assert.strictEqual(stopped, false);
   });
 
-  it("stopSmokeTest sets stopRequested flag and awaits result", async () => {
+  it("stopSmokeTest sets stopRequested flag and returns immediately", async () => {
     const registry = createSmokeRegistry({ smokeStatusRetentionMs: 0 });
     const active = registry.getActiveSmokeExecutionByAlgorithm();
 
     let killCalled = false;
-    let resolveResult!: (result: CommandLineResult) => void;
-    const resultPromise = new Promise<CommandLineResult>((resolve) => {
-      resolveResult = resolve;
+    const resultPromise = new Promise<CommandLineResult>(() => {
+      return;
     });
 
     const stub: ActiveSmokeExecution = {
@@ -112,18 +111,7 @@ describe("conductor/runner — createSmokeRegistry smoke retention lifecycle", (
     };
     active.set("/repo/src/algo", stub);
 
-    const stopPromise = registry.stopSmokeTest({ algorithmPath: "/repo/src/algo" });
-    resolveResult({
-      ok: true,
-      exitCode: 0,
-      stdout: "",
-      stderr: "",
-      combinedOutput: "",
-      reason: null,
-      errorMessage: null,
-    });
-
-    const stopped = await stopPromise;
+    const stopped = await registry.stopSmokeTest({ algorithmPath: "/repo/src/algo" });
     assert.strictEqual(stopped, true);
     assert.strictEqual(killCalled, true);
     assert.strictEqual(stub.stopRequested, true);

@@ -16,7 +16,7 @@ describe("conductor/runner — createRunRegistry", () => {
   };
 
   it("buildRunLifecycle — start + markCompleted round-trip", () => {
-    const registry = createRunRegistry({ runStatusRetentionMs: 0 });
+    const registry = createRunRegistry({});
     const lifecycle = registry.buildRunLifecycle();
 
     const snapshot = lifecycle.start(fileTarget, "test:owner", "launch");
@@ -36,7 +36,7 @@ describe("conductor/runner — createRunRegistry", () => {
   });
 
   it("buildRunLifecycle — markFailed records errorMessage", () => {
-    const registry = createRunRegistry({ runStatusRetentionMs: 0 });
+    const registry = createRunRegistry({});
     const lifecycle = registry.buildRunLifecycle();
 
     lifecycle.start(fileTarget, "test:owner", null);
@@ -49,7 +49,7 @@ describe("conductor/runner — createRunRegistry", () => {
   });
 
   it("buildRunLifecycle — stale run id guard prevents overwriting newer run", () => {
-    const registry = createRunRegistry({ runStatusRetentionMs: 0 });
+    const registry = createRunRegistry({});
     const lifecycle = registry.buildRunLifecycle();
 
     const first = lifecycle.start(fileTarget, "first", "first launch");
@@ -65,7 +65,7 @@ describe("conductor/runner — createRunRegistry", () => {
   });
 
   it("buildRunLifecycle — markCancelled sets status to cancelled", () => {
-    const registry = createRunRegistry({ runStatusRetentionMs: 0 });
+    const registry = createRunRegistry({});
     const lifecycle = registry.buildRunLifecycle();
 
     const snapshot = lifecycle.start(fileTarget, "smoke:algo", "starting");
@@ -78,7 +78,7 @@ describe("conductor/runner — createRunRegistry", () => {
   });
 
   it("clearRunResults — clears completed run and notifies subscribers", () => {
-    const registry = createRunRegistry({ runStatusRetentionMs: 0 });
+    const registry = createRunRegistry({});
     const lifecycle = registry.buildRunLifecycle();
     const changes: Array<typeof fileTarget> = [];
 
@@ -97,7 +97,7 @@ describe("conductor/runner — createRunRegistry", () => {
   });
 
   it("clearRunResults — does not clear an active run", () => {
-    const registry = createRunRegistry({ runStatusRetentionMs: 0 });
+    const registry = createRunRegistry({});
     const lifecycle = registry.buildRunLifecycle();
 
     lifecycle.start(fileTarget, "owner", null);
@@ -109,7 +109,7 @@ describe("conductor/runner — createRunRegistry", () => {
   });
 
   it("clearRunResults — clears equivalent target kind snapshots", () => {
-    const registry = createRunRegistry({ runStatusRetentionMs: 0 });
+    const registry = createRunRegistry({});
     const lifecycle = registry.buildRunLifecycle();
 
     lifecycle.start(fileTarget, "owner", null);
@@ -122,7 +122,7 @@ describe("conductor/runner — createRunRegistry", () => {
   });
 
   it("subscribeRunTargetStatus — fires on every lifecycle transition", () => {
-    const registry = createRunRegistry({ runStatusRetentionMs: 0 });
+    const registry = createRunRegistry({});
     const lifecycle = registry.buildRunLifecycle();
     const statuses: string[] = [];
 
@@ -142,7 +142,7 @@ describe("conductor/runner — createRunRegistry", () => {
   });
 
   it("startRun / markProgress / markCompleted via run id path", () => {
-    const registry = createRunRegistry({ runStatusRetentionMs: 0 });
+    const registry = createRunRegistry({});
 
     const snap = registry.startRun({ target: fileTarget, ownerKey: "ext", reason: "external" });
     assert.strictEqual(snap.status, "starting");
@@ -172,7 +172,7 @@ describe("conductor/runner — createRunRegistry", () => {
   });
 
   it("markFailed via run id sets errorMessage", () => {
-    const registry = createRunRegistry({ runStatusRetentionMs: 0 });
+    const registry = createRunRegistry({});
     const snap = registry.startRun({ target: fileTarget, ownerKey: "ext2", reason: null });
 
     const failed = registry.markFailed({ runId: snap.runId, errorMessage: "crash", message: "crash msg" });
@@ -182,7 +182,7 @@ describe("conductor/runner — createRunRegistry", () => {
   });
 
   it("cancelRun via run id sets status to cancelled", () => {
-    const registry = createRunRegistry({ runStatusRetentionMs: 0 });
+    const registry = createRunRegistry({});
     const snap = registry.startRun({ target: fileTarget, ownerKey: "ext3", reason: null });
 
     const cancelled = registry.cancelRun({ runId: snap.runId, message: "user cancelled" });

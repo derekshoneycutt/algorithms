@@ -90,22 +90,39 @@ export function buildSmokeLanguageSelections(
   languages: ILanguages
 ): SmokeLanguageSelection[] {
   const defaultSmokeKeys = new Set(languages.getDefaultSmokeKeys());
-
-  return languages
+  const result = languages
     .getAll()
     .filter((language) => language.smoke.visible !== false)
     .map((language) => {
       const languageKey = language.key.trim().toLowerCase();
       const runnable = isLanguageRunnableOnCurrentHost(language);
+      const isDefault = defaultSmokeKeys.has(languageKey);
+
+      if (languageKey === "acton") {
+        console.debug(
+          "[buildSmokeLanguageSelections] Acton: isDefault=%o, runnable=%o, visible=%o",
+          isDefault,
+          runnable,
+          language.smoke.visible
+        );
+      }
 
       return {
         languageKey,
         label: language.displayLabel,
-        selected: defaultSmokeKeys.has(languageKey) && runnable,
+        selected: isDefault && runnable,
         disabled: !runnable,
         disabledReason: runnable ? "" : "Not runnable on this platform/architecture.",
       };
     });
+
+  console.debug(
+    "[buildSmokeLanguageSelections] Total: %d, Acton present: %o",
+    result.length,
+    result.some((l) => l.languageKey === "acton")
+  );
+
+  return result;
 }
 
 /**

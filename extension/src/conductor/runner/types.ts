@@ -74,7 +74,6 @@ export interface IRunRegistry {
  * Input required to create one run registry.
  */
 export interface CreateRunRegistryInput {
-  runStatusRetentionMs: number;
 }
 
 /**

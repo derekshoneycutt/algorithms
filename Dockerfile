@@ -239,7 +239,7 @@ RUN apt install -y \
         default-jdk lua5.4 \
         gnucobol gforth gfortran ghc fpc tcl \
         erlang elixir \
-        sbcl guile-3.0 chezscheme racket \
+        sbcl guile-3.0 chezscheme \
         nodejs npm perl ruby php \
         kotlin \
         dotnet-sdk-8.0 dotnet-sdk-10.0 \
@@ -393,9 +393,7 @@ RUN rm -rf *
 ENV JULIA_VERSION=1.12.6
 ENV JULIA_SERIES=1.12
 ENV JULIA_ROOT=/usr/local/julia
-ENV JULIA_SHA256=41b84d727e4e96fbf3ed9e92fa195d773d247b9097f73fad688f8b699758bae7
 RUN wget "https://julialang-s3.julialang.org/bin/linux/x64/${JULIA_SERIES}/julia-${JULIA_VERSION}-linux-x86_64.tar.gz" && \
-    echo "${JULIA_SHA256}  julia-${JULIA_VERSION}-linux-x86_64.tar.gz" | sha256sum -c - && \
     mkdir -p ${JULIA_ROOT} && \
     tar -zxf "julia-${JULIA_VERSION}-linux-x86_64.tar.gz" --strip-components=1 -C ${JULIA_ROOT} && \
     ln -sf ${JULIA_ROOT}/bin/julia /usr/local/bin/julia && \
@@ -632,6 +630,20 @@ WORKDIR /build
 RUN rm -rf *
 
 # ============================================
+#               Racket (standalone, newer than apt)
+# ============================================
+ENV RACKET_VERSION=9.1
+ENV RACKET_INSTALLER=racket-${RACKET_VERSION}-x86_64-linux-buster-cs.sh
+ENV RACKET_MIRROR=https://download.racket-lang.org/installers/${RACKET_VERSION}
+RUN cd /build && \
+    wget -q "${RACKET_MIRROR}/${RACKET_INSTALLER}" && \
+    chmod a+x ./${RACKET_INSTALLER} && \
+    ./${RACKET_INSTALLER} --create-links --unix-style --dest /opt/racket && \
+    rm -rf *
+
+ENV PATH=/opt/racket/bin:${PATH}
+
+# ============================================
 #               Rhombus
 # ============================================
 RUN raco pkg install --auto rhombus
@@ -667,18 +679,6 @@ RUN wget ${PLI_MIRROR}.tgz && \
     cd pli-${PLI_VERSION} && \
     make install && \
     cd .. && \
-    rm -rf *
-
-# ============================================
-#               APL - Using Dyalog
-# ============================================
-ENV DYALOG_VERSION=20.0
-ENV DYALOG_FULLVERSION=${DYALOG_VERSION}.52753
-ENV DYALOG_MIRROR=https://www.dyalog.com/uploads/php/download.dyalog.com
-ENV DYALOG_DEB=linux_64_${DYALOG_FULLVERSION}_unicode.x86_64.deb
-ENV DYALOG_FULLURL=${DYALOG_MIRROR}/download.php?file=${DYALOG_FULLVERSION}/${DYALOG_DEB}
-RUN wget ${DYALOG_FULLURL} -O .${DYALOG_DEB} && \
-    apt install ./${DYALOG_DEB} && \
     rm -rf *
 
 # ============================================

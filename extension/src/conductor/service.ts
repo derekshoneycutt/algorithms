@@ -59,7 +59,7 @@ import {
   type ApplyConductorReactionDependencies,
 } from "./environment";
 
-const DEFAULT_RUN_STATUS_RETENTION_MS = 120_000;
+const DEFAULT_SMOKE_STATUS_RETENTION_MS = 600_000;
 
 /**
  * Returns true when one path segment exists in the candidate path.
@@ -133,7 +133,6 @@ export interface CreateConductorServiceInput {
   commandLine?: ICommandLine;
   observability?: IObservability;
   filesystem?: IFilesystem;
-  runStatusRetentionMs?: number;
   rootPathResolver?: IRootPathResolver;
   eligibilityResolver?: IEligibilityResolver;
 }
@@ -376,7 +375,7 @@ export function createConductorService(
   const commandLine = input?.commandLine;
   const observability = input?.observability;
   const filesystem = input?.filesystem;
-  const runStatusRetentionMs = input?.runStatusRetentionMs ?? DEFAULT_RUN_STATUS_RETENTION_MS;
+  const smokeStatusRetentionMs = DEFAULT_SMOKE_STATUS_RETENTION_MS;
   const rootPathResolver = input?.rootPathResolver;
   const eligibilityResolver = input?.eligibilityResolver;
 
@@ -406,10 +405,10 @@ export function createConductorService(
 
     return path.dirname(algorithmsRoot);
   }
-  const runRegistry = createRunRegistry({ runStatusRetentionMs });
+  const runRegistry = createRunRegistry({});
   const runLifecycle = runRegistry.buildRunLifecycle();
   const smokeRegistry = createSmokeRegistry({
-    smokeStatusRetentionMs: runStatusRetentionMs,
+    smokeStatusRetentionMs,
   });
   const activeSmokeExecutionByAlgorithm = smokeRegistry.getActiveSmokeExecutionByAlgorithm();
   const smokeStatusRetentionLifecycle = smokeRegistry.getSmokeStatusRetentionLifecycle();

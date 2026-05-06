@@ -16,25 +16,16 @@ import type {
 } from "./types";
 
 /**
- * Manages run snapshot storage, timers, and listener notifications.
+ * Manages run snapshot storage and listener notifications.
  */
 class RunSnapshotStore {
   private readonly runTargetByRunId = new Map<string, string>();
   private readonly runSnapshotsById = new Map<string, ConductorRunSnapshot>();
   private readonly runSnapshotsByTarget = new Map<string, ConductorRunSnapshot>();
-  private readonly runStatusClearTimersByTarget = new Map<string, NodeJS.Timeout>();
   private readonly runTargetListeners = new Set<
     (change: ConductorRunTargetStatusChange) => void
   >();
-  private readonly retentionMs: number;
   private nextSequence = 1;
-
-  /**
-   * @param {number} retentionMs Time in milliseconds to retain cleared runs.
-   */
-  constructor(retentionMs: number) {
-    this.retentionMs = retentionMs;
-  }
 
   /**
    * Returns the next sequence number and advances the counter.
@@ -85,7 +76,7 @@ class RunSnapshotStore {
   }
 
   /**
-   * Stores snapshot by id and target, schedules retention cleanup, publishes change.
+   * Stores snapshot by id and target, publishes change.
    */
   store(
     target: ConductorRunTargetRef,
@@ -96,44 +87,12 @@ class RunSnapshotStore {
     this.runTargetByRunId.set(snapshot.runId, targetKey);
     this.runSnapshotsByTarget.set(targetKey, snapshot);
     this.publish(target, snapshot);
-
-    if (this.retentionMs > 0) {
-      this.clearTimer(targetKey);
-
-      const retainedRunId = snapshot.runId;
-      const timeoutHandle = setTimeout(() => {
-        this.runStatusClearTimersByTarget.delete(targetKey);
-
-        const latestSnapshot = this.runSnapshotsByTarget.get(targetKey);
-        if (latestSnapshot === undefined || latestSnapshot.runId !== retainedRunId) {
-          return;
-        }
-
-        this.runSnapshotsByTarget.delete(targetKey);
-        this.runTargetByRunId.delete(retainedRunId);
-        this.publish(target, latestSnapshot);
-      }, this.retentionMs);
-
-      this.runStatusClearTimersByTarget.set(targetKey, timeoutHandle);
-    }
-  }
-
-  /**
-   * Clears timer for target.
-   */
-  clearTimer(targetKey: string): void {
-    const existingTimer = this.runStatusClearTimersByTarget.get(targetKey);
-    if (existingTimer !== undefined) {
-      clearTimeout(existingTimer);
-      this.runStatusClearTimersByTarget.delete(targetKey);
-    }
   }
 
   /**
    * Deletes target snapshot and its run id mapping.
    */
   deleteTarget(targetKey: string, runId: string): void {
-    this.clearTimer(targetKey);
     this.runSnapshotsByTarget.delete(targetKey);
     this.runTargetByRunId.delete(runId);
   }
@@ -279,7 +238,7 @@ function matchesExpectedRunId(
  * @returns {IRunRegistry} Run registry implementation.
  */
 export function createRunRegistry(input: CreateRunRegistryInput): IRunRegistry {
-  const store = new RunSnapshotStore(input.runStatusRetentionMs);
+  const store = new RunSnapshotStore();
 
   return {
     buildRunLifecycle(): RunFileStatusLifecycle {

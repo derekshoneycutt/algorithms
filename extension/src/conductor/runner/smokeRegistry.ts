@@ -204,12 +204,19 @@ export function createSmokeRegistry(input: CreateSmokeRegistryInput): ISmokeRegi
       }
 
       activeSmokeExecution.stopRequested = true;
-      const killResult = activeSmokeExecution.handle.kill("SIGTERM");
-      if (!killResult.ok && killResult.reason !== "not-running") {
+      const terminateResult = activeSmokeExecution.handle.kill("SIGTERM");
+      if (!terminateResult.ok && terminateResult.reason !== "not-running") {
         return false;
       }
 
-      await activeSmokeExecution.result;
+      if (activeSmokeExecution.handle.isRunning()) {
+        setTimeout(() => {
+          if (activeSmokeExecution.handle.isRunning()) {
+            activeSmokeExecution.handle.kill("SIGKILL");
+          }
+        }, 500);
+      }
+
       return true;
     },
   };

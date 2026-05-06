@@ -59,7 +59,12 @@ function createProcessHandle(runningChildProcess: ChildProcess): ICommandLinePro
       }
 
       try {
-        const delivered = runningChildProcess.kill(signal);
+        const pid = runningChildProcess.pid;
+        if (pid === null || pid === undefined) {
+          return { ok: false, reason: "no-pid" };
+        }
+
+        const delivered = process.kill(-pid, signal);
         if (!delivered) {
           return { ok: false, reason: "signal-not-delivered" };
         }
@@ -91,6 +96,7 @@ function createTrackedExecution(
       cwd: options?.cwd,
       env: options?.env,
       shell: false,
+      detached: true,
     });
   } catch (error) {
     return {

@@ -1,7 +1,17 @@
 import type { SmokeLanguageRunStatus } from "../../state";
 
 const SMOKE_STATUS_LINE_REGEX =
-  /SMOKE\s+\[\d+\/\d+\].*?lang=([a-zA-Z0-9_+\-]+).*?\[(RUNNING|PASS|FAIL|TIMEOUT)\]/;
+  /SMOKE\s+\[\d+\/\d+\].*?lang=([a-zA-Z0-9_+\-]+).*?(?:\[(RUNNING|PASS|FAIL|TIMEOUT)\]|\b(RUNNING|PASS|FAIL|TIMEOUT)\b)/;
+
+/**
+ * Removes ANSI control sequences from one terminal output line.
+ *
+ * @param {string} value Raw terminal output line.
+ * @returns {string} Line without ANSI escape/control sequences.
+ */
+function stripAnsiControlSequences(value: string): string {
+  return value.replace(/\x1b\[[0-9;]*[A-Za-z]/g, "");
+}
 
 /**
  * Maps one smoke terminal token to a runtime smoke status.
@@ -36,13 +46,15 @@ function mapSmokeTokenToRuntimeStatus(token: string): SmokeLanguageRunStatus | n
 export function parseSmokeStatusLine(
   line: string
 ): { languageKey: string; status: SmokeLanguageRunStatus } | null {
-  const match = SMOKE_STATUS_LINE_REGEX.exec(line);
+  const normalizedLine = stripAnsiControlSequences(line);
+  const match = SMOKE_STATUS_LINE_REGEX.exec(normalizedLine);
   if (match === null) {
     return null;
   }
 
   const languageKey = match[1].trim().toLowerCase();
-  const status = mapSmokeTokenToRuntimeStatus(match[2]);
+  const statusToken = match[2] ?? match[3] ?? "";
+  const status = mapSmokeTokenToRuntimeStatus(statusToken);
   if (languageKey.length === 0 || status === null) {
     return null;
   }
