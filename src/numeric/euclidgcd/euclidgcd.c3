@@ -1,5 +1,5 @@
 /*
-	Prints hello to the screen
+	Calculates the greatest common denominator for 2 values
 */
 import std::io;
 
@@ -26,5 +26,5 @@ fn void main(String[] args)
 		n = args[2].to_int() ?? 10;
 	}
 
-    io::printfn("%d %d\ngcd: %d\n", m, n, euclidgcd(m, n));
+    io::printfn("%d %d\ngcd: %d", m, n, euclidgcd(m, n));
 }

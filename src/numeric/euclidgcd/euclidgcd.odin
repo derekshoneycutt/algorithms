@@ -1,5 +1,5 @@
 /*
-    Prints hello world to the screen
+    Calculated the greatest common denominator and print it to the screen
 */
 package main
 

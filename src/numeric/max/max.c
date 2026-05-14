@@ -28,7 +28,7 @@ typedef int* intvalue_t;
  * @param cmp A comparison function that returns a positive value if the first argument is greater than the second, zero if they are equal, and a negative value if the first argument is less than the second
  * @return The maximum value
  */
-value_t max(const value_t values, size_t n, size_t size, cmp_func cmp)
+value_t max(const value_t values, const size_t n, const size_t size, const cmp_func cmp)
 {
     // pointer math is a lil dangerous...
     value_t current = (value_t)values;
@@ -65,7 +65,7 @@ int cmp_int(const value_t a, const value_t b)
  * @param argv The array of command line arguments given
  * @returns 0
  */
-int main(int argc, char *argv[])
+int main(const int argc, const char *argv[])
 {
     int n;
     int* values;

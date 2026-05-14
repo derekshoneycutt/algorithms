@@ -308,11 +308,26 @@ integer, array of integer, etc. FreePascal allows generics
 
 Does have user defined types, enumerated types, etc.
 
+### Odin
+
+Strong, static type system, focused on data-oriented, performant code
+
+mostly using int and some string types so far
+
+Generics are pretty easy with a simple `$`. arrays are handled nicely and easily in-lang
+
 ### D
 
 Kinda between C++ and Java/C#. static, strong typing, with some type inference
 
 has templating closer to C++ but initial syntax unique c#ish
+
+### C3
+
+Static typing, a lot like C, but a lot of safety features making it easier
+
+Generics for e.g. List are unique but interesting. Can do generics by module and by
+single types or functions
 
 ### Gleam
 
@@ -395,6 +410,10 @@ truthy "0" 1 {} [] vs falsy 0 "" null and typed equality operators
 Dynamic, but $ for scalars, @ for arrays, % for hashes, & subroutines, * typeglobs
 
 automatic type conversion on operations "doing the right thing"; focus on operator determining how data is handled, with context--literally, where the op is called--highly important
+
+### Raku
+
+Same as Perl, but it does offer some gradual typing that is nice
 
 ### Python
 
