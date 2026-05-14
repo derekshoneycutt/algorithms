@@ -1,0 +1,8 @@
+# Calculate the greatest common denominator of 2 values
+
+gcd is op m n (if n = 0 then m else gcd n (m MOD n) endif)
+
+#Q'Nial really doesn't have command line arguments so we just use default values
+
+write ('gcd: ' link string (gcd 15 10))
+bye

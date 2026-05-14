@@ -1,2 +1,4 @@
+# Print hello world to the screen
+
 write 'Hello, world!'
 bye

@@ -2,11 +2,11 @@
  |  This calculates the GCD for 2 numbers
  |#
 (eval-when (:compile-toplevel :load-toplevel :execute)
-  (require :asdf))
+    (require :asdf))
 
 ; Calculate the GCD with Euclid's algorithm in recursive form
 (defun euclid-gcd (m n)
-   (if (= n 0)
+    (if (= n 0)
        m
        (euclid-gcd n (mod m n))))
 
@@ -21,4 +21,4 @@
        (arg1 (arg-as-int args 0 15))
        (arg2 (arg-as-int args 1 10))
        (gcd (euclid-gcd arg1 arg2)))
-      (format t "~a ~a~%gcd: ~a~%" arg1 arg2 gcd))
+    (format t "~a ~a~%gcd: ~a~%" arg1 arg2 gcd))

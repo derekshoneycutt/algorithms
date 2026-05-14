@@ -6,7 +6,7 @@ qnial_compile() {
 }
 qnial_run() {
   cd ./output
-  cat "$fileName" | nial64 -i  "$@" | tail -n +4
+  cat "$fileName" | nial64 -i #| tail -n +4
   retValue="$?"
   cd ..
   return "$retValue"

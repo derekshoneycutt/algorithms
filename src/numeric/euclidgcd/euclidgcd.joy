@@ -1,0 +1,16 @@
+# Calculate the greatest common denominator for 2 numbers
+
+DEFINE
+    # Define the word to calculate the GCD
+    euclidgcd   == [ 0 = ]
+                   [ pop ]
+                   [ swap over rem euclidgcd ]
+                   ifte .
+
+# Grab the first 2 command line parameters or 15, 10
+argv dup size 1 > [ 1 at 0 strtol ] [ pop 15 ] branch
+argv dup size 2 > [ 2 at 0 strtol ] [ pop 10 ] branch
+
+over 'd 0 0 format putchars " " putchars
+    swap over 'd 0 0 format putchars "\n" putchars
+swap "gcd: " putchars euclidgcd .

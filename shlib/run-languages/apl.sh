@@ -6,7 +6,7 @@ apl_compile() {
 }
 apl_run() {
   cd ./output
-  dyalog -script "$fileName"
+  dyalog -script "$fileName" "$@"
   retValue="$?"
   cd ..
   return "$retValue"
