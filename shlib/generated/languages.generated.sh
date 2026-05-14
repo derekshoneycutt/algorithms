@@ -57,6 +57,7 @@ pascal|pas|./output/$fileNameWithoutExt
 perl|plx|./output/$fileName
 pli|pl1|./output/$fileNameWithoutExt
 php|php|./output/$fileName
+pony|pony|./output/$fileNameWithoutExt
 prolog|pl|./output/$fileNameWithoutExt
 python|py|./output/$fileName
 qnial|nls|./output/$fileName
@@ -85,7 +86,7 @@ get_generated_supported_language_keys() {
   get_generated_language_catalog | awk -F'|' '{print $1}'
 }
 
-GENERATED_SMOKE_DEFAULT_KEYS='acton ada apl asm ballerina c c3 clisp clojure cobol cpp csharp d dart eiffel elixir erlang factor forth fortran freebasic fsharp gleam go haskell haxe icon idris io j java javascript joy julia kit kotlin llvmir lua mercury mmixal modula3 mojo nasm nim oberon objectivec ocaml octave odin pascal perl pli php prolog python qnial r racket raku rhombus ruby rust scala scheme self simula smalltalk swift tcl typescript v visualbasic wat zig'
+GENERATED_SMOKE_DEFAULT_KEYS='acton ada apl asm ballerina c c3 clisp clojure cobol cpp csharp d dart eiffel elixir erlang factor forth fortran freebasic fsharp gleam go haskell haxe icon idris io j java javascript joy julia kit kotlin llvmir lua mercury mmixal modula3 mojo nasm nim oberon objectivec ocaml octave odin pascal perl pli php pony prolog python qnial r racket raku rhombus ruby rust scala scheme self simula smalltalk swift tcl typescript v visualbasic wat zig'
 GENERATED_PROFILE_BLOCK_START='# >>> DEREKALGOS INIT >>>'
 GENERATED_PROFILE_BLOCK_END='# <<< DEREKALGOS INIT <<<'
 GENERATED_ROUTE_DOCKER_PATTERN='lang=image'

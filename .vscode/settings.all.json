@@ -55,6 +55,7 @@
         "*.nasm": "../../icons/assembly",
         "*.pl": "../../icons/prolog",
         "*.plx": "../../icons/perl",
+        "*.pony": "../../icons/pony",
         "*.self": "../../icons/self",
         "*.st": "../../icons/smalltalk",
         "*.raku": "../../icons/raku"

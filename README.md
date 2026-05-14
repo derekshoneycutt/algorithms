@@ -63,6 +63,7 @@
 <img src="./icons/perl.svg" alt="Perl" title="Perl" width="30">
 <img src="./icons/pli.svg" alt="PL/I" title="PL/I" width="30">
 <img src="./icons/php.svg" alt="PHP" title="PHP" width="30">
+<img src="./icons/pony.svg" alt="Pony" title="PHP" width="30">
 <img src="./icons/prolog.svg" alt="Prolog" title="Prolog" width="30">
 <img src="./icons/python.svg" alt="Python" title="Python" width="30">
 <img src="./icons/nial.svg" alt="Q'Nial" title="Q'Nial" width="30">
@@ -384,6 +385,7 @@ run.sh script.
 | <img src="./icons/perl.svg" alt="Perl" width="25"> | Perl | .plx | perl | perl | |
 | <img src="./icons/pli.svg" alt="PHP" width="25"> | PL/I | .pl1 | pli | Iron Spring Software PL/I Compiler | |
 | <img src="./icons/php.svg" alt="PHP" width="25"> | PHP | .php | php | php | |
+| <img src="./icons/pony.svg" alt="Pony" width="25"> | Pony | .pony | pony | pony | |
 | <img src="./icons/prolog.svg" alt="Prolog" width="25"> | Prolog | .pl | prolog | GNU Prolog compiler, gplc | |
 | <img src="./icons/python.svg" alt="Python" width="25"> | Python | .py | python | python | |
 | <img src="./icons/nial.svg" alt="Q'Nial" width="25"> | Q'Nial | .nls | qnial | Q'Nial, nial64 | |

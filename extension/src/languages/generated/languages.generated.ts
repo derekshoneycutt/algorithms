@@ -1837,6 +1837,39 @@ export const GENERATED_LANGUAGE_DATA: GeneratedLanguageData = {
       }
     },
     {
+      "key": "pony",
+      "extension": "pony",
+      "displayLabel": "Pony",
+      "icon": {
+        "fileName": "pony.svg"
+      },
+      "sampleOutputTemplate": "./output/$fileNameWithoutExt",
+      "smoke": {
+        "defaultEnabled": true,
+        "visible": true
+      },
+      "constraints": {
+        "canRun": [
+          {
+            "platform": [
+              "*"
+            ],
+            "arch": [
+              "*"
+            ]
+          }
+        ]
+      },
+      "aliases": {
+        "languageIds": [
+          "pony"
+        ],
+        "fileExtensions": [
+          ".pony"
+        ]
+      }
+    },
+    {
       "key": "prolog",
       "extension": "pl",
       "displayLabel": "Prolog",

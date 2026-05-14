@@ -741,6 +741,15 @@ RUN wget ${C3_MIRROR}/${C3_PACKAGE} && \
 ENV PATH=/opt/c3:${PATH}
 
 # ============================================
+#               Pony
+# ============================================
+ENV PONYUP_URL=https://raw.githubusercontent.com/ponylang/ponyup/latest-release/ponyup-init.sh
+RUN sh -c "$(curl --proto '=https' --tlsv1.2 -sSf ${PONYUP_URL})"
+ENV PATH=/root/.local/share/ponyup/bin:${PATH:-}
+RUN ponyup update ponyc release
+
+
+# ============================================
 #               END -- Final cleanup and settings
 # ============================================
 
