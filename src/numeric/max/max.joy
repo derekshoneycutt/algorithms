@@ -1,0 +1,18 @@
+# Find the maximum value of a set of values
+
+DEFINE
+
+    # Get the maximum value of 2 values
+    maxval      ==  [ dupd dup swapd > ]
+                    [ pop ]
+                    [ popd ]
+                    ifte .
+
+argv dup size 1 >
+[ rest [ 0 strtol ] map ]
+[ pop [15 10] ]
+branch
+
+dup put '\n putch
+"max: " putchars
+0 [ maxval ] fold put '\n putch .

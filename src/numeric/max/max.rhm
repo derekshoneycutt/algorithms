@@ -1,0 +1,27 @@
+#lang rhombus
+/*
+    Finds the maximum value of a set of values and prints it
+*/
+import:
+    rhombus/cmdline
+
+/* Get the max of a list */
+fun max_of(list):
+    def mutable curr = 0;
+    for:
+        each item in list
+        let newCurr:
+            if item > curr
+            | item
+            | curr;
+        curr := newCurr;
+    curr;
+
+def args = cmdline.current_command_line().map(String.to_int)
+let useArgs:
+    if args.length() < 1
+    | [15, 10]
+    | args;
+
+let maxvalue = max_of(useArgs);
+println(to_string(useArgs) ++ "\nmax: " ++ to_string(maxvalue));

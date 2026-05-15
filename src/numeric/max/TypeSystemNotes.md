@@ -72,6 +72,10 @@ Instructions have data size suffix: b, w, l, q, s (32b float), t (80b float); so
 
 No real type systems. Just have the stack, sized as the system's word per "cell".
 
+### Joy
+
+Basically like Forth, but it does have an understanding of simple and aggregate types.
+
 ### WASM/WAT
 
 mostly just using i32 so far, and always linked to that specific type; i64 floats vectors also
@@ -413,6 +417,10 @@ A lot like Self, kinda simpler
 
 Everythig is a term; Atoms, numbers, variables, compound terms. But typing is implicit and basically ducked
 
+### Lisp
+
+Has a strong, but dynamic type system. all types have root type T. values have types, not variables.
+
 ### Javascript
 
 dynamic, and notoriously weird. 8 primitives: string, number, bigint, boolean, undefined, null, symbol. Also objects, with a prototyping inheritance
@@ -451,6 +459,10 @@ Actually has some weird gradual typing, but even looser and weirder than any oth
 
 using dynamic typed version in this project, but there is a formal Typed Racket wiht static typing, union types, subtyping. Can mix Typed and untyped Racket in a single project for gradual typing.
 
+### Rhombus
+
+Basically built on Racket, same sort of opt-in gradual typing is available
+
 ### Lua
 
 Normally dynamic, implicit, duck typed, but some extensions offer static typing on top of it
@@ -467,6 +479,7 @@ Dynamic, duck typing, but strongly errors on type mismatched operations. Later v
 
 Some of the remaining languages are interesting in their own right but their type systems are just basically dynamic for anything to be spoken of at this point, to the point of leaving little more to say...
 
+- Common Lisp (I just really don't care)
 - Clojure
 - Scheme
 - Icon

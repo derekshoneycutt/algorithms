@@ -35,6 +35,11 @@
          else temp_str = substr(temp_str, pos + 1);
          n = n + 1;
      end;
+     if n < 1 then do;
+        values(0) = 15;
+        values(1) = 10;
+        n = 2;
+     end;
 
      maxval = maxvalue(values, n);
      do i = 0 to n - 1;

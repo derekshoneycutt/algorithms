@@ -1,6 +1,6 @@
 #lang rhombus
 /*
-    Prints hello world to the screen
+    Calculates and prints the greatest common denominator of 2 values
 */
 import:
     rhombus/cmdline
