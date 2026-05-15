@@ -1,0 +1,44 @@
+ /*
+   Finds the maximum value of a set of values and prints it
+ */
+ 
+ hello: procedure(args) options (main);
+     declare sysprint file external;
+
+    /* function used to find the maximum value */
+     maxvalue: procedure(values, n) returns (fixed bin(31));
+        dcl values(30) fixed bin(31);
+        dcl (curr, n, i) fixed bin(31);
+        curr = 0;
+        do i = 0 to n - 1;
+            if values(i) > curr then curr = values(i);
+        end;
+        return(curr);
+     end maxvalue;
+
+     dcl (n, i, pos, maxval) fixed bin(31);
+     dcl values(30) fixed bin(31);
+     dcl args char(256) var;
+     dcl temp_str char(256) var;
+     dcl (arg) char(20) varying;
+
+     /* Parse the input arguments */
+     n = 0;
+     temp_str = args;
+     do while(length(temp_str) > 0);
+         pos = index(temp_str, ' ');
+         if pos = 0 then pos = length(temp_str) + 1;
+
+         arg = substr(temp_str, 1, pos - 1);
+         values(n) = arg;
+         if pos > length(temp_str) then temp_str = '';
+         else temp_str = substr(temp_str, pos + 1);
+         n = n + 1;
+     end;
+
+     maxval = maxvalue(values, n);
+     do i = 0 to n - 1;
+        put edit(values(i), ' ') (f(3), a);
+     end;
+     put skip edit('max:', maxval) (a, F(3));
+ end hello;

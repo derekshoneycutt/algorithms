@@ -2,7 +2,7 @@
    Calculates the GCD of 2 values and prints it to the screen
  */
  
- hello: procedure(args) options (main);
+ euclidgcd: procedure(args) options (main);
      declare sysprint file external;
 
      /* Method to calculate the GCD embedded inside the main procedure*/
@@ -43,4 +43,4 @@
      gcd = euclidgcd(m, n);
      put edit(m, ' ', n) (f(3), a, f(3));
      put skip edit('gcd:', gcd) (a, F(3));
- end hello;
+ end euclidgcd;
