@@ -1,46 +1,46 @@
  /*
-   Prints hello world to the screen
+   Calculates the GCD of 2 values and prints it to the screen
  */
  
  hello: procedure(args) options (main);
-   declare sysprint file external;
+     declare sysprint file external;
 
-    /* Method to calculate the GCD embedded inside the main procedure */
-    euclidgcd: procedure(mIn, nIn) returns(fixed bin(31));
-        dcl (mIn,nIn, m, n, r) fixed bin(31);
-        m = mIn;
-        n = nIn;
-        r = 0;
-        do while(n > 0);
-        r = mod(m, n);
-        m = n;
-        n = r;
-        end;
-        return(m);
-    end euclidgcd;
+     /* Method to calculate the GCD embedded inside the main procedure*/
+     euclidgcd: procedure(mIn, nIn) returns(fixed bin(31));
+         dcl (mIn,nIn, m, n, r) fixed bin(31);
+         m = mIn;
+         n = nIn;
+         r = 0;
+         do while(n > 0);
+             r = mod(m, n);
+             m = n;
+             n = r;
+         end;
+         return(m);
+     end euclidgcd;
 
-   dcl (m, n, pos, gcd) fixed bin(31);
-   dcl args char(*) varying;
-   dcl (arg1, arg2) char(20) varying;
+     dcl (m, n, pos, gcd) fixed bin(31);
+     dcl args char(*) varying;
+     dcl (arg1, arg2) char(20) varying;
 
-    /* Parse the input arguments */
-   pos = index(args, ' ');
-   if length(args) = 0 then do;
-      m = 15;
-      n = 10;
-   end;
-   else if pos = 0 then do;
-      m = args;
-      n = 10;
-   end;
-   else do;
-      arg1 = substr(args, 1, pos - 1);
-      arg2 = substr(args, pos + 1);
-      m = arg1;
-      n = arg2;
-   end;
+     /* Parse the input arguments */
+     pos = index(args, ' ');
+     if length(args) = 0 then do;
+         m = 15;
+         n = 10;
+     end;
+     else if pos = 0 then do;
+         m = args;
+         n = 10;
+     end;
+     else do;
+         arg1 = substr(args, 1, pos - 1);
+         arg2 = substr(args, pos + 1);
+         m = arg1;
+         n = arg2;
+     end;
 
-   gcd = euclidgcd(m, n);
-   put edit(m, ' ', n) (f(3), a, f(3));
-   put skip edit('gcd:', gcd) (a, F(3));
+     gcd = euclidgcd(m, n);
+     put edit(m, ' ', n) (f(3), a, f(3));
+     put skip edit('gcd:', gcd) (a, F(3));
  end hello;

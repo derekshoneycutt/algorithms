@@ -260,11 +260,11 @@ generics with constraints pretty standard
 
 heavily influenced by go, including static, strong typing with strong type inference and immutability by default. has simple generics
 
-### Nim
+### Mojo
 
-static typing, with strong inference and immutability by default, looks a lot like Go too
+static typing, highly inferred. simple custom struct types. generics with constraints pretty easy
 
-primarily structural typing vs nominal
+does allow some gradual typing for python integration
 
 ### Java
 
@@ -294,11 +294,11 @@ static typing, often inferred. nominal typing including OOPy.
 
 value & ref types, optionals, protocols and generics
 
-### Mojo
+### Nim
 
-static typing, highly inferred. simple custom struct types. generics with constraints pretty easy
+static typing, with strong inference and immutability by default, looks a lot like Go too
 
-does allow some gradual typing for python integration
+primarily structural typing vs nominal
 
 ### Pascal (FreePascal)
 
@@ -359,7 +359,7 @@ also, basically haskell includes aglebraic data types and type classes to fit ha
 
 ### Ocaml
 
-Ocaml has typing like Kit, or vice versa. It hardly looks like it, but it is ultimately static with Hindley-Milnery type interface
+Ocaml has typing like Kit, or vice versa. It hardly looks like it, but it is ultimately static with Hindley-Milnery type interface. Can use generics directly as `'a` for example.
 
 ### Kit
 
@@ -393,6 +393,14 @@ Literally all these are dynamically typed, I'll say anything if there's anything
 
 Everything is an object, but everything is defined by what it can do instead of its own structure; no declared types on values, just send messages to them Duck typing and Late binding
 
+### Self
+
+Dynamic prototype-based classes, like smalltalk and javascript or something
+
+### Io
+
+A lot like Self, kinda simpler
+
 ### Prolog
 
 Everythig is a term; Atoms, numbers, variables, compound terms. But typing is implicit and basically ducked
@@ -421,11 +429,11 @@ generics are entirely just syntax foo on top of a dynamic type system which is h
 
 ### Erlang
 
-does have a strong runtime typing, including type declarations and has been built on to outright static typing in gleam lol
+does have a strong runtime typing, including type declarations and has been built on to outright static typing in gleam, but dynamic in Erlang
 
 ### Elixir
 
-enforces soundness and graduality for a set-theoretic foundation, but yeah, it's just dynamic erlang types lmfao
+enforces soundness and graduality for a set-theoretic foundation, but yeah, it's still on top of BEAM, and the dynamic erlangy sytem
 
 ### PHP
 

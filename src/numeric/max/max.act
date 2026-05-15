@@ -1,0 +1,41 @@
+# Finds the maximum value of a set of values
+
+# Generic method used to calculate the max of some list
+def mymax[T(Ord)](inlist: list[T]) -> T:
+    curr = inlist[0]
+    for item in inlist:
+        if item > curr:
+            curr = item
+    return curr
+
+# Actor used to calculate the maximum value in a list
+actor Calculator(printer: Printer):
+    def doMax(inlist):
+        curr = mymax(inlist)
+        await async printer.printMax(inlist, curr)
+
+# Actor used to print a list and its maximum value
+actor Printer():
+    def printMax(inlist, max):
+        print(f"{inlist}\nmax: {max}")
+
+# An actor named 'main' is automatically discovered and recognized as the root actor.
+actor main(env):
+    printer = Printer()
+    calc = Calculator(printer)
+
+    values = []
+    didFirst = False
+    for arg in env.argv:
+        if didFirst:
+            values.append(int(arg))
+        didFirst = True
+
+    if len(values) < 1:
+        values.append(15)
+        values.append(10)
+
+    await async calc.doMax(values)
+
+    env.exit(0)
+
