@@ -104,6 +104,14 @@ data can be defined in hierarchical table forms, 01, 05, 10 levels
 
 LINKAGE-SECTION for sharing between the different program divisions is very interesting
 
+### PL/I
+
+kinda like cobol but a lil simpler, strong static typing, using a lot of fixed length
+
+e.g. fixed bin(31).
+
+generics in some versions, but not with compiler I'm using
+
 ### FreeBASIC
 
 Static typing, pretty simple, User Defined Types are available, even pointers, but pretty basic stuff
