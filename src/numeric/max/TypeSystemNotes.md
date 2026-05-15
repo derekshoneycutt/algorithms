@@ -475,6 +475,22 @@ Everything is stored as a vector. Does strong type coercion under the hood. 6 "a
 
 Dynamic, duck typing, but strongly errors on type mismatched operations. Later versions have some static typing available. Most things are objects, built-in types also include integer, float, etc., strings, symbols, collections.
 
+### APL
+
+Dynamic types in arrays array array array. some have used type inference, but typically dynamic & implicit
+
+Strings to integers via execute and then modified as such in the array
+
+### J
+
+Basically the same as APL, it's all arrays. A little easier to read and understand
+
+adds rank to array support and supports point-free programming like joy/factor
+
+### Nial
+
+Arrays more arrays arrays arrays arrays, dynamic arrays, dynamic types of arrays, arrays
+
 ### I mean, honestly, dynamic languages
 
 Some of the remaining languages are interesting in their own right but their type systems are just basically dynamic for anything to be spoken of at this point, to the point of leaving little more to say...
