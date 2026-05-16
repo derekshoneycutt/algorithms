@@ -1319,7 +1319,7 @@ allocator types and give finer control. Some kind of allocator is often built on
 the C memory handlers for different purposes in C programming, such as a basic arena
 allocator when it fits the purpose well. A single raw malloc never hurt anyone, though.
 
-... *the faint sound of screaming from the halls of programmers lost to memory leaks echos across the internet*
+> *the faint sound of screaming from the halls of programmers lost to memory leaks echos across the internet*
 
 ```c
 int* values;
@@ -1332,6 +1332,13 @@ n = argc - 1;
 // ...
 free(values);
 ```
+
+Since I pass by Objective-C so quickly, it is worth noting that at least Objective-C
+brings in Smalltalk inspired classes with messages instead of methods and all. Some have
+enjoyed that experience, and some people find it entirely odd. The whole Smalltalk-like
+thing is not used in this project for something as simple as the max algorithm, just
+sticking to plain old C style code mostly. Perhaps there will be more room to explore that
+side of Objective-C later.
 
 ### Well, Not C Any More
 
@@ -1349,7 +1356,9 @@ automatic memory of the standard library is fine.
 
 The use of `std::input_iterator` in the template on C++ here is quite ugly relative to...
 well... every other language. In some ways, this feels like a step back for readability,
-and kind of an abomination.
+and kind of an abomination. C++'s entire OOP type system gets to feel incredibly like this
+after just a short use. While being extremely influential on many, it kind of permanently
+carries the weight of trying to be everything without just doing anything simple.
 
 ```c++
 template<typename T, std::input_iterator iter>
@@ -1367,11 +1376,149 @@ T max(iter begin, iter end)
 }
 ```
 
-Zig
+Zig has an amazingly simple take on generics by just using parameters marked as `comptime`.
+This is not a particularly bad solution, and it ends up looking quite elegant. Many things
+about Zig look quite elegant once the allocator becomes more than just an annoying bulk to
+the code. The allocator is directly used to grow the list of values for max and then free
+it via a `defer` statement.
 
-Ada
+Zig also offers optional types, keeping null values only to those marked with the familiar
+`?` prior to the typename, `?T`. A similar syntax with `!` is used to mark possible error
+returns, replacing exceptions from other languages. Zig does not have all the OOP baggage
+of C++ but gets by with a pretty modern syntax with just structs and the like.
 
-Fortran
+```zig
+fn max(comptime T: type, values: std.ArrayList(T)) T {
+    var current: T = values.items[0];
+    for (values.items) |value| {
+        if (value > current) {
+            current = value;
+        }
+    }
+    return current;
+}
+
+pub fn main(init: std.process.Init) !void {
+    var gpa = std.heap.DebugAllocator(.{}){};
+    const allocator = gpa.allocator();
+    defer _ = gpa.deinit();
+
+    var args = try init.minimal.args.iterateAllocator(allocator);
+    defer args.deinit();
+    _ = args.next();
+
+    var values: std.ArrayList(i32) = .empty;
+    defer values.deinit(allocator);
+
+    var arg_len: i32 = 0;
+    while (args.next()) |arg| {
+        arg_len += 1;
+        const t = std.fmt.parseInt(i32, arg, 10) catch 0;
+        try values.append(allocator, t);
+    }
+    if (arg_len < 1) {
+        try values.append(allocator, 15);
+        try values.append(allocator, 10);
+    }
+
+    const maximum = max(i32, values);
+
+    std.debug.print("values: {any}\nmax: {}\n", 
+        .{ values.items, maximum });
+}
+```
+
+Ada being the one often crowned as making generics popular also stands as one of the
+immediately most verbose and also most immediately powerful of all the takes on generics.
+At first, it can seem a little exhaustive in today's age of languages constantly using
+just some kind of bracket around a type to use generics. It does not have all the baggage
+of modules that made Modula-3 so verbose, and yet there is a sense of needing to put that
+much information still into the code to make it work. The upside of the verbosity when it
+comes to Ada, however, is that the generic function actually still looks just like a
+normal function, and it is easy to trace how the language, compiler, and any future user
+of the code should understand the generic typing. This just specifies that that the `>`
+function has to be appropriate on the generic type and then uses `>` like normal on it.
+There is a beauty to that which many other languages here just failed at.
+
+Otherwise, Ada is not particularly noteworthy. It has the standard static typing with the
+usual types. Aside from the generics nothing fancy is being done just to get max out in
+this project. Arrays are defined as a custom type, which is a bit weird but not really
+specific to Ada. The same pattern was seen with Oberon, for example. It is a concept that
+has not aged well into this project, frankly. At least allocating the arrays are quite
+easy in Ada with the `new` keyword and the rest garbage collected.
+
+```ada
+procedure Max is
+   type Integer_Array is array (Positive range <>) of Integer;
+
+   -- We create a generic max method that takes in moreorless any compatible type to the int array
+   generic
+      type Element_Type is private;
+      type Index_Type is (<>);
+      type Array_Type is array (Index_Type range <>) of Element_Type;
+      with function ">"(Left, Right : Element_Type) return Boolean is <>;
+   function max_generic(X : Array_Type) return Element_Type;
+
+   -- Choose the maximum value out of the array
+   function max_generic(X : Array_Type) return Element_Type is
+      current : Element_Type := X(X'First);
+   begin
+      for V in X'Range loop
+         if X(V) > current then
+            current := X(V);
+         end if;
+      end loop;
+
+      return current;
+   end max_generic;
+
+   -- Instantiate the max function on the standard integer array
+   function max is new max_generic(
+      Element_Type => Integer,
+      Index_Type => Positive,
+      Array_Type => Integer_Array
+   );
+
+   Arg_Count : Integer := Ada.Command_Line.Argument_Count;
+   Arg_Array : access Integer_Array;
+   MaxValue : Integer;
+begin
+   if Arg_Count = 0 then
+      Arg_Count := 2;
+      Arg_Array := new Integer_Array(1 .. 2);
+      Arg_Array(1) := 15;
+      Arg_Array(2) := 10;
+   else
+      -- Why try to parse all available command line arguments as numbers
+      Arg_Array := new Integer_Array(1 .. Arg_Count);
+
+      for index in 1 .. Arg_Count loop
+         Arg_Array(index) := Integer'Value(Ada.Command_Line.Argument(index));
+      end loop;
+   end if;
+
+   MaxValue := max(Arg_Array.all);
+
+   Ada.Text_IO.Put_Line("values:");
+   for index in Arg_Array'Range loop
+      Ada.Text_IO.Put_Line(Integer'Image(Arg_Array(index)));
+   end loop;
+   Ada.Text_IO.Put_Line("max: " & Integer'Image(MaxValue));
+end Max;
+```
+
+Fortran has a long history. At one point the first letter of a variable's name defined the
+type that it was. Now, add `implicit none` to the top of a module and it looks a lot like
+the Pascal family with some slight tweaks. Initially, there was no real way to generic
+functions in Fortran, but some time around 1990, a really exhaustive form requiring the
+programmer to actually program each implementation type was added in. Since then, Fortran
+has added OOP features and continues to grow on its generics, receiving a newer generics
+feature in 2023, centuries after Fortran hit the scene in the year 1569 (okay, it was only
+1956). This project uses the old generic style still.
+
+Fortran is interesting about allocating the array used in Max, using the `allocatable`
+keyword at the variable definition and then using `allocate` to actually allocate the
+memory for further use. `deallocate` is then called at the end to free the memory.
 
 D
 
