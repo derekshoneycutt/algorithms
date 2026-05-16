@@ -130,6 +130,8 @@ integer, real, character, Boolean, text, array
 
 Ballerina is flexibly typed, based on the structure before name, basically Duck typing-ish, with support for semantic subtyping. Subtyping in Ballerina is semantic. It is defined through shapes where S is a subtype of T if the set of shapes denoted by S is a subset of the shapes denoted by T. Optimized for communication barriers that may value shape first
 
+set theoretic.
+
 Shapes, record types, union types
 
 Achieve a kinda knock-off type of genericity via union types and structural polymorphism
@@ -166,7 +168,7 @@ Includes generics and interface modules that can be used to work with a kind of 
 
 Includes generics for an entire class only
 
-OOP + the usual INTEGER, STRING, etc. Everything is an instance of a class. Multiple inheritance
+OOP + the usual INTEGER, STRING, etc. **Everything** is an instance of a class. Multiple inheritance
 
 void-saftey provides very strong safety
 
@@ -252,6 +254,8 @@ static type, though strongly inferred
 
 generics with constraits quite easily
 
+Everything is an object, an instance of a class
+
 ### Rust
 
 static typed
@@ -277,6 +281,24 @@ heavily influenced by go, including static, strong typing with strong type infer
 static typing, highly inferred. simple custom struct types. generics with constraints pretty easy
 
 does allow some gradual typing for python integration
+
+Allows low level typing, not just objects, unlike python
+
+### Pony
+
+Static type, includes reference capabilities that act like a locking shared memory functionality
+
+includes algebraic data types, no nulls
+
+classes and actors are 2 different types
+
+Generics are easy
+
+### Acton
+
+Generics are easy
+
+static typing with strong inference
 
 ### Java
 
@@ -397,6 +419,18 @@ static but structural typing
 
 types are sets ultimately, which is kinda like the ballerina way... because ballerina is wannabe javascript kinda lmfao
 
+### Perl
+
+Stronger typed than you'd think. looks dynamic because its
+types are Scalar, Array, Hash, Sub, Glob.
+
+### Raku
+
+Looks like Perl, and also stronger than you'd think
+All types are sublcass of Any or Mu. default type of container is Any, contrained to Mu
+All types are objects themselves
+Does provide native types but autoboxing into objects and language wise rather treats like objects
+
 ## Dynamically Typed Languages
 
 Literally all these are dynamically typed, I'll say anything if there's anything interesting. Python is intentionally becoming interesting. Smalltalk is like the most interesting idk bro
@@ -407,11 +441,11 @@ Everything is an object, but everything is defined by what it can do instead of 
 
 ### Self
 
-Dynamic prototype-based classes, like smalltalk and javascript or something
+Dynamic prototype-based classes, like smalltalk and javascript or something ; everything is an object
 
 ### Io
 
-A lot like Self, kinda simpler
+A lot like Self, kinda simpler ; everything is an object
 
 ### Prolog
 
@@ -459,6 +493,8 @@ Actually has some weird gradual typing, but even looser and weirder than any oth
 
 using dynamic typed version in this project, but there is a formal Typed Racket wiht static typing, union types, subtyping. Can mix Typed and untyped Racket in a single project for gradual typing.
 
+Basically allows creating a whole type system within itself as well, as a "programmable programing lang"
+
 ### Rhombus
 
 Basically built on Racket, same sort of opt-in gradual typing is available
@@ -467,6 +503,8 @@ Basically built on Racket, same sort of opt-in gradual typing is available
 
 Normally dynamic, implicit, duck typed, but some extensions offer static typing on top of it
 
+values are typed, variables typically not
+
 ### R
 
 Everything is stored as a vector. Does strong type coercion under the hood. 6 "atomic" vector types requiring all same type in vector: logical, numeric/double, integer, character, complex, raw
@@ -474,6 +512,10 @@ Everything is stored as a vector. Does strong type coercion under the hood. 6 "a
 ### Ruby
 
 Dynamic, duck typing, but strongly errors on type mismatched operations. Later versions have some static typing available. Most things are objects, built-in types also include integer, float, etc., strings, symbols, collections.
+
+### Icon
+
+Values have type, variables do not; uses automatic type coercion
 
 ### APL
 
@@ -491,13 +533,22 @@ adds rank to array support and supports point-free programming like joy/factor
 
 Arrays more arrays arrays arrays arrays, dynamic arrays, dynamic types of arrays, arrays
 
-### I mean, honestly, dynamic languages
+### Octave
 
-Some of the remaining languages are interesting in their own right but their type systems are just basically dynamic for anything to be spoken of at this point, to the point of leaving little more to say...
+Everything is an array, too
 
-- Common Lisp (I just really don't care)
-- Clojure
-- Scheme
-- Icon
-- Octave (MATLAB)
-- Perl
+### Common Lisp
+
+Variables are untyped, values strongly typed.
+Everything is a subtype of T, everything is an object ;
+T is at the top, supertype of everything, Nil at bottom
+
+### Scheme
+
+Functions functions functions
+
+### Clojure
+
+Strong but variables untyped, values typed
+
+does not follow Lisp, does its own thing, built around immutable data, functional maps, etc.

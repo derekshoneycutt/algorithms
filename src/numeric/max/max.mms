@@ -1,6 +1,6 @@
         LOC	Data_Segment
         GREG	@
-sp      GREG    0
+sp      GREG    #6000000000000000
 n       GREG    0
 d1      OCTA    15
 d2      OCTA    10
@@ -32,7 +32,7 @@ PArgsL  SUBU    argv,argv,8
         LDO     cparm,argv
         PUSHJ   cret,std:strings:ParseNumber
         STO     cret,sp,0
-        ADDU    sp,sp,8
+        SUBU    sp,sp,8
         ADDU    n,n,1
 0H      SUBU    argc,argc,1
         PBNZ    argc,PArgsL
@@ -42,18 +42,18 @@ PArgsL  SUBU    argv,argv,8
 # Add 2 default values to the stack
 dVals   LDO     tempv,d1
         STO     tempv,sp,0
-        ADDU    sp,sp,8
+        SUBU    sp,sp,8
         ADDU    n,n,1
         LDO     tempv,d2
         STO     tempv,sp,0
-        ADDU    sp,sp,8
+        SUBU    sp,sp,8
         ADDU    n,n,1
 
 # print the values on the stack
 PVals   LDA     output,valstr
         PUSHJ   prntr,std:io:PrintString
         LDA     tempv,n
-PValsL  SUBU    sp,sp,8
+PValsL  ADDU    sp,sp,8
         LDO     cparm,sp,0
         SET     maxn,0
         PUSHJ   cret,std:io:PrintNumber
@@ -64,7 +64,7 @@ PValsL  SUBU    sp,sp,8
 
     # reset the stack to the end of n values
         MUL     tempv,n,8
-        ADDU    sp,sp,tempv
+        SUBU    sp,sp,tempv
 
 # Now do the max and print that
 DoIt    LDA     cparm,n
@@ -91,7 +91,7 @@ test    IS      $2
 sp      IS      :sp
 temp    GREG    0
         SET     curr,0
-Loop    SUBU    sp,sp,8
+Loop    ADDU    sp,sp,8
         LDO     test,sp,0
         CMP     temp,test,curr
         PBNP    temp,Dec

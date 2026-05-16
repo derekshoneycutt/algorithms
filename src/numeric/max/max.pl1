@@ -2,7 +2,7 @@
    Finds the maximum value of a set of values and prints it
  */
  
- hello: procedure(args) options (main);
+ max: procedure(args) options (main);
      declare sysprint file external;
 
     /* function used to find the maximum value */
@@ -46,4 +46,4 @@
         put edit(values(i), ' ') (f(3), a);
      end;
      put skip edit('max:', maxval) (a, F(3));
- end hello;
+ end max;

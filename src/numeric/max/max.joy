@@ -1,7 +1,6 @@
 # Find the maximum value of a set of values
 
 DEFINE
-
     # Get the maximum value of 2 values
     maxval      ==  [ dupd dup swapd > ]
                     [ pop ]

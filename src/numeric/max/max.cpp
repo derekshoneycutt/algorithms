@@ -16,7 +16,7 @@
  * @return The maximum value in the range.
  */
 template<typename T, std::input_iterator iter>
-int max(iter begin, iter end)
+T max(iter begin, iter end)
 {
     T current = 0;
     for (iter it = begin; it != end; ++it)

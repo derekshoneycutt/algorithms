@@ -1,15 +1,15 @@
 # This application finds the maximum value in a sequence
 module MyMax
 
-## Gets the maximum value of a list, starting with a seeded value
+## Gets the maximum value of a list, accumulating from a starting value
 ##
 ## Parameters:
 ##  list - the list of values to get the max of
 ##  max - the starting seed value
-mymax-seeded = fn(list, max) =>
+mymax-accum = fn(list, max) =>
     match list
     | [] -> max
-    | [x | xs] -> mymax-seeded(xs, if x > max then x else max)
+    | [x | xs] -> mymax-accum(xs, if x > max then x else max)
 
 ## Gets the maximum value of a list
 ##
@@ -18,7 +18,7 @@ mymax-seeded = fn(list, max) =>
 mymax = fn(list) =>
     match list
     | [] -> 0
-    | [x | xs] -> mymax-seeded(xs, x)
+    | [x | xs] -> mymax-accum(xs, x)
 
 ## Convert a string to an integer, or zero if that fails
 toint-orzero = fn(arg) =>

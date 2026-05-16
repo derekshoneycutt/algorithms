@@ -1,7 +1,7 @@
 # This program gets the maximum value of a sequence of values
 import sys
 
-def max_list[T](list: list[T]) -> T:
+def max_list[T](inlist: list[T]) -> T:
     """
     Finds the maximum value in a list of numbers.
 
@@ -15,16 +15,16 @@ def max_list[T](list: list[T]) -> T:
         The maximum value of the list
     """
     current = 0
-    for value in list:
+    for value in inlist:
         if value > current:
             current = value
     return current
 
-list = [15, 10]
+uselist = [15, 10]
 if len(sys.argv) > 1:
-    list = [int(arg) for arg in sys.argv[1:]]
+    uselist = [int(arg) for arg in sys.argv[1:]]
 
-maxValue = max_list(list)
+maxValue = max_list(uselist)
 
-print(f"values: {list}")
+print(f"values: {uselist}")
 print(f"max: {maxValue}")
