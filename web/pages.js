@@ -31,6 +31,11 @@ export const ALGORITHMS_PAGES = {
             template: "src/numeric/euclidgcd/README.md"
         },
         {
+            title: "3. Max",
+            page: "numeric_max.html",
+            template: "src/numeric/max/README.md"
+        },
+        {
             title: "System Setup",
             page: "System-setup.html",
             template: "System-setup.md"

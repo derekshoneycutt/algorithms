@@ -38,4 +38,3 @@ actor main(env):
     await async calc.doMax(values)
 
     env.exit(0)
-

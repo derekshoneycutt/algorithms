@@ -84,7 +84,11 @@ and Church, and most do not actually give a single horse's ass.
 
 Type systems are nonsense! Embrace the stack!
 
-What? \*glare\*
+...
+
+\*glare\* What?
+
+...
 
 Who needs types?
 
@@ -208,8 +212,8 @@ If one likes talking like a machine.
 Okay, assembly is certainly more human readable than what the machine talks, but alas, it
 all still just comes down to data size.
 
-Beginning with MMIXAL, the programmer thinks primarily in terms of BYTE (8 bits), WYDE
-(16 bits), TETRA (32 bits), and OCTA (64 bits). Working with instructions, there are
+Beginning with MMIXAL, the programmer thinks primarily in terms of `BYTE` (8 bits), `WYDE`
+(16 bits), `TETRA` (32 bits), and `OCTA` (64 bits). Working with instructions, there are
 specific signed and unsigned instructions for working with negative or non-negative
 numbers, respectively. At this point, the code is mostly using registers and stack memory.
 All MMIXAL registers are 64 bit `$N` coded, with specific instructions used to move
@@ -913,21 +917,6 @@ on some object instead. Even loops and if statements are messages in Smalltalk. 
 project took almost immediately to extending objects with new messages, such that GCD
 became a new message on Integer, and Max now becomes a new message for Array.
 
-```smalltalk
-Array extend [
-    " Get the maximum value of some array "
-    max [
-        | current |
-        current := 0.
-        self do: [:each | 
-            (each > current)
-                ifTrue: [ current := each ]
-        ].
-        ^ current
-    ]
-]
-```
-
 Self is an entirely new language to this project with this step. The Self designers
 apparently thought that Smalltalk was not Smalltalk enough and extended it.
 
@@ -1183,12 +1172,13 @@ such a successful idea, more languages support some kind of generic programming 
 
 Modula-3 took creating 6 additional files to create a generic Max function, including
 interfaces and their implementations for integer operations, the generic module, and the
-integer implementation of the generic module.
+integer implementation of the generic module. If there is one single abomination among the
+languages when it comes to interfaces and generics, it might be Moduula-3.
 
-Modulea-3 has an incredibly involved type system, building off of Modula-2's strict type
-system, similar to Oberon, but adding an incredible amount from every other language they
-could think of to look at. It begins to feel like a bit of a grab-bag of ideas even just
-reading [the papers on it]((http://lucacardelli.name/papers/modula3typesystem.a4.pdf)).
+Modula-3 has an incredibly involved type system, building off of Modula-2's strict type
+system, similar to Oberon, but adding an incredible amount from several other languages
+they could think of to look at. It begins to feel like a bit of a grab-bag of ideas even
+just reading [the papers on it](http://lucacardelli.name/papers/modula3typesystem.a4.pdf).
 There are objects in Modula-3, but not everything is an object. The objects are basically
 borrowed from Simula, though they are not even used in this project yet.
 
@@ -1264,11 +1254,12 @@ max := IntMax.Compute(values);
    (*  ...  *)
 ```
 
-Some people might have some feelings about just throwing C into this list, but with void
-pointers, technically, there is a type of genericity at least easily simulated in C. This
-basically immediately makes the same possible in Objective-C and C++, for example, though
-C++ has a whole other way of doing it, too. C and Objective-C are done basically the same
-for this Max implementation.
+Some people might have some feelings about just throwing C into this list of generics
+supporting languages, but with void pointers, technically, there is a type of genericity
+at least easily simulated in C. This basically immediately makes the same possible in
+Objective-C and C++, for example, though C++ has a whole other way of doing it, too. C and
+Objective-C are done basically the same for this Max implementation. Interestingly, this
+is basically just a form of type erasure solution to the problem.
 
 Of course, C's type system is pretty basic, with some nuances about what the exact size of
 `int` is when you're developing for what machine or whatever. It has structs and pointers
@@ -1358,7 +1349,13 @@ The use of `std::input_iterator` in the template on C++ here is quite ugly relat
 well... every other language. In some ways, this feels like a step back for readability,
 and kind of an abomination. C++'s entire OOP type system gets to feel incredibly like this
 after just a short use. While being extremely influential on many, it kind of permanently
-carries the weight of trying to be everything without just doing anything simple.
+carries the weight of trying to be everything without just doing anything simple. That at
+least the iterator dereferencing--which does not feel or look any different than pointer
+dereferencing at the end of the day--allows the use of the `>` operator naturally. It
+mostly just feels like explicit wrapping of C's pointer style while still having the
+pointer styling in all but the need for typedefs and explicit custom functions--although
+some people have programmed in C++ long enough to have regular nightmares about operator
+overloading, too.
 
 ```c++
 template<typename T, std::input_iterator iter>
@@ -1373,58 +1370,6 @@ T max(iter begin, iter end)
         }
     }
     return current;
-}
-```
-
-Zig has an amazingly simple take on generics by just using parameters marked as `comptime`.
-This is not a particularly bad solution, and it ends up looking quite elegant. Many things
-about Zig look quite elegant once the allocator becomes more than just an annoying bulk to
-the code. The allocator is directly used to grow the list of values for max and then free
-it via a `defer` statement.
-
-Zig also offers optional types, keeping null values only to those marked with the familiar
-`?` prior to the typename, `?T`. A similar syntax with `!` is used to mark possible error
-returns, replacing exceptions from other languages. Zig does not have all the OOP baggage
-of C++ but gets by with a pretty modern syntax with just structs and the like.
-
-```zig
-fn max(comptime T: type, values: std.ArrayList(T)) T {
-    var current: T = values.items[0];
-    for (values.items) |value| {
-        if (value > current) {
-            current = value;
-        }
-    }
-    return current;
-}
-
-pub fn main(init: std.process.Init) !void {
-    var gpa = std.heap.DebugAllocator(.{}){};
-    const allocator = gpa.allocator();
-    defer _ = gpa.deinit();
-
-    var args = try init.minimal.args.iterateAllocator(allocator);
-    defer args.deinit();
-    _ = args.next();
-
-    var values: std.ArrayList(i32) = .empty;
-    defer values.deinit(allocator);
-
-    var arg_len: i32 = 0;
-    while (args.next()) |arg| {
-        arg_len += 1;
-        const t = std.fmt.parseInt(i32, arg, 10) catch 0;
-        try values.append(allocator, t);
-    }
-    if (arg_len < 1) {
-        try values.append(allocator, 15);
-        try values.append(allocator, 10);
-    }
-
-    const maximum = max(i32, values);
-
-    std.debug.print("values: {any}\nmax: {}\n", 
-        .{ values.items, maximum });
 }
 ```
 
@@ -1509,7 +1454,7 @@ end Max;
 
 Fortran has a long history. At one point the first letter of a variable's name defined the
 type that it was. Now, add `implicit none` to the top of a module and it looks a lot like
-the Pascal family with some slight tweaks. Initially, there was no real way to generic
+it could fit in with some other family as well. Initially, there was no real way to generic
 functions in Fortran, but some time around 1990, a really exhaustive form requiring the
 programmer to actually program each implementation type was added in. Since then, Fortran
 has added OOP features and continues to grow on its generics, receiving a newer generics
@@ -1520,93 +1465,780 @@ Fortran is interesting about allocating the array used in Max, using the `alloca
 keyword at the variable definition and then using `allocate` to actually allocate the
 memory for further use. `deallocate` is then called at the end to free the memory.
 
-D
+```fortran
+module generic_max
+    ! Module defines the generic max_list method
+    ! Only implementation we have today is integer, but we can add more
+    implicit none
+    interface max_list
+        module procedure max_list_int
+    end interface
+contains
+    function max_list_int(array) result(maxValue)
+        integer, dimension(:), intent(in) :: array
+        integer :: maxValue, index
 
-Pascal
+        maxValue = 0
+        do index = 1, size(array)
+            if (array(index) > maxValue) then
+                maxValue = array(index)
+            end if
+        end do
+    end function
+end module generic_max
 
-Odin
+program MaxValues
+    ! Get command line arguments into a list (or 15, 10) and use the generic max function
+    use generic_max
+    implicit none
 
-Rust
+    integer, allocatable, dimension(:) :: list
+    integer :: stat, maxValue, i, num_args
+    character(len=100) :: buffer
 
-C3
+    ! We allocate an array of integers based on arg list and use that, or default
+    num_args = command_argument_count()
+    if (num_args > 0) then
+        allocate(list(1:num_args), stat=stat)
+        do i = 1, num_args
+            call get_command_argument(i, buffer)
+            read(buffer, *) list(i)
+        end do
+    else
+        allocate(list(1:2), stat=stat)
+        list(1) = 15
+        list(2) = 10
+    end if
 
-### Lil Bit Higher Level Languages
+    maxValue = max_list(list)
+    print *, "values:"
+    print *, (list(i), i = 1, size(list))
+    print '("max: ", I0)', maxValue
 
-C# / VB / F#
+    deallocate(list, stat=stat)
+end program MaxValues
+```
 
-Java
+Pascal and Fortran look quite alike. Pascal also did not come with generics, among many
+other features it grew with time. FreePascal's implementation of generics looks a great
+deal closer to the minimal version of generics of many other languages, just wrapping the
+type in `<T>`. However, there is still also a `generic` keyword. Ultimately, Pascal's
+type system is still quite simple with moreorless standard static types. The use of
+integer values for basically everything at this point in the project simplifies it, but
+even the arrays are simple in Pascal, forgoing anything significantly interesting.
+`SetLength` grows the array to the size wanted and then the elements are inserted in index.
 
-Haxe
+```pascal
+generic function max<T>(values : array of T) : T;
+    var
+        current : T;
+        i : integer;
+begin
+    current := values[0];
+    for i := Low(values) to High(values) do begin
+        if values[i] > current then begin
+            current := values[i];
+        end;
+    end;
+    Result := current;
+end;
+```
 
-Go
+Zig has an amazingly simple take on generics by just using parameters marked as `comptime`.
+This is not a particularly bad solution, and it ends up looking quite elegant. Many things
+about Zig look quite elegant once the allocator becomes more than just an annoying bulk to
+the code. The allocator is directly used to grow the list of values for max and then free
+it via a `defer` statement.
 
-V
+Zig also offers optional types, keeping null values only to those marked with the familiar
+`?` prior to the typename, `?T`. A similar syntax with `!` is used to mark possible error
+returns, replacing exceptions from other languages. Zig does not have all the OOP baggage
+of C++ but gets by with a pretty modern syntax with just structs and the like.
 
-Swift
+```zig
+fn max(comptime T: type, values: std.ArrayList(T)) T {
+    var current: T = values.items[0];
+    for (values.items) |value| {
+        if (value > current) {
+            current = value;
+        }
+    }
+    return current;
+}
 
-Mojo
+pub fn main(init: std.process.Init) !void {
+    var gpa = std.heap.DebugAllocator(.{}){};
+    const allocator = gpa.allocator();
+    defer _ = gpa.deinit();
 
-Nim
+    var args = try init.minimal.args.iterateAllocator(allocator);
+    defer args.deinit();
+    _ = args.next();
+
+    var values: std.ArrayList(i32) = .empty;
+    defer values.deinit(allocator);
+
+    var arg_len: i32 = 0;
+    while (args.next()) |arg| {
+        arg_len += 1;
+        const t = std.fmt.parseInt(i32, arg, 10) catch 0;
+        try values.append(allocator, t);
+    }
+    if (arg_len < 1) {
+        try values.append(allocator, 15);
+        try values.append(allocator, 10);
+    }
+
+    const maximum = max(i32, values);
+
+    std.debug.print("values: {any}\nmax: {}\n", 
+        .{ values.items, maximum });
+}
+```
+
+Odin is another new langauge to this project at this point. It has a C style static type
+system with some strong hints towards Pascal. There are several things that make life a
+bit easier in it. Although this project has no major use of floating point numbers and
+other types worth extending to advanced types, Odin provides quite a tools, including
+types, to help with some advanced more mathy works. The generics are some of the easiest
+to use, fitting into the whole `parametric polymorphism` stuff in discussion on the
+language site. It adds a `$` before the generic type. This can be extended to both structs
+and procedures, and since Odin does not have classes, that is well enough. Odin does allow
+the programmer to define a new distinct type based on an existing type, and marking it
+distinct such that its values are not allowed to cross, even with the original type and
+others made from it. This allows the same internal values to be represented as different,
+distinct types in the code.
+
+Odin uses manual memory management. Fortunately, for arrays, this is just simple in Odin.
+The `defer` keyword, like Zig, makes programming quite pleasant. Sometimes, these kinds of
+`defer` break up the linearity of code, which is perhaps a significant downside to the
+concept, depending on how one feels about code being easy to read linearly vs data centric.
+
+```odin
+max :: proc(values: []$T) -> T {
+    current := values[0]
+    for i in 0..<len(values) {
+        if values[i] > current {
+            current = values[i]
+        }
+    }
+    return current
+}
+
+// The main entry point to the application
+main :: proc() {
+    args: [dynamic]int
+    defer delete(args)
+    
+    for i in 1..<len(os.args) {
+        val, ok := strconv.parse_int(os.args[i]);
+        if ok {
+            append(&args, val)
+        }
+    }
+    if (len(os.args) < 2) {
+        append(&args, 15, 10)
+    }
+    maxvalue := max(args[:])
+
+    fmt.println(args, "\ngcd: ", maxvalue)
+}
+```
+
+The remaining languages in this category are Rust, D, and C3. C3 is a new one for this.
+All three get placed quite often in a kind of "successor to C/C++" kind of space, although
+they do have significant differences.
+
+D is unapologetically OOP and kind of comes with the kitchen sink. It was not even
+originally named D, but since the guy who wrote the compiler was heavily involved in early
+C and C++ compilers, his community named his language D for him, instead of Mars or
+something like that. It avoids the ugliness of having the kitchen sink that C++ quickly
+became, perhaps learning from that C/C++ compiler background. It is also a garbage
+collected language, unlike its predecessors. The garbage collected aspect could maybe
+put this into a later group in this writing, but the systems focus it often has as well
+as the higher level concept implementations rather straddles the line of plaacement.
+
+Rust and C3 choose different ways of improving on C without going to OOP. C3 is somewhat
+simpler, tightening and easening the use of C, basically. It feels a bit like C and even
+has manual memory management of the arrays. Rust adds things like traits and several
+other items that can help extend the type system. The `Vec<_>` type in Rust is a bit
+easier in terms of the memory management at this point.
+
+These 3 all do have generics and they are all quite simple.
+
+```c3
+// C3
+fn Type max(List {Type} values) <Type> {
+	Type curr = values[0];
+	for (int i = 1; i < values.len(); ++i) {
+		if (values[i] > curr) {
+			curr = values[i];
+		}
+	}
+	return curr;
+}
+```
+
+### Going On With Static Languages
+
+There is not really a great way to break up the static languages, so forgive the random
+header here just to break things up. This next set of languages do feel distinctly removed
+from the still-vaguely-C-lineage. D rather straddles the line the most, verging into this
+next group more than any of these really verge into the C related space of the preceding
+group. Several C++ programmers assume C# maybe would, too, but C# largely has more in
+common with Eiffel or Python than C++ at this point.
+
+Java has been around long enough as a strongly, statically typed OOP language to have a
+point in which generics were finally added. Given that all the code is done inside of
+classes, it can be tempting to expect Java would have fallen into the everything is an
+object type, but it is able to handle native types without the OOP overhead quite well.
+The garbage collection and the `ArrayList` type also make memory management easy.
+
+Unfortunately, Java falls back into the ugly `compareTo` style instead of just allowing
+the basic `>` operator.
+
+```java
+public static <T extends Comparable<T>> T perform(List<T> values)
+{
+    T current = values.get(0);
+    for (T value : values)
+    {
+        if (value.compareTo(current) > 0)
+        {
+            current = value;
+        }
+    }
+    return current;
+}
+```
+
+Haxe is pretty similar to Java, intentionally. The generics require a `@:generic` prefix
+to the function, but otherwise look like many other languages. It *does* allow the `>`
+operator, although it does so by constraining the type to `Float`, which fits Haxe's
+somewhat odd type system. Haxe transpiles to multiple other languages as well as running
+on its own VM potentially, and the result is a kind of broad type system that mixes
+several basic ideas quite smoothly. It actually pulls in `unification` from Prolog for a
+kind of Duck typing. Getting into monomorphs and these things makes Haxe feel like a
+strange language in some ways, but it can make the language feel quite explicit as well.
+
+Go is quite a simple language at this stage as well. The type system is a pretty standard
+static typing, using a lot of `int` at this stage in the project. It uses square brackets
+for the generics, and it is a somewhat newer feature in the language than was initial
+offered. It is a pretty simple language at this point, in a positive way.
+
+```go
+func max[T cmp.Ordered](list []T) T {
+	var curr T
+	for _, value := range list {
+		if value > curr {
+			curr = value
+		}
+	}
+	return curr
+}
+```
+
+Swift necessarily ended up being positioned as a successor to Objective-C due its
+placement in the Apple ecosystem, and it offers a strong, static type system with value
+types and reference types. Generics are easily available, including constraints, making
+a max function on a generic list quite easy to program. It maintained the use of `>` in
+the code by just constraining to the `Comparable` types. Swift does more garbage
+collection, which makes it easier than a C background, but its classes are a bit more
+cohesive to the language itself than whatever Objective-C was doing trying to slap
+Smalltalk classes onto C.
+
+Mojo is basically the next language by the same creator of Swift. The same guy that gave
+the world LLVM and other projects. Mojo follows Python in a lot of syntax and basic
+structure, but its type system is generally a bit stronger. It offers some interesting
+SIMD types for use in high performance mumbo jumbo. Generics are also available, and are
+about the same ease as Swift, including the use of `>` under proper constraints.
+
+```mojo
+def max[T: Comparable & ImplicitlyCopyable](values: List[T]) raises -> T:
+    var current = values[0]
+    for value in values:
+        if value > current:
+            current = value
+    return current
+```
+
+V takes quite a bit from languages like Go, Rust, and Swift. The usual static typing with
+familiar primitives is present, but everything being immutable is the default. It
+effectively eliminates the null values, although the max implementation here just returned
+`none` with a `?T` declaration to allow it instead. "No null" is true, but it is basically
+the familiar null safety seen in other languages. Some programmers love it, as it even
+just this basic safety can save embarassing, expensive crashes and security holes. V is
+not object oriented, however, just using structs.
+
+```v
+fn max[T](values []T) ?T {
+	if values.len < 1 {
+		return none
+	}
+	mut current := values[0]
+	for value in values {
+		if value > current {
+			current = value
+		}
+	}
+	return current
+}
+```
+
+Nim looks and feels a lot like a statically typed Python at this point. Maybe a little
+bit more than other languages. Nim has typical ordinal types, along nwith structured
+types, reference types, and even pointers when really desired. Like Odin and some others,
+Nim allows creating a distinct type from another, the values not being allowed to cross.
+Nim has generics, sum types, and some powerful metaprogramming capabilities to extend
+types further.
+
+The group last on this list is the .NET languages. The long C# programmer is all too
+familiar with the value types and reference types, and how value types often get boxed
+into reference type objects for some operations--and how to avoid this for higher
+performance situations. The language allows creating value type structs, though most
+programmers just use reference type classes for most things. Recent addition of record
+classes for product types are quite powerful. F# has also long had sum types, bringing
+algebraic data types to the .NET ecosystem. C# is increasingly offering immutable-first
+language constructs, but it is default mutable, along with VB.NET; meanwhile, F# typically
+goes the functional immutable route first. VB.NET allows some later bindings than one will
+typically see in code bases of the other two. F# pioneered async/await, but C# took it in
+the all too familiar direction people speak most of today. Recent versions of C# also
+offer nullable contexts, requiring `?` on the typename for variables that may hold a null
+value. All three offer generics, although F#'s type inference often makes it nearly
+automatic without them. It looks somewhat funny when you do choose to use generics in F#;
+a little bit of a mix of Ocaml and C#.
+
+```fsharp
+let rec max_accum<'T when 'T : comparison> (list: 'T list) (max: 'T) =
+    match list with
+    | [] -> max
+    | head :: tail ->
+        max_accum tail (if head > max then head else max)
+
+let max<'T when 'T : comparison> (list: 'T list) =
+    match list with
+    | [] -> Unchecked.defaultof<'T>
+    | head :: tail ->
+        max_accum tail head
+```
 
 ### Actor Languages
 
-Pony
+Pony and Acton are 2 more new languages to this project, and in some ways, an entirely new
+paradigm of code as well. Fortunately, the paradigm has already been seen in this project
+under Erlang and Elixir--kind of forced on Gleam as well. This is the Actor model. Io also
+has an interesting take on the actor model central to the code, although it is not used as
+much as it is immediately apparent in Pony and Acton.
 
-Acton
+Actors become the primary state owners in both of these languages, interacting with the
+state held by actors via behaviors. They both offer classes and strong programming often
+used for state as well, but actors in these languages are uniquely designed and positioned
+for the task of managing state across concurrent requests.
+
+Pony is statically typed, with types including the typical primitives and object oriented
+classes, but also a new Actor type. Actors are presented much the same as classes, but
+they are given `behaviors`. Behaviors are inherently asynchronous, meaning that when they
+are called, the code inside them runs at some indeterminate point in the future instead of
+the immediate case of functions in ordinary classes. This is basically Erlang's message
+passing, and maybe makes Actors feel a little bit like Smalltalk's original concept of
+objects. Pony has both nominal and structural subtyping via traits and interfaces, though
+only interfaces can be used for structural subtyping. Nominal subtyping being the old
+`X inherits Y` being a subtype by name, and structural being closer to the old Duck typing.
+
+Pony also offers reference capabilities, which are an interesting take on memory
+management. This can have some similarities to what is going on with Rust's borrow checker
+and similar things, but at the end of the day, Pony's reference capabilities are quite
+unique to Pony. In
+[Pony's own documentation on reference capabilities](https://tutorial.ponylang.io/reference-capabilities/),
+they note, "There aren’t currently any mainstream programming languages that feature
+reference capabilities." Ultimately, this means that variables of certain types are marked
+according to what kind of access the code has to it at that moment. This creates a
+threadsafe lock over the data, allowing code to define when it will have access that
+allows only it to read, or allows it to read perhaps along with others, from some variable.
+Programmers with a long history of messing with mutexes and semaphores in concurrent code
+will immediately find Pony's reference capabilities natural and powerful. It can be
+difficult to explain to other programmers. The use of `val` and `recover` in this code is
+actively using the reference capabilities in this language.
+
+```pony
+// The printer actor, used to find the max and print it to the screen
+actor Printer[T : Integer[T] val]
+    be printmax(env: Env, values: Array[T] val) =>
+        let maxval = try max(values)? else I64(0) end
+        for value in values.values() do
+            env.out.write(value.string() + " ")
+        end
+        env.out.print("\nmax: " + maxval.string())
+
+    // The max algorithm
+    fun max(values: Array[T] val): T? =>
+        var curr = values(0)?
+        for value in values.values() do
+            if value > curr then
+                curr = value
+            end
+        end
+        curr
+
+// The main actor, gets the command line arguments and sends the values to a Printer
+actor Main
+    new create(env: Env) =>
+        let printer = Printer[I64]
+        let values: Array[I64] val = recover val
+            let arr: Array[I64] = []
+            for arg in env.args.slice(1).values() do
+                try arr.push(arg.i64()?) end
+            end
+            if arr.size() < 1 then
+                arr.push(15)
+                arr.push(10)
+            end
+            arr
+        end
+
+        printer.printmax(env, values)
+```
+
+Acton feels like Python with actors. This writeup is far from the first one to say it. The
+language is statically typed, unlike Python, but it remains garbage collected and able
+to use type inference to make it continue feeling a lot like Python's dynamic types. Acton
+adding actors to the type system centers a kind of concurrency to the language, and in
+fact, Acton no longer ends just because the end of `main` is reached. The application
+continues as long as actors are alive, and actors stay alive as long as someone has a
+reference to it. This requires an explicit env.exit(0) that suddenly feels a bit more
+important than other languages.
+
+```acton
+def mymax[T(Ord)](inlist: list[T]) -> T:
+    curr = inlist[0]
+    for item in inlist:
+        if item > curr:
+            curr = item
+    return curr
+
+# Actor used to calculate the maximum value in a list
+actor Calculator(printer: Printer):
+    def doMax(inlist):
+        curr = mymax(inlist)
+        await async printer.printMax(inlist, curr)
+
+# Actor used to print a list and its maximum value
+actor Printer():
+    def printMax(inlist, max):
+        print(f"{inlist}\nmax: {max}")
+
+# An actor named 'main' is automatically discovered and recognized as the root actor.
+actor main(env):
+    printer = Printer()
+    calc = Calculator(printer)
+
+    values = []
+    didFirst = False
+    for arg in env.argv:
+        if didFirst:
+            values.append(int(arg))
+        didFirst = True
+
+    if len(values) < 1:
+        values.append(15)
+        values.append(10)
+
+    await async calc.doMax(values)
+
+    env.exit(0)
+```
 
 ### Static Functional Languages
 
-Gleam
+This project has so far somewhat forced the actor model onto Gleam via the Erlang OTP,
+being that it runs on the BEAM VM and all. This has often felt entirely unnatural and
+Gleam probably should have been treated more like a statically typed functional language
+of its own interest than a statically typed Erlang. Gleam really is its own language in
+this regard. That said, the twisting Gleam into Erlang's model does further highlight some
+of Gleam's type system.
 
-Haskell
+Most of the time, Gleam uses type inference for everything, so it can feel quite dynamic,
+though the compiler strictly checks it. This has been seen with e.g. Kit. Gleam also does
+enable the use of generics for strongly typed but polymorphic code. Unfortunately, the
+generic version of max ends up having a function passed in to perform the greater than
+operation, as if staring back at C through the VM and all. Gleam does offer algebraic data
+types and prevents null values from showing up anywhere. The use of `Result` instead of
+exceptions also makes a show in the max function, mixed with a generic return type.
 
-Idris2
+```gleam
+pub fn max(list: List(a), greater_than: fn(a, a) -> Bool) -> Result(a, Nil) {
+    case list {
+        [] -> Error(Nil)
+        [head, ..rest] ->
+            Ok(list.fold(rest, head, fn(current, value) {
+                case greater_than(value, current) {
+                    True -> value
+                    False -> current
+                }
+            }))
+    }
+}
+```
 
-Mercury
+Mercury is another one that might take some extra appreciation at this stage. Up to this
+point, it has often just seemed like another functional language, maybe a little
+syntactically like Prolog. And in fact, it is a strongly typed prolog! Gone are the
+worries about unification, however, because a strong, static typing takes its place. No
+longer is everything a `term`, although that thinking might still help chew through the
+prolog-y syntax. Generics, or in the academic sounding functional style parametric
+polymorphism, are kinda just obvious. The determinism checks in Mercury make a bit more
+sense under the strong, static typing as well.
 
-Ocaml
+```mercury
+:- interface.
+:- pred max_list(list(T)::in, T::out) is semidet.
+
+:- implementation.
+:- pred max_list_accum(list(T)::in, T::in, T::out) is det.
+
+max_list([], _) :-
+    fail.
+max_list([H | T], Max) :-
+    max_list_accum(T, H, Max).
+
+max_list_accum([], Max, Max).
+max_list_accum([H|T], TempMax, Max) :-
+    compare(CompResult, H, TempMax),
+    ( if CompResult = (>) then
+        max_list_accum(T, H, Max)
+    else
+        max_list_accum(T, TempMax, Max)
+    ).
+```
+
+Ocaml is another one with the strong, static typing that feels amazingly dynamic thanks
+to that Hinhin-Moomoo... Hindley-Milner type inference. Of course, it comes from that ML
+background, so it brings in generics as well. These look basically like the later F#'s,
+making it maybe clear where F# got the syntax from. Ocaml has algebraic data types and
+a whole, fun object-oriented model that programmers can get into. The code at this point
+of this project is pretty simple, short, and sweet. Notably, Ocaml joins the ranks that
+nulls do not exist, instead using `option` and similar constructs to represent failing
+results as needed.
+
+```ocaml
+let rec max_list_accum (list : 'a list) (max : 'a) : 'a =
+  match list with
+  | [] -> max
+  | head :: tail ->
+    max_list_accum tail (if head > max then head else max);;
+
+let rec max_list (list : 'a list) : 'a option =
+  match list with
+  | [] -> None
+  | head :: tail -> Some (max_list_accum tail head);;
+```
+
+Haskell is a beautiful language for a type theory enthusiast. What more is there to say?
+It, too, has all the things. The hooboo-moowoo errrrrrr Hindley-Milner inference shows up
+again, but the programmer can also spend some time expressing lambda calculus style
+type expressions as well. There are algebraic data types, parametric polymorphism, type
+classes and kinds, and higher-kinded types for **move on if you're scared of category theory**
+monads and functors.
+
+```haskell
+max_list :: Ord a => [a] -> Maybe a
+max_list [] = Nothing
+max_list (x : xs) = Just (reduce_max xs x)
+    where
+        reduce_max [] max = max
+        reduce_max (x : xs) max
+            | x > max = reduce_max xs x
+            | otherwise = reduce_max xs max
+
+argsAsInts :: [String] -> (Maybe [Integer])
+-- ...
+
+-- | some other example to make a point
+years :: Integer -> Integer -> [Integer]
+```
+
+And then Idris2 treats types as first class members of the language, such that you can
+have types that depend on values. This is not so far off from the template foo some have
+done with template metaprogramming and the like, but Idris2 wants to take it a bit more
+direct into the language itself. From Idris2's own documentation, a signature for an app
+that concatenates 2 vectors, where n and m are the size of the original vectors:
+
+```idris
+app : Vect n a -> Vect m a -> Vect (n + m) a
+```
+
+Anyway. In the current project, the parametric polymorphism is used for generics, looking
+basically the same as Haskell. The language is largely geared toward Haskell and Ocaml
+users. It is statically typed inside of that mad types as first class members stuff, and
+has the Maybe types and all from Haskell.
 
 ## Dynamic but Strong
 
+Speaking of languages with perhaps more intense type systems that let you do a lot with
+them, there is Julia.
+
 Julia's central use of multiple dispatch is interesting because writing a function without
 a specified type will just use multiple dispatch to call further functions and so on for
-the type of the value.
+the type of the value. This is a kind of polymorphism not unrelated to generics. Although
+it is a dynamic language in that variables are not typed, it is the first in this writing
+that approaches this while maintaining strong typing of values. Functions can even be
+defined with versions specific to types, such that it looks an awful lot like a statically
+typed language, if desired. With multiple dispatch, this all just feels natural in Julia.
 
-Icon
+Julia is not really object oriented, in the sense that `composite` types are closer to
+structs or records in other languages. However, even the numeric types follow a strict
+hierarchy, from `Any` to `Number` to `Real`, on to `Integer` and finally `Int64`, for
+example. `Int64` in this particular tree would be called `concrete` while all the others
+are `abstract` types. Concrete types cannot be subtyped, but abstract types can in Julia.
+In terms of concrete types, those like `Int64` are considered primitive types, being made
+of only plain old bits of N size. Julia allows programmers to define additional primitive
+types such as `primitive type In64 <: Signed 64 end` with the bit length and signature.
+Composite types are default immutable, and must be defined `mutable` otherwise.
 
-Lua
+Interestingly, composite types can be `parametric`, with a type parameter, quite like the
+generics of all the previously mentioned static languages. This can include constraints
+just like many of the statically typed language generics. With composition, this can make
+Julia feel just as OOP as many other languages, even if it really is missing the major
+points pushing into "true" OOP. Of course, any language with structures like composite
+types can use OOP style code organization, though it can feel quite natural in Julia due
+to the involved type system.
 
-Erlang
+Another interesting point about Julia is that this version of the code is written in a
+very procedural way, but Julia also has a code as data perspective. For example, the
+if here could be written as `current = if current < value; value; else current end`. In
+this case, this other form feels a bit more verbose than the procedural form, but they
+have the same outcome. `return` is also optional, as the value of the last expression will
+be the return of a function in Julia. Quoting code in an Expression also allows
+manipulating it as data, although that is not used at all here.
 
-Elixir
+[Julia's type system](https://docs.julialang.org/en/v1/manual/types/) is quite extensive
+and thought through. If one enjoys the academic history of Modula-3 writing papers on the
+type system there, Julia won't disappoint with documentation focused on its type system.
+This can make it quite involved, but it is probably one of the more powerful type systems,
+in pure discussion of what can be done just with type system concepts in the language.
+That it does this without even really becoming OOP is quite notable and honestly quite
+impressive.
 
-Clojure
+```julia
+function max(values::Vector{T}) where T <: Number
+    current = zero(T)
+    for value in values
+        if current < value
+            current = value
+        end
+    end
+    return current
+end
+```
 
-Scheme
+Most of the other languages that follow some kind of strongly typed values and weakly
+typed variables are quite a bit simpler to wrap one's mind around. Nothing quite like the
+parametric polymorphism shows up in the remaining languages, simply relying on the
+inherently dynamic nature of variables themselves to solve the problem.
 
-Racket
+Icon and Lua are remakarkably similar, even using the `local` keyword. The dynamic typing
+and automatic memory management make both of them quite simple and suitable for embedded
+forms in other applications, which both have been used for. They are pleasant languages to
+program in, their simplicity aiding the pleasantry for the programmer.
 
-Rhombus
+```icon
+procedure max(values)
+    local curr, value
+    curr := 0
+    every value := !values do {
+        if value > curr then {
+            curr := value
+        }
+    }
+    return curr
+end
+```
+
+Erlang and Elixir both end up looking nearly identical for this point in the code,
+with only previously discussed syntax differences really continuing to shine. Some modern
+versions of Elixir are adding a set-theoretic gradual typing system, which can be really
+nice. This places Elixir somewhere between Erlang and Gleam on the typing over BEAM VM
+at this point. Elixir focuses heavily on soundness of the typing, even when dynamic.
+
+```elixir
+  def max_list([]), do: 0
+  def max_list([head | tail]), do: max_list(tail, head)
+  def max_list([], curr), do: curr
+  def max_list([head | tail], curr) when head > curr, do: max_list(tail, head)
+  def max_list([_ | tail], curr), do: max_list(tail, curr)
+```
+
+Lisps (and rhombus) close out this section of languages that carry a strong typing of
+values but weak typing of variables. None of these follow the Common Lisp route, often
+favoring a functional approach instead. Clojure sits on the JVM and takes advantage of
+Java style typing under the hood but favors simple values and functions. Scheme and Racket,
+which began life as a scheme variant but has grown off on its own, likewise follows the
+generally values and functions approach as well. Rhombus has some interesting additions to
+its Racket heritage, and both being "programmable programming languages" can make their
+typing a bit more interesting for the interested programmer.
+
+```rhombus
+fun max_of(list):
+    def mutable curr = 0;
+    for:
+        each item in list
+        let newCurr:
+            if item > curr
+            | item
+            | curr;
+        curr := newCurr;
+    curr;
+```
 
 ## Dynamic and weak
 
-PHP
+Somehow, only PHP and Javascript really have notably "weak" type system, of all the
+languages in this project. PHP really does have a sort of opt-in gradual type system
+including atomic types as well as user defined types and composite intersection and union
+types. Types are automatically converted whenever some operation between two types are
+done, and the programmer ultimately has to have some awareness of exactly how this is done,
+especially if performance is ever a concern. Of course, this is all true for JavaScript as
+well, and JS is notorious for being just completely bizarre about it sometimes. What will
+the result of adding a number and a string together? Well, it depends.
 
-Typescript / JS
+Typescript was not included in the static languages above because it really just adds
+a stronger static typing on to JS's existing dynamic typing. This can help at compile time,
+but when the code is run, it is ultimately JS, with all the runtime negatives (and perhaps
+positives) of JS's type system.
+
+```php
+function max_list($list) {
+    $current = 0;
+    foreach ($list as $value) {
+        if ($value > $current) {
+            $current = $value;
+        }
+    }
+    return $current;
+}
+```
 
 ## When Types Got Weird
 
 A couple of statically typed languages continue to stand out as too weird to not have
-their own section. PL/I is one of the newest additions to this project and also brings
-in a type system where integers are often defined as fixed by digit size. COBOL does the
-same and also adds in strong but complex notions of tables and quite specfically
-structured data. Even representing a boolean value in COBOL can mean constructing a table
-capable of representing the two values and setting the true or false value within the
-table. This will show up in future code and does not here, but this is truly where the
-type systems just get weird relative to basically every other language, even assembly.
+their own section. These did not really seem to fit in anywhere else. Although they are
+statically typed and thus being here at the end with the dynamically typed languages
+between them might be a bit odd, they both just structure their types completely different
+from other languages, supposedly focused on how business people think more than how a math
+or CS person might ordinarily think. It seems that dynamic languages have come to serve
+this purpose better, and even some of them are adding gradual typing with types closer to
+the C style int, float, bool, etc.
+
+PL/I is one of the newest additions to this project and also brings in a type system where
+integers are often defined as fixed by digit size. COBOL does the same and also adds in
+strong but complex notions of tables and quite specfically structured data. Even
+representing a boolean value in COBOL can mean constructing a table capable of
+representing the two values and setting the true or false value within the table. This
+will show up in future code and does not here, but this is truly where the type systems
+just get weird relative to basically every other language, even assembly.
 
 PL/I is the only language except for assembly that the actual command line string had to
-be parsed. And Assembly only required this on Windows. This is s
+be parsed. And Assembly only required this on Windows. This is unfortunate for PL/I.
 
 ```pl/i
  max: procedure(args) options (main);
@@ -1658,4 +2290,96 @@ be parsed. And Assembly only required this on Windows. This is s
 
 ## Some Aesthetic Ramblings
 
+There really is something to be said for languages that can say a lot of ideas in a little
+bit of text in a single file. Many languages shined at even demonstrating forms of
+parametric polymorphism while keeping code incredibly brief and immediately present. Many
+languages utterly failed at such a task. Modula-3 required 6 additional files. Although
+not particularly large in any singular case, the outcome feels incredibly difficult and
+kind of ugly compared to the small and succint ones.
+
+Is shorter code always better? Perhaps rhombus challenges this, offering a quite
+beautiful, dynamically typed implementation of the max algorithm in a form that is not
+quite as small and succinct as its Racket cousin but in some ways have a beauty the racket
+one lacks, if only because of originality in style. Frankly, the `if` with `|` casing
+underneath, reminiscent of expression matching in some completely other functional
+languages just gives it an original, kind of funky, beautiful feel of its own that the
+shorter lisps just do not quite get for this function.
+
+This writing has largely focused on exploring the type systems of all these languages and
+what they offer for the programming experience, but there is something deeply aesthetic to
+a lot of this as well. `int` versus `i32` stands at an interesting point, for example.
+Certainly, `i32` carries more information, but there is something comfortable and pleasing
+about simply `int` or even a longer `integer` as some languages require. Not that `i32`
+does not have an aesthetic interest of its own.
+
+Furthermore, the differences between a hierarchical tree of subtypes like many OOP
+languages vs the likes of Common Lisp's lattices, these result in different aesthetics of
+code. It was noted in a prior writing in this project that a lot of the OOP languages who
+continued a C/C++ curly bracket style have a distinctly hierarchical feel to the code, and
+it is sometimes interesting that the type systems can have different hierarchical vs
+lattice vs other structure to them, impacting the code organization in these more vs less
+hierarchal formats.
+
+Aside from size, there is an amazing diversity of what look and feel is used to achieve
+generics and parametric polymorphism. Many follow the angle brackets around type
+definitions, but square brackets and parenthesis both show up. And then there is Zig's
+comptime parameter that it just looks like another parameter in a function. Constraining
+polymorphic type parameters is also wildly diverse, with many providing a kind of
+inheritance syntax within the polymorphic definition, and others such as C# requiring an
+extra `where` clause or the like added onto the definition. In some ways, they can
+capture a kind of beauty to code, avoiding excessive re-statement, and in some cases,
+it is just syntactical sugar to enforce the multiple re-statements anyway.
+
+The requirement of additional compare functions showed the absolute ugly side of many
+implementations of parametric polymorphism. Modula-3 probably showed this the worst with
+the exhaustive interface files just to get there. C stands alongside it. But even without
+having to specify all of this, even Gleam ended up using a comparison function parameter,
+and a lot of languages used some interface's `compare` method instead of the nice and
+easily readable `>` operator.
+
+APL, though. I guess it's not brainfuck.
+
+Ultimately, sometimes aesthetics matter less in code than making code that works well.
+Many of us like to try to find the common ground, as highly performant and well working,
+maintainable code often can have a beauty to it. The use of something like parametric
+polymorphism / generics can be a double edged sword, adding some beauty to the code when
+used well. Sometimes, like in many examples of this Max algorithm, it overwhelms what
+could have been otherwise beautiful code and makes it kind of ugly. And not always with
+any actual advantages to anyone who has to use it.
+
 ## Conclusion
+
+At the end of the day, Max is just a very simple method. Some of the most interesting
+points about the algorithm itself are wrapped up in how the memory for the array of values
+is to be stored. In assembly, we just used the closest available stack mechanism on each
+platform and called it good. It was sufficient for this purpose, although it quickly
+becomes apparent that maybe something other than the stack should be considered for
+anything larger than this simple sample algorithm. Other languages used well defined
+allocators, or just the old `malloc`/`free` or standard `allocate`/`deallocate` keywords.
+And finally, several languages just used a garbage collector or some kind of standard
+managed type structure to erase the immediate memory management concerns.
+
+Tcl perhaps more than others showed that even when memory is garbage collected and
+managed, a strong programmer is often forced to think about how memory is being managed
+by the underlying system, and code according to that underlying mechanism anyway. It is
+far from the only language where this is true, of course, as critique of `malloc` in favor
+of custom arena allocators or the like in common use also shows. Meaning such concerns go
+from the low level assembly to the high level interpreted languages, without skipping much
+of a beat anywhere in the middle.
+
+Type systems overwhelmed the discussion, even of memory management, throughout this whole
+writing, of course. From a basis of just sized data, language designers have raided the
+depths of type theory and innovated in their own new directions. From everything being one
+base type, expanded into particulars, to Julia's self-defined primitives or Pony's
+reference capabilities, the type systems that are available to programmers across different
+languages are truly remarkable for diversity in form and strengths.
+
+Several new languages were also added between this and the prior writing. Some of them
+offer entirely new paradigms, while others expand on previous languages in new ways. Pony,
+Acton, and Io expand the use of the actor model. APL, J, and Q'Nial brought in array
+programming in a stronger showing than Octave and R previously suggested. Self also stands
+out in expanding Smalltalk with prototype based objects, and also in being one of the most
+difficult to get up and running with. Meanwhile PL/I makes COBOL feel a little bit less
+lonely in the oddly business-oriented and not quite fitting anywhere else style language.
+The project will be a little bit harder with now 76 languages, but it also provides many
+new insights into what is being said in software code.

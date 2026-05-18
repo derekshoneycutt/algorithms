@@ -21,6 +21,8 @@ max :: proc(values: []$T) -> T {
 // The main entry point to the application
 main :: proc() {
     args: [dynamic]int
+    defer delete(args)
+    
     for i in 1..<len(os.args) {
         val, ok := strconv.parse_int(os.args[i]);
         if ok {

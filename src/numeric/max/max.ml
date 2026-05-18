@@ -1,17 +1,17 @@
 (* Get the maximum value from a list of integers *)
 
 (* Helper function to find the maximum value in a list with an initial state *)
-let rec max_list_state (list : 'a list) (max : 'a) : 'a =
+let rec max_list_accum (list : 'a list) (max : 'a) : 'a =
   match list with
   | [] -> max
   | head :: tail ->
-    max_list_state tail (if head > max then head else max);;
+    max_list_accum tail (if head > max then head else max);;
 
 (* Find the maximum value in a list *)
 let rec max_list (list : 'a list) : 'a option =
   match list with
   | [] -> None
-  | head :: tail -> Some (max_list_state tail head);;
+  | head :: tail -> Some (max_list_accum tail head);;
 
 (* Convert command line arguments to a list of integers, or use a default list *)
 let argsAsInts default =

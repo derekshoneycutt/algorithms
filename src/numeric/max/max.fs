@@ -8,11 +8,11 @@
 /// <param name="list">The list of integers to find the maximum value for</param>
 /// <param name="max">The current maximum value</param>
 /// <returns>The maximum value in the list</returns>
-let rec max_state<'T when 'T : comparison> (list: 'T list) (max: 'T) =
+let rec max_accum<'T when 'T : comparison> (list: 'T list) (max: 'T) =
     match list with
     | [] -> max
     | head :: tail ->
-        max_state tail (if head > max then head else max)
+        max_accum tail (if head > max then head else max)
 
 /// <summary>
 /// Get the maximum value of a list
@@ -23,7 +23,7 @@ let max<'T when 'T : comparison> (list: 'T list) =
     match list with
     | [] -> Unchecked.defaultof<'T>
     | head :: tail ->
-        max_state tail head
+        max_accum tail head
 
 // Type definition for the messages we will be sending to the mailbox process,
 // including a reply channel to wait for responses on

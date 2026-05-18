@@ -14,8 +14,9 @@ program max;
     begin
         current := values[0];
         for i := Low(values) to High(values) do begin
-            if values[i] > current then
+            if values[i] > current then begin
                 current := values[i];
+            end;
         end;
         Result := current;
     end;
