@@ -29,7 +29,7 @@ to continue the foundational discussion, constructing the language about how I c
 about these languages, so focusing on the type system and beginning quirks of memory
 management and the like is probably more important than the algorithm itself.
 
-At Euclid's GCD, we were at some 55 languages are something. At the writing of this point
+At Euclid's GCD, we were at some 55 languages or something. At the writing of this point
 in Max, I am at some 76 languages and dialects. This was largley sparked because I kept
 running into wanting to add more important language classes. APL, J, and Q'Nial offer an
 entire new class of array-oriented programming languages that really are different from
@@ -77,8 +77,8 @@ studying type theory in lambda calculus based on Alonzo Church's work, into Bare
 and his students, during my undergrad in mathematics. In order to write this particular
 setup, I also spent time reading about the type system in each language. Some of this has
 whole academic background in Hindley-Milner type inference and yada yada yada nobody, even
-most software engineers, have a single clue who Hindley or Milner are, let alone Barendregt
-and Church, and most do not actually give a single horse's ass.
+most software engineers, have a single clue who Hindley or Milner are, and most do not
+actually give a single horse's ass.
 
 ## F*** Type Systems
 
@@ -119,8 +119,6 @@ Does Forth even have a type system under its stack of word-sized cells?
     repeat
     drop ;
 ```
-
-If the words don't immediately escape the memory.
 
 Forth does have a type system. It does have a syntax. But if any language tries to kick
 these entire concepts out, it is Forth. It is ultimately functional in a way immediately
@@ -1349,7 +1347,7 @@ The use of `std::input_iterator` in the template on C++ here is quite ugly relat
 well... every other language. In some ways, this feels like a step back for readability,
 and kind of an abomination. C++'s entire OOP type system gets to feel incredibly like this
 after just a short use. While being extremely influential on many, it kind of permanently
-carries the weight of trying to be everything without just doing anything simple. That at
+carries the weight of trying to be everything without just doing anything simple. But at
 least the iterator dereferencing--which does not feel or look any different than pointer
 dereferencing at the end of the day--allows the use of the `>` operator naturally. It
 mostly just feels like explicit wrapping of C's pointer style while still having the
