@@ -58,6 +58,46 @@
         "icon": "$(close)"
       },
       {
+        "command": "algos.algorithmsTreeView.createFolder",
+        "title": "Create Folder",
+        "icon": "$(new-folder)"
+      },
+      {
+        "command": "algos.algorithmsTreeView.createFolderInCategory",
+        "title": "Create Folder",
+        "icon": "$(new-folder)"
+      },
+      {
+        "command": "algos.algorithmsTreeView.deleteCategory",
+        "title": "Delete Folder",
+        "icon": "$(trash)"
+      },
+      {
+        "command": "algos.algorithmsTreeView.createFileInAlgorithm",
+        "title": "New File",
+        "icon": "$(new-file)"
+      },
+      {
+        "command": "algos.algorithmsTreeView.deleteAlgorithm",
+        "title": "Delete Folder",
+        "icon": "$(trash)"
+      },
+      {
+        "command": "algos.algorithmsTreeView.deleteImplementationFile",
+        "title": "Delete File",
+        "icon": "$(trash)"
+      },
+      {
+        "command": "algos.algorithmsTreeView.createDocsFile",
+        "title": "New File",
+        "icon": "$(new-file)"
+      },
+      {
+        "command": "algos.algorithmsTreeView.deleteDocsFile",
+        "title": "Delete File",
+        "icon": "$(trash)"
+      },
+      {
         "command": "algos.stdlibTreeView.createFolder",
         "title": "Create Folder",
         "icon": "$(new-folder)"
@@ -80,6 +120,11 @@
     ],
     "menus": {
       "view/title": [
+        {
+          "command": "algos.algorithmsTreeView.createFolder",
+          "when": "view == algos.algorithmsTreeView",
+          "group": "navigation@1"
+        },
         {
           "command": "algos.algorithmsTreeView.setLanguageView",
           "when": "view == algos.algorithmsTreeView && algos.algorithmsTreeView.mode != 'language'",
@@ -108,13 +153,73 @@
       ],
       "view/item/context": [
         {
+          "command": "algos.algorithmsTreeView.createFileInAlgorithm",
+          "when": "view == algos.algorithmsTreeView && viewItem == algorithmImplementationMissingUnflagged",
+          "group": "inline@9"
+        },
+        {
+          "command": "algos.algorithmsTreeView.createFileInAlgorithm",
+          "when": "view == algos.algorithmsTreeView && viewItem == algorithmImplementationMissingFlagged",
+          "group": "inline@9"
+        },
+        {
           "command": "algos.algorithmsTreeView.flagImplementation",
           "when": "view == algos.algorithmsTreeView && viewItem == algorithmImplementationUnflagged",
           "group": "inline@10"
         },
         {
+          "command": "algos.algorithmsTreeView.flagImplementation",
+          "when": "view == algos.algorithmsTreeView && viewItem == algorithmImplementationMissingUnflagged",
+          "group": "inline@10"
+        },
+        {
           "command": "algos.algorithmsTreeView.unflagImplementation",
           "when": "view == algos.algorithmsTreeView && viewItem == algorithmImplementationFlagged",
+          "group": "inline@10"
+        },
+        {
+          "command": "algos.algorithmsTreeView.unflagImplementation",
+          "when": "view == algos.algorithmsTreeView && viewItem == algorithmImplementationMissingFlagged",
+          "group": "inline@10"
+        },
+        {
+          "command": "algos.algorithmsTreeView.deleteImplementationFile",
+          "when": "view == algos.algorithmsTreeView && viewItem == algorithmImplementationUnflagged",
+          "group": "inline@11"
+        },
+        {
+          "command": "algos.algorithmsTreeView.deleteImplementationFile",
+          "when": "view == algos.algorithmsTreeView && viewItem == algorithmImplementationFlagged",
+          "group": "inline@11"
+        },
+        {
+          "command": "algos.algorithmsTreeView.createDocsFile",
+          "when": "view == algos.algorithmsTreeView && viewItem == algorithmDocs",
+          "group": "inline@9"
+        },
+        {
+          "command": "algos.algorithmsTreeView.deleteDocsFile",
+          "when": "view == algos.algorithmsTreeView && viewItem == algorithmDocsFile",
+          "group": "inline@10"
+        },
+        {
+          "command": "algos.algorithmsTreeView.createFolderInCategory",
+          "when": "view == algos.algorithmsTreeView && viewItem == algorithmCategory",
+          "group": "inline@9"
+        },
+        {
+          "command": "algos.algorithmsTreeView.deleteCategory",
+          "when": "view == algos.algorithmsTreeView && viewItem == algorithmCategory",
+          "group": "inline@10"
+        },
+        {
+          "command": "algos.algorithmsTreeView.createFileInAlgorithm",
+          "when": "view == algos.algorithmsTreeView && viewItem == algorithmFolder",
+          "group": "inline@9"
+        },
+        {
+          "command": "algos.algorithmsTreeView.deleteAlgorithm",
+          "when": "view == algos.algorithmsTreeView && viewItem == algorithmFolder",
           "group": "inline@10"
         },
         {

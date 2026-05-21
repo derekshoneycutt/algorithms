@@ -13,6 +13,12 @@ export const zeroCountLanguageFragment = "zero-language-count";
 export const flaggedImplementationFragment = "flagged-implementation";
 export const implementationItemContextValueUnflagged = "algorithmImplementationUnflagged";
 export const implementationItemContextValueFlagged = "algorithmImplementationFlagged";
+export const implementationItemContextValueMissingUnflagged = "algorithmImplementationMissingUnflagged";
+export const implementationItemContextValueMissingFlagged = "algorithmImplementationMissingFlagged";
+export const docsImplementationItemContextValue = "algorithmDocs";
+export const docsFileItemContextValue = "algorithmDocsFile";
+export const algorithmCategoryItemContextValue = "algorithmCategory";
+export const algorithmFolderItemContextValue = "algorithmFolder";
 
 export type AlgorithmImplementationViewMode = "language" | "file";
 export type AlgorithmImplementationFilterMode = "all" | "problem";
@@ -261,13 +267,16 @@ export class AlgorithmsTreeDataProvider implements vscode.TreeDataProvider<Algor
       }))).filter((entry) => entry.hasVisibleAlgorithms).map((entry) => entry.category)
       : categories;
 
-    return visibleCategories.map(
-      (category) => new AlgorithmTreeItem(
+    return visibleCategories.map((category) => {
+      const item = new AlgorithmTreeItem(
         category.displayName,
         category.directoryPath,
         vscode.TreeItemCollapsibleState.Collapsed,
         category,
-      ));
+      );
+      item.contextValue = algorithmCategoryItemContextValue;
+      return item;
+    });
   }
 
   /**
@@ -288,14 +297,17 @@ export class AlgorithmsTreeDataProvider implements vscode.TreeDataProvider<Algor
       }))).filter((entry) => entry.hasVisibleImplementations).map((entry) => entry.algorithm)
       : algorithms;
 
-    return visibleAlgorithms.map(
-      (algorithm) => new AlgorithmTreeItem(
+    return visibleAlgorithms.map((algorithm) => {
+      const item = new AlgorithmTreeItem(
         algorithm.displayName,
         algorithm.directoryPath,
         vscode.TreeItemCollapsibleState.Collapsed,
         category,
         algorithm,
-      ));
+      );
+      item.contextValue = algorithmFolderItemContextValue;
+      return item;
+    });
   }
 
   /**
@@ -392,10 +404,23 @@ export class AlgorithmsTreeDataProvider implements vscode.TreeDataProvider<Algor
       fileCount,
     );
 
-    if (implementation.languageKey !== docsImplementationKey) {
-      item.contextValue = implementation.isFlagged
-        ? implementationItemContextValueFlagged
-        : implementationItemContextValueUnflagged;
+    if (implementation.languageKey === docsImplementationKey) {
+      item.contextValue = docsImplementationItemContextValue;
+    }
+    else {
+      const isMissingInLanguageView = this.implementationViewMode === "language"
+        && !implementation.hasImplementation;
+
+      if (isMissingInLanguageView) {
+        item.contextValue = implementation.isFlagged
+          ? implementationItemContextValueMissingFlagged
+          : implementationItemContextValueMissingUnflagged;
+      }
+      else {
+        item.contextValue = implementation.isFlagged
+          ? implementationItemContextValueFlagged
+          : implementationItemContextValueUnflagged;
+      }
     }
 
     item.iconPath = this.getImplementationIconUri(implementation);
@@ -473,6 +498,9 @@ export class AlgorithmsTreeDataProvider implements vscode.TreeDataProvider<Algor
         category,
       );
       item.iconPath = this.getImplementationIconUri(implementation);
+      if (implementation.languageKey === docsImplementationKey) {
+        item.contextValue = docsFileItemContextValue;
+      }
       this.setOpenFileCommand(item);
       return item;
     });
