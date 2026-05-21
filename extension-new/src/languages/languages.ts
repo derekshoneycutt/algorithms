@@ -10,6 +10,7 @@ import {
   IStdLibCategoryFile,
   ILanguages,
 } from '.';
+import { FlagHandler } from './flagHandler';
 import { SupportedWorkspaceChecker } from './supportedWorkspaceChecker';
 import { GENERATED_LANGUAGE_DATA } from './generated/languages.generated';
 
@@ -208,6 +209,7 @@ export class Languages implements ILanguages {
   private workspaceFolderChangeSubscription : vscode.Disposable | undefined = undefined;
   private isDirectoryCache = new Map<string, boolean>();
   private directoryEntriesCache = new Map<string, fs.Dirent[] | undefined>();
+  private flagHandler = new FlagHandler();
 
   /**
    * Clears all cached filesystem lookups.
@@ -217,6 +219,7 @@ export class Languages implements ILanguages {
   private clearFileSystemCache() : void {
     this.isDirectoryCache.clear();
     this.directoryEntriesCache.clear();
+    this.flagHandler.clearCache();
   }
 
   /**
@@ -387,10 +390,19 @@ export class Languages implements ILanguages {
   public getAlgorithmImplementations(
     algorithmDirectory: IAlgorithmDirectory,
   ) : IAlgorithmImplementation[] {
+    let flaggedLanguageKeys = new Set<string>();
+    try {
+      flaggedLanguageKeys = this.flagHandler.readFlaggedLanguageKeys(algorithmDirectory.directoryPath);
+    }
+    catch {
+      flaggedLanguageKeys = new Set<string>();
+    }
+
     const docsImplementation: IAlgorithmImplementation = {
       languageKey: docsImplementationKey,
       languageDisplayName: docsItemLabel,
       languageIconFileName: docsIconFileName,
+      isFlagged: false,
       hasImplementation: true,
       hasChildren: true,
       fileName: docsItemLabel,
@@ -404,6 +416,7 @@ export class Languages implements ILanguages {
         languageKey: language.key,
         languageDisplayName: language.displayLabel,
         languageIconFileName: language.icon.fileName,
+        isFlagged: flaggedLanguageKeys.has(language.key),
         hasImplementation: false,
         hasChildren: false,
         fileName: undefined,
@@ -446,6 +459,7 @@ export class Languages implements ILanguages {
           languageKey: language.key,
           languageDisplayName: language.displayLabel,
           languageIconFileName: language.icon.fileName,
+          isFlagged: flaggedLanguageKeys.has(language.key),
           hasImplementation: false,
           hasChildren: false,
           fileName: undefined,
@@ -457,6 +471,7 @@ export class Languages implements ILanguages {
         languageKey: language.key,
         languageDisplayName: language.displayLabel,
         languageIconFileName: language.icon.fileName,
+        isFlagged: flaggedLanguageKeys.has(language.key),
         hasImplementation: true,
         hasChildren: candidates.length > 1 || includeCandidates.length > 0,
         fileName: selectedFile.name,

@@ -14,6 +14,7 @@ export interface IAlgorithmImplementation {
   languageKey: string;
   languageDisplayName: string;
   languageIconFileName: string;
+  isFlagged: boolean;
   hasImplementation: boolean;
   hasChildren: boolean;
   fileName: string | undefined;

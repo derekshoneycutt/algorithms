@@ -10,6 +10,8 @@ export const algorithmsTreeViewId = "algos.algorithmsTreeView";
 const docsImplementationKey = "__docs";
 const setLanguageViewCommandId = "algos.algorithmsTreeView.setLanguageView";
 const setFileViewCommandId = "algos.algorithmsTreeView.setFileView";
+const algorithmsIndicatorScheme = "algos-indicator";
+const zeroCountLanguageFragment = "zero-language-count";
 
 type AlgorithmImplementationViewMode = "language" | "file";
 
@@ -120,20 +122,74 @@ export class AlgorithmsTreeDataProvider implements vscode.TreeDataProvider<Algor
   }
 
   /**
+   * Computes the total visible file count represented by one implementation row.
+   *
+   * @param {IAlgorithmDirectory} algorithmDirectory Parent algorithm directory.
+   * @param {IAlgorithmImplementation} implementation Implementation row metadata.
+   * @returns {number} Total files represented by the row.
+   */
+  private getImplementationFileCount(
+    algorithmDirectory: IAlgorithmDirectory,
+    implementation: IAlgorithmImplementation,
+  ): number {
+    const childCount = this.languages.getAlgorithmImplementationChildren(
+      algorithmDirectory,
+      implementation,
+    ).length;
+
+    if (implementation.languageKey === docsImplementationKey) {
+      return childCount;
+    }
+
+    if (!implementation.hasImplementation || !implementation.filePath) {
+      return 0;
+    }
+
+    return 1 + childCount;
+  }
+
+  /**
+   * Returns a synthetic URI used for tree-decoration badges.
+   *
+   * @param {IAlgorithmDirectory} algorithmDirectory Parent algorithm directory.
+   * @param {IAlgorithmImplementation} implementation Implementation row metadata.
+   * @param {number} fileCount Computed file count for the row.
+   * @returns {vscode.Uri} Synthetic URI for decoration badges.
+   */
+  private getIndicatorResourceUri(
+    algorithmDirectory: IAlgorithmDirectory,
+    implementation: IAlgorithmImplementation,
+    fileCount: number,
+  ): vscode.Uri {
+    const zeroBadge = this.implementationViewMode === "language"
+      && implementation.languageKey !== docsImplementationKey
+      && fileCount === 0;
+
+    const fragment = zeroBadge ? zeroCountLanguageFragment : "";
+    const key = `${algorithmDirectory.directoryPath}|${implementation.languageKey}`;
+    return vscode.Uri.from({
+      scheme: algorithmsIndicatorScheme,
+      path: `/${encodeURIComponent(key)}`,
+      fragment,
+    });
+  }
+
+  /**
    * Configures a tree item to open its file in the active editor.
    *
    * @param {AlgorithmTreeItem} item Tree item to configure.
    * @returns {void} No return value.
    */
-  private setOpenFileCommand(item: AlgorithmTreeItem): void {
-    if (!item.resourceUri) {
+  private setOpenFileCommand(item: AlgorithmTreeItem, filePath?: string): void {
+    const targetUri = filePath ? vscode.Uri.file(filePath) : item.resourceUri;
+    if (!targetUri) {
       return;
     }
 
     item.command = {
       command: "vscode.open",
       title: "Open",
-      arguments: [item.resourceUri],
+      arguments: [targetUri],
     };
   }
 
@@ -180,7 +236,8 @@ export class AlgorithmsTreeDataProvider implements vscode.TreeDataProvider<Algor
     }
 
     if (element.algorithmDirectory) {
-      const implementations = this.languages.getAlgorithmImplementations(element.algorithmDirectory);
+      const algorithmDirectory = element.algorithmDirectory;
+      const implementations = this.languages.getAlgorithmImplementations(algorithmDirectory);
       const visibleImplementations = this.implementationViewMode === "language"
         ? implementations
         : implementations.filter((implementation) => {
@@ -199,6 +256,8 @@ export class AlgorithmsTreeDataProvider implements vscode.TreeDataProvider<Algor
             ? implementation.languageDisplayName
             : (implementation.fileName ?? implementation.languageDisplayName);
 
+          const fileCount = this.getImplementationFileCount(algorithmDirectory, implementation);
+
           const item = new AlgorithmTreeItem(
             label,
             implementation.filePath,
@@ -208,13 +267,19 @@ export class AlgorithmsTreeDataProvider implements vscode.TreeDataProvider<Algor
             undefined,
             undefined,
             implementation,
-            element.algorithmDirectory,
+            algorithmDirectory,
+          );
+          item.resourceUri = this.getIndicatorResourceUri(
+            algorithmDirectory,
+            implementation,
+            fileCount,
           );
           item.iconPath = this.getImplementationIconUri(implementation);
+          item.description = `${fileCount}`;
           if (item.collapsibleState === vscode.TreeItemCollapsibleState.None
               && implementation.hasImplementation
               && !!implementation.filePath) {
-            this.setOpenFileCommand(item);
+            this.setOpenFileCommand(item, implementation.filePath);
           }
           return item;
         });
@@ -253,6 +318,7 @@ export class AlgorithmsTreeView implements vscode.Disposable {
 
   private dataProvider : AlgorithmsTreeDataProvider | undefined;
   private treeView : vscode.TreeView<AlgorithmTreeItem> | undefined;
+  private indicatorDecorationProviderSubscription: vscode.Disposable | undefined;
   private setLanguageViewCommandSubscription: vscode.Disposable | undefined;
   private setFileViewCommandSubscription: vscode.Disposable | undefined;
 
@@ -266,6 +332,7 @@ export class AlgorithmsTreeView implements vscode.Disposable {
     this.extensionUri = undefined;
     this.dataProvider = undefined;
     this.treeView = undefined;
+    this.indicatorDecorationProviderSubscription = undefined;
     this.setLanguageViewCommandSubscription = undefined;
     this.setFileViewCommandSubscription = undefined;
   }
@@ -300,6 +367,20 @@ export class AlgorithmsTreeView implements vscode.Disposable {
         treeDataProvider: this.dataProvider,
         showCollapseAll: showCollapseAll
       });
+
+    this.indicatorDecorationProviderSubscription = vscode.window.registerFileDecorationProvider({
+      provideFileDecoration(uri: vscode.Uri): vscode.FileDecoration | undefined {
+        if (uri.scheme !== algorithmsIndicatorScheme || uri.fragment !== zeroCountLanguageFragment) {
+          return undefined;
+        }
+
+        return {
+          badge: "●",
+          color: new vscode.ThemeColor("testing.iconQueued"),
+          tooltip: "Language has no files in this algorithm",
+        };
+      },
+    });
 
     this.updateViewModeContext("language");
 
@@ -353,6 +434,9 @@ export class AlgorithmsTreeView implements vscode.Disposable {
    * @returns {void} No return value.
    */
   public dispose() : void {
+    this.indicatorDecorationProviderSubscription?.dispose();
+    this.indicatorDecorationProviderSubscription = undefined;
+
     this.setLanguageViewCommandSubscription?.dispose();
     this.setLanguageViewCommandSubscription = undefined;
     this.setFileViewCommandSubscription?.dispose();
