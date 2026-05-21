@@ -6,9 +6,11 @@ import { AlgorithmsTreeView } from './algorithms/algorithmsTreeView';
 import { StdLibTreeView } from './stdlib/stdlibTreeView';
 import { EnvironmentView } from './environment/environmentWebviewProvider';
 import { ILanguages, ILanguagesDataChangeEvent } from '../languages';
+import { IRunner } from '../runner';
 
 export class Views implements IViews {
   private languages : ILanguages;
+  private runner : IRunner;
 
   private smokeView : SmokeView;
   private runView : RunView;
@@ -25,11 +27,13 @@ export class Views implements IViews {
    * Creates the Views orchestrator for all extension views.
    *
    * @param {ILanguages} languages Language/discovery service dependency.
+   * @para {IRunner} runner Runner actor managing run states.
    */
-  public constructor(languages : ILanguages) {
+  public constructor(languages : ILanguages, runner: IRunner) {
     this.languages = languages;
+    this.runner = runner;
     this.smokeView = new SmokeView();
-    this.runView = new RunView();
+    this.runView = new RunView(this.runner);
     this.algosTreeView = new AlgorithmsTreeView(this.languages);
     this.stdlibTreeView = new StdLibTreeView(this.languages);
     this.environmentView = new EnvironmentView();

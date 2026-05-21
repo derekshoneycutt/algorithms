@@ -2,10 +2,31 @@
 
 import { render } from "lit";
 
+import { Debouncer } from "../../shared/ui/debouncer.mjs";
 import { RunControlsPanelComponent } from "./components/runControlsPanelComponent.mjs";
 import type { RunControlsViewState } from "./components/types.mjs";
 
 const appRootId = "run-webview-app";
+declare function acquireVsCodeApi(): {
+  postMessage(message: unknown): void;
+};
+
+const vscodeApi = acquireVsCodeApi();
+const postUpdateDebouncer = new Debouncer(300);
+
+interface RunOptionsUpdateMessage {
+  type: "run-options-update";
+  state: RunControlsViewState;
+}
+
+interface RunWebviewReadyMessage {
+  type: "run-webview-ready";
+}
+
+interface RunOptionsStateMessage {
+  type: "run-options-state";
+  state: RunControlsViewState;
+}
 
 const initialRunControlsViewState: RunControlsViewState = {
   runArgsEnabled: false,
@@ -31,6 +52,24 @@ class RunControlsWebviewApp {
   constructor() {
     this.runControlsViewState = { ...initialRunControlsViewState };
     this.panelComponent = new RunControlsPanelComponent(this.runControlsViewState, () => {
+      postUpdateDebouncer.schedule(() => {
+        const message: RunOptionsUpdateMessage = {
+          type: "run-options-update",
+          state: { ...this.runControlsViewState },
+        };
+
+        vscodeApi.postMessage(message);
+      });
+      this.render();
+    });
+
+    window.addEventListener("message", (event: MessageEvent<RunOptionsStateMessage>) => {
+      const message = event.data;
+      if (message.type !== "run-options-state") {
+        return;
+      }
+
+      Object.assign(this.runControlsViewState, message.state);
       this.render();
     });
   }
@@ -42,6 +81,10 @@ class RunControlsWebviewApp {
    */
   public mount(): void {
     this.appRootElement = document.getElementById(appRootId);
+    const readyMessage: RunWebviewReadyMessage = {
+      type: "run-webview-ready",
+    };
+    vscodeApi.postMessage(readyMessage);
     this.render();
   }
 

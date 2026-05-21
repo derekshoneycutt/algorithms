@@ -1,5 +1,6 @@
 import * as vscode from "vscode";
 import { TemplateLoader } from "../shared/templateLoader";
+import { IRunner } from "../../runner";
 
 export const runViewId = "algos.runView";
 
@@ -21,14 +22,17 @@ const commonWebviewCssPathSegments =
  */
 export class RunWebviewProvider implements vscode.WebviewViewProvider {
   private readonly extensionUri: vscode.Uri;
+  private readonly runner: IRunner;
+  private webviewView: vscode.WebviewView | undefined;
 
   /**
    * Creates a provider for the run webview.
    *
    * @param {vscode.Uri} extensionUri Extension installation URI.
    */
-  constructor(extensionUri: vscode.Uri) {
+  constructor(extensionUri: vscode.Uri, runner: IRunner) {
     this.extensionUri = extensionUri;
+    this.runner = runner;
   }
 
   /**
@@ -38,6 +42,7 @@ export class RunWebviewProvider implements vscode.WebviewViewProvider {
    * @returns {Promise<void>} Resolves after loading HTML content.
    */
   public async resolveWebviewView(webviewView: vscode.WebviewView): Promise<void> {
+    this.webviewView = webviewView;
     webviewView.webview.options = {
       enableScripts: true,
       localResourceRoots: [
@@ -47,7 +52,46 @@ export class RunWebviewProvider implements vscode.WebviewViewProvider {
       ],
     };
 
+    webviewView.webview.onDidReceiveMessage((message: { type?: string; state?: unknown }) => {
+      if (message.type === "run-webview-ready") {
+        webviewView.webview.postMessage({
+          type: "run-options-state",
+          state: this.runner.getRunOptionsState(),
+        });
+        return;
+      }
+
+      if (message.type !== "run-options-update" || !message.state) {
+        return;
+      }
+
+      this.runner.patchRunOptions(message.state as Parameters<IRunner["patchRunOptions"]>[0]);
+    });
+
+    webviewView.onDidDispose(() => {
+      if (this.webviewView === webviewView) {
+        this.webviewView = undefined;
+      }
+    });
+
     webviewView.webview.html = await this.getHtmlFromFile(webviewView.webview);
+  }
+
+  /**
+   * Pushes one run-options state snapshot into the open webview, if available.
+   *
+   * @param {unknown} state Current run-options state.
+   * @returns {void} No return value.
+   */
+  public postRunOptionsState(state: unknown): void {
+    if (!this.webviewView) {
+      return;
+    }
+
+    void this.webviewView.webview.postMessage({
+      type: "run-options-state",
+      state,
+    });
   }
 
   /**
@@ -80,19 +124,32 @@ export class RunWebviewProvider implements vscode.WebviewViewProvider {
 }
 
 export class RunView implements vscode.Disposable {
-  private webviewProvider : RunWebviewProvider | undefined = undefined;
-  private webviewRegistration : vscode.Disposable | undefined = undefined;
+  private runner : IRunner;
+  private webviewProvider : RunWebviewProvider | undefined;
+  private webviewRegistration : vscode.Disposable | undefined;
+  private stateSubscription : vscode.Disposable | undefined;
+
+  public constructor(runner : IRunner) {
+    this.runner = runner;
+    this.webviewProvider = undefined;
+    this.webviewRegistration = undefined;
+    this.stateSubscription = undefined;
+  }
 
   public register(extensionUri: vscode.Uri) {
     if (this.webviewRegistration !== undefined) {
       return;
     }
 
-    this.webviewProvider = new RunWebviewProvider(extensionUri);
+    this.webviewProvider = new RunWebviewProvider(extensionUri, this.runner);
     this.webviewRegistration = vscode.window.registerWebviewViewProvider(
       runViewId,
       this.webviewProvider,
     );
+
+    this.stateSubscription = this.runner.subscribeToStateChanges((state) => {
+      this.webviewProvider?.postRunOptionsState(state);
+    });
   }
 
   public isRegistered(): boolean {
@@ -108,6 +165,9 @@ export class RunView implements vscode.Disposable {
   }
 
   public dispose() {
+    this.stateSubscription?.dispose();
+    this.stateSubscription = undefined;
+
     if (this.webviewRegistration !== undefined) {
       this.webviewRegistration.dispose();
       this.webviewRegistration = undefined;
