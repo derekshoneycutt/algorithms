@@ -1,0 +1,114 @@
+{
+  "name": "algorithms-runner-extension-next",
+  "displayName": "Derek's Algorithms Runner (Next)",
+  "description": "Fresh bootstrap for Derek's Algorithms VS Code extension.",
+  "version": "0.0.1",
+  "publisher": "derekshoneycutt",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/derekshoneycutt/algorithms.git"
+  },
+  "engines": {
+    "node": ">=20",
+    "vscode": "^1.120.0"
+  },
+  "categories": [
+    "Other"
+  ],
+  "activationEvents": [
+    "onStartupFinished",
+    "onView:algos.smokeView",
+    "onView:algos.runView",
+    "onView:algos.algorithmsTreeView",
+    "onView:algos.stdlibTreeView",
+    "onView:algos.environmentView"
+  ],
+  "main": "./dist/extension.js",
+  "contributes": {
+    "viewsContainers": {
+      "activitybar": [
+        {
+          "id": "algosSidebar",
+          "title": "Algorithms",
+          "icon": "./icons/play-sidebar.svg"
+        }
+      ]
+    },
+    "views": {
+      "algosSidebar": [
+        {
+          "id": "algos.smokeView",
+          "name": "Smoke",
+          "type": "webview",
+          "when": "algos.workspaceSupported",
+          "icon": "./icons/play-sidebar.svg",
+          "visibility": "collapsed"
+        },
+        {
+          "id": "algos.runView",
+          "name": "Run",
+          "type": "webview",
+          "when": "algos.workspaceSupported",
+          "icon": "./icons/play-sidebar.svg",
+          "visibility": "collapsed"
+        },
+        {
+          "id": "algos.algorithmsTreeView",
+          "name": "Algorithms",
+          "type": "tree",
+          "when": "algos.workspaceSupported",
+          "icon": "./icons/play-sidebar.svg",
+          "visibility": "visible"
+        },
+        {
+          "id": "algos.stdlibTreeView",
+          "name": "Standard Library",
+          "type": "tree",
+          "when": "algos.workspaceSupported",
+          "icon": "./icons/play-sidebar.svg",
+          "visibility": "collapsed"
+        },
+        {
+          "id": "algos.environmentView",
+          "name": "Environment",
+          "type": "webview",
+          "when": "algos.workspaceSupported",
+          "icon": "./icons/play-sidebar.svg",
+          "visibility": "collapsed"
+        }
+      ]
+    }
+  },
+  "scripts": {
+    "build": "node ./esbuild.js",
+    "watch": "node ./esbuild.js --watch",
+    "typecheck": "tsc --noEmit -p ./tsconfig.json",
+    "lint:ts": "eslint esbuild.js eslint.config.js src test",
+    "lint:md": "markdownlint \"**/*.md\" --config ./.markdownlint.json --ignore node_modules --ignore dist --ignore out",
+    "lint": "npm run lint:ts && npm run lint:md",
+    "compile-tests": "tsc -p ./tsconfig.test.json",
+    "pretest": "npm run build && npm run compile-tests",
+    "test": "node ./out/test/runTest.js",
+    "package": "vsce package --no-dependencies --allow-missing-repository"
+  },
+  "dependencies": {
+    "lit": "^3.3.3",
+    "xstate": "^5.31.1"
+  },
+  "devDependencies": {
+    "@eslint/js": "^10.0.1",
+    "@types/mocha": "^10.0.10",
+    "@types/node": "^25.9.1",
+    "@types/vscode": "^1.120.0",
+    "@vscode/test-electron": "^2.5.2",
+    "@vscode/vsce": "^3.9.1",
+    "esbuild": "^0.28.0",
+    "eslint": "^10.4.0",
+    "globals": "^17.6.0",
+    "markdownlint-cli": "^0.48.0",
+    "mocha": "^11.7.5",
+    "typescript": "^6.0.3",
+    "typescript-eslint": "^8.59.4"
+  }
+}
