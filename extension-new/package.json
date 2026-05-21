@@ -56,6 +56,26 @@
         "command": "algos.algorithmsTreeView.unflagImplementation",
         "title": "Unflag Language",
         "icon": "$(close)"
+      },
+      {
+        "command": "algos.stdlibTreeView.createFolder",
+        "title": "Create Folder",
+        "icon": "$(new-folder)"
+      },
+      {
+        "command": "algos.stdlibTreeView.createFile",
+        "title": "New File",
+        "icon": "$(new-file)"
+      },
+      {
+        "command": "algos.stdlibTreeView.deleteFolder",
+        "title": "Delete Folder",
+        "icon": "$(trash)"
+      },
+      {
+        "command": "algos.stdlibTreeView.deleteFile",
+        "title": "Delete File",
+        "icon": "$(trash)"
       }
     ],
     "menus": {
@@ -79,6 +99,11 @@
           "command": "algos.algorithmsTreeView.showProblemRows",
           "when": "view == algos.algorithmsTreeView && algos.algorithmsTreeView.filterMode != 'problem'",
           "group": "navigation@13"
+        },
+        {
+          "command": "algos.stdlibTreeView.createFolder",
+          "when": "view == algos.stdlibTreeView",
+          "group": "navigation@10"
         }
       ],
       "view/item/context": [
@@ -90,6 +115,21 @@
         {
           "command": "algos.algorithmsTreeView.unflagImplementation",
           "when": "view == algos.algorithmsTreeView && viewItem == algorithmImplementationFlagged",
+          "group": "inline@10"
+        },
+        {
+          "command": "algos.stdlibTreeView.createFile",
+          "when": "view == algos.stdlibTreeView && viewItem == stdlibFolder",
+          "group": "inline@9"
+        },
+        {
+          "command": "algos.stdlibTreeView.deleteFolder",
+          "when": "view == algos.stdlibTreeView && viewItem == stdlibFolder",
+          "group": "inline@10"
+        },
+        {
+          "command": "algos.stdlibTreeView.deleteFile",
+          "when": "view == algos.stdlibTreeView && viewItem == stdlibFile",
           "group": "inline@10"
         }
       ]
