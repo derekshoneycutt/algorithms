@@ -126,6 +126,16 @@ export class EnvironmentWebviewProvider implements vscode.WebviewViewProvider {
         return;
       }
 
+      if (message.type === "environment-run-check-environment") {
+        void this.environment.runCheckEnvironment();
+        return;
+      }
+
+      if (message.type === "environment-run-copy-icons") {
+        void this.environment.runCopyIcons();
+        return;
+      }
+
       if (message.type !== "environment-controls-update" || !message.state) {
         return;
       }

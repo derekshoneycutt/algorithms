@@ -9,16 +9,23 @@ export class CopyIconsSectionComponent implements IEnvironmentControlsSectionCom
   private readonly state: EnvironmentControlsViewState;
 
   private readonly requestRender: () => void;
+  private readonly onCopyIcons: () => void;
 
   /**
    * Creates a copy-icons section component.
    *
    * @param {EnvironmentControlsViewState} state Shared view state.
    * @param {() => void} requestRender Callback to trigger rerender.
+   * @param {() => void} onCopyIcons Callback to request host-side copy-icons execution.
    */
-  public constructor(state: EnvironmentControlsViewState, requestRender: () => void) {
+  public constructor(
+    state: EnvironmentControlsViewState,
+    requestRender: () => void,
+    onCopyIcons: () => void,
+  ) {
     this.state = state;
     this.requestRender = requestRender;
+    this.onCopyIcons = onCopyIcons;
   }
 
   /**
@@ -32,7 +39,17 @@ export class CopyIconsSectionComponent implements IEnvironmentControlsSectionCom
         ${renderSectionHeader(
           "Copy Icons",
           "copy",
-          html`<button class="button secondary" type="button">Copy Icons</button>`,
+          html`
+            <button
+              class="button secondary"
+              type="button"
+              @click=${() => {
+                this.onCopyIcons();
+              }}
+            >
+              Copy Icons
+            </button>
+          `,
         )}
         <input
           class="input"

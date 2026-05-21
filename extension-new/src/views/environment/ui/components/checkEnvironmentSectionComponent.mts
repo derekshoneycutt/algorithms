@@ -7,16 +7,23 @@ export class CheckEnvironmentSectionComponent implements IEnvironmentControlsSec
   private readonly state: EnvironmentControlsViewState;
 
   private readonly requestRender: () => void;
+  private readonly onCheckEnvironment: () => void;
 
   /**
    * Creates a check-environment section component.
    *
    * @param {EnvironmentControlsViewState} state Shared view state.
    * @param {() => void} requestRender Callback to trigger rerender.
+   * @param {() => void} onCheckEnvironment Callback to request host-side check-environment execution.
    */
-  public constructor(state: EnvironmentControlsViewState, requestRender: () => void) {
+  public constructor(
+    state: EnvironmentControlsViewState,
+    requestRender: () => void,
+    onCheckEnvironment: () => void,
+  ) {
     this.state = state;
     this.requestRender = requestRender;
+    this.onCheckEnvironment = onCheckEnvironment;
   }
 
   /**
@@ -35,9 +42,10 @@ export class CheckEnvironmentSectionComponent implements IEnvironmentControlsSec
               class="button secondary"
               type="button"
               @click=${() => {
-                this.state.checkEnvFilteredOutput = "Environment check completed (local UI preview).";
-                this.state.checkEnvRawOutput = "No host process is wired yet. This is UI-only mode.";
+                this.state.checkEnvFilteredOutput = "Running environment check...";
+                this.state.checkEnvRawOutput = "Running init.sh --check-env...";
                 this.requestRender();
+                this.onCheckEnvironment();
               }}
             >
               Check Environment

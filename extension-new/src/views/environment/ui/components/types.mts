@@ -53,6 +53,11 @@ export interface EnvironmentControlsViewState {
   routingEntries: EnvironmentRoutingLanguageState[];
 }
 
+export interface EnvironmentActionHandlers {
+  onCheckEnvironment: () => void;
+  onCopyIcons: () => void;
+}
+
 export interface IEnvironmentControlsSectionComponent {
   /**
    * Renders one environment-controls section.

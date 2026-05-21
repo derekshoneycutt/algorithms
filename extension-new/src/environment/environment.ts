@@ -11,6 +11,11 @@ import {
   type EnvironmentVariableKey,
   type EnvironmentVariableState,
 } from ".";
+import {
+  InitHandler,
+  type InitHandlerCheckEnvironmentResult,
+  type InitHandlerCopyIconsResult,
+} from "./initHandler";
 import { parseAlgorithmsProfile, type ParsedAlgorithmsProfile, type ParsedSshRoute } from "./shellProfileParse";
 import { upsertAlgorithmsProfileBlock } from "./shellProfileWrite";
 import { ILanguages, type ISupportedLanguage } from "../languages";
@@ -295,6 +300,7 @@ export class Environment implements IEnvironment {
   private readonly onDidChangeEnvironmentControlsEmitter: vscode.EventEmitter<EnvironmentControlsState>;
   private readonly environmentControlsActorSubscription: { unsubscribe: () => void };
   private readonly languagesDataChangeSubscription: vscode.Disposable;
+  private initHandler: InitHandler | undefined;
   private extensionContext: vscode.ExtensionContext | undefined;
   private isHydrating: boolean;
 
@@ -305,6 +311,7 @@ export class Environment implements IEnvironment {
     this.languages = languages;
     this.environmentControlsActor = createActor(environmentControlsMachine);
     this.onDidChangeEnvironmentControlsEmitter = new vscode.EventEmitter<EnvironmentControlsState>();
+    this.initHandler = undefined;
     this.extensionContext = undefined;
     this.isHydrating = false;
     this.languagesDataChangeSubscription = this.languages.subscribeToDataChanges(() => {
@@ -377,6 +384,64 @@ export class Environment implements IEnvironment {
       variables: applyProfileValuesToVariables(currentState.variables, parsedProfile.values),
       routingEntries,
     });
+  }
+
+  /**
+   * Runs init.sh check-environment using current Environment state.
+   *
+   * @returns {Promise<InitHandlerCheckEnvironmentResult>} Check-environment result.
+   */
+  public async runCheckEnvironment(): Promise<InitHandlerCheckEnvironmentResult> {
+    const currentState = this.getEnvironmentControlsState();
+
+    let result: InitHandlerCheckEnvironmentResult;
+    try {
+      const initHandler = await this.getInitHandler();
+      result = await initHandler.checkEnvironment({
+        profilePath: currentState.profilePath,
+      });
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      result = {
+        kind: "error",
+        text: `Environment check failed: ${errorMessage}`,
+        filteredOutput: "",
+        rawOutput: errorMessage,
+        exitCode: null,
+      };
+    }
+
+    this.patchEnvironmentControls({
+      checkEnvFilteredOutput: result.filteredOutput,
+      checkEnvRawOutput: result.rawOutput,
+    });
+
+    return result;
+  }
+
+  /**
+   * Runs init.sh copy-icons using current Environment state.
+   *
+   * @returns {Promise<InitHandlerCopyIconsResult>} Copy-icons result.
+   */
+  public async runCopyIcons(): Promise<InitHandlerCopyIconsResult> {
+    const currentState = this.getEnvironmentControlsState();
+
+    try {
+      const initHandler = await this.getInitHandler();
+      return await initHandler.copyIcons({
+        profilePath: currentState.profilePath,
+        copyIconsPath: currentState.copyIconsPath,
+      });
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      return {
+        kind: "error",
+        text: `Icon copy failed: ${errorMessage}`,
+        rawOutput: errorMessage,
+        exitCode: null,
+      };
+    }
   }
 
   /**
@@ -482,6 +547,58 @@ export class Environment implements IEnvironment {
     }
 
     return parseAlgorithmsProfile(profileText);
+  }
+
+  /**
+   * Returns an initialized init.sh handler scoped to the repository root.
+   *
+   * @returns {Promise<InitHandler>} Initialized init handler.
+   */
+  private async getInitHandler(): Promise<InitHandler> {
+    if (this.initHandler) {
+      return this.initHandler;
+    }
+
+    const repositoryRoot = await this.resolveRepositoryRootForInit();
+    if (!repositoryRoot) {
+      throw new Error("Unable to locate repository root containing init.sh.");
+    }
+
+    this.initHandler = new InitHandler(repositoryRoot);
+    return this.initHandler;
+  }
+
+  /**
+   * Locates the nearest known root that contains init.sh.
+   *
+   * @returns {Promise<string | undefined>} Repository root path when found.
+   */
+  private async resolveRepositoryRootForInit(): Promise<string | undefined> {
+    const candidatePaths: string[] = [];
+
+    if (this.extensionContext) {
+      const extensionPath = this.extensionContext.extensionUri.fsPath;
+      candidatePaths.push(extensionPath);
+      candidatePaths.push(path.dirname(extensionPath));
+    }
+
+    for (const workspaceFolder of vscode.workspace.workspaceFolders ?? []) {
+      candidatePaths.push(workspaceFolder.uri.fsPath);
+      candidatePaths.push(path.dirname(workspaceFolder.uri.fsPath));
+    }
+
+    const uniqueCandidatePaths = [...new Set(candidatePaths)];
+    for (const candidatePath of uniqueCandidatePaths) {
+      const initScriptPath = path.join(candidatePath, "init.sh");
+      try {
+        await fs.access(initScriptPath);
+        return candidatePath;
+      } catch {
+        continue;
+      }
+    }
+
+    return undefined;
   }
 
   /**

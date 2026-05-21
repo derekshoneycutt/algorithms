@@ -27,6 +27,14 @@ interface EnvironmentControlsStateMessage {
   state: EnvironmentControlsViewState;
 }
 
+interface EnvironmentRunCheckEnvironmentMessage {
+  type: "environment-run-check-environment";
+}
+
+interface EnvironmentRunCopyIconsMessage {
+  type: "environment-run-copy-icons";
+}
+
 const initialEnvironmentControlsViewState: EnvironmentControlsViewState = {
   persistSessionEnabled: true,
   profilePath: "",
@@ -88,6 +96,20 @@ class EnvironmentWebviewApp {
         }
 
         this.renderEnvironmentControlsView();
+      },
+      {
+        onCheckEnvironment: () => {
+          const message: EnvironmentRunCheckEnvironmentMessage = {
+            type: "environment-run-check-environment",
+          };
+          vscodeApi.postMessage(message);
+        },
+        onCopyIcons: () => {
+          const message: EnvironmentRunCopyIconsMessage = {
+            type: "environment-run-copy-icons",
+          };
+          vscodeApi.postMessage(message);
+        },
       },
     );
 

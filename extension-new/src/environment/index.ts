@@ -1,4 +1,8 @@
 import * as vscode from "vscode";
+import type {
+  InitHandlerCheckEnvironmentResult,
+  InitHandlerCopyIconsResult,
+} from "./initHandler";
 
 /**
  * Supported environment variable keys managed by the environment actor.
@@ -109,6 +113,20 @@ export interface IEnvironment extends vscode.Disposable {
    * @returns {Promise<void>} Resolves after profile values are applied.
    */
   refreshFromProfile(): Promise<void>;
+
+  /**
+   * Runs the init.sh check-environment operation using current Environment state.
+   *
+   * @returns {Promise<InitHandlerCheckEnvironmentResult>} Check-environment result.
+   */
+  runCheckEnvironment(): Promise<InitHandlerCheckEnvironmentResult>;
+
+  /**
+   * Runs the init.sh copy-icons operation using current Environment state.
+   *
+   * @returns {Promise<InitHandlerCopyIconsResult>} Copy-icons result.
+   */
+  runCopyIcons(): Promise<InitHandlerCopyIconsResult>;
 
   /**
    * Subscribes to environment-controls state changes.

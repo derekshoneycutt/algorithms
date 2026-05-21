@@ -6,7 +6,11 @@ import { LanguageRoutingSectionComponent } from "./languageRoutingSectionCompone
 import { PersistSessionSectionComponent } from "./persistSessionSectionComponent.mjs";
 import { ProfileSectionComponent } from "./profileSectionComponent.mjs";
 import { VariablesSectionComponent } from "./variablesSectionComponent.mjs";
-import type { EnvironmentControlsViewState, IEnvironmentControlsSectionComponent } from "./types.mjs";
+import type {
+  EnvironmentActionHandlers,
+  EnvironmentControlsViewState,
+  IEnvironmentControlsSectionComponent,
+} from "./types.mjs";
 
 const panelDescription = "Controls environment factors for the algorithms project via init.sh.";
 
@@ -28,12 +32,25 @@ export class EnvironmentControlsPanelComponent {
    *
    * @param {EnvironmentControlsViewState} state Shared view state.
    * @param {() => void} requestRender Callback to trigger rerender.
+   * @param {EnvironmentActionHandlers} actionHandlers Action callbacks handled by the host bridge.
    */
-  public constructor(state: EnvironmentControlsViewState, requestRender: () => void) {
+  public constructor(
+    state: EnvironmentControlsViewState,
+    requestRender: () => void,
+    actionHandlers: EnvironmentActionHandlers,
+  ) {
     this.persistSessionSectionComponent = new PersistSessionSectionComponent(state, requestRender);
     this.profileSectionComponent = new ProfileSectionComponent(state, requestRender);
-    this.checkEnvironmentSectionComponent = new CheckEnvironmentSectionComponent(state, requestRender);
-    this.copyIconsSectionComponent = new CopyIconsSectionComponent(state, requestRender);
+    this.checkEnvironmentSectionComponent = new CheckEnvironmentSectionComponent(
+      state,
+      requestRender,
+      actionHandlers.onCheckEnvironment,
+    );
+    this.copyIconsSectionComponent = new CopyIconsSectionComponent(
+      state,
+      requestRender,
+      actionHandlers.onCopyIcons,
+    );
     this.variablesSectionComponent = new VariablesSectionComponent(state, requestRender);
     this.languageRoutingSectionComponent = new LanguageRoutingSectionComponent(state, requestRender);
   }
