@@ -9,7 +9,7 @@
       "args": [
         "--user-data-dir=/tmp/algorithms-edh-user-data",
         "--extensions-dir=/tmp/algorithms-edh-extensions",
-        "--disable-extensions",
+        "--disable-extensions-except=pkief.material-icon-theme",
         "--extensionDevelopmentPath=${workspaceFolder}"
       ],
       "outFiles": [

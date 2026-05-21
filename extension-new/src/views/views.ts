@@ -5,19 +5,23 @@ import { RunView } from './run/runWebviewProvider';
 import { AlgorithmsTreeView } from './algorithms/algorithmsTreeView';
 import { StdLibTreeView } from './stdlib/stdlibTreeView';
 import { EnvironmentView } from './environment/environmentWebviewProvider';
+import { ILanguages } from '../languages';
 
 export class Views implements IViews {
+  private languages : ILanguages;
+
   private smokeView : SmokeView;
   private runView : RunView;
   private algosTreeView : AlgorithmsTreeView;
   private stdlibTreeView : StdLibTreeView;
   private environmentView : EnvironmentView;
 
-  public constructor() {
+  public constructor(languages : ILanguages) {
+    this.languages = languages;
     this.smokeView = new SmokeView();
     this.runView = new RunView();
-    this.algosTreeView = new AlgorithmsTreeView();
-    this.stdlibTreeView = new StdLibTreeView();
+    this.algosTreeView = new AlgorithmsTreeView(this.languages);
+    this.stdlibTreeView = new StdLibTreeView(this.languages);
     this.environmentView = new EnvironmentView();
   }
 
@@ -28,8 +32,8 @@ export class Views implements IViews {
 
     this.smokeView.register(context.extensionUri);
     this.runView.register(context.extensionUri);
-    this.algosTreeView.register();
-    this.stdlibTreeView.register();
+    this.algosTreeView.register(context);
+    this.stdlibTreeView.register(context.extensionUri);
     this.environmentView.register(context.extensionUri);
   }
 

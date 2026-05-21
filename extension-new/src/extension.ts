@@ -1,7 +1,8 @@
 import * as vscode from "vscode";
 import { IViews } from "./views";
 import { Views } from "./views/views";
-import { SupportedWorkspaceChecker } from "./isSupportedWorkspace";
+import { ILanguages } from "./languages";
+import { Languages } from "./languages/languages";
 
 /**
  * Activates the extension.
@@ -10,12 +11,11 @@ import { SupportedWorkspaceChecker } from "./isSupportedWorkspace";
  * @returns {void} No return value.
  */
 export function activate(context: vscode.ExtensionContext): void {
-  if (!SupportedWorkspaceChecker.isSupported()) {
-    vscode.commands.executeCommand("setContext", "algos.workspaceSupported", false);
-    return;
-  }
-  vscode.commands.executeCommand("setContext", "algos.workspaceSupported", true);
-  const views : IViews = new Views();
+  const languages : ILanguages = new Languages();
+  languages.register(context);
+  context.subscriptions.push(languages);
+
+  const views : IViews = new Views(languages);
   views.register(context);
   context.subscriptions.push(views);
 }

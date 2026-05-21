@@ -26,6 +26,32 @@
   ],
   "main": "./dist/extension.js",
   "contributes": {
+    "commands": [
+      {
+        "command": "algos.algorithmsTreeView.setLanguageView",
+        "title": "Language View",
+        "icon": "$(symbol-keyword)"
+      },
+      {
+        "command": "algos.algorithmsTreeView.setFileView",
+        "title": "File View",
+        "icon": "$(files)"
+      }
+    ],
+    "menus": {
+      "view/title": [
+        {
+          "command": "algos.algorithmsTreeView.setLanguageView",
+          "when": "view == algos.algorithmsTreeView && algos.algorithmsTreeView.mode != 'language'",
+          "group": "navigation@10"
+        },
+        {
+          "command": "algos.algorithmsTreeView.setFileView",
+          "when": "view == algos.algorithmsTreeView && algos.algorithmsTreeView.mode != 'file'",
+          "group": "navigation@11"
+        }
+      ]
+    },
     "viewsContainers": {
       "activitybar": [
         {

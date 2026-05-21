@@ -1,4 +1,5 @@
 import * as vscode from 'vscode';
+import { ILanguages, IStdLibCategory } from '../../languages';
 
 export const stdlibTreeViewId = "algos.stdlibTreeView";
 
@@ -6,8 +7,17 @@ export const stdlibTreeViewId = "algos.stdlibTreeView";
  * Tree item for the StdLib tree view.
  */
 export class StdLibTreeItem extends vscode.TreeItem {
-  constructor(label: string) {
-    super(label, vscode.TreeItemCollapsibleState.None);
+  public category: IStdLibCategory | undefined;
+
+  constructor(
+    label: string,
+    path: string,
+    collapsibleState: vscode.TreeItemCollapsibleState,
+    category?: IStdLibCategory,
+  ) {
+    super(label, collapsibleState);
+    this.resourceUri = vscode.Uri.file(path);
+    this.category = category;
   }
 }
 
@@ -15,38 +25,89 @@ export class StdLibTreeItem extends vscode.TreeItem {
  * Data provider for the StdLib tree view.
  */
 export class StdLibTreeDataProvider implements vscode.TreeDataProvider<StdLibTreeItem> {
-  private _onDidChangeTreeData: vscode.EventEmitter<StdLibTreeItem | undefined | void>
-    = new vscode.EventEmitter<StdLibTreeItem | undefined | void>();
-  readonly onDidChangeTreeData: vscode.Event<StdLibTreeItem | undefined | void>
-    = this._onDidChangeTreeData.event;
+  private languages : ILanguages;
+  private extensionUri : vscode.Uri;
+
+  private _onDidChangeTreeData: vscode.EventEmitter<StdLibTreeItem | undefined | void>;
+
+
+  readonly onDidChangeTreeData: vscode.Event<StdLibTreeItem | undefined | void>;
+    
+  public constructor(languages : ILanguages, extensionUri: vscode.Uri) {
+    this.languages = languages;
+    this.extensionUri = extensionUri;
+    this._onDidChangeTreeData = new vscode.EventEmitter<StdLibTreeItem | undefined | void>();
+    this.onDidChangeTreeData = this._onDidChangeTreeData.event;
+  }
+
+  /**
+   * Resolves a language icon URI from the generated icon filename.
+   *
+   * @param {string} iconFileName Icon filename from language metadata.
+   * @returns {vscode.Uri} Resolved extension-resource URI.
+   */
+  private getLanguageIconUri(iconFileName: string): vscode.Uri {
+    return vscode.Uri.joinPath(this.extensionUri, "icons", "languages", iconFileName);
+  }
 
   getTreeItem(element: StdLibTreeItem): vscode.TreeItem {
     return element;
   }
 
   getChildren(element?: StdLibTreeItem): Thenable<StdLibTreeItem[]> {
-    // Super simple dummy data
     if (!element) {
-      return Promise.resolve([
-        new StdLibTreeItem('Bubble Sort'),
-        new StdLibTreeItem('Quick Sort'),
-        new StdLibTreeItem('Merge Sort'),
-      ]);
+      const categories = this.languages.getStandardLibraryCategories();
+      const treeItems = categories.map(
+        (category) => new StdLibTreeItem(
+          category.displayName,
+          category.directoryPath,
+          vscode.TreeItemCollapsibleState.Collapsed,
+          category,
+        ));
+      return Promise.resolve(treeItems);
     }
+
+    if (element.category) {
+      const files = this.languages.getStandardLibraryFiles(element.category);
+      const fileItems = files.map((file) => {
+        const item = new StdLibTreeItem(
+          file.displayName,
+          file.filePath,
+          vscode.TreeItemCollapsibleState.None,
+        );
+          if (file.languageIconFileName) {
+            item.iconPath = this.getLanguageIconUri(file.languageIconFileName);
+          }
+        return item;
+      });
+      return Promise.resolve(fileItems);
+    }
+
     return Promise.resolve([]);
   }
 }
 
 export class StdLibTreeView implements vscode.Disposable {
-  private dataProvider : StdLibTreeDataProvider | undefined = undefined;
-  private treeView : vscode.TreeView<StdLibTreeItem> | undefined = undefined;
+  private languages : ILanguages;
+  private extensionUri : vscode.Uri | undefined;
 
-  public register(showCollapseAll: boolean = false) {
+  private dataProvider : StdLibTreeDataProvider | undefined;
+  private treeView : vscode.TreeView<StdLibTreeItem> | undefined;
+
+  public constructor(languages : ILanguages) {
+    this.languages = languages;
+    this.extensionUri = undefined;
+    this.dataProvider = undefined;
+    this.treeView = undefined;
+  }
+
+  public register(extensionUri: vscode.Uri, showCollapseAll: boolean = false) {
     if (this.treeView !== undefined) {
       return;
     }
 
-    this.dataProvider = new StdLibTreeDataProvider();
+    this.extensionUri = extensionUri;
+    this.dataProvider = new StdLibTreeDataProvider(this.languages, extensionUri);
     this.treeView = vscode.window.createTreeView(
       stdlibTreeViewId,
       {
@@ -75,5 +136,6 @@ export class StdLibTreeView implements vscode.Disposable {
     if (this.dataProvider !== undefined) {
       this.dataProvider = undefined;
     }
+    this.extensionUri = undefined;
   }
 }
