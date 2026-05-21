@@ -1,4 +1,3 @@
-
 import * as vscode from "vscode";
 
 /**
@@ -32,7 +31,7 @@ export interface RunOptionsPatch {
 /**
  * Runner contract for storing and broadcasting run-options state.
  */
-export interface IRunner {
+export interface IRunner extends vscode.Disposable {
   /**
    * Activates the Runner lifecycle with extension context for persistence.
    *

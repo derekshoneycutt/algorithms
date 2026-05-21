@@ -1,66 +1,38 @@
 /// <reference lib="dom" />
 
 import { html, render, type TemplateResult } from "lit";
+import { Debouncer } from "../../shared/ui/debouncer.mjs";
 import { SmokeControlsPanelComponent } from "./components/smokeControlsPanelComponent.mjs";
 import type { SmokeControlsViewState } from "./components/types.mjs";
 
 const appRootId = "smoke-webview-app";
+declare function acquireVsCodeApi(): {
+  postMessage(message: unknown): void;
+};
+
+const vscodeApi = acquireVsCodeApi();
+const postUpdateDebouncer = new Debouncer(300);
+
+interface SmokeControlsUpdateMessage {
+  type: "smoke-controls-update";
+  state: SmokeControlsViewState;
+}
+
+interface SmokeWebviewReadyMessage {
+  type: "smoke-webview-ready";
+}
+
+interface SmokeControlsStateMessage {
+  type: "smoke-controls-state";
+  state: SmokeControlsViewState;
+}
 
 const initialSmokeControlsViewState: SmokeControlsViewState = {
   reportEnabled: false,
   markdownPath: "",
-  timeoutSeconds: "",
-  slowTimeoutSeconds: "",
-  languages: [
-    {
-      languageKey: "python",
-      label: "Python",
-      selected: true,
-      disabled: false,
-      disabledReason: "",
-      iconUri: "",
-    },
-    {
-      languageKey: "javascript",
-      label: "JavaScript",
-      selected: true,
-      disabled: false,
-      disabledReason: "",
-      iconUri: "",
-    },
-    {
-      languageKey: "typescript",
-      label: "TypeScript",
-      selected: true,
-      disabled: false,
-      disabledReason: "",
-      iconUri: "",
-    },
-    {
-      languageKey: "go",
-      label: "Go",
-      selected: false,
-      disabled: false,
-      disabledReason: "",
-      iconUri: "",
-    },
-    {
-      languageKey: "rust",
-      label: "Rust",
-      selected: false,
-      disabled: false,
-      disabledReason: "",
-      iconUri: "",
-    },
-    {
-      languageKey: "java",
-      label: "Java",
-      selected: false,
-      disabled: false,
-      disabledReason: "",
-      iconUri: "",
-    },
-  ],
+  timeoutSeconds: "8m",
+  slowTimeoutSeconds: "20m",
+  languages: [],
 };
 
 
@@ -85,9 +57,34 @@ class SmokeControlsWebviewApp {
     this.smokeControlsPanelComponent = new SmokeControlsPanelComponent(
       this.smokeControlsViewState,
       () => {
+        postUpdateDebouncer.schedule(() => {
+          const message: SmokeControlsUpdateMessage = {
+            type: "smoke-controls-update",
+            state: {
+              ...this.smokeControlsViewState,
+              languages: [...this.smokeControlsViewState.languages],
+            },
+          };
+
+          vscodeApi.postMessage(message);
+        });
         this.renderSmokeControlsView();
       },
     );
+
+    window.addEventListener("message", (event: MessageEvent<SmokeControlsStateMessage>) => {
+      const message = event.data;
+      if (message.type !== "smoke-controls-state") {
+        return;
+      }
+
+      this.smokeControlsViewState.reportEnabled = message.state.reportEnabled;
+      this.smokeControlsViewState.markdownPath = message.state.markdownPath;
+      this.smokeControlsViewState.timeoutSeconds = message.state.timeoutSeconds;
+      this.smokeControlsViewState.slowTimeoutSeconds = message.state.slowTimeoutSeconds;
+      this.smokeControlsViewState.languages = [...message.state.languages];
+      this.renderSmokeControlsView();
+    });
 
     this.appRootElement = null;
   }
@@ -99,6 +96,10 @@ class SmokeControlsWebviewApp {
    */
   public mount(): void {
     this.appRootElement = document.getElementById(appRootId);
+    const readyMessage: SmokeWebviewReadyMessage = {
+      type: "smoke-webview-ready",
+    };
+    vscodeApi.postMessage(readyMessage);
     this.renderSmokeControlsView();
   }
 

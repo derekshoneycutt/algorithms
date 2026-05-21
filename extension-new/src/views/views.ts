@@ -7,16 +7,18 @@ import { StdLibTreeView } from './stdlib/stdlibTreeView';
 import { EnvironmentView } from './environment/environmentWebviewProvider';
 import { ILanguages, ILanguagesDataChangeEvent } from '../languages';
 import { IRunner } from '../runner';
+import { ISmoker } from '../smoker';
 
 export class Views implements IViews {
-  private languages : ILanguages;
-  private runner : IRunner;
+  private readonly languages : ILanguages;
+  private readonly runner : IRunner;
+  private readonly smoker : ISmoker;
 
-  private smokeView : SmokeView;
-  private runView : RunView;
-  private algosTreeView : AlgorithmsTreeView;
-  private stdlibTreeView : StdLibTreeView;
-  private environmentView : EnvironmentView;
+  private readonly smokeView : SmokeView;
+  private readonly runView : RunView;
+  private readonly algosTreeView : AlgorithmsTreeView;
+  private readonly stdlibTreeView : StdLibTreeView;
+  private readonly environmentView : EnvironmentView;
   private dataChangeSubscription : vscode.Disposable | undefined;
   private activeEditorChangeSubscription : vscode.Disposable | undefined;
   private algorithmsTreeVisibilitySubscription : vscode.Disposable | undefined;
@@ -27,12 +29,14 @@ export class Views implements IViews {
    * Creates the Views orchestrator for all extension views.
    *
    * @param {ILanguages} languages Language/discovery service dependency.
-   * @para {IRunner} runner Runner actor managing run states.
+   * @param {IRunner} runner Runner actor managing run states.
+   * @param {ISmoker} smoker Smoker actor managing smoke states.
    */
-  public constructor(languages : ILanguages, runner: IRunner) {
+  public constructor(languages : ILanguages, runner: IRunner, smoker: ISmoker) {
     this.languages = languages;
     this.runner = runner;
-    this.smokeView = new SmokeView();
+    this.smoker = smoker;
+    this.smokeView = new SmokeView(this.smoker);
     this.runView = new RunView(this.runner);
     this.algosTreeView = new AlgorithmsTreeView(this.languages);
     this.stdlibTreeView = new StdLibTreeView(this.languages);

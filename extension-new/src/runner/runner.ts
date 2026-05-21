@@ -149,4 +149,11 @@ export class Runner implements IRunner {
       runOptionsState,
     );
   }
+
+  /**
+   * Cleans up any resources used by the runner state
+   */
+  public dispose() : void {
+
+  }
 }

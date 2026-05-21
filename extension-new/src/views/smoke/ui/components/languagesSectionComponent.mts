@@ -116,7 +116,9 @@ export class LanguagesSectionComponent implements ISmokeControlsSectionComponent
           }}
         />
         <span class="smoke-language-label">
-          <span class="smoke-language-icon smoke-language-icon-fallback" aria-hidden="true"></span>
+          ${language.iconUri.length > 0
+            ? html`<img class="smoke-language-icon" src=${language.iconUri} alt="" aria-hidden="true" />`
+            : html`<span class="smoke-language-icon smoke-language-icon-fallback" aria-hidden="true"></span>`}
           <span>${language.label}</span>
         </span>
       </label>

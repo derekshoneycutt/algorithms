@@ -8,6 +8,8 @@ import {
   IAlgorithmImplementation,
   IAlgorithmImplementationChild,
   ILanguagesDataChangeEvent,
+  ISupportedLanguageConstraint,
+  ISupportedLanguage,
   IStdLibCategory,
   IStdLibCategoryFile,
   ILanguages,
@@ -99,6 +101,51 @@ function getLanguageIconFileNameForExtension(extension: string): string | undefi
   });
 
   return matchingLanguage?.icon.fileName;
+}
+
+/**
+ * Returns true when one host-token list contains the provided token or wildcard.
+ *
+ * @param {string[]} tokens Allowed platform or architecture tokens.
+ * @param {string} value Current host token.
+ * @returns {boolean} True when value is explicitly or wildcard matched.
+ */
+function matchesHostToken(tokens: string[], value: string): boolean {
+  return tokens.includes("*") || tokens.includes(value);
+}
+
+/**
+ * Returns true when one language record can run on the current host.
+ *
+ * @param {typeof GENERATED_LANGUAGE_DATA.languages[number]} language Generated language metadata.
+ * @returns {boolean} True when at least one run constraint matches current host.
+ */
+function canRunLanguageOnCurrentHost(
+  language: typeof GENERATED_LANGUAGE_DATA.languages[number],
+): boolean {
+  const hostPlatform = process.platform;
+  const hostArchitecture = process.arch;
+
+  return language.constraints.canRun.some((entry) => {
+    return matchesHostToken(entry.platform, hostPlatform)
+      && matchesHostToken(entry.arch, hostArchitecture);
+  });
+}
+
+/**
+ * Maps one generated run constraint entry into the shared supported-language contract.
+ *
+ * @param {typeof GENERATED_LANGUAGE_DATA.languages[number]["constraints"]["canRun"][number]} entry Generated constraint entry.
+ * @returns {ISupportedLanguageConstraint} Mapped constraint descriptor.
+ */
+function mapRunConstraint(
+  entry: typeof GENERATED_LANGUAGE_DATA.languages[number]["constraints"]["canRun"][number],
+): ISupportedLanguageConstraint {
+  return {
+    platform: [...entry.platform],
+    arch: [...entry.arch],
+    note: entry.note,
+  };
 }
 
 /**
@@ -1106,6 +1153,34 @@ export class Languages implements ILanguages {
         };
       })
       .sort((a, b) => a.displayName.localeCompare(b.displayName));
+  }
+
+  /**
+   * Returns all generated supported language descriptors.
+   *
+   * @returns {Promise<ISupportedLanguage[]>} Supported language descriptors.
+   */
+  public async getSupportedLanguages() : Promise<ISupportedLanguage[]> {
+    return GENERATED_LANGUAGE_DATA.languages.map((language) => {
+      const hostCanRun = canRunLanguageOnCurrentHost(language);
+      return {
+        key: language.key,
+        displayName: language.displayLabel,
+        extension: language.extension,
+        sampleOutputTemplate: language.sampleOutputTemplate,
+        iconFileName: language.icon.fileName,
+        languageIds: [...language.aliases.languageIds],
+        fileExtensions: [...language.aliases.fileExtensions],
+        smokeVisible: language.smoke.visible ?? true,
+        smokeDefaultEnabled: language.smoke.defaultEnabled,
+        smokeReasonIfDisabledByDefault: language.smoke.reasonIfDisabledByDefault,
+        hostCanRun,
+        hostCannotRunReason: hostCanRun
+          ? undefined
+          : `Unsupported on ${process.platform}/${process.arch}`,
+        runConstraints: language.constraints.canRun.map((entry) => mapRunConstraint(entry)),
+      };
+    });
   }
 
   /**
