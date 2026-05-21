@@ -103,6 +103,46 @@ export interface ISupportedLanguage {
 }
 
 /**
+ * Writable roots managed by ILanguages create operations.
+ */
+export type LanguagesWritableRoot = "src" | "stdlib";
+
+/**
+ * Request for creating one directory under a writable root.
+ */
+export interface ILanguagesCreateDirectoryRequest {
+  root: LanguagesWritableRoot;
+  relativeDirectoryPath: string;
+}
+
+/**
+ * Request for creating one file under a writable root.
+ */
+export interface ILanguagesCreateFileRequest {
+  root: LanguagesWritableRoot;
+  relativeFilePath: string;
+  content?: string;
+  overwrite?: boolean;
+}
+
+/**
+ * Request for deleting one directory under a writable root.
+ */
+export interface ILanguagesDeleteDirectoryRequest {
+  root: LanguagesWritableRoot;
+  relativeDirectoryPath: string;
+  recursive?: boolean;
+}
+
+/**
+ * Request for deleting one file under a writable root.
+ */
+export interface ILanguagesDeleteFileRequest {
+  root: LanguagesWritableRoot;
+  relativeFilePath: string;
+}
+
+/**
  * Contract for language/category discovery and state updates.
  */
 export interface ILanguages extends vscode.Disposable {
@@ -204,4 +244,36 @@ export interface ILanguages extends vscode.Disposable {
    * @returns {Promise<ISupportedLanguage[]>} Supported language descriptors.
    */
   getSupportedLanguages() : Promise<ISupportedLanguage[]>;
+
+  /**
+   * Creates one directory under the requested writable root.
+   *
+   * @param {ILanguagesCreateDirectoryRequest} request Create-directory request.
+   * @returns {Promise<string>} Absolute path of the created directory.
+   */
+  createDirectory(request: ILanguagesCreateDirectoryRequest): Promise<string>;
+
+  /**
+   * Creates one file under the requested writable root.
+   *
+   * @param {ILanguagesCreateFileRequest} request Create-file request.
+   * @returns {Promise<string>} Absolute path of the created file.
+   */
+  createFile(request: ILanguagesCreateFileRequest): Promise<string>;
+
+  /**
+   * Deletes one directory under the requested writable root.
+   *
+   * @param {ILanguagesDeleteDirectoryRequest} request Delete-directory request.
+   * @returns {Promise<string>} Absolute path of the deleted directory.
+   */
+  deleteDirectory(request: ILanguagesDeleteDirectoryRequest): Promise<string>;
+
+  /**
+   * Deletes one file under the requested writable root.
+   *
+   * @param {ILanguagesDeleteFileRequest} request Delete-file request.
+   * @returns {Promise<string>} Absolute path of the deleted file.
+   */
+  deleteFile(request: ILanguagesDeleteFileRequest): Promise<string>;
 }

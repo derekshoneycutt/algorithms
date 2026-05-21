@@ -7,6 +7,10 @@ import {
   IAlgorithmDirectory,
   IAlgorithmImplementation,
   IAlgorithmImplementationChild,
+  ILanguagesCreateDirectoryRequest,
+  ILanguagesCreateFileRequest,
+  ILanguagesDeleteDirectoryRequest,
+  ILanguagesDeleteFileRequest,
   ILanguagesDataChangeEvent,
   ISupportedLanguageConstraint,
   ISupportedLanguage,
@@ -40,6 +44,11 @@ const supportedLanguageExtensions = new Set(
       .filter((extension) => extension.length > 1);
   })
 );
+
+interface WritableRootResolution {
+  rootPath: string;
+  dataScope: "algorithms" | "stdlib";
+}
 
 /**
  * Normalizes a file extension to lowercase dot-prefixed form.
@@ -1181,6 +1190,183 @@ export class Languages implements ILanguages {
         runConstraints: language.constraints.canRun.map((entry) => mapRunConstraint(entry)),
       };
     });
+  }
+
+  /**
+   * Creates one directory under a writable root and emits a create data-change event.
+   *
+   * @param {ILanguagesCreateDirectoryRequest} request Create-directory request.
+   * @returns {Promise<string>} Absolute created directory path.
+   */
+  public async createDirectory(request: ILanguagesCreateDirectoryRequest): Promise<string> {
+    const writableRoot = await this.resolveWritableRoot(request.root);
+    const normalizedRelativePath = this.normalizeRelativeWritePath(request.relativeDirectoryPath, "directory");
+    const targetPath = path.join(writableRoot.rootPath, normalizedRelativePath);
+
+    await fsp.mkdir(targetPath, { recursive: true });
+    this.invalidateCachesForFileSystemChange(vscode.Uri.file(targetPath));
+    this.emitDataChange({
+      scope: writableRoot.dataScope,
+      reason: "fs-create",
+      path: targetPath,
+    });
+
+    return targetPath;
+  }
+
+  /**
+   * Creates one file under a writable root and emits a create data-change event.
+   *
+   * @param {ILanguagesCreateFileRequest} request Create-file request.
+   * @returns {Promise<string>} Absolute created file path.
+   */
+  public async createFile(request: ILanguagesCreateFileRequest): Promise<string> {
+    const writableRoot = await this.resolveWritableRoot(request.root);
+    const normalizedRelativePath = this.normalizeRelativeWritePath(request.relativeFilePath, "file");
+    const targetPath = path.join(writableRoot.rootPath, normalizedRelativePath);
+    const targetParentDirectory = path.dirname(targetPath);
+
+    await fsp.mkdir(targetParentDirectory, { recursive: true });
+    const writeFlag = request.overwrite === true ? "w" : "wx";
+    await fsp.writeFile(targetPath, String(request.content ?? ""), {
+      encoding: "utf8",
+      flag: writeFlag,
+    });
+
+    this.invalidateCachesForFileSystemChange(vscode.Uri.file(targetPath));
+    this.emitDataChange({
+      scope: writableRoot.dataScope,
+      reason: "fs-create",
+      path: targetPath,
+    });
+
+    return targetPath;
+  }
+
+  /**
+   * Deletes one directory under a writable root and emits a delete data-change event.
+   *
+   * @param {ILanguagesDeleteDirectoryRequest} request Delete-directory request.
+   * @returns {Promise<string>} Absolute deleted directory path.
+   */
+  public async deleteDirectory(request: ILanguagesDeleteDirectoryRequest): Promise<string> {
+    const writableRoot = await this.resolveWritableRoot(request.root);
+    const normalizedRelativePath = this.normalizeRelativeWritePath(request.relativeDirectoryPath, "directory");
+    const targetPath = path.join(writableRoot.rootPath, normalizedRelativePath);
+
+    await this.deletePathPreferTrash(targetPath, request.recursive ?? true);
+
+    this.invalidateCachesForFileSystemChange(vscode.Uri.file(targetPath));
+    this.emitDataChange({
+      scope: writableRoot.dataScope,
+      reason: "fs-delete",
+      path: targetPath,
+    });
+
+    return targetPath;
+  }
+
+  /**
+   * Deletes one file under a writable root and emits a delete data-change event.
+   *
+   * @param {ILanguagesDeleteFileRequest} request Delete-file request.
+   * @returns {Promise<string>} Absolute deleted file path.
+   */
+  public async deleteFile(request: ILanguagesDeleteFileRequest): Promise<string> {
+    const writableRoot = await this.resolveWritableRoot(request.root);
+    const normalizedRelativePath = this.normalizeRelativeWritePath(request.relativeFilePath, "file");
+    const targetPath = path.join(writableRoot.rootPath, normalizedRelativePath);
+
+    await this.deletePathPreferTrash(targetPath, false);
+
+    this.invalidateCachesForFileSystemChange(vscode.Uri.file(targetPath));
+    this.emitDataChange({
+      scope: writableRoot.dataScope,
+      reason: "fs-delete",
+      path: targetPath,
+    });
+
+    return targetPath;
+  }
+
+  /**
+   * Resolves the writable root directory for one create operation.
+   *
+   * @param {"src" | "stdlib"} root Requested writable root key.
+   * @returns {Promise<WritableRootResolution>} Writable root path and event scope.
+   */
+  private async resolveWritableRoot(root: "src" | "stdlib"): Promise<WritableRootResolution> {
+    const baseDirectory = await SupportedWorkspaceChecker.getCurrentBaseDirectory();
+    if (!baseDirectory) {
+      throw new Error("No supported workspace base directory is available.");
+    }
+
+    if (root === "src") {
+      return {
+        rootPath: path.join(baseDirectory, algorithmsSourceDir),
+        dataScope: "algorithms",
+      };
+    }
+
+    return {
+      rootPath: path.join(baseDirectory, stdlibSourceDir),
+      dataScope: "stdlib",
+    };
+  }
+
+  /**
+   * Normalizes one relative path for a create operation and rejects traversal/absolute paths.
+   *
+   * @param {string} relativePath Relative input path from caller.
+   * @param {"directory" | "file"} pathKind Path-kind used for error text.
+   * @returns {string} Normalized relative path safe to join under writable root.
+   */
+  private normalizeRelativeWritePath(relativePath: string, pathKind: "directory" | "file"): string {
+    const trimmedPath = String(relativePath ?? "").trim();
+    if (trimmedPath.length === 0) {
+      throw new Error(`${pathKind} path is required.`);
+    }
+
+    const normalizedPath = path.normalize(trimmedPath);
+    if (path.isAbsolute(normalizedPath)) {
+      throw new Error(`${pathKind} path must be relative.`);
+    }
+
+    const pathSegments = normalizedPath.split(path.sep).filter((segment) => segment.length > 0);
+    if (pathSegments.length === 0) {
+      throw new Error(`${pathKind} path is required.`);
+    }
+
+    const containsTraversal = pathSegments.some((segment) => segment === "..");
+    if (containsTraversal) {
+      throw new Error(`${pathKind} path cannot traverse outside the writable root.`);
+    }
+
+    return pathSegments.join(path.sep);
+  }
+
+  /**
+   * Deletes one filesystem path, preferring Move to Trash and falling back to hard delete.
+   *
+   * @param {string} targetPath Absolute path to delete.
+   * @param {boolean} recursive Whether recursive deletion is required.
+   * @returns {Promise<void>} Resolves when delete completes.
+   */
+  private async deletePathPreferTrash(targetPath: string, recursive: boolean): Promise<void> {
+    const targetUri = vscode.Uri.file(targetPath);
+
+    try {
+      await vscode.workspace.fs.delete(targetUri, {
+        recursive,
+        useTrash: true,
+      });
+      return;
+    } catch {
+      await fsp.rm(targetPath, {
+        recursive,
+        force: false,
+      });
+    }
   }
 
   /**

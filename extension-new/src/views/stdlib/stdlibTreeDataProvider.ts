@@ -85,12 +85,16 @@ export class StdLibTreeDataProvider implements vscode.TreeDataProvider<StdLibTre
     if (!element) {
         const categories = await this.languages.getStandardLibraryCategories();
       const treeItems = categories.map(
-        (category) => new StdLibTreeItem(
-          category.displayName,
-          category.directoryPath,
-          vscode.TreeItemCollapsibleState.Collapsed,
-          category,
-        ));
+        (category) => {
+          const item = new StdLibTreeItem(
+            category.displayName,
+            category.directoryPath,
+            vscode.TreeItemCollapsibleState.Collapsed,
+            category,
+          );
+          item.contextValue = "stdlibFolder";
+          return item;
+        });
         return treeItems;
     }
 
@@ -104,6 +108,7 @@ export class StdLibTreeDataProvider implements vscode.TreeDataProvider<StdLibTre
           undefined,
           element.category,
         );
+          item.contextValue = "stdlibFile";
           this.setOpenFileCommand(item, file.filePath);
           if (file.languageIconFileName) {
             item.iconPath = this.getLanguageIconUri(file.languageIconFileName);
