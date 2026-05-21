@@ -1,102 +1,19 @@
 import * as vscode from 'vscode';
-import { ILanguages, IStdLibCategory } from '../../languages';
-
-export const stdlibTreeViewId = "algos.stdlibTreeView";
-
-/**
- * Tree item for the StdLib tree view.
- */
-export class StdLibTreeItem extends vscode.TreeItem {
-  public category: IStdLibCategory | undefined;
-
-  constructor(
-    label: string,
-    path: string,
-    collapsibleState: vscode.TreeItemCollapsibleState,
-    category?: IStdLibCategory,
-  ) {
-    super(label, collapsibleState);
-    this.resourceUri = vscode.Uri.file(path);
-    this.category = category;
-  }
-}
-
-/**
- * Data provider for the StdLib tree view.
- */
-export class StdLibTreeDataProvider implements vscode.TreeDataProvider<StdLibTreeItem> {
-  private languages : ILanguages;
-  private extensionUri : vscode.Uri;
-
-  private _onDidChangeTreeData: vscode.EventEmitter<StdLibTreeItem | undefined | void>;
-
-
-  readonly onDidChangeTreeData: vscode.Event<StdLibTreeItem | undefined | void>;
-    
-  public constructor(languages : ILanguages, extensionUri: vscode.Uri) {
-    this.languages = languages;
-    this.extensionUri = extensionUri;
-    this._onDidChangeTreeData = new vscode.EventEmitter<StdLibTreeItem | undefined | void>();
-    this.onDidChangeTreeData = this._onDidChangeTreeData.event;
-  }
-
-  /**
-   * Resolves a language icon URI from the generated icon filename.
-   *
-   * @param {string} iconFileName Icon filename from language metadata.
-   * @returns {vscode.Uri} Resolved extension-resource URI.
-   */
-  private getLanguageIconUri(iconFileName: string): vscode.Uri {
-    return vscode.Uri.joinPath(this.extensionUri, "icons", "languages", iconFileName);
-  }
-
-  getTreeItem(element: StdLibTreeItem): vscode.TreeItem {
-    return element;
-  }
-
-  async getChildren(element?: StdLibTreeItem): Promise<StdLibTreeItem[]> {
-    if (!element) {
-        const categories = await this.languages.getStandardLibraryCategories();
-      const treeItems = categories.map(
-        (category) => new StdLibTreeItem(
-          category.displayName,
-          category.directoryPath,
-          vscode.TreeItemCollapsibleState.Collapsed,
-          category,
-        ));
-        return treeItems;
-    }
-
-    if (element.category) {
-        const files = await this.languages.getStandardLibraryFiles(element.category);
-      const fileItems = files.map((file) => {
-        const item = new StdLibTreeItem(
-          file.displayName,
-          file.filePath,
-          vscode.TreeItemCollapsibleState.None,
-        );
-          if (file.languageIconFileName) {
-            item.iconPath = this.getLanguageIconUri(file.languageIconFileName);
-          }
-        return item;
-      });
-        return fileItems;
-    }
-
-      return [];
-  }
-}
+import { ILanguages } from '../../languages';
+import {
+  StdLibTreeDataProvider,
+  StdLibTreeItem,
+  stdlibTreeViewId
+} from './stdlibTreeDataProvider';
 
 export class StdLibTreeView implements vscode.Disposable {
   private languages : ILanguages;
-  private extensionUri : vscode.Uri | undefined;
 
   private dataProvider : StdLibTreeDataProvider | undefined;
   private treeView : vscode.TreeView<StdLibTreeItem> | undefined;
 
   public constructor(languages : ILanguages) {
     this.languages = languages;
-    this.extensionUri = undefined;
     this.dataProvider = undefined;
     this.treeView = undefined;
   }
@@ -106,7 +23,6 @@ export class StdLibTreeView implements vscode.Disposable {
       return;
     }
 
-    this.extensionUri = extensionUri;
     this.dataProvider = new StdLibTreeDataProvider(this.languages, extensionUri);
     this.treeView = vscode.window.createTreeView(
       stdlibTreeViewId,
@@ -128,6 +44,40 @@ export class StdLibTreeView implements vscode.Disposable {
     return this.treeView;
   }
 
+  /**
+   * Refreshes the StdLib tree view when registered.
+   *
+   * @returns {void} No return value.
+   */
+  public refresh(): void {
+    this.dataProvider?.refresh();
+  }
+
+  /**
+   * Reveals one file path in the StdLib tree when currently visible.
+   *
+   * @param {string} filePath Absolute file path to reveal.
+   * @returns {Promise<boolean>} True when an item was found and revealed.
+   */
+  public async revealFile(filePath: string): Promise<boolean> {
+    if (!this.treeView || !this.dataProvider) {
+      return false;
+    }
+
+    const item = await this.dataProvider.findItemForFilePath(filePath);
+    if (!item) {
+      return false;
+    }
+
+    try {
+      await this.treeView.reveal(item, { select: true, focus: false, expand: true });
+      return true;
+    }
+    catch {
+      return false;
+    }
+  }
+
   public dispose() {
     if (this.treeView !== undefined) {
       this.treeView.dispose();
@@ -136,6 +86,5 @@ export class StdLibTreeView implements vscode.Disposable {
     if (this.dataProvider !== undefined) {
       this.dataProvider = undefined;
     }
-    this.extensionUri = undefined;
   }
 }

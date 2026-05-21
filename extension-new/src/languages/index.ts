@@ -1,5 +1,14 @@
 import * as vscode from 'vscode';
 
+export type LanguagesDataChangeScope = "algorithms" | "stdlib" | "workspace";
+export type LanguagesDataChangeReason = "fs-create" | "fs-delete" | "flag-change" | "workspace-change";
+
+export interface ILanguagesDataChangeEvent {
+  scope: LanguagesDataChangeScope;
+  reason: LanguagesDataChangeReason;
+  path: string | undefined;
+}
+
 export interface IAlgorithmCategory {
   displayName: string;
   directoryPath: string;
@@ -40,6 +49,12 @@ export interface IStdLibCategoryFile {
 export interface ILanguages extends vscode.Disposable {
 
   activate(context: vscode.ExtensionContext) : void;
+
+  subscribeToDataChanges(
+    listener: (event: ILanguagesDataChangeEvent) => void,
+  ) : vscode.Disposable;
+
+  isRecognizedFile(filePath: string) : Promise<boolean>;
   
   getAlgorithmCategories() : Promise<IAlgorithmCategory[]>;
 

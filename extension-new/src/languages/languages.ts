@@ -7,11 +7,12 @@ import {
   IAlgorithmDirectory,
   IAlgorithmImplementation,
   IAlgorithmImplementationChild,
+  ILanguagesDataChangeEvent,
   IStdLibCategory,
   IStdLibCategoryFile,
   ILanguages,
 } from '.';
-import { FlagHandler } from './flagHandler';
+import { FLAGGED_LANGUAGES_FILE_NAME, FlagHandler } from './flagHandler';
 import { SupportedWorkspaceChecker } from './supportedWorkspaceChecker';
 import { GENERATED_LANGUAGE_DATA } from './generated/languages.generated';
 
@@ -208,9 +209,129 @@ function findClosestImplementationFile(
 export class Languages implements ILanguages {
 
   private workspaceFolderChangeSubscription : vscode.Disposable | undefined = undefined;
+  private fileSystemWatcherSubscriptions: vscode.Disposable[] = [];
   private isDirectoryCache = new Map<string, boolean>();
   private directoryEntriesCache = new Map<string, fs.Dirent[] | undefined>();
+  private recognizedFileCache = new Map<string, boolean>();
   private flagHandler = new FlagHandler();
+  private onDidChangeDataEmitter = new vscode.EventEmitter<ILanguagesDataChangeEvent>();
+
+  /**
+   * Registers workspace-folder change handling and initializes support context.
+   *
+   * @param {vscode.ExtensionContext} _context Extension lifecycle context.
+   * @returns {void} No return value.
+   */
+  public activate(_context: vscode.ExtensionContext) : void {
+    this.registerFileSystemWatchers();
+
+    this.workspaceFolderChangeSubscription =
+      vscode.workspace.onDidChangeWorkspaceFolders(() => {
+        this.clearFileSystemCache();
+        this.registerFileSystemWatchers();
+        this.emitDataChange({
+          scope: "workspace",
+          reason: "workspace-change",
+          path: undefined,
+        });
+        void this.updateWorkspaceSupport();
+        void this.prewarmTopLevelTreeCaches();
+      });
+
+    void this.updateWorkspaceSupport();
+    void this.prewarmTopLevelTreeCaches();
+  }
+
+  /**
+   * Subscribes to language data change events emitted by this service.
+   *
+   * @param {(event: ILanguagesDataChangeEvent) => void} listener Event listener callback.
+   * @returns {vscode.Disposable} Subscription disposable.
+   */
+  public subscribeToDataChanges(
+    listener: (event: ILanguagesDataChangeEvent) => void,
+  ): vscode.Disposable {
+    return this.onDidChangeDataEmitter.event(listener);
+  }
+
+  /**
+   * Returns true when one file path is recognized by this extension as a supported file.
+   *
+   * Recognition is limited to files under workspace `src` and `stdlib` roots
+   * that match supported extension rules (plus docs files in `src`).
+   *
+   * @param {string} filePath Absolute file path to evaluate.
+   * @returns {Promise<boolean>} True when the file is recognized.
+   */
+  public async isRecognizedFile(filePath: string): Promise<boolean> {
+    const cached = this.recognizedFileCache.get(filePath);
+    if (cached !== undefined) {
+      return cached;
+    }
+
+    const recognized = await this.computeIsRecognizedFile(filePath);
+    this.recognizedFileCache.set(filePath, recognized);
+    return recognized;
+  }
+
+  /**
+   * Computes recognized-file status without using or mutating the recognition cache.
+   *
+   * @param {string} filePath Absolute file path to evaluate.
+   * @returns {Promise<boolean>} True when the file is recognized.
+   */
+  private async computeIsRecognizedFile(filePath: string): Promise<boolean> {
+    const baseDirectory = await SupportedWorkspaceChecker.getCurrentBaseDirectory();
+    if (!baseDirectory) {
+      return false;
+    }
+
+    const relativePath = path.relative(baseDirectory, filePath);
+    if (!relativePath
+        || relativePath.startsWith("..")
+        || path.isAbsolute(relativePath)) {
+      return false;
+    }
+
+    let isFile = false;
+    try {
+      isFile = (await fsp.stat(filePath)).isFile();
+    }
+    catch {
+      isFile = false;
+    }
+
+    if (!isFile) {
+      return false;
+    }
+
+    const baseName = path.basename(filePath);
+    if (baseName === FLAGGED_LANGUAGES_FILE_NAME) {
+      return false;
+    }
+
+    const normalizedExtension = normalizeExtension(path.extname(filePath));
+    const pathSegments = relativePath.split(path.sep).filter((segment) => segment.length > 0);
+    if (pathSegments.length === 0) {
+      return false;
+    }
+
+    const isUnderAlgorithmsSource = pathSegments[0] === algorithmsSourceDir;
+    if (isUnderAlgorithmsSource) {
+      if (supportedLanguageExtensions.has(normalizedExtension)) {
+        return true;
+      }
+
+      return normalizedExtension === ".md" || normalizedExtension === ".txt";
+    }
+
+    const isUnderStandardLibrary = pathSegments[0] === stdlibSourceDir;
+    if (isUnderStandardLibrary) {
+      return supportedLanguageExtensions.has(normalizedExtension);
+    }
+
+    return false;
+  }
 
   /**
    * Clears all cached filesystem lookups.
@@ -220,7 +341,255 @@ export class Languages implements ILanguages {
   private clearFileSystemCache() : void {
     this.isDirectoryCache.clear();
     this.directoryEntriesCache.clear();
+    this.recognizedFileCache.clear();
     this.flagHandler.clearCache();
+  }
+
+  /**
+   * Drops cached stat/readdir values for one path.
+   *
+   * @param {string} targetPath Filesystem path to invalidate.
+   * @returns {void} No return value.
+   */
+  private invalidatePathCache(targetPath: string): void {
+    this.isDirectoryCache.delete(targetPath);
+    this.directoryEntriesCache.delete(targetPath);
+    this.recognizedFileCache.delete(targetPath);
+  }
+
+  /**
+   * Invalidates the immediate parent directory cache for one changed path.
+   *
+   * @param {string} targetPath Changed file-system path.
+   * @returns {void} No return value.
+   */
+  private invalidateParentDirectoryCache(targetPath: string): void {
+    const parentDirectoryPath = path.dirname(targetPath);
+    if (parentDirectoryPath === targetPath) {
+      return;
+    }
+
+    this.directoryEntriesCache.delete(parentDirectoryPath);
+  }
+
+  /**
+   * Invalidates caches for one file-system change event path.
+   *
+   * Keeps invalidation narrow: changed path, parent directory listing, and
+   * a small set of related paths needed for include/flag semantics.
+   *
+   * @param {vscode.Uri} uri Changed filesystem URI.
+   * @returns {void} No return value.
+   */
+  private invalidateCachesForFileSystemChange(uri: vscode.Uri): void {
+    if (uri.scheme !== "file") {
+      return;
+    }
+
+    const changedPath = uri.fsPath;
+    this.invalidatePathCache(changedPath);
+    this.invalidateParentDirectoryCache(changedPath);
+
+    const changedBaseName = path.basename(changedPath);
+    const changedParentDirectory = path.dirname(changedPath);
+
+    if (changedBaseName === FLAGGED_LANGUAGES_FILE_NAME) {
+      this.flagHandler.clearCache(changedParentDirectory);
+    }
+
+    const changedParentBaseName = path.basename(changedParentDirectory);
+    if (changedParentBaseName.endsWith("_include")) {
+      const algorithmDirectoryPath = path.dirname(changedParentDirectory);
+      this.directoryEntriesCache.delete(algorithmDirectoryPath);
+    }
+  }
+
+  /**
+   * Emits one languages data change event.
+   *
+   * @param {ILanguagesDataChangeEvent} event Event payload.
+   * @returns {void} No return value.
+   */
+  private emitDataChange(event: ILanguagesDataChangeEvent): void {
+    this.onDidChangeDataEmitter.fire(event);
+  }
+
+  /**
+   * Resolves event scope for one changed path.
+   *
+   * @param {string} changedPath Filesystem path associated with a change.
+   * @returns {"algorithms" | "stdlib" | undefined} Domain scope for the changed path.
+   */
+  private resolveScopeForPath(changedPath: string): "algorithms" | "stdlib" | undefined {
+    const pathSegments = changedPath.split(path.sep).filter((segment) => segment.length > 0);
+    if (pathSegments.includes(algorithmsSourceDir)) {
+      return "algorithms";
+    }
+
+    if (pathSegments.includes(stdlibSourceDir)) {
+      return "stdlib";
+    }
+
+    return undefined;
+  }
+
+  /**
+   * Invalidates cache entries for structural filesystem events (create/delete).
+   *
+   * @param {vscode.Uri} uri Changed filesystem URI.
+   * @returns {void} No return value.
+   */
+  private handleFileSystemCreateOrDelete(
+    uri: vscode.Uri,
+    reason: "fs-create" | "fs-delete",
+  ): void {
+    if (!this.shouldInvalidateForCreateOrDelete(uri)) {
+      return;
+    }
+
+    this.invalidateCachesForFileSystemChange(uri);
+
+    const scope = this.resolveScopeForPath(uri.fsPath);
+    if (!scope) {
+      return;
+    }
+
+    this.emitDataChange({
+      scope,
+      reason,
+      path: uri.fsPath,
+    });
+  }
+
+  /**
+   * Returns true when one create/delete path can change rendered language tree data.
+   *
+   * @param {vscode.Uri} uri Changed filesystem URI.
+   * @returns {boolean} True when cache invalidation is required.
+   */
+  private shouldInvalidateForCreateOrDelete(uri: vscode.Uri): boolean {
+    if (uri.scheme !== "file") {
+      return false;
+    }
+
+    const changedPath = uri.fsPath;
+    const changedBaseName = path.basename(changedPath);
+    if (changedBaseName === FLAGGED_LANGUAGES_FILE_NAME) {
+      return true;
+    }
+
+    const normalizedExtension = normalizeExtension(path.extname(changedPath));
+    const hasKnownExtension = normalizedExtension.length > 0;
+    const pathSegments = changedPath.split(path.sep).filter((segment) => segment.length > 0);
+
+    const isUnderAlgorithmsSource = pathSegments.includes(algorithmsSourceDir);
+    if (isUnderAlgorithmsSource) {
+      if (!hasKnownExtension) {
+        return true;
+      }
+
+      if (supportedLanguageExtensions.has(normalizedExtension)) {
+        return true;
+      }
+
+      return normalizedExtension === ".md" || normalizedExtension === ".txt";
+    }
+
+    const isUnderStandardLibrary = pathSegments.includes(stdlibSourceDir);
+    if (isUnderStandardLibrary) {
+      if (!hasKnownExtension) {
+        return true;
+      }
+
+      return supportedLanguageExtensions.has(normalizedExtension);
+    }
+
+    return false;
+  }
+
+  /**
+   * Invalidates cache entries for file-content updates only when they affect flag state.
+   *
+   * This intentionally ignores generic file content updates (for example autosave)
+   * to avoid high-frequency cache churn.
+   *
+   * @param {vscode.Uri} uri Changed filesystem URI.
+   * @returns {void} No return value.
+   */
+  private handleFileSystemContentChange(uri: vscode.Uri): void {
+    if (uri.scheme !== "file") {
+      return;
+    }
+
+    if (path.basename(uri.fsPath) !== FLAGGED_LANGUAGES_FILE_NAME) {
+      return;
+    }
+
+    this.invalidateCachesForFileSystemChange(uri);
+    this.emitDataChange({
+      scope: "algorithms",
+      reason: "flag-change",
+      path: path.dirname(uri.fsPath),
+    });
+  }
+
+  /**
+   * Disposes all active file-system watchers created by this service.
+   *
+   * @returns {void} No return value.
+   */
+  private disposeFileSystemWatchers(): void {
+    for (const watcher of this.fileSystemWatcherSubscriptions) {
+      watcher.dispose();
+    }
+
+    this.fileSystemWatcherSubscriptions = [];
+  }
+
+  /**
+   * Creates one watcher for one workspace-relative glob and wires targeted cache invalidation.
+   *
+   * @param {vscode.WorkspaceFolder} folder Workspace folder containing the pattern root.
+   * @param {string} pattern Workspace-relative glob pattern.
+   * @returns {void} No return value.
+   */
+  private registerWatcherForPattern(folder: vscode.WorkspaceFolder, pattern: string): void {
+    const watcher = vscode.workspace.createFileSystemWatcher(
+      new vscode.RelativePattern(folder, pattern),
+    );
+
+    const createSubscription = watcher.onDidCreate((uri: vscode.Uri) => {
+      this.handleFileSystemCreateOrDelete(uri, "fs-create");
+    });
+    const changeSubscription = watcher.onDidChange((uri: vscode.Uri) => {
+      this.handleFileSystemContentChange(uri);
+    });
+    const deleteSubscription = watcher.onDidDelete((uri: vscode.Uri) => {
+      this.handleFileSystemCreateOrDelete(uri, "fs-delete");
+    });
+
+    this.fileSystemWatcherSubscriptions.push(
+      watcher,
+      createSubscription,
+      changeSubscription,
+      deleteSubscription,
+    );
+  }
+
+  /**
+   * Registers file-system watchers for source, standard-library, and flag files.
+   *
+   * @returns {void} No return value.
+   */
+  private registerFileSystemWatchers(): void {
+    this.disposeFileSystemWatchers();
+
+    const folders = vscode.workspace.workspaceFolders ?? [];
+    for (const folder of folders) {
+      this.registerWatcherForPattern(folder, `${algorithmsSourceDir}/**/*`);
+      this.registerWatcherForPattern(folder, `${stdlibSourceDir}/**/*`);
+      this.registerWatcherForPattern(folder, `${algorithmsSourceDir}/**/${FLAGGED_LANGUAGES_FILE_NAME}`);
+    }
   }
 
   /**
@@ -303,24 +672,6 @@ export class Languages implements ILanguages {
 
       await this.readDirectoryEntriesCached(directoryPath);
     }
-  }
-
-  /**
-   * Registers workspace-folder change handling and initializes support context.
-   *
-   * @param {vscode.ExtensionContext} _context Extension lifecycle context.
-   * @returns {void} No return value.
-   */
-  public activate(_context: vscode.ExtensionContext) : void {
-    this.workspaceFolderChangeSubscription =
-      vscode.workspace.onDidChangeWorkspaceFolders(() => {
-        this.clearFileSystemCache();
-        void this.updateWorkspaceSupport();
-        void this.prewarmTopLevelTreeCaches();
-      });
-
-    void this.updateWorkspaceSupport();
-    void this.prewarmTopLevelTreeCaches();
   }
 
   /**
@@ -684,6 +1035,11 @@ export class Languages implements ILanguages {
 
     // Keep cache consistency with direct persistence updates for this algorithm.
     this.flagHandler.clearCache(algorithmDirectory.directoryPath);
+    this.emitDataChange({
+      scope: "algorithms",
+      reason: "flag-change",
+      path: algorithmDirectory.directoryPath,
+    });
   }
 
   /**
@@ -758,6 +1114,8 @@ export class Languages implements ILanguages {
    * @returns {void} No return value.
    */
   public dispose() : void {
+    this.onDidChangeDataEmitter.dispose();
+    this.disposeFileSystemWatchers();
     this.clearFileSystemCache();
     this.workspaceFolderChangeSubscription?.dispose();
   }
