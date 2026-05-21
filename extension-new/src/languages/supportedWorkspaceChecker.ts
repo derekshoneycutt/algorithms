@@ -19,6 +19,11 @@ export class SupportedWorkspaceChecker {
   private static cachedIsSupported: boolean | undefined = undefined;
   private static cachedBaseDirectory: string | undefined = undefined;
 
+  /**
+   * Returns the resolved repository base directory for the current supported workspace.
+   *
+   * @returns {Promise<string | undefined>} Base directory path when supported, otherwise undefined.
+   */
   public static async getCurrentBaseDirectory() : Promise<string | undefined> {
     if (!await this.isSupported()) {
       return undefined;
@@ -30,6 +35,8 @@ export class SupportedWorkspaceChecker {
   /**
    * Returns true if any open workspace folder is a valid entry point (repo root, src, src/category, src/category/algorithm)
    * and the resolved root contains all required marker files/directories.
+    *
+    * @returns {Promise<boolean>} True when at least one workspace folder resolves to a supported project root.
    */
   public static async isSupported(): Promise<boolean> {
     const folders = vscode.workspace.workspaceFolders;
@@ -94,6 +101,12 @@ export class SupportedWorkspaceChecker {
     return false;
   }
 
+  /**
+   * Walks upward from a starting path to find a directory that contains all required markers.
+   *
+   * @param {string} startPath Path where upward search begins.
+   * @returns {Promise<string | undefined>} Matching base directory path, or undefined when not found.
+   */
   private static async findBaseDirectory(startPath: string): Promise<string | undefined> {
     let current = startPath;
     const requiredMarkerCount = this.required.length;
@@ -115,6 +128,12 @@ export class SupportedWorkspaceChecker {
     return undefined;
   }
 
+  /**
+   * Resolves symlinks and canonicalizes a path, falling back to the input path on failure.
+   *
+   * @param {string} p Path to canonicalize.
+   * @returns {Promise<string>} Canonicalized path when available, otherwise the original path.
+   */
   private static async realpathSafe(p: string): Promise<string> {
     try {
       return await fs.realpath(p);
@@ -128,7 +147,7 @@ export class SupportedWorkspaceChecker {
    * Reads immediate child entries for a directory, returning undefined when unreadable.
    *
    * @param {string} directoryPath Path to read.
-   * @returns {Promise<fs.Dirent[] | undefined>} Child entries when available.
+   * @returns {Promise<Dirent[] | undefined>} Child entries when available.
    */
   private static async readDirectoryEntries(
     directoryPath: string): Promise<Dirent[] | undefined> {
@@ -140,6 +159,12 @@ export class SupportedWorkspaceChecker {
     }
   }
 
+  /**
+   * Counts how many required marker entries are present in a candidate root directory.
+   *
+   * @param {string} root Candidate root directory.
+   * @returns {Promise<number>} Number of required markers currently present.
+   */
   private static async countPresentMarkers(root: string): Promise<number> {
     const entries = await this.readDirectoryEntries(root);
     if (!entries) {

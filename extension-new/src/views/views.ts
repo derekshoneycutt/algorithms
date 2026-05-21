@@ -25,7 +25,7 @@ export class Views implements IViews {
     this.environmentView = new EnvironmentView();
   }
 
-  public register(context: vscode.ExtensionContext): void {
+  public activate(context: vscode.ExtensionContext): void {
     if (this.algosTreeView.isRegistered()) {
         return;
     }

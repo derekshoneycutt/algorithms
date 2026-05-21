@@ -311,7 +311,7 @@ export class Languages implements ILanguages {
    * @param {vscode.ExtensionContext} _context Extension lifecycle context.
    * @returns {void} No return value.
    */
-  public register(_context: vscode.ExtensionContext) : void {
+  public activate(_context: vscode.ExtensionContext) : void {
     this.workspaceFolderChangeSubscription =
       vscode.workspace.onDidChangeWorkspaceFolders(() => {
         this.clearFileSystemCache();
@@ -344,7 +344,7 @@ export class Languages implements ILanguages {
       return [];
     }
 
-    return entries
+    const categories = entries
       .filter((entry) => entry.isDirectory())
       .filter((entry) => !entry.name.startsWith("."))
       .filter((entry) => !excludedDirectories.has(entry.name))
@@ -353,6 +353,81 @@ export class Languages implements ILanguages {
         directoryPath: path.join(sourceDirectory, entry.name),
       }))
       .sort((a, b) => a.displayName.localeCompare(b.displayName));
+
+    const categoriesWithAlgorithms = await Promise.all(categories.map(async (category) => {
+      const algorithms = await this.getAlgorithmsInCategory(category);
+      return {
+        category,
+        algorithmCount: algorithms.length,
+      };
+    }));
+
+    return categoriesWithAlgorithms
+      .filter((entry) => entry.algorithmCount > 0)
+      .map((entry) => entry.category);
+  }
+
+  /**
+   * Returns true when one algorithm directory contains at least one supported implementation file.
+   *
+   * Documentation-only content does not count as implementation content.
+   *
+   * @param {string} algorithmDirectoryPath Algorithm directory path.
+   * @returns {Promise<boolean>} True when the directory is non-empty for tree visibility.
+   */
+  private async hasImplementationContent(
+    algorithmDirectoryPath: string,
+  ): Promise<boolean> {
+    const entries = await this.readDirectoryEntriesCached(algorithmDirectoryPath);
+    if (!entries) {
+      return false;
+    }
+
+    const hasTopLevelImplementationFile = entries.some((entry) => {
+      if (!entry.isFile() || entry.name.startsWith(".")) {
+        return false;
+      }
+
+      if (isAlgorithmDocumentationFile(entry)) {
+        return false;
+      }
+
+      const entryExtension = normalizeExtension(path.extname(entry.name));
+      return supportedLanguageExtensions.has(entryExtension);
+    });
+
+    if (hasTopLevelImplementationFile) {
+      return true;
+    }
+
+    const includeDirectories = entries.filter((entry) => {
+      return entry.isDirectory()
+        && !entry.name.startsWith(".")
+        && entry.name.endsWith("_include");
+    });
+
+    for (const includeDirectory of includeDirectories) {
+      const includeDirectoryPath = path.join(algorithmDirectoryPath, includeDirectory.name);
+      const includeEntries = await this.readDirectoryEntriesCached(includeDirectoryPath);
+      if (!includeEntries) {
+        continue;
+      }
+
+      const hasIncludeImplementationFile = includeEntries.some((entry) => {
+        if (!entry.isFile() || entry.name.startsWith(".")) {
+          return false;
+        }
+
+        const entryExtension = normalizeExtension(path.extname(entry.name));
+        return supportedLanguageExtensions.has(entryExtension);
+      });
+
+      if (hasIncludeImplementationFile) {
+        return true;
+      }
+    }
+
+    return false;
   }
 
   /**
@@ -371,7 +446,7 @@ export class Languages implements ILanguages {
       return [];
     }
 
-    return entries
+    const algorithms = entries
       .filter((entry) => entry.isDirectory())
       .filter((entry) => !entry.name.startsWith("."))
       .filter((entry) => !excludedDirectories.has(entry.name))
@@ -380,6 +455,18 @@ export class Languages implements ILanguages {
         directoryPath: path.join(category.directoryPath, entry.name),
       }))
       .sort((a, b) => a.displayName.localeCompare(b.displayName));
+
+    const nonEmptyAlgorithms = await Promise.all(algorithms.map(async (algorithm) => {
+      const hasImplementationContent = await this.hasImplementationContent(algorithm.directoryPath);
+      return {
+        algorithm,
+        hasImplementationContent,
+      };
+    }));
+
+    return nonEmptyAlgorithms
+      .filter((entry) => entry.hasImplementationContent)
+      .map((entry) => entry.algorithm);
   }
 
   /**
@@ -399,18 +486,18 @@ export class Languages implements ILanguages {
       flaggedLanguageKeys = new Set<string>();
     }
 
-    const docsImplementation: IAlgorithmImplementation = {
-      languageKey: docsImplementationKey,
-      languageDisplayName: docsItemLabel,
-      languageIconFileName: docsIconFileName,
-      isFlagged: false,
-      hasImplementation: true,
-      hasChildren: true,
-      fileName: docsItemLabel,
-      filePath: algorithmDirectory.directoryPath,
-    };
-
     if (!await this.isDirectoryCached(algorithmDirectory.directoryPath)) {
+      const docsImplementation: IAlgorithmImplementation = {
+        languageKey: docsImplementationKey,
+        languageDisplayName: docsItemLabel,
+        languageIconFileName: docsIconFileName,
+        isFlagged: false,
+        hasImplementation: true,
+        hasChildren: false,
+        fileName: docsItemLabel,
+        filePath: algorithmDirectory.directoryPath,
+      };
+
       return [
         docsImplementation,
         ...GENERATED_LANGUAGE_DATA.languages.map((language) => ({
@@ -430,6 +517,17 @@ export class Languages implements ILanguages {
     const files = entries
       ? entries.filter((entry) => entry.isFile() && !entry.name.startsWith("."))
       : [];
+
+    const docsImplementation: IAlgorithmImplementation = {
+      languageKey: docsImplementationKey,
+      languageDisplayName: docsItemLabel,
+      languageIconFileName: docsIconFileName,
+      isFlagged: false,
+      hasImplementation: true,
+      hasChildren: files.some((entry) => isAlgorithmDocumentationFile(entry)),
+      fileName: docsItemLabel,
+      filePath: algorithmDirectory.directoryPath,
+    };
 
     const algorithmName = path.basename(algorithmDirectory.directoryPath);
 
@@ -559,6 +657,33 @@ export class Languages implements ILanguages {
     return [...mainChildren, ...includeChildren]
       .filter((entry) => entry.filePath !== primaryPath)
       .sort((left, right) => left.displayName.localeCompare(right.displayName));
+  }
+
+  /**
+   * Sets flagged state for one algorithm implementation language.
+   *
+   * @param {IAlgorithmDirectory} algorithmDirectory Algorithm directory owning the implementation.
+   * @param {IAlgorithmImplementation} implementation Implementation language to flag or unflag.
+   * @param {boolean} isFlagged True to mark as flagged; false to clear the flag.
+   * @returns {Promise<void>} Resolves when flag state is persisted.
+   */
+  public async setAlgorithmImplementationFlagged(
+    algorithmDirectory: IAlgorithmDirectory,
+    implementation: IAlgorithmImplementation,
+    isFlagged: boolean,
+  ) : Promise<void> {
+    if (implementation.languageKey === docsImplementationKey) {
+      return;
+    }
+
+    await this.flagHandler.updateFlaggedLanguageKey(
+      algorithmDirectory.directoryPath,
+      implementation.languageKey,
+      isFlagged,
+    );
+
+    // Keep cache consistency with direct persistence updates for this algorithm.
+    this.flagHandler.clearCache(algorithmDirectory.directoryPath);
   }
 
   /**

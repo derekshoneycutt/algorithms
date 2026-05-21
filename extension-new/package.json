@@ -36,6 +36,26 @@
         "command": "algos.algorithmsTreeView.setFileView",
         "title": "File View",
         "icon": "$(files)"
+      },
+      {
+        "command": "algos.algorithmsTreeView.showAllRows",
+        "title": "Show All Rows",
+        "icon": "$(clear-all)"
+      },
+      {
+        "command": "algos.algorithmsTreeView.showProblemRows",
+        "title": "Show Problem Rows",
+        "icon": "$(filter)"
+      },
+      {
+        "command": "algos.algorithmsTreeView.flagImplementation",
+        "title": "Flag Language",
+        "icon": "$(bookmark)"
+      },
+      {
+        "command": "algos.algorithmsTreeView.unflagImplementation",
+        "title": "Unflag Language",
+        "icon": "$(close)"
       }
     ],
     "menus": {
@@ -49,6 +69,28 @@
           "command": "algos.algorithmsTreeView.setFileView",
           "when": "view == algos.algorithmsTreeView && algos.algorithmsTreeView.mode != 'file'",
           "group": "navigation@11"
+        },
+        {
+          "command": "algos.algorithmsTreeView.showAllRows",
+          "when": "view == algos.algorithmsTreeView && algos.algorithmsTreeView.filterMode != 'all'",
+          "group": "navigation@12"
+        },
+        {
+          "command": "algos.algorithmsTreeView.showProblemRows",
+          "when": "view == algos.algorithmsTreeView && algos.algorithmsTreeView.filterMode != 'problem'",
+          "group": "navigation@13"
+        }
+      ],
+      "view/item/context": [
+        {
+          "command": "algos.algorithmsTreeView.flagImplementation",
+          "when": "view == algos.algorithmsTreeView && viewItem == algorithmImplementationUnflagged",
+          "group": "inline@10"
+        },
+        {
+          "command": "algos.algorithmsTreeView.unflagImplementation",
+          "when": "view == algos.algorithmsTreeView && viewItem == algorithmImplementationFlagged",
+          "group": "inline@10"
         }
       ]
     },

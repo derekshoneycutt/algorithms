@@ -12,11 +12,11 @@ import { Languages } from "./languages/languages";
  */
 export function activate(context: vscode.ExtensionContext): void {
   const languages : ILanguages = new Languages();
-  languages.register(context);
+  languages.activate(context);
   context.subscriptions.push(languages);
 
   const views : IViews = new Views(languages);
-  views.register(context);
+  views.activate(context);
   context.subscriptions.push(views);
 }
 

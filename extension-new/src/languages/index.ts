@@ -39,19 +39,27 @@ export interface IStdLibCategoryFile {
 
 export interface ILanguages extends vscode.Disposable {
 
-  register(context: vscode.ExtensionContext) : void;
+  activate(context: vscode.ExtensionContext) : void;
   
   getAlgorithmCategories() : Promise<IAlgorithmCategory[]>;
 
-  getAlgorithmsInCategory(category: IAlgorithmCategory) : Promise<IAlgorithmDirectory[]>;
+  getAlgorithmsInCategory(
+    category: IAlgorithmCategory) : Promise<IAlgorithmDirectory[]>;
 
-  getAlgorithmImplementations(algorithmDirectory: IAlgorithmDirectory) : Promise<IAlgorithmImplementation[]>;
+  getAlgorithmImplementations(
+    algorithmDirectory: IAlgorithmDirectory) : Promise<IAlgorithmImplementation[]>;
 
   getAlgorithmImplementationChildren(
     algorithmDirectory: IAlgorithmDirectory,
     implementation: IAlgorithmImplementation) : Promise<IAlgorithmImplementationChild[]>;
+
+  setAlgorithmImplementationFlagged(
+    algorithmDirectory: IAlgorithmDirectory,
+    implementation: IAlgorithmImplementation,
+    isFlagged: boolean) : Promise<void>;
   
   getStandardLibraryCategories() : Promise<IStdLibCategory[]>;
 
-  getStandardLibraryFiles(category: IStdLibCategory) : Promise<IStdLibCategoryFile[]>;
+  getStandardLibraryFiles(
+    category: IStdLibCategory) : Promise<IStdLibCategoryFile[]>;
 }
