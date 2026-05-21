@@ -1,10 +1,31 @@
 /// <reference lib="dom" />
 
 import { html, render, type TemplateResult } from "lit";
+import { Debouncer } from "../../shared/ui/debouncer.mjs";
 import { EnvironmentControlsPanelComponent } from "./components/environmentControlsPanelComponent.mjs";
 import type { EnvironmentControlsViewState } from "./components/types.mjs";
 
 const appRootId = "environment-webview-app";
+declare function acquireVsCodeApi(): {
+  postMessage(message: unknown): void;
+};
+
+const vscodeApi = acquireVsCodeApi();
+const postUpdateDebouncer = new Debouncer(300);
+
+interface EnvironmentControlsUpdateMessage {
+  type: "environment-controls-update";
+  state: EnvironmentControlsViewState;
+}
+
+interface EnvironmentWebviewReadyMessage {
+  type: "environment-webview-ready";
+}
+
+interface EnvironmentControlsStateMessage {
+  type: "environment-controls-state";
+  state: EnvironmentControlsViewState;
+}
 
 const initialEnvironmentControlsViewState: EnvironmentControlsViewState = {
   persistSessionEnabled: true,
@@ -28,38 +49,7 @@ const initialEnvironmentControlsViewState: EnvironmentControlsViewState = {
     sshValue: "",
     isConflict: false,
   },
-  routingEntries: [
-    {
-      languageKey: "python",
-      label: "Python",
-      iconUri: "",
-      dockerEnabled: false,
-      dockerValue: "",
-      sshEnabled: false,
-      sshValue: "",
-      isConflict: false,
-    },
-    {
-      languageKey: "javascript",
-      label: "JavaScript",
-      iconUri: "",
-      dockerEnabled: false,
-      dockerValue: "",
-      sshEnabled: false,
-      sshValue: "",
-      isConflict: false,
-    },
-    {
-      languageKey: "go",
-      label: "Go",
-      iconUri: "",
-      dockerEnabled: false,
-      dockerValue: "",
-      sshEnabled: false,
-      sshValue: "",
-      isConflict: false,
-    },
-  ],
+  routingEntries: [],
 };
 
 class EnvironmentWebviewApp {
@@ -68,6 +58,7 @@ class EnvironmentWebviewApp {
   private readonly environmentControlsPanelComponent: EnvironmentControlsPanelComponent;
 
   private appRootElement: HTMLElement | null;
+  private isApplyingStateFromExtension: boolean;
 
   /**
    * Creates the environment webview app.
@@ -85,11 +76,33 @@ class EnvironmentWebviewApp {
     this.environmentControlsPanelComponent = new EnvironmentControlsPanelComponent(
       this.environmentControlsViewState,
       () => {
+        if (!this.isApplyingStateFromExtension) {
+          postUpdateDebouncer.schedule(() => {
+            const message: EnvironmentControlsUpdateMessage = {
+              type: "environment-controls-update",
+              state: this.createStateSnapshot(),
+            };
+
+            vscodeApi.postMessage(message);
+          });
+        }
+
         this.renderEnvironmentControlsView();
       },
     );
 
+    window.addEventListener("message", (event: MessageEvent<EnvironmentControlsStateMessage>) => {
+      const message = event.data;
+      if (message.type !== "environment-controls-state") {
+        return;
+      }
+
+      this.applyStateFromExtension(message.state);
+      this.renderEnvironmentControlsView();
+    });
+
     this.appRootElement = null;
+    this.isApplyingStateFromExtension = false;
   }
 
   /**
@@ -99,7 +112,48 @@ class EnvironmentWebviewApp {
    */
   public mount(): void {
     this.appRootElement = document.getElementById(appRootId);
+    const readyMessage: EnvironmentWebviewReadyMessage = {
+      type: "environment-webview-ready",
+    };
+    vscodeApi.postMessage(readyMessage);
     this.renderEnvironmentControlsView();
+  }
+
+  /**
+   * Creates a detached state snapshot safe to post to the extension host.
+   *
+   * @returns {EnvironmentControlsViewState} Snapshot of current UI state.
+   */
+  private createStateSnapshot(): EnvironmentControlsViewState {
+    return {
+      ...this.environmentControlsViewState,
+      variables: this.environmentControlsViewState.variables.map((variable) => ({ ...variable })),
+      batchRouting: { ...this.environmentControlsViewState.batchRouting },
+      routingEntries: this.environmentControlsViewState.routingEntries.map((entry) => ({ ...entry })),
+    };
+  }
+
+  /**
+   * Applies an inbound state payload from the extension host.
+   *
+   * @param {EnvironmentControlsViewState} inboundState State payload from extension host.
+   * @returns {void}
+   */
+  private applyStateFromExtension(inboundState: EnvironmentControlsViewState): void {
+    this.isApplyingStateFromExtension = true;
+
+    this.environmentControlsViewState.persistSessionEnabled = inboundState.persistSessionEnabled;
+    this.environmentControlsViewState.profilePath = inboundState.profilePath;
+    this.environmentControlsViewState.profilePlaceholder = inboundState.profilePlaceholder;
+    this.environmentControlsViewState.effectiveProfilePath = inboundState.effectiveProfilePath;
+    this.environmentControlsViewState.checkEnvFilteredOutput = inboundState.checkEnvFilteredOutput;
+    this.environmentControlsViewState.checkEnvRawOutput = inboundState.checkEnvRawOutput;
+    this.environmentControlsViewState.copyIconsPath = inboundState.copyIconsPath;
+    this.environmentControlsViewState.variables = inboundState.variables.map((variable) => ({ ...variable }));
+    this.environmentControlsViewState.batchRouting = { ...inboundState.batchRouting };
+    this.environmentControlsViewState.routingEntries = inboundState.routingEntries.map((entry) => ({ ...entry }));
+
+    this.isApplyingStateFromExtension = false;
   }
 
   /**

@@ -1,16 +1,17 @@
 import * as vscode from "vscode";
 import { assign, createActor, createMachine, type ActorRefFrom } from "xstate";
 import {
-	ISmoker,
-	type SmokeControlsPatch,
-	type SmokeLanguageState,
-	type SmokeControlsState,
+  ISmoker,
+  type SmokeControlsPatch,
+  type SmokeLanguageState,
+  type SmokeControlsState,
 } from ".";
 import { ILanguages, type ISupportedLanguage } from "../languages";
+import { IEnvironment } from "../environment";
 
 interface SmokeControlsEvent {
-	type: "patch";
-	patch: SmokeControlsPatch;
+  type: "patch";
+  patch: SmokeControlsPatch;
 }
 
 /**
@@ -24,13 +25,13 @@ const smokeControlsStorageKey = "algos.smokeControlsState";
  * @returns {SmokeControlsState} Fresh default smoke-controls state.
  */
 function createInitialSmokeControlsState(): SmokeControlsState {
-	return {
-		reportEnabled: false,
-		markdownPath: "",
-		timeoutSeconds: "8m",
-		slowTimeoutSeconds: "20m",
-		languages: [],
-	};
+  return {
+    reportEnabled: false,
+    markdownPath: "",
+    timeoutSeconds: "8m",
+    slowTimeoutSeconds: "20m",
+    languages: [],
+  };
 }
 
 /**
@@ -41,16 +42,16 @@ function createInitialSmokeControlsState(): SmokeControlsState {
  * @returns {string} Normalized timeout value.
  */
 function normalizeTimeoutValue(value: unknown, fallback: string): string {
-	if (typeof value !== "string") {
-		return fallback;
-	}
+  if (typeof value !== "string") {
+    return fallback;
+  }
 
-	const normalizedValue = value.trim();
-	if (normalizedValue.length === 0) {
-		return fallback;
-	}
+  const normalizedValue = value.trim();
+  if (normalizedValue.length === 0) {
+    return fallback;
+  }
 
-	return normalizedValue;
+  return normalizedValue;
 }
 
 /**
@@ -61,186 +62,238 @@ function normalizeTimeoutValue(value: unknown, fallback: string): string {
  * @returns {SmokeLanguageState[]} Normalized smoke-language rows.
  */
 function buildSmokeLanguageState(
-	supportedLanguages: ISupportedLanguage[],
-	persistedLanguages: SmokeLanguageState[] | undefined,
+  supportedLanguages: ISupportedLanguage[],
+  persistedLanguages: SmokeLanguageState[] | undefined,
 ): SmokeLanguageState[] {
-	const persistedSelectionByKey = new Map(
-		(persistedLanguages ?? []).map((language) => [language.languageKey, language.selected]),
-	);
+  const persistedSelectionByKey = new Map(
+    (persistedLanguages ?? []).map((language) => [language.languageKey, language.selected]),
+  );
 
-	return supportedLanguages
-		.filter((language) => language.smokeVisible)
-		.map((language) => {
-			const disabledReason = language.hostCanRun
-				? ""
-				: (language.hostCannotRunReason
-					?? language.smokeReasonIfDisabledByDefault
-					?? "Unsupported on current host");
+  return supportedLanguages
+    .filter((language) => language.smokeVisible)
+    .map((language) => {
+      const disabledReason = language.hostCanRun
+        ? ""
+        : (language.hostCannotRunReason
+          ?? language.smokeReasonIfDisabledByDefault
+          ?? "Unsupported on current host");
 
-			return {
-				languageKey: language.key,
-				label: language.displayName,
-				selected: persistedSelectionByKey.has(language.key)
-					? !!persistedSelectionByKey.get(language.key)
-					: language.smokeDefaultEnabled,
-				disabled: !language.hostCanRun,
-				disabledReason,
-				// The view can convert this into a webview URI later.
-				iconUri: language.iconFileName,
-			};
-		});
+      return {
+        languageKey: language.key,
+        label: language.displayName,
+        selected: persistedSelectionByKey.has(language.key)
+          ? !!persistedSelectionByKey.get(language.key)
+          : language.smokeDefaultEnabled,
+        disabled: !language.hostCanRun,
+        disabledReason,
+        // The view can convert this into a webview URI later.
+        iconUri: language.iconFileName,
+      };
+    });
 }
 
 const smokeControlsMachine = createMachine({
-	types: {} as {
-		context: SmokeControlsState;
-		events: SmokeControlsEvent;
-	},
-	context: createInitialSmokeControlsState(),
-	on: {
-		patch: {
-			actions: assign(({ context, event }) => ({
-				...context,
-				...event.patch,
-			})),
-		},
-	},
+  types: {} as {
+    context: SmokeControlsState;
+    events: SmokeControlsEvent;
+  },
+  context: createInitialSmokeControlsState(),
+  on: {
+    patch: {
+      actions: assign(({ context, event }) => ({
+        ...context,
+        ...event.patch,
+      })),
+    },
+  },
 });
 
 export class Smoker implements ISmoker {
 
-    private readonly languages : ILanguages;
-	private readonly smokeControlsActor: ActorRefFrom<typeof smokeControlsMachine>;
-	private readonly onDidChangeSmokeControlsEmitter: vscode.EventEmitter<SmokeControlsState>;
-	private readonly smokeControlsActorSubscription: { unsubscribe: () => void };
-	private extensionContext: vscode.ExtensionContext | undefined;
+  private readonly languages : ILanguages;
+  private readonly environment : IEnvironment;
+  private readonly smokeControlsActor: ActorRefFrom<typeof smokeControlsMachine>;
+  private readonly onDidChangeSmokeControlsEmitter: vscode.EventEmitter<SmokeControlsState>;
+  private readonly smokeControlsActorSubscription: { unsubscribe: () => void };
+  private readonly environmentStateSubscription: vscode.Disposable;
+  private shouldPersistSessionState: boolean;
+  private extensionContext: vscode.ExtensionContext | undefined;
 
-	/**
-	 * Creates the Smoker and starts the smoke-controls actor.
-	 */
-	public constructor(languages : ILanguages) {
-        this.languages = languages;
-		this.smokeControlsActor = createActor(smokeControlsMachine);
-		this.onDidChangeSmokeControlsEmitter = new vscode.EventEmitter<SmokeControlsState>();
-		this.extensionContext = undefined;
+  /**
+   * Creates the Smoker and starts the smoke-controls actor.
+   */
+  public constructor(languages : ILanguages, environment: IEnvironment) {
+    this.languages = languages;
+    this.environment = environment;
+    this.smokeControlsActor = createActor(smokeControlsMachine);
+    this.onDidChangeSmokeControlsEmitter = new vscode.EventEmitter<SmokeControlsState>();
+    this.shouldPersistSessionState = this.environment.getEnvironmentControlsState().persistSessionEnabled;
+    this.extensionContext = undefined;
 
-		this.smokeControlsActor.start();
-		this.smokeControlsActorSubscription = this.smokeControlsActor.subscribe(() => {
-			const smokeControlsState = this.smokeControlsActor.getSnapshot().context;
-			this.persistSmokeControlsState(smokeControlsState);
-			this.onDidChangeSmokeControlsEmitter.fire(smokeControlsState);
-		});
-	}
+    this.environmentStateSubscription = this.environment.subscribeToStateChanges((state) => {
+      this.handlePersistSessionPreferenceChanged(state.persistSessionEnabled);
+    });
 
-	/**
-	 * Activates the Smoker lifecycle hook.
-	 *
-	 * @param {vscode.ExtensionContext} context Extension lifecycle context.
-	 * @returns {void} No return value.
-	 */
-	public activate(context: vscode.ExtensionContext): void {
-		this.extensionContext = context;
-		void this.initializeSmokeControlsState();
-	}
+    this.smokeControlsActor.start();
+    this.smokeControlsActorSubscription = this.smokeControlsActor.subscribe(() => {
+    const smokeControlsState = this.smokeControlsActor.getSnapshot().context;
+      this.persistSmokeControlsState(smokeControlsState);
+      this.onDidChangeSmokeControlsEmitter.fire(smokeControlsState);
+    });
+  }
 
-	/**
-	 * Hydrates smoke-controls state from persisted data and supported languages.
-	 *
-	 * @returns {Promise<void>} Resolves when hydration is complete.
-	 */
-	private async initializeSmokeControlsState(): Promise<void> {
-		if (!this.extensionContext) {
-			return;
-		}
+  /**
+   * Activates the Smoker lifecycle hook.
+   *
+   * @param {vscode.ExtensionContext} context Extension lifecycle context.
+   * @returns {void} No return value.
+   */
+  public activate(context: vscode.ExtensionContext): void {
+    this.extensionContext = context;
+    void this.initializeSmokeControlsState();
+  }
 
-		const initialSmokeControlsState = createInitialSmokeControlsState();
+  /**
+   * Hydrates smoke-controls state from persisted data and supported languages.
+   *
+   * @returns {Promise<void>} Resolves when hydration is complete.
+   */
+  private async initializeSmokeControlsState(): Promise<void> {
+    if (!this.extensionContext) {
+      return;
+    }
 
-		const persistedSmokeControlsState = this.extensionContext.globalState.get<Partial<SmokeControlsState> | undefined>(
-			smokeControlsStorageKey,
-		);
-		const supportedLanguages = await this.languages.getSupportedLanguages();
-		const smokeLanguages = buildSmokeLanguageState(
-			supportedLanguages,
-			persistedSmokeControlsState?.languages,
-		);
+    const initialSmokeControlsState = createInitialSmokeControlsState();
+    if (!this.shouldPersistSessionState) {
+      this.clearPersistedSmokeControlsState();
+    }
 
-		this.smokeControlsActor.send({
-			type: "patch",
-			patch: {
-				...initialSmokeControlsState,
-				...persistedSmokeControlsState,
-				timeoutSeconds: normalizeTimeoutValue(
-					persistedSmokeControlsState?.timeoutSeconds,
-					initialSmokeControlsState.timeoutSeconds,
-				),
-				slowTimeoutSeconds: normalizeTimeoutValue(
-					persistedSmokeControlsState?.slowTimeoutSeconds,
-					initialSmokeControlsState.slowTimeoutSeconds,
-				),
-				languages: smokeLanguages,
-			},
-		});
-	}
+    const persistedSmokeControlsState = this.shouldPersistSessionState
+      ? this.extensionContext.globalState.get<Partial<SmokeControlsState> | undefined>(
+        smokeControlsStorageKey,
+      )
+      : undefined;
+    const supportedLanguages = await this.languages.getSupportedLanguages();
+    const smokeLanguages = buildSmokeLanguageState(
+      supportedLanguages,
+      persistedSmokeControlsState?.languages,
+    );
 
-	/**
-	 * Applies a partial patch to the smoke-controls state.
-	 *
-	 * @param {SmokeControlsPatch} patch Partial update to apply.
-	 * @returns {void} No return value.
-	 */
-	public patchSmokeControls(patch: SmokeControlsPatch): void {
-		this.smokeControlsActor.send({
-			type: "patch",
-			patch,
-		});
-	}
+    this.smokeControlsActor.send({
+      type: "patch",
+      patch: {
+        ...initialSmokeControlsState,
+        ...persistedSmokeControlsState,
+        timeoutSeconds: normalizeTimeoutValue(
+          persistedSmokeControlsState?.timeoutSeconds,
+          initialSmokeControlsState.timeoutSeconds,
+        ),
+        slowTimeoutSeconds: normalizeTimeoutValue(
+          persistedSmokeControlsState?.slowTimeoutSeconds,
+          initialSmokeControlsState.slowTimeoutSeconds,
+        ),
+        languages: smokeLanguages,
+      },
+    });
+  }
 
-	/**
-	 * Returns the current smoke-controls snapshot.
-	 *
-	 * @returns {SmokeControlsState} Current smoke-controls state.
-	 */
-	public getSmokeControlsState(): SmokeControlsState {
-		return this.smokeControlsActor.getSnapshot().context;
-	}
+  /**
+   * Applies a partial patch to the smoke-controls state.
+   *
+   * @param {SmokeControlsPatch} patch Partial update to apply.
+   * @returns {void} No return value.
+   */
+  public patchSmokeControls(patch: SmokeControlsPatch): void {
+    this.smokeControlsActor.send({
+      type: "patch",
+      patch,
+    });
+  }
 
-	/**
-	 * Subscribes to smoke-controls state changes.
-	 *
-	 * @param {(state: SmokeControlsState) => void} listener Listener that receives the current smoke-controls state.
-	 * @returns {vscode.Disposable} Subscription disposable.
-	 */
-	public subscribeToStateChanges(
-		listener: (state: SmokeControlsState) => void,
-	): vscode.Disposable {
-		return this.onDidChangeSmokeControlsEmitter.event(listener);
-	}
+  /**
+   * Returns the current smoke-controls snapshot.
+   *
+   * @returns {SmokeControlsState} Current smoke-controls state.
+   */
+  public getSmokeControlsState(): SmokeControlsState {
+    return this.smokeControlsActor.getSnapshot().context;
+  }
 
-	/**
-	 * Persists the current smoke-controls state to workspace-global storage.
-	 *
-	 * @param {SmokeControlsState} smokeControlsState Current smoke-controls state to persist.
-	 * @returns {void} No return value.
-	 */
-	private persistSmokeControlsState(smokeControlsState: SmokeControlsState): void {
-		if (!this.extensionContext) {
-			return;
-		}
+  /**
+   * Subscribes to smoke-controls state changes.
+   *
+   * @param {(state: SmokeControlsState) => void} listener Listener that receives the current smoke-controls state.
+   * @returns {vscode.Disposable} Subscription disposable.
+   */
+  public subscribeToStateChanges(
+    listener: (state: SmokeControlsState) => void,
+  ): vscode.Disposable {
+    return this.onDidChangeSmokeControlsEmitter.event(listener);
+  }
 
-		void this.extensionContext.globalState.update(
-			smokeControlsStorageKey,
-			smokeControlsState,
-		);
-	}
+  /**
+   * Persists the current smoke-controls state to workspace-global storage.
+   *
+   * @param {SmokeControlsState} smokeControlsState Current smoke-controls state to persist.
+   * @returns {void} No return value.
+   */
+  private persistSmokeControlsState(smokeControlsState: SmokeControlsState): void {
+    if (!this.extensionContext || !this.shouldPersistSessionState) {
+      return;
+    }
 
-	/**
-	 * Cleans up any resources used by the smoker state.
-	 *
-	 * @returns {void} No return value.
-	 */
-	public dispose(): void {
-		this.smokeControlsActorSubscription.unsubscribe();
-		this.onDidChangeSmokeControlsEmitter.dispose();
-		this.smokeControlsActor.stop();
-	}
+    void this.extensionContext.globalState.update(
+      smokeControlsStorageKey,
+      smokeControlsState,
+    );
+  }
+
+  /**
+   * Clears persisted smoke-controls state from workspace-global storage.
+   *
+   * @returns {void} No return value.
+   */
+  private clearPersistedSmokeControlsState(): void {
+    if (!this.extensionContext) {
+      return;
+    }
+
+    void this.extensionContext.globalState.update(
+      smokeControlsStorageKey,
+      undefined,
+    );
+  }
+
+  /**
+   * Applies persistence behavior updates when the environment session policy changes.
+   *
+   * @param {boolean} persistSessionEnabled Latest session persistence toggle.
+   * @returns {void} No return value.
+   */
+  private handlePersistSessionPreferenceChanged(persistSessionEnabled: boolean): void {
+    if (this.shouldPersistSessionState === persistSessionEnabled) {
+      return;
+    }
+
+    this.shouldPersistSessionState = persistSessionEnabled;
+
+    if (!persistSessionEnabled) {
+      this.clearPersistedSmokeControlsState();
+      return;
+    }
+
+    this.persistSmokeControlsState(this.getSmokeControlsState());
+  }
+
+  /**
+   * Cleans up any resources used by the smoker state.
+   *
+   * @returns {void} No return value.
+   */
+  public dispose(): void {
+    this.environmentStateSubscription.dispose();
+    this.smokeControlsActorSubscription.unsubscribe();
+    this.onDidChangeSmokeControlsEmitter.dispose();
+    this.smokeControlsActor.stop();
+  }
 }

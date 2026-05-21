@@ -116,12 +116,20 @@
 .languageIcon,
 .languageIconFallback {
 	width: 18px;
-	height: 18px;
+	height: auto;
+	max-height: 18px;
 	border-radius: 4px;
 	flex: 0 0 auto;
 }
 
+.languageIcon {
+	display: block;
+	object-fit: contain;
+	object-position: center;
+}
+
 .languageIconFallback {
+	height: 18px;
 	background: var(--vscode-button-secondaryBackground);
 }
 

@@ -8,9 +8,12 @@ import { EnvironmentView } from './environment/environmentWebviewProvider';
 import { ILanguages, ILanguagesDataChangeEvent } from '../languages';
 import { IRunner } from '../runner';
 import { ISmoker } from '../smoker';
+import { IEnvironment } from '../environment';
 
 export class Views implements IViews {
+
   private readonly languages : ILanguages;
+  private readonly environment : IEnvironment;
   private readonly runner : IRunner;
   private readonly smoker : ISmoker;
 
@@ -29,18 +32,25 @@ export class Views implements IViews {
    * Creates the Views orchestrator for all extension views.
    *
    * @param {ILanguages} languages Language/discovery service dependency.
+   * @param {IEnvironment} environment Enviroment actor managing environment state.
    * @param {IRunner} runner Runner actor managing run states.
    * @param {ISmoker} smoker Smoker actor managing smoke states.
    */
-  public constructor(languages : ILanguages, runner: IRunner, smoker: ISmoker) {
+  public constructor(
+    languages : ILanguages,
+    environment: IEnvironment,
+    runner: IRunner,
+    smoker: ISmoker) {
+  
     this.languages = languages;
+    this.environment = environment;
     this.runner = runner;
     this.smoker = smoker;
     this.smokeView = new SmokeView(this.smoker);
     this.runView = new RunView(this.runner);
     this.algosTreeView = new AlgorithmsTreeView(this.languages);
     this.stdlibTreeView = new StdLibTreeView(this.languages);
-    this.environmentView = new EnvironmentView();
+    this.environmentView = new EnvironmentView(this.environment);
     this.dataChangeSubscription = undefined;
     this.activeEditorChangeSubscription = undefined;
     this.algorithmsTreeVisibilitySubscription = undefined;

@@ -1,6 +1,7 @@
 import * as vscode from "vscode";
 import { assign, createActor, createMachine, type ActorRefFrom } from "xstate";
 import { IRunner, type RunOptionsPatch, type RunOptionsState } from ".";
+import { IEnvironment } from "../environment";
 
 interface RunOptionsEvent {
   type: "patch";
@@ -51,18 +52,30 @@ const runOptionsMachine = createMachine({
  */
 export class Runner implements IRunner {
 
+  private readonly environment : IEnvironment;
   private readonly runOptionsActor: ActorRefFrom<typeof runOptionsMachine>;
   private readonly onDidChangeRunOptionsEmitter: vscode.EventEmitter<RunOptionsState>;
+  private readonly runOptionsActorSubscription: { unsubscribe: () => void };
+  private readonly environmentStateSubscription: vscode.Disposable;
+  private shouldPersistSessionState: boolean;
   private extensionContext: vscode.ExtensionContext | undefined;
 
   /**
    * Creates the Runner and starts the run-options actor.
    */
-  public constructor() {
+  public constructor(environment: IEnvironment) {
+    this.environment = environment;
     this.runOptionsActor = createActor(runOptionsMachine);
     this.onDidChangeRunOptionsEmitter = new vscode.EventEmitter<RunOptionsState>();
+    this.shouldPersistSessionState = this.environment.getEnvironmentControlsState().persistSessionEnabled;
+    this.extensionContext = undefined;
+
+    this.environmentStateSubscription = this.environment.subscribeToStateChanges((state) => {
+      this.handlePersistSessionPreferenceChanged(state.persistSessionEnabled);
+    });
+
     this.runOptionsActor.start();
-    this.runOptionsActor.subscribe(() => {
+    this.runOptionsActorSubscription = this.runOptionsActor.subscribe(() => {
       const runOptionsState = this.runOptionsActor.getSnapshot().context;
       this.persistRunOptionsState(runOptionsState);
       this.onDidChangeRunOptionsEmitter.fire(runOptionsState);
@@ -76,6 +89,11 @@ export class Runner implements IRunner {
    */
   public activate(context: vscode.ExtensionContext): void {
     this.extensionContext = context;
+
+    if (!this.shouldPersistSessionState) {
+      this.clearPersistedRunOptionsState();
+      return;
+    }
 
     const persistedRunOptionsState = this.extensionContext.globalState.get<Partial<RunOptionsState> | undefined>(
       runOptionsStorageKey,
@@ -140,7 +158,7 @@ export class Runner implements IRunner {
    * @returns {void} No return value.
    */
   private persistRunOptionsState(runOptionsState: RunOptionsState): void {
-    if (!this.extensionContext) {
+    if (!this.extensionContext || !this.shouldPersistSessionState) {
       return;
     }
 
@@ -151,9 +169,49 @@ export class Runner implements IRunner {
   }
 
   /**
+   * Clears persisted run-options state from workspace-global storage.
+   *
+   * @returns {void} No return value.
+   */
+  private clearPersistedRunOptionsState(): void {
+    if (!this.extensionContext) {
+      return;
+    }
+
+    void this.extensionContext.globalState.update(
+      runOptionsStorageKey,
+      undefined,
+    );
+  }
+
+  /**
+   * Applies persistence behavior updates when the environment session policy changes.
+   *
+   * @param {boolean} persistSessionEnabled Latest session persistence toggle.
+   * @returns {void} No return value.
+   */
+  private handlePersistSessionPreferenceChanged(persistSessionEnabled: boolean): void {
+    if (this.shouldPersistSessionState === persistSessionEnabled) {
+      return;
+    }
+
+    this.shouldPersistSessionState = persistSessionEnabled;
+
+    if (!persistSessionEnabled) {
+      this.clearPersistedRunOptionsState();
+      return;
+    }
+
+    this.persistRunOptionsState(this.getRunOptionsState());
+  }
+
+  /**
    * Cleans up any resources used by the runner state
    */
   public dispose() : void {
-
+    this.environmentStateSubscription.dispose();
+    this.runOptionsActorSubscription.unsubscribe();
+    this.onDidChangeRunOptionsEmitter.dispose();
+    this.runOptionsActor.stop();
   }
 }
