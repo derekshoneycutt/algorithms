@@ -1,5 +1,6 @@
 import * as vscode from 'vscode';
 import * as fs from "node:fs";
+import * as fsp from "node:fs/promises";
 import * as path from "node:path";
 import {
   IAlgorithmCategory,
@@ -228,7 +229,7 @@ export class Languages implements ILanguages {
    * @param {string} directoryPath Path to check.
    * @returns {boolean} True when the path exists and is a directory.
    */
-  private isDirectoryCached(directoryPath: string) : boolean {
+  private async isDirectoryCached(directoryPath: string) : Promise<boolean> {
     const cached = this.isDirectoryCache.get(directoryPath);
     if (cached !== undefined) {
       return cached;
@@ -236,7 +237,7 @@ export class Languages implements ILanguages {
 
     let isDirectory = false;
     try {
-      isDirectory = fs.statSync(directoryPath).isDirectory();
+      isDirectory = (await fsp.stat(directoryPath)).isDirectory();
     }
     catch {
       isDirectory = false;
@@ -252,14 +253,14 @@ export class Languages implements ILanguages {
    * @param {string} directoryPath Directory to read.
    * @returns {fs.Dirent[] | undefined} Directory entries, or undefined when unreadable.
    */
-  private readDirectoryEntriesCached(directoryPath: string) : fs.Dirent[] | undefined {
+  private async readDirectoryEntriesCached(directoryPath: string) : Promise<fs.Dirent[] | undefined> {
     if (this.directoryEntriesCache.has(directoryPath)) {
       return this.directoryEntriesCache.get(directoryPath);
     }
 
     let entries : fs.Dirent[] | undefined;
     try {
-      entries = fs.readdirSync(directoryPath, { withFileTypes: true });
+      entries = await fsp.readdir(directoryPath, { withFileTypes: true });
     }
     catch {
       entries = undefined;
@@ -274,8 +275,8 @@ export class Languages implements ILanguages {
    *
    * @returns {void} No return value.
    */
-  private updateWorkspaceSupport() : void {
-    const isSupported = SupportedWorkspaceChecker.isSupported();
+  private async updateWorkspaceSupport() : Promise<void> {
+    const isSupported = await SupportedWorkspaceChecker.isSupported();
     void vscode.commands.executeCommand("setContext", "algos.workspaceSupported", isSupported);
   }
 
@@ -284,8 +285,8 @@ export class Languages implements ILanguages {
    *
    * @returns {void} No return value.
    */
-  private prewarmTopLevelTreeCaches() : void {
-    const baseDirectory = SupportedWorkspaceChecker.getCurrentBaseDirectory();
+  private async prewarmTopLevelTreeCaches() : Promise<void> {
+    const baseDirectory = await SupportedWorkspaceChecker.getCurrentBaseDirectory();
     if (!baseDirectory) {
       return;
     }
@@ -296,11 +297,11 @@ export class Languages implements ILanguages {
     ];
 
     for (const directoryPath of topLevelDirectories) {
-      if (!this.isDirectoryCached(directoryPath)) {
+      if (!await this.isDirectoryCached(directoryPath)) {
         continue;
       }
 
-      this.readDirectoryEntriesCached(directoryPath);
+      await this.readDirectoryEntriesCached(directoryPath);
     }
   }
 
@@ -314,12 +315,12 @@ export class Languages implements ILanguages {
     this.workspaceFolderChangeSubscription =
       vscode.workspace.onDidChangeWorkspaceFolders(() => {
         this.clearFileSystemCache();
-        this.updateWorkspaceSupport();
-        this.prewarmTopLevelTreeCaches();
+        void this.updateWorkspaceSupport();
+        void this.prewarmTopLevelTreeCaches();
       });
 
-    this.updateWorkspaceSupport();
-    this.prewarmTopLevelTreeCaches();
+    void this.updateWorkspaceSupport();
+    void this.prewarmTopLevelTreeCaches();
   }
 
   /**
@@ -327,18 +328,18 @@ export class Languages implements ILanguages {
    *
    * @returns {IAlgorithmCategory[]} Algorithm categories sorted by display name.
    */
-  public getAlgorithmCategories() : IAlgorithmCategory[] {
-    const baseDirectory = SupportedWorkspaceChecker.getCurrentBaseDirectory();
+  public async getAlgorithmCategories() : Promise<IAlgorithmCategory[]> {
+    const baseDirectory = await SupportedWorkspaceChecker.getCurrentBaseDirectory();
     if (!baseDirectory) {
       return [];
     }
 
     const sourceDirectory = path.join(baseDirectory, algorithmsSourceDir);
-    if (!this.isDirectoryCached(sourceDirectory)) {
+    if (!await this.isDirectoryCached(sourceDirectory)) {
       return [];
     }
 
-    const entries = this.readDirectoryEntriesCached(sourceDirectory);
+    const entries = await this.readDirectoryEntriesCached(sourceDirectory);
     if (!entries) {
       return [];
     }
@@ -360,12 +361,12 @@ export class Languages implements ILanguages {
    * @param {IAlgorithmCategory} category Algorithm category to inspect.
    * @returns {IAlgorithmDirectory[]} Algorithm directories sorted by display name.
    */
-  public getAlgorithmsInCategory(category: IAlgorithmCategory) : IAlgorithmDirectory[] {
-    if (!this.isDirectoryCached(category.directoryPath)) {
+  public async getAlgorithmsInCategory(category: IAlgorithmCategory) : Promise<IAlgorithmDirectory[]> {
+    if (!await this.isDirectoryCached(category.directoryPath)) {
       return [];
     }
 
-    const entries = this.readDirectoryEntriesCached(category.directoryPath);
+    const entries = await this.readDirectoryEntriesCached(category.directoryPath);
     if (!entries) {
       return [];
     }
@@ -387,12 +388,12 @@ export class Languages implements ILanguages {
    * @param {IAlgorithmDirectory} algorithmDirectory Algorithm directory to inspect.
    * @returns {IAlgorithmImplementation[]} One record per language, with file metadata when present.
    */
-  public getAlgorithmImplementations(
+  public async getAlgorithmImplementations(
     algorithmDirectory: IAlgorithmDirectory,
-  ) : IAlgorithmImplementation[] {
+  ) : Promise<IAlgorithmImplementation[]> {
     let flaggedLanguageKeys = new Set<string>();
     try {
-      flaggedLanguageKeys = this.flagHandler.readFlaggedLanguageKeys(algorithmDirectory.directoryPath);
+      flaggedLanguageKeys = await this.flagHandler.readFlaggedLanguageKeys(algorithmDirectory.directoryPath);
     }
     catch {
       flaggedLanguageKeys = new Set<string>();
@@ -409,7 +410,7 @@ export class Languages implements ILanguages {
       filePath: algorithmDirectory.directoryPath,
     };
 
-    if (!this.isDirectoryCached(algorithmDirectory.directoryPath)) {
+    if (!await this.isDirectoryCached(algorithmDirectory.directoryPath)) {
       return [
         docsImplementation,
         ...GENERATED_LANGUAGE_DATA.languages.map((language) => ({
@@ -425,14 +426,14 @@ export class Languages implements ILanguages {
       ];
     }
 
-    const entries = this.readDirectoryEntriesCached(algorithmDirectory.directoryPath);
+    const entries = await this.readDirectoryEntriesCached(algorithmDirectory.directoryPath);
     const files = entries
       ? entries.filter((entry) => entry.isFile() && !entry.name.startsWith("."))
       : [];
 
     const algorithmName = path.basename(algorithmDirectory.directoryPath);
 
-    const languageImplementations = GENERATED_LANGUAGE_DATA.languages.map((language) => {
+    const languageImplementations = await Promise.all(GENERATED_LANGUAGE_DATA.languages.map(async (language) => {
       const languageExtensions = getLanguageExtensions(language);
 
       const candidates = files.filter((entry) => {
@@ -441,7 +442,7 @@ export class Languages implements ILanguages {
       });
 
       const includeDirectoryPath = path.join(algorithmDirectory.directoryPath, `${language.key}_include`);
-      const includeEntries = this.readDirectoryEntriesCached(includeDirectoryPath);
+      const includeEntries = await this.readDirectoryEntriesCached(includeDirectoryPath);
       const includeCandidates = includeEntries
         ? includeEntries.filter((entry) => {
           if (!entry.isFile() || entry.name.startsWith(".")) {
@@ -477,7 +478,7 @@ export class Languages implements ILanguages {
         fileName: selectedFile.name,
         filePath: path.join(algorithmDirectory.directoryPath, selectedFile.name),
       };
-    });
+    }));
 
     return [docsImplementation, ...languageImplementations];
   }
@@ -489,15 +490,15 @@ export class Languages implements ILanguages {
    * @param {IAlgorithmImplementation} implementation Implementation to enumerate children for.
    * @returns {IAlgorithmImplementationChild[]} Child files sorted by display name.
    */
-  public getAlgorithmImplementationChildren(
+  public async getAlgorithmImplementationChildren(
     algorithmDirectory: IAlgorithmDirectory,
-    implementation: IAlgorithmImplementation) : IAlgorithmImplementationChild[] {
+    implementation: IAlgorithmImplementation) : Promise<IAlgorithmImplementationChild[]> {
     if (!implementation.hasImplementation) {
       return [];
     }
 
     if (implementation.languageKey === docsImplementationKey) {
-      const entries = this.readDirectoryEntriesCached(algorithmDirectory.directoryPath);
+      const entries = await this.readDirectoryEntriesCached(algorithmDirectory.directoryPath);
       if (!entries) {
         return [];
       }
@@ -517,7 +518,7 @@ export class Languages implements ILanguages {
     }
 
     const languageExtensions = getLanguageExtensions(language);
-    const entries = this.readDirectoryEntriesCached(algorithmDirectory.directoryPath);
+    const entries = await this.readDirectoryEntriesCached(algorithmDirectory.directoryPath);
     const primaryPath = implementation.filePath;
 
     const mainChildren = entries
@@ -538,7 +539,7 @@ export class Languages implements ILanguages {
 
     const includeDirectoryName = `${implementation.languageKey}_include`;
     const includeDirectoryPath = path.join(algorithmDirectory.directoryPath, includeDirectoryName);
-    const includeEntries = this.readDirectoryEntriesCached(includeDirectoryPath);
+    const includeEntries = await this.readDirectoryEntriesCached(includeDirectoryPath);
     const includeChildren = includeEntries
       ? includeEntries
         .filter((entry) => {
@@ -565,18 +566,18 @@ export class Languages implements ILanguages {
    *
    * @returns {IStdLibCategory[]} Standard library categories sorted by display name.
    */
-  public getStandardLibraryCategories() : IStdLibCategory[] {
-    const baseDirectory = SupportedWorkspaceChecker.getCurrentBaseDirectory();
+  public async getStandardLibraryCategories() : Promise<IStdLibCategory[]> {
+    const baseDirectory = await SupportedWorkspaceChecker.getCurrentBaseDirectory();
     if (!baseDirectory) {
       return [];
     }
 
     const sourceDirectory = path.join(baseDirectory, stdlibSourceDir);
-    if (!this.isDirectoryCached(sourceDirectory)) {
+    if (!await this.isDirectoryCached(sourceDirectory)) {
       return [];
     }
 
-    const entries = this.readDirectoryEntriesCached(sourceDirectory);
+    const entries = await this.readDirectoryEntriesCached(sourceDirectory);
     if (!entries) {
       return [];
     }
@@ -598,12 +599,12 @@ export class Languages implements ILanguages {
    * @param {IStdLibCategory} category Standard library category to inspect.
    * @returns {IStdLibCategoryFile[]} Matching files sorted by display name.
    */
-  public getStandardLibraryFiles(category: IStdLibCategory) : IStdLibCategoryFile[] {
-    if (!this.isDirectoryCached(category.directoryPath)) {
+  public async getStandardLibraryFiles(category: IStdLibCategory) : Promise<IStdLibCategoryFile[]> {
+    if (!await this.isDirectoryCached(category.directoryPath)) {
       return [];
     }
 
-    const entries = this.readDirectoryEntriesCached(category.directoryPath);
+    const entries = await this.readDirectoryEntriesCached(category.directoryPath);
     if (!entries) {
       return [];
     }

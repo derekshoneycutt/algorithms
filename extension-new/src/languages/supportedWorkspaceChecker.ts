@@ -1,4 +1,5 @@
-import * as fs from "node:fs";
+import * as fs from "node:fs/promises";
+import type { Dirent } from "node:fs";
 import * as path from "node:path";
 import * as vscode from "vscode";
 
@@ -18,8 +19,8 @@ export class SupportedWorkspaceChecker {
   private static cachedIsSupported: boolean | undefined = undefined;
   private static cachedBaseDirectory: string | undefined = undefined;
 
-  public static getCurrentBaseDirectory() : string | undefined {
-    if (!this.isSupported()) {
+  public static async getCurrentBaseDirectory() : Promise<string | undefined> {
+    if (!await this.isSupported()) {
       return undefined;
     }
 
@@ -30,7 +31,7 @@ export class SupportedWorkspaceChecker {
    * Returns true if any open workspace folder is a valid entry point (repo root, src, src/category, src/category/algorithm)
    * and the resolved root contains all required marker files/directories.
    */
-  public static isSupported(): boolean {
+  public static async isSupported(): Promise<boolean> {
     const folders = vscode.workspace.workspaceFolders;
     if (!folders || folders.length === 0) {
       this.cachedWorkspacePath = undefined;
@@ -40,7 +41,8 @@ export class SupportedWorkspaceChecker {
       return false;
     }
 
-    const workspacePaths = folders.map((folder) => this.realpathSafe(folder.uri.fsPath));
+    const workspacePaths = await Promise.all(
+      folders.map((folder) => this.realpathSafe(folder.uri.fsPath)));
     const workspaceSignature = workspacePaths.join("\n");
 
     if (this.cachedWorkspaceSignature === workspaceSignature
@@ -57,7 +59,7 @@ export class SupportedWorkspaceChecker {
     }
 
     for (const startPath of workspacePaths) {
-      const baseDirectory = this.findBaseDirectory(startPath);
+      const baseDirectory = await this.findBaseDirectory(startPath);
       if (!baseDirectory) {
         continue;
       }
@@ -92,12 +94,12 @@ export class SupportedWorkspaceChecker {
     return false;
   }
 
-  private static findBaseDirectory(startPath: string): string | undefined {
+  private static async findBaseDirectory(startPath: string): Promise<string | undefined> {
     let current = startPath;
     const requiredMarkerCount = this.required.length;
 
     for (let i = 0; i < maxSearchDepth; ++i) {
-      const count = this.countPresentMarkers(current);
+      const count = await this.countPresentMarkers(current);
       if (count === requiredMarkerCount) {
         return current;
       }
@@ -113,43 +115,48 @@ export class SupportedWorkspaceChecker {
     return undefined;
   }
 
-  private static realpathSafe(p: string): string {
+  private static async realpathSafe(p: string): Promise<string> {
     try {
-      return fs.realpathSync(p);
+      return await fs.realpath(p);
     }
     catch {
       return p;
     }
   }
-  private static isFile(p: string) {
-    try {
-      return fs.statSync(p).isFile();
-    }
-    catch {
-      return false;
-    }
-  }
-  private static isDir(p: string) {
-    try {
-      return fs.statSync(p).isDirectory();
-    }
-    catch {
-      return false;
-    }
-  }
-  private static markerExists(
-    root: string,
-    marker: {name: string, type: "file"|"directory"}) {
 
-    const markerPath = path.join(root, marker.name);
-    return marker.type === "file"
-        ? this.isFile(markerPath)
-        : this.isDir(markerPath);
+  /**
+   * Reads immediate child entries for a directory, returning undefined when unreadable.
+   *
+   * @param {string} directoryPath Path to read.
+   * @returns {Promise<fs.Dirent[] | undefined>} Child entries when available.
+   */
+  private static async readDirectoryEntries(
+    directoryPath: string): Promise<Dirent[] | undefined> {
+    try {
+      return await fs.readdir(directoryPath, { withFileTypes: true });
+    }
+    catch {
+      return undefined;
+    }
   }
-  private static countPresentMarkers(root: string) {
-    return this.required.reduce(
-        (n, m) =>
-            n + (this.markerExists(root, m) ? 1 : 0),
-        0);
+
+  private static async countPresentMarkers(root: string): Promise<number> {
+    const entries = await this.readDirectoryEntries(root);
+    if (!entries) {
+      return 0;
+    }
+
+    const entryByName = new Map(entries.map((entry) => [entry.name, entry]));
+    return this.required.reduce((count, marker) => {
+      const entry = entryByName.get(marker.name);
+      if (!entry) {
+        return count;
+      }
+
+      const isMatch = marker.type === "file"
+        ? entry.isFile()
+        : entry.isDirectory();
+      return count + (isMatch ? 1 : 0);
+    }, 0);
   }
 }

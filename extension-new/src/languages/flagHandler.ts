@@ -1,5 +1,5 @@
 
-import * as fs from "node:fs";
+import * as fs from "node:fs/promises";
 import * as path from "node:path";
 
 /**
@@ -56,9 +56,9 @@ export class FlagHandler {
 	 * Uses cached data when present; otherwise loads from disk and stores in cache.
 	 *
 	 * @param {string} algorithmDirectoryPath Algorithm directory path.
-	 * @returns {Set<string>} Flagged language keys.
+	 * @returns {Promise<Set<string>>} Flagged language keys.
 	 */
-	public readFlaggedLanguageKeys(algorithmDirectoryPath: string): Set<string> {
+	public async readFlaggedLanguageKeys(algorithmDirectoryPath: string): Promise<Set<string>> {
 		const cached = this.cacheByAlgorithmDirectory.get(algorithmDirectoryPath);
 		if (cached !== undefined) {
 			return this.cloneLanguageKeySet(cached);
@@ -67,7 +67,7 @@ export class FlagHandler {
 		const filePath = this.resolveFlagFilePath(algorithmDirectoryPath);
 		let fileContent = "";
 		try {
-			fileContent = fs.readFileSync(filePath, "utf8");
+			fileContent = await fs.readFile(filePath, "utf8");
 		}
 		catch (error) {
 			const code = (error as NodeJS.ErrnoException).code;
@@ -98,12 +98,12 @@ export class FlagHandler {
 	 *
 	 * @param {string} algorithmDirectoryPath Algorithm directory path.
 	 * @param {ReadonlySet<string>} flaggedLanguageKeys New flagged key set.
-	 * @returns {void} No return value.
+	 * @returns {Promise<void>} Resolves when persistence is complete.
 	 */
-	public writeFlaggedLanguageKeys(
+	public async writeFlaggedLanguageKeys(
 		algorithmDirectoryPath: string,
 		flaggedLanguageKeys: ReadonlySet<string>,
-	): void {
+	): Promise<void> {
 		const normalizedKeys = new Set(
 			[...flaggedLanguageKeys]
 				.map((key) => this.normalizeLanguageKey(key))
@@ -112,13 +112,13 @@ export class FlagHandler {
 
 		const filePath = this.resolveFlagFilePath(algorithmDirectoryPath);
 		if (normalizedKeys.size === 0) {
-			fs.rmSync(filePath, { force: true });
+			await fs.rm(filePath, { force: true });
 			this.cacheByAlgorithmDirectory.set(algorithmDirectoryPath, new Set());
 			return;
 		}
 
 		const sortedKeys = [...normalizedKeys].sort((leftKey, rightKey) => leftKey.localeCompare(rightKey));
-		fs.writeFileSync(filePath, `${sortedKeys.join("\n")}\n`, "utf8");
+		await fs.writeFile(filePath, `${sortedKeys.join("\n")}\n`, "utf8");
 		this.cacheByAlgorithmDirectory.set(algorithmDirectoryPath, new Set(sortedKeys));
 	}
 
@@ -128,15 +128,15 @@ export class FlagHandler {
 	 * @param {string} algorithmDirectoryPath Algorithm directory path.
 	 * @param {string} languageKey Language key to update.
 	 * @param {boolean} isFlagged True to ensure present; false to ensure absent.
-	 * @returns {Set<string>} Updated flagged language key set.
+	 * @returns {Promise<Set<string>>} Updated flagged language key set.
 	 */
-	public updateFlaggedLanguageKey(
+	public async updateFlaggedLanguageKey(
 		algorithmDirectoryPath: string,
 		languageKey: string,
 		isFlagged: boolean,
-	): Set<string> {
+	): Promise<Set<string>> {
 		const normalizedLanguageKey = this.normalizeLanguageKey(languageKey);
-		const flaggedLanguageKeys = this.readFlaggedLanguageKeys(algorithmDirectoryPath);
+		const flaggedLanguageKeys = await this.readFlaggedLanguageKeys(algorithmDirectoryPath);
 
 		if (normalizedLanguageKey.length > 0) {
 			if (isFlagged) {
@@ -147,7 +147,7 @@ export class FlagHandler {
 			}
 		}
 
-		this.writeFlaggedLanguageKeys(algorithmDirectoryPath, flaggedLanguageKeys);
+		await this.writeFlaggedLanguageKeys(algorithmDirectoryPath, flaggedLanguageKeys);
 		return this.cloneLanguageKeySet(flaggedLanguageKeys);
 	}
 

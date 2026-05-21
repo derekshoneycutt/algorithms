@@ -128,14 +128,14 @@ export class AlgorithmsTreeDataProvider implements vscode.TreeDataProvider<Algor
    * @param {IAlgorithmImplementation} implementation Implementation row metadata.
    * @returns {number} Total files represented by the row.
    */
-  private getImplementationFileCount(
+  private async getImplementationFileCount(
     algorithmDirectory: IAlgorithmDirectory,
     implementation: IAlgorithmImplementation,
-  ): number {
-    const childCount = this.languages.getAlgorithmImplementationChildren(
+  ): Promise<number> {
+    const childCount = (await this.languages.getAlgorithmImplementationChildren(
       algorithmDirectory,
       implementation,
-    ).length;
+    )).length;
 
     if (implementation.languageKey === docsImplementationKey) {
       return childCount;
@@ -209,9 +209,9 @@ export class AlgorithmsTreeDataProvider implements vscode.TreeDataProvider<Algor
    * @param {AlgorithmTreeItem | undefined} element Parent node, or undefined for root items.
    * @returns {Thenable<AlgorithmTreeItem[]>} Child nodes for the current level.
    */
-  getChildren(element?: AlgorithmTreeItem): Thenable<AlgorithmTreeItem[]> {
+  async getChildren(element?: AlgorithmTreeItem): Promise<AlgorithmTreeItem[]> {
     if (!element) {
-      const categories = this.languages.getAlgorithmCategories();
+      const categories = await this.languages.getAlgorithmCategories();
       const treeItems = categories.map(
         (category) => new AlgorithmTreeItem(
           category.displayName,
@@ -219,11 +219,11 @@ export class AlgorithmsTreeDataProvider implements vscode.TreeDataProvider<Algor
           vscode.TreeItemCollapsibleState.Collapsed,
           category,
         ));
-      return Promise.resolve(treeItems);
+      return treeItems;
     }
 
     if (element.category) {
-      const algorithms = this.languages.getAlgorithmsInCategory(element.category);
+      const algorithms = await this.languages.getAlgorithmsInCategory(element.category);
       const algorithmItems = algorithms.map(
         (algorithm) => new AlgorithmTreeItem(
           algorithm.displayName,
@@ -232,12 +232,12 @@ export class AlgorithmsTreeDataProvider implements vscode.TreeDataProvider<Algor
           undefined,
           algorithm,
         ));
-      return Promise.resolve(algorithmItems);
+      return algorithmItems;
     }
 
     if (element.algorithmDirectory) {
       const algorithmDirectory = element.algorithmDirectory;
-      const implementations = this.languages.getAlgorithmImplementations(algorithmDirectory);
+      const implementations = await this.languages.getAlgorithmImplementations(algorithmDirectory);
       const visibleImplementations = this.implementationViewMode === "language"
         ? implementations
         : implementations.filter((implementation) => {
@@ -249,14 +249,13 @@ export class AlgorithmsTreeDataProvider implements vscode.TreeDataProvider<Algor
             && !!implementation.fileName
             && !!implementation.filePath;
         });
-
-      const implementationItems = visibleImplementations.map((implementation) => {
+      const implementationItems = await Promise.all(visibleImplementations.map(async (implementation) => {
           const label = this.implementationViewMode === "language"
             && implementation.languageKey !== docsImplementationKey
             ? implementation.languageDisplayName
             : (implementation.fileName ?? implementation.languageDisplayName);
 
-          const fileCount = this.getImplementationFileCount(algorithmDirectory, implementation);
+          const fileCount = await this.getImplementationFileCount(algorithmDirectory, implementation);
 
           const item = new AlgorithmTreeItem(
             label,
@@ -282,13 +281,13 @@ export class AlgorithmsTreeDataProvider implements vscode.TreeDataProvider<Algor
             this.setOpenFileCommand(item, implementation.filePath);
           }
           return item;
-        });
-      return Promise.resolve(implementationItems);
+        }));
+      return implementationItems;
     }
 
     if (element.algorithmImplementation && element.implementationParentDirectory) {
       const implementation = element.algorithmImplementation;
-      const children = this.languages.getAlgorithmImplementationChildren(
+      const children = await this.languages.getAlgorithmImplementationChildren(
         element.implementationParentDirectory,
         implementation,
       );
@@ -302,10 +301,10 @@ export class AlgorithmsTreeDataProvider implements vscode.TreeDataProvider<Algor
         this.setOpenFileCommand(item);
         return item;
       });
-      return Promise.resolve(childItems);
+      return childItems;
     }
 
-    return Promise.resolve([]);
+    return [];
   }
 }
 

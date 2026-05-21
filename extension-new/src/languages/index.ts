@@ -41,17 +41,17 @@ export interface ILanguages extends vscode.Disposable {
 
   register(context: vscode.ExtensionContext) : void;
   
-  getAlgorithmCategories() : IAlgorithmCategory[];
+  getAlgorithmCategories() : Promise<IAlgorithmCategory[]>;
 
-  getAlgorithmsInCategory(category: IAlgorithmCategory) : IAlgorithmDirectory[];
+  getAlgorithmsInCategory(category: IAlgorithmCategory) : Promise<IAlgorithmDirectory[]>;
 
-  getAlgorithmImplementations(algorithmDirectory: IAlgorithmDirectory) : IAlgorithmImplementation[];
+  getAlgorithmImplementations(algorithmDirectory: IAlgorithmDirectory) : Promise<IAlgorithmImplementation[]>;
 
   getAlgorithmImplementationChildren(
     algorithmDirectory: IAlgorithmDirectory,
-    implementation: IAlgorithmImplementation) : IAlgorithmImplementationChild[];
+    implementation: IAlgorithmImplementation) : Promise<IAlgorithmImplementationChild[]>;
   
-  getStandardLibraryCategories() : IStdLibCategory[];
+  getStandardLibraryCategories() : Promise<IStdLibCategory[]>;
 
-  getStandardLibraryFiles(category: IStdLibCategory) : IStdLibCategoryFile[];
+  getStandardLibraryFiles(category: IStdLibCategory) : Promise<IStdLibCategoryFile[]>;
 }

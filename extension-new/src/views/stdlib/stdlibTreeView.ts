@@ -54,9 +54,9 @@ export class StdLibTreeDataProvider implements vscode.TreeDataProvider<StdLibTre
     return element;
   }
 
-  getChildren(element?: StdLibTreeItem): Thenable<StdLibTreeItem[]> {
+  async getChildren(element?: StdLibTreeItem): Promise<StdLibTreeItem[]> {
     if (!element) {
-      const categories = this.languages.getStandardLibraryCategories();
+        const categories = await this.languages.getStandardLibraryCategories();
       const treeItems = categories.map(
         (category) => new StdLibTreeItem(
           category.displayName,
@@ -64,11 +64,11 @@ export class StdLibTreeDataProvider implements vscode.TreeDataProvider<StdLibTre
           vscode.TreeItemCollapsibleState.Collapsed,
           category,
         ));
-      return Promise.resolve(treeItems);
+        return treeItems;
     }
 
     if (element.category) {
-      const files = this.languages.getStandardLibraryFiles(element.category);
+        const files = await this.languages.getStandardLibraryFiles(element.category);
       const fileItems = files.map((file) => {
         const item = new StdLibTreeItem(
           file.displayName,
@@ -80,10 +80,10 @@ export class StdLibTreeDataProvider implements vscode.TreeDataProvider<StdLibTre
           }
         return item;
       });
-      return Promise.resolve(fileItems);
+        return fileItems;
     }
 
-    return Promise.resolve([]);
+      return [];
   }
 }
 
