@@ -600,8 +600,7 @@ export class AlgorithmsTreeDataProvider implements vscode.TreeDataProvider<Algor
     item.iconPath = this.getImplementationIconUri(implementation);
     item.description = `${fileCount}`;
 
-    if (item.collapsibleState === vscode.TreeItemCollapsibleState.None
-        && implementation.languageKey !== docsImplementationKey
+    if (implementation.languageKey !== docsImplementationKey
         && implementation.hasImplementation
         && !!implementation.filePath) {
       this.setOpenFileCommand(item, implementation.filePath);
