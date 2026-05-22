@@ -19,6 +19,13 @@ const explorerCheckOnlyDockerCommandId = 'algos.explorerCheckOnlyDocker';
 const explorerCheckOnlySshCommandId = 'algos.explorerCheckOnlySsh';
 const explorerCleanCommandId = 'algos.explorerClean';
 const explorerLocalCleanCommandId = 'algos.explorerLocalClean';
+const editorTitleRunFileCommandId = 'algos.algorithmsEditorTitleRunFile';
+const editorTitleCompileOnlyCommandId = 'algos.algorithmsEditorTitleCompileOnly';
+const editorTitleCheckOnlyNativeCommandId = 'algos.algorithmsEditorTitleCheckOnlyNative';
+const editorTitleCheckOnlyDockerCommandId = 'algos.algorithmsEditorTitleCheckOnlyDocker';
+const editorTitleCheckOnlySshCommandId = 'algos.algorithmsEditorTitleCheckOnlySsh';
+const editorTitleCleanCommandId = 'algos.algorithmsEditorTitleClean';
+const editorTitleLocalCleanCommandId = 'algos.algorithmsEditorTitleLocalClean';
 
 export class Views implements IViews {
 
@@ -47,6 +54,13 @@ export class Views implements IViews {
   private explorerCheckOnlySshCommandSubscription: vscode.Disposable | undefined;
   private explorerCleanCommandSubscription: vscode.Disposable | undefined;
   private explorerLocalCleanCommandSubscription: vscode.Disposable | undefined;
+  private editorTitleRunFileCommandSubscription: vscode.Disposable | undefined;
+  private editorTitleCompileOnlyCommandSubscription: vscode.Disposable | undefined;
+  private editorTitleCheckOnlyNativeCommandSubscription: vscode.Disposable | undefined;
+  private editorTitleCheckOnlyDockerCommandSubscription: vscode.Disposable | undefined;
+  private editorTitleCheckOnlySshCommandSubscription: vscode.Disposable | undefined;
+  private editorTitleCleanCommandSubscription: vscode.Disposable | undefined;
+  private editorTitleLocalCleanCommandSubscription: vscode.Disposable | undefined;
   private lastRevealKey: string;
 
   /**
@@ -89,6 +103,13 @@ export class Views implements IViews {
     this.explorerCheckOnlySshCommandSubscription = undefined;
     this.explorerCleanCommandSubscription = undefined;
     this.explorerLocalCleanCommandSubscription = undefined;
+    this.editorTitleRunFileCommandSubscription = undefined;
+    this.editorTitleCompileOnlyCommandSubscription = undefined;
+    this.editorTitleCheckOnlyNativeCommandSubscription = undefined;
+    this.editorTitleCheckOnlyDockerCommandSubscription = undefined;
+    this.editorTitleCheckOnlySshCommandSubscription = undefined;
+    this.editorTitleCleanCommandSubscription = undefined;
+    this.editorTitleLocalCleanCommandSubscription = undefined;
     this.lastRevealKey = "";
   }
 
@@ -163,6 +184,86 @@ export class Views implements IViews {
 
     this.explorerLocalCleanCommandSubscription = vscode.commands.registerCommand(
       explorerLocalCleanCommandId,
+      async (clickedUri?: vscode.Uri) => {
+        await this.contextMenuRunHelper.executeAction({
+          actionKind: 'localclean',
+          resourceUri: clickedUri,
+        });
+      },
+    );
+  }
+
+  /**
+   * Registers editor-title run commands and routes them through the shared run helper.
+   *
+   * @returns {void} No return value.
+   */
+  private registerEditorTitleRunCommands(): void {
+    this.editorTitleRunFileCommandSubscription = vscode.commands.registerCommand(
+      editorTitleRunFileCommandId,
+      async (clickedUri?: vscode.Uri) => {
+        await this.contextMenuRunHelper.executeAction({
+          actionKind: 'run-file',
+          resourceUri: clickedUri,
+        });
+      },
+    );
+
+    this.editorTitleCompileOnlyCommandSubscription = vscode.commands.registerCommand(
+      editorTitleCompileOnlyCommandId,
+      async (clickedUri?: vscode.Uri) => {
+        await this.contextMenuRunHelper.executeAction({
+          actionKind: 'compile-only',
+          resourceUri: clickedUri,
+        });
+      },
+    );
+
+    this.editorTitleCheckOnlyNativeCommandSubscription = vscode.commands.registerCommand(
+      editorTitleCheckOnlyNativeCommandId,
+      async (clickedUri?: vscode.Uri) => {
+        await this.contextMenuRunHelper.executeAction({
+          actionKind: 'check-only',
+          checkOnlyRouteOverride: 'native',
+          resourceUri: clickedUri,
+        });
+      },
+    );
+
+    this.editorTitleCheckOnlyDockerCommandSubscription = vscode.commands.registerCommand(
+      editorTitleCheckOnlyDockerCommandId,
+      async (clickedUri?: vscode.Uri) => {
+        await this.contextMenuRunHelper.executeAction({
+          actionKind: 'check-only',
+          checkOnlyRouteOverride: 'docker',
+          resourceUri: clickedUri,
+        });
+      },
+    );
+
+    this.editorTitleCheckOnlySshCommandSubscription = vscode.commands.registerCommand(
+      editorTitleCheckOnlySshCommandId,
+      async (clickedUri?: vscode.Uri) => {
+        await this.contextMenuRunHelper.executeAction({
+          actionKind: 'check-only',
+          checkOnlyRouteOverride: 'ssh',
+          resourceUri: clickedUri,
+        });
+      },
+    );
+
+    this.editorTitleCleanCommandSubscription = vscode.commands.registerCommand(
+      editorTitleCleanCommandId,
+      async (clickedUri?: vscode.Uri) => {
+        await this.contextMenuRunHelper.executeAction({
+          actionKind: 'clean',
+          resourceUri: clickedUri,
+        });
+      },
+    );
+
+    this.editorTitleLocalCleanCommandSubscription = vscode.commands.registerCommand(
+      editorTitleLocalCleanCommandId,
       async (clickedUri?: vscode.Uri) => {
         await this.contextMenuRunHelper.executeAction({
           actionKind: 'localclean',
@@ -334,6 +435,7 @@ export class Views implements IViews {
     });
 
     this.registerExplorerRunCommands();
+    this.registerEditorTitleRunCommands();
 
     // Initial pass for already-open editors in the debug host.
     this.revealCurrentActiveEditor();
@@ -375,6 +477,21 @@ export class Views implements IViews {
     this.explorerCleanCommandSubscription = undefined;
     this.explorerLocalCleanCommandSubscription?.dispose();
     this.explorerLocalCleanCommandSubscription = undefined;
+
+    this.editorTitleRunFileCommandSubscription?.dispose();
+    this.editorTitleRunFileCommandSubscription = undefined;
+    this.editorTitleCompileOnlyCommandSubscription?.dispose();
+    this.editorTitleCompileOnlyCommandSubscription = undefined;
+    this.editorTitleCheckOnlyNativeCommandSubscription?.dispose();
+    this.editorTitleCheckOnlyNativeCommandSubscription = undefined;
+    this.editorTitleCheckOnlyDockerCommandSubscription?.dispose();
+    this.editorTitleCheckOnlyDockerCommandSubscription = undefined;
+    this.editorTitleCheckOnlySshCommandSubscription?.dispose();
+    this.editorTitleCheckOnlySshCommandSubscription = undefined;
+    this.editorTitleCleanCommandSubscription?.dispose();
+    this.editorTitleCleanCommandSubscription = undefined;
+    this.editorTitleLocalCleanCommandSubscription?.dispose();
+    this.editorTitleLocalCleanCommandSubscription = undefined;
 
     this.updateAlgorithmsEditModeContext(false);
 

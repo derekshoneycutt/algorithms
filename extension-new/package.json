@@ -1,10 +1,10 @@
 {
-  "name": "algorithms-runner-extension-next",
-  "displayName": "Derek's Algorithms Runner (Next)",
-  "description": "Fresh bootstrap for Derek's Algorithms VS Code extension.",
-  "version": "0.0.1",
+  "name": "algorithms-runner-extension",
+  "displayName": "Derek's Algorithms Runner",
+  "description": "VS Code extension for Derek's Algorithms run.sh integration.",
+  "version": "0.3.0",
   "publisher": "derekshoneycutt",
-  "license": "MIT",
+  "license": "CC0-1.0",
   "repository": {
     "type": "git",
     "url": "https://github.com/derekshoneycutt/algorithms.git"
@@ -216,6 +216,41 @@
         "command": "algos.explorerLocalClean",
         "title": "Local Clean",
         "icon": "$(trash)"
+      },
+      {
+        "command": "algos.algorithmsEditorTitleRunFile",
+        "title": "Run File",
+        "icon": "$(play)"
+      },
+      {
+        "command": "algos.algorithmsEditorTitleCompileOnly",
+        "title": "Compile Only",
+        "icon": "$(pie-chart)"
+      },
+      {
+        "command": "algos.algorithmsEditorTitleCheckOnlyNative",
+        "title": "Check Only (Native)",
+        "icon": "$(beaker)"
+      },
+      {
+        "command": "algos.algorithmsEditorTitleCheckOnlyDocker",
+        "title": "Check Only (Docker)",
+        "icon": "$(beaker)"
+      },
+      {
+        "command": "algos.algorithmsEditorTitleCheckOnlySsh",
+        "title": "Check Only (SSH)",
+        "icon": "$(beaker)"
+      },
+      {
+        "command": "algos.algorithmsEditorTitleClean",
+        "title": "Clean",
+        "icon": "$(root-folder)"
+      },
+      {
+        "command": "algos.algorithmsEditorTitleLocalClean",
+        "title": "Local Clean",
+        "icon": "$(root-folder-opened)"
       }
     ],
     "submenus": [
@@ -231,6 +266,43 @@
       }
     ],
     "menus": {
+      "editor/title/run": [
+        {
+          "command": "algos.algorithmsEditorTitleRunFile",
+          "when": "resourceScheme == file && resourcePath =~ /[\\\\/]src[\\\\/][^\\\\/]+[\\\\/][^\\\\/]+[\\\\/][^\\\\/]+$/",
+          "group": "1_actions@1"
+        },
+        {
+          "command": "algos.algorithmsEditorTitleCompileOnly",
+          "when": "resourceScheme == file && resourcePath =~ /[\\\\/]src[\\\\/][^\\\\/]+[\\\\/][^\\\\/]+[\\\\/][^\\\\/]+$/",
+          "group": "1_actions@2"
+        },
+        {
+          "command": "algos.algorithmsEditorTitleCheckOnlyNative",
+          "when": "resourceScheme == file && resourcePath =~ /[\\\\/]src[\\\\/][^\\\\/]+[\\\\/][^\\\\/]+[\\\\/][^\\\\/]+$/",
+          "group": "1_actions@3"
+        },
+        {
+          "command": "algos.algorithmsEditorTitleCheckOnlyDocker",
+          "when": "resourceScheme == file && resourcePath =~ /[\\\\/]src[\\\\/][^\\\\/]+[\\\\/][^\\\\/]+[\\\\/][^\\\\/]+$/",
+          "group": "1_actions@4"
+        },
+        {
+          "command": "algos.algorithmsEditorTitleCheckOnlySsh",
+          "when": "resourceScheme == file && resourcePath =~ /[\\\\/]src[\\\\/][^\\\\/]+[\\\\/][^\\\\/]+[\\\\/][^\\\\/]+$/",
+          "group": "1_actions@5"
+        },
+        {
+          "command": "algos.algorithmsEditorTitleClean",
+          "when": "resourceScheme == file && resourcePath =~ /[\\\\/]src[\\\\/][^\\\\/]+[\\\\/][^\\\\/]+[\\\\/][^\\\\/]+$/",
+          "group": "1_actions@6"
+        },
+        {
+          "command": "algos.algorithmsEditorTitleLocalClean",
+          "when": "resourceScheme == file && resourcePath =~ /[\\\\/]src[\\\\/][^\\\\/]+[\\\\/][^\\\\/]+[\\\\/][^\\\\/]+$/",
+          "group": "1_actions@7"
+        }
+      ],
       "view/title": [
         {
           "command": "algos.algorithmsTreeView.createFolder",
