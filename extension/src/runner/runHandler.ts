@@ -330,8 +330,8 @@ export class RunHandler {
   private publishTrackerStatus(
     trackerExecutionContext: TrackerExecutionContext | undefined,
     status: TrackerRunStatus,
-    message: string,
-  ): void {
+    message: string): void {
+
     if (!this.tracker || !trackerExecutionContext) {
       return;
     }
@@ -599,8 +599,9 @@ export class RunHandler {
   /**
    * Composes run.sh invocation tokens in canonical order.
    *
-   * @param {string[]} optionTokens Option tokens.
-    * @param {string} targetToken Positional target token.
+   * @param {string[]} preTargetOptionTokens Option tokens.
+   * @param {string} targetToken Positional target token.
+   * @param {string[]} postTargetOptionTokens Option tokens.
    * @param {string[]} passthroughTokens Passthrough argument tokens.
    * @returns {string[]} Full token vector.
    */
