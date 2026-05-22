@@ -26,6 +26,35 @@ export class LanguageRoutingSectionComponent implements IEnvironmentControlsSect
   }
 
   /**
+   * Applies the current batch-routing settings to every language entry.
+   *
+   * @returns {void} No return value.
+   */
+  private applyBatchRoutingToAllEntries(): void {
+    const nextBatchRouting = {
+      ...this.state.batchRouting,
+      isConflict: this.state.batchRouting.dockerEnabled && this.state.batchRouting.sshEnabled,
+    };
+
+    this.state.batchRouting = nextBatchRouting;
+    this.state.routingEntries = this.state.routingEntries.map((entry) => {
+      const dockerEnabled = nextBatchRouting.dockerEnabled;
+      const sshEnabled = nextBatchRouting.sshEnabled;
+
+      return {
+        ...entry,
+        dockerEnabled,
+        dockerValue: nextBatchRouting.dockerValue,
+        sshEnabled,
+        sshValue: nextBatchRouting.sshValue,
+        isConflict: dockerEnabled && sshEnabled,
+      };
+    });
+
+    this.requestRender();
+  }
+
+  /**
    * Renders routing badges for one language row.
    *
    * @param {EnvironmentRoutingLanguageState} entry Language routing entry.
@@ -257,7 +286,15 @@ export class LanguageRoutingSectionComponent implements IEnvironmentControlsSect
         />
 
         <div class="buttonRow">
-          <button class="button" type="button">Save</button>
+          <button
+            class="button"
+            type="button"
+            @click=${() => {
+              this.applyBatchRoutingToAllEntries();
+            }}
+          >
+            Save
+          </button>
         </div>
       </section>
     `;

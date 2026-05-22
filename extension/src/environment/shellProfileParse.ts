@@ -66,7 +66,9 @@ export interface ParsedAlgorithmsProfile {
 function getManagedProfileScope(profileText: string): string {
   const text = String(profileText || "");
   const blockStartIndex = text.indexOf(PROFILE_BLOCK_START);
-  const blockEndIndex = text.indexOf(PROFILE_BLOCK_END);
+  const blockEndIndex = blockStartIndex >= 0
+    ? text.indexOf(PROFILE_BLOCK_END, blockStartIndex + PROFILE_BLOCK_START.length)
+    : -1;
 
   if (blockStartIndex >= 0 && blockEndIndex > blockStartIndex) {
     return text.slice(blockStartIndex, blockEndIndex);

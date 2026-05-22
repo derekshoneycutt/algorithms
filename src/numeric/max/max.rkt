@@ -19,7 +19,7 @@
 
 ; Get the values and the max, and print the values
 (let* ((args (vector->list (current-command-line-arguments)))
-       (list (argsAsInts (cdr args) '(15 10)))
+       (list (argsAsInts args '(15 10)))
        (max_value (mymax list)))
     (display "values: ") (display list)
     (display "\nmax: ") (display max_value) (display "\n"))

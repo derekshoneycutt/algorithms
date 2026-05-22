@@ -149,7 +149,9 @@ export function upsertAlgorithmsProfileBlock(
   const lineEnding = detectLineEnding(rawProfileText);
   const renderedBlock = renderAlgorithmsProfileBlock(values, { lineEnding });
   const blockStartIndex = rawProfileText.indexOf(PROFILE_BLOCK_START);
-  const blockEndIndex = rawProfileText.indexOf(PROFILE_BLOCK_END);
+  const blockEndIndex = blockStartIndex >= 0
+    ? rawProfileText.indexOf(PROFILE_BLOCK_END, blockStartIndex + PROFILE_BLOCK_START.length)
+    : -1;
 
   if (blockStartIndex >= 0 && blockEndIndex > blockStartIndex) {
     const blockEndExclusive = blockEndIndex + PROFILE_BLOCK_END.length;
