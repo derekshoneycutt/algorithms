@@ -69,6 +69,12 @@ ILanguages
 
 ### `ILanguages` Core
 
+```text
+                 ILanguages
+            /    /       \     \
+IEnvironment  IRunner  ISmoker  IViews
+```
+
 The `ILanguages` structure provides the primary means of understanding algorithm source
 code within the project. This includes a script generated language definitions file, as
 well as utilities for flagging languages and checking for workspace support for the
@@ -101,6 +107,13 @@ entire point of this project better than whatever the AI was throwing a fit abou
 versions of this extension.
 
 ### `IViews` Providers
+
+```text
+ILanguages   ITracker     IEnvironment
+IRunner   \     |        /     ISmoker
+      \    \    |       /     /
+              IViews
+```
 
 The `Views` module is easily the largest module and sits at the top of the stack of all
 modules. This includes node-side handling for all views, serving the primary function for
@@ -166,6 +179,14 @@ somehow stronger architecture, and one that better follows XState's actor model.
 
 #### `IEnvironment` Actor
 
+```text
+         ILanguages
+             |
+        IEnvironment
+       /     |      \
+IRunner    ISmoker   IViews
+```
+
 I tried to come up with some clever name like "Runner" and "Smoker" for `Environment`, but
 alas, they all just sounded more lame and less descriptive than just staying with
 `Environment`. This module is a stateful actor, although unlike the other actors, it
@@ -189,6 +210,12 @@ values may be added in the future.
 
 #### `ITracker` Actor
 
+```text
+         ITracker
+       /    |     \
+IRunner   ISmoker   IViews
+```
+
 Next up in the dependency graph is the `ITracker` actor. This is the simplest actor, in
 one sense. It simply keeps a state record of how code files are running or have been run
 by the system. This is the core of how the Algorithms tree view is able to show queued,
@@ -199,6 +226,14 @@ state machine but not as formally or well. This single actor now makes a very st
 coherent system for tracking runs, both individual and smoke runs.
 
 #### `IRunner` Actor
+
+```text
+    IEnvironment        ITracker
+            \            /
+                IRunner
+                  |
+                IViews
+```
 
 The Runner actor follows quite obviously. This is a somewhat interesting one because it
 holds the state from the Run Controls webview, which dictate exactly how runs are
@@ -212,6 +247,14 @@ overengineered inside. It works well enough for my current acceptance, but... ma
 spend some time in it later.
 
 #### `ISmoker` Actor
+
+```text
+ ILanguages   IEnvironment    ITracker
+           \       |         /
+                ISmoker
+                   |
+                 IViews
+```
 
 The name Smoker was kind of an accident, but it actually is a good fit, being that it is
 the actor in charge of knowing how to initiate a smoke run so that the `ITracker` is
