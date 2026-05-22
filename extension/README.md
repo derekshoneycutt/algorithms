@@ -59,10 +59,10 @@ ILanguages
  |'- IEnvironment
  |    |
  |    |  ITracker  
- |    |.  |.
- | ---+'--+'- IRunner
- |    |.  |.   |
- | ---+'--+'---+- ISmoker
+ |.   |.  |.
+ |'---+'--+'- IRunner
+ |.   |.  |.   |
+ |'---+'--+'---+- ISmoker
  |.   |.  |.   |.  |.
  ''---''--''---''--''- IViews
 ```
