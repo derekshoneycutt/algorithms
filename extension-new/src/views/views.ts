@@ -10,6 +10,15 @@ import { IRunner } from '../runner';
 import { ISmoker } from '../smoker';
 import { IEnvironment } from '../environment';
 import { ITracker } from '../tracker';
+import { ContextMenuRunHelper } from './shared/contextMenuRunHelper';
+
+const explorerRunFileCommandId = 'algos.explorerRunFile';
+const explorerCompileOnlyCommandId = 'algos.explorerCompileOnly';
+const explorerCheckOnlyNativeCommandId = 'algos.explorerCheckOnlyNative';
+const explorerCheckOnlyDockerCommandId = 'algos.explorerCheckOnlyDocker';
+const explorerCheckOnlySshCommandId = 'algos.explorerCheckOnlySsh';
+const explorerCleanCommandId = 'algos.explorerClean';
+const explorerLocalCleanCommandId = 'algos.explorerLocalClean';
 
 export class Views implements IViews {
 
@@ -24,12 +33,20 @@ export class Views implements IViews {
   private readonly algosTreeView : AlgorithmsTreeView;
   private readonly stdlibTreeView : StdLibTreeView;
   private readonly environmentView : EnvironmentView;
+  private readonly contextMenuRunHelper: ContextMenuRunHelper;
   private dataChangeSubscription : vscode.Disposable | undefined;
   private activeEditorChangeSubscription : vscode.Disposable | undefined;
   private algorithmsTreeVisibilitySubscription : vscode.Disposable | undefined;
   private stdlibTreeVisibilitySubscription : vscode.Disposable | undefined;
   private trackerStateSubscription : vscode.Disposable | undefined;
   private environmentStateSubscription : vscode.Disposable | undefined;
+  private explorerRunFileCommandSubscription: vscode.Disposable | undefined;
+  private explorerCompileOnlyCommandSubscription: vscode.Disposable | undefined;
+  private explorerCheckOnlyNativeCommandSubscription: vscode.Disposable | undefined;
+  private explorerCheckOnlyDockerCommandSubscription: vscode.Disposable | undefined;
+  private explorerCheckOnlySshCommandSubscription: vscode.Disposable | undefined;
+  private explorerCleanCommandSubscription: vscode.Disposable | undefined;
+  private explorerLocalCleanCommandSubscription: vscode.Disposable | undefined;
   private lastRevealKey: string;
 
   /**
@@ -58,13 +75,101 @@ export class Views implements IViews {
     this.algosTreeView = new AlgorithmsTreeView(this.languages, this.runner, this.smoker, this.tracker);
     this.stdlibTreeView = new StdLibTreeView(this.languages);
     this.environmentView = new EnvironmentView(this.environment);
+    this.contextMenuRunHelper = new ContextMenuRunHelper(this.languages, this.runner);
     this.dataChangeSubscription = undefined;
     this.activeEditorChangeSubscription = undefined;
     this.algorithmsTreeVisibilitySubscription = undefined;
     this.stdlibTreeVisibilitySubscription = undefined;
     this.trackerStateSubscription = undefined;
     this.environmentStateSubscription = undefined;
+    this.explorerRunFileCommandSubscription = undefined;
+    this.explorerCompileOnlyCommandSubscription = undefined;
+    this.explorerCheckOnlyNativeCommandSubscription = undefined;
+    this.explorerCheckOnlyDockerCommandSubscription = undefined;
+    this.explorerCheckOnlySshCommandSubscription = undefined;
+    this.explorerCleanCommandSubscription = undefined;
+    this.explorerLocalCleanCommandSubscription = undefined;
     this.lastRevealKey = "";
+  }
+
+  /**
+   * Registers Explorer context run commands and routes them through the shared run helper.
+   *
+   * @returns {void} No return value.
+   */
+  private registerExplorerRunCommands(): void {
+    this.explorerRunFileCommandSubscription = vscode.commands.registerCommand(
+      explorerRunFileCommandId,
+      async (clickedUri?: vscode.Uri) => {
+        await this.contextMenuRunHelper.executeAction({
+          actionKind: 'run-file',
+          resourceUri: clickedUri,
+        });
+      },
+    );
+
+    this.explorerCompileOnlyCommandSubscription = vscode.commands.registerCommand(
+      explorerCompileOnlyCommandId,
+      async (clickedUri?: vscode.Uri) => {
+        await this.contextMenuRunHelper.executeAction({
+          actionKind: 'compile-only',
+          resourceUri: clickedUri,
+        });
+      },
+    );
+
+    this.explorerCheckOnlyNativeCommandSubscription = vscode.commands.registerCommand(
+      explorerCheckOnlyNativeCommandId,
+      async (clickedUri?: vscode.Uri) => {
+        await this.contextMenuRunHelper.executeAction({
+          actionKind: 'check-only',
+          checkOnlyRouteOverride: 'native',
+          resourceUri: clickedUri,
+        });
+      },
+    );
+
+    this.explorerCheckOnlyDockerCommandSubscription = vscode.commands.registerCommand(
+      explorerCheckOnlyDockerCommandId,
+      async (clickedUri?: vscode.Uri) => {
+        await this.contextMenuRunHelper.executeAction({
+          actionKind: 'check-only',
+          checkOnlyRouteOverride: 'docker',
+          resourceUri: clickedUri,
+        });
+      },
+    );
+
+    this.explorerCheckOnlySshCommandSubscription = vscode.commands.registerCommand(
+      explorerCheckOnlySshCommandId,
+      async (clickedUri?: vscode.Uri) => {
+        await this.contextMenuRunHelper.executeAction({
+          actionKind: 'check-only',
+          checkOnlyRouteOverride: 'ssh',
+          resourceUri: clickedUri,
+        });
+      },
+    );
+
+    this.explorerCleanCommandSubscription = vscode.commands.registerCommand(
+      explorerCleanCommandId,
+      async (clickedUri?: vscode.Uri) => {
+        await this.contextMenuRunHelper.executeAction({
+          actionKind: 'clean',
+          resourceUri: clickedUri,
+        });
+      },
+    );
+
+    this.explorerLocalCleanCommandSubscription = vscode.commands.registerCommand(
+      explorerLocalCleanCommandId,
+      async (clickedUri?: vscode.Uri) => {
+        await this.contextMenuRunHelper.executeAction({
+          actionKind: 'localclean',
+          resourceUri: clickedUri,
+        });
+      },
+    );
   }
 
   /**
@@ -228,6 +333,8 @@ export class Views implements IViews {
       this.updateAlgorithmsEditModeContext(state.editModeEnabled);
     });
 
+    this.registerExplorerRunCommands();
+
     // Initial pass for already-open editors in the debug host.
     this.revealCurrentActiveEditor();
   }
@@ -253,6 +360,21 @@ export class Views implements IViews {
 
     this.environmentStateSubscription?.dispose();
     this.environmentStateSubscription = undefined;
+
+    this.explorerRunFileCommandSubscription?.dispose();
+    this.explorerRunFileCommandSubscription = undefined;
+    this.explorerCompileOnlyCommandSubscription?.dispose();
+    this.explorerCompileOnlyCommandSubscription = undefined;
+    this.explorerCheckOnlyNativeCommandSubscription?.dispose();
+    this.explorerCheckOnlyNativeCommandSubscription = undefined;
+    this.explorerCheckOnlyDockerCommandSubscription?.dispose();
+    this.explorerCheckOnlyDockerCommandSubscription = undefined;
+    this.explorerCheckOnlySshCommandSubscription?.dispose();
+    this.explorerCheckOnlySshCommandSubscription = undefined;
+    this.explorerCleanCommandSubscription?.dispose();
+    this.explorerCleanCommandSubscription = undefined;
+    this.explorerLocalCleanCommandSubscription?.dispose();
+    this.explorerLocalCleanCommandSubscription = undefined;
 
     this.updateAlgorithmsEditModeContext(false);
 

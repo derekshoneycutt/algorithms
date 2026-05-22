@@ -181,6 +181,41 @@
         "command": "algos.stdlibTreeView.deleteFile",
         "title": "Delete File",
         "icon": "$(trash)"
+      },
+      {
+        "command": "algos.explorerRunFile",
+        "title": "Run File",
+        "icon": "$(play)"
+      },
+      {
+        "command": "algos.explorerCompileOnly",
+        "title": "Compile Only",
+        "icon": "$(tools)"
+      },
+      {
+        "command": "algos.explorerCheckOnlyNative",
+        "title": "Check Only (Native)",
+        "icon": "$(pass)"
+      },
+      {
+        "command": "algos.explorerCheckOnlyDocker",
+        "title": "Check Only (Docker)",
+        "icon": "$(pass)"
+      },
+      {
+        "command": "algos.explorerCheckOnlySsh",
+        "title": "Check Only (SSH)",
+        "icon": "$(pass)"
+      },
+      {
+        "command": "algos.explorerClean",
+        "title": "Clean",
+        "icon": "$(clear-all)"
+      },
+      {
+        "command": "algos.explorerLocalClean",
+        "title": "Local Clean",
+        "icon": "$(trash)"
       }
     ],
     "submenus": [
@@ -188,6 +223,11 @@
         "id": "algos.algorithmsTreeView.runActionsSubmenu",
         "label": "Run Actions",
         "icon": "$(kebab-vertical)"
+      },
+      {
+        "id": "algos.explorerRunSubmenu",
+        "label": "Run",
+        "icon": "$(play)"
       }
     ],
     "menus": {
@@ -360,6 +400,13 @@
           "group": "inline@10"
         }
       ],
+      "explorer/context": [
+        {
+          "submenu": "algos.explorerRunSubmenu",
+          "when": "resourceScheme == file && resourcePath =~ /[\\\\/]src[\\\\/][^\\\\/]+[\\\\/][^\\\\/]+[\\\\/][^\\\\/]+$/",
+          "group": "2_algorithms@1"
+        }
+      ],
       "algos.algorithmsTreeView.runActionsSubmenu": [
         {
           "command": "algos.algorithmsTreeView.runImplementationFile",
@@ -395,6 +442,43 @@
           "command": "algos.algorithmsTreeView.localCleanImplementation",
           "when": "view == algos.algorithmsTreeView && (viewItem == algorithmImplementationUnflagged || viewItem == algorithmImplementationFlagged || viewItem == algorithmImplementationWithHistoryUnflagged || viewItem == algorithmImplementationWithHistoryFlagged || viewItem == algorithmImplementationBusyCancellableUnflagged || viewItem == algorithmImplementationBusyCancellableFlagged || viewItem == algorithmImplementationBusyUncancellableUnflagged || viewItem == algorithmImplementationBusyUncancellableFlagged)",
           "group": "2_clean@2"
+        }
+      ],
+      "algos.explorerRunSubmenu": [
+        {
+          "command": "algos.explorerRunFile",
+          "when": "resourceScheme == file && resourcePath =~ /[\\\\/]src[\\\\/][^\\\\/]+[\\\\/][^\\\\/]+[\\\\/][^\\\\/]+$/",
+          "group": "navigation@1"
+        },
+        {
+          "command": "algos.explorerCompileOnly",
+          "when": "resourceScheme == file && resourcePath =~ /[\\\\/]src[\\\\/][^\\\\/]+[\\\\/][^\\\\/]+[\\\\/][^\\\\/]+$/",
+          "group": "navigation@2"
+        },
+        {
+          "command": "algos.explorerCheckOnlyNative",
+          "when": "resourceScheme == file && resourcePath =~ /[\\\\/]src[\\\\/][^\\\\/]+[\\\\/][^\\\\/]+[\\\\/][^\\\\/]+$/",
+          "group": "navigation@3"
+        },
+        {
+          "command": "algos.explorerCheckOnlyDocker",
+          "when": "resourceScheme == file && resourcePath =~ /[\\\\/]src[\\\\/][^\\\\/]+[\\\\/][^\\\\/]+[\\\\/][^\\\\/]+$/",
+          "group": "navigation@4"
+        },
+        {
+          "command": "algos.explorerCheckOnlySsh",
+          "when": "resourceScheme == file && resourcePath =~ /[\\\\/]src[\\\\/][^\\\\/]+[\\\\/][^\\\\/]+[\\\\/][^\\\\/]+$/",
+          "group": "navigation@5"
+        },
+        {
+          "command": "algos.explorerClean",
+          "when": "resourceScheme == file && resourcePath =~ /[\\\\/]src[\\\\/][^\\\\/]+[\\\\/][^\\\\/]+[\\\\/][^\\\\/]+$/",
+          "group": "navigation@6"
+        },
+        {
+          "command": "algos.explorerLocalClean",
+          "when": "resourceScheme == file && resourcePath =~ /[\\\\/]src[\\\\/][^\\\\/]+[\\\\/][^\\\\/]+[\\\\/][^\\\\/]+$/",
+          "group": "navigation@7"
         }
       ]
     },
