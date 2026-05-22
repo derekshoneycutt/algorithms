@@ -33,6 +33,7 @@ export const implementationItemContextValueMissingUnflagged = "algorithmImplemen
 export const implementationItemContextValueMissingFlagged = "algorithmImplementationMissingFlagged";
 export const docsImplementationItemContextValue = "algorithmDocs";
 export const docsFileItemContextValue = "algorithmDocsFile";
+export const implementationIncludeFileItemContextValue = "algorithmImplementationIncludeFile";
 export const algorithmCategoryItemContextValue = "algorithmCategory";
 export const algorithmFolderItemContextValue = "algorithmFolder";
 export const algorithmFolderItemContextValueWithRunHistory = "algorithmFolderWithRunHistory";
@@ -673,6 +674,8 @@ export class AlgorithmsTreeDataProvider implements vscode.TreeDataProvider<Algor
       item.iconPath = this.getImplementationIconUri(implementation);
       if (implementation.languageKey === docsImplementationKey) {
         item.contextValue = docsFileItemContextValue;
+      } else {
+        item.contextValue = implementationIncludeFileItemContextValue;
       }
       this.setOpenFileCommand(item);
       return item;

@@ -52,6 +52,7 @@ export interface EnvironmentRoutingLanguageState {
  * Persistent environment-controls state shared by the environment actor and environment view.
  */
 export interface EnvironmentControlsState {
+  editModeEnabled: boolean;
   persistSessionEnabled: boolean;
   profilePath: string;
   profilePlaceholder: string;
@@ -68,6 +69,7 @@ export interface EnvironmentControlsState {
  * Partial update payload for environment-controls state.
  */
 export interface EnvironmentControlsPatch {
+  editModeEnabled?: boolean;
   persistSessionEnabled?: boolean;
   profilePath?: string;
   profilePlaceholder?: string;
@@ -99,6 +101,21 @@ export interface IEnvironment extends vscode.Disposable {
    * @returns {void} No return value.
    */
   patchEnvironmentControls(patch: EnvironmentControlsPatch): void;
+
+  /**
+   * Sets whether the extension should operate in editable mode.
+   *
+   * @param {boolean} enabled True to enable edit mode, false for read-only mode.
+   * @returns {void} No return value.
+   */
+  setEditModeEnabled(enabled: boolean): void;
+
+  /**
+   * Toggles editable mode on/off in environment-controls state.
+   *
+   * @returns {void} No return value.
+   */
+  toggleEditModeEnabled(): void;
 
   /**
    * Returns the current persisted environment-controls state snapshot.

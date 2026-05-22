@@ -2,6 +2,7 @@ import { html, type TemplateResult } from "lit";
 
 import { CheckEnvironmentSectionComponent } from "./checkEnvironmentSectionComponent.mjs";
 import { CopyIconsSectionComponent } from "./copyIconsSectionComponent.mjs";
+import { EditModeSectionComponent } from "./editModeSectionComponent.mjs";
 import { LanguageRoutingSectionComponent } from "./languageRoutingSectionComponent.mjs";
 import { PersistSessionSectionComponent } from "./persistSessionSectionComponent.mjs";
 import { ProfileSectionComponent } from "./profileSectionComponent.mjs";
@@ -15,6 +16,8 @@ import type {
 const panelDescription = "Controls environment factors for the algorithms project via init.sh.";
 
 export class EnvironmentControlsPanelComponent {
+  private readonly editModeSectionComponent: IEnvironmentControlsSectionComponent;
+
   private readonly persistSessionSectionComponent: IEnvironmentControlsSectionComponent;
 
   private readonly profileSectionComponent: IEnvironmentControlsSectionComponent;
@@ -39,6 +42,7 @@ export class EnvironmentControlsPanelComponent {
     requestRender: () => void,
     actionHandlers: EnvironmentActionHandlers,
   ) {
+    this.editModeSectionComponent = new EditModeSectionComponent(state, requestRender);
     this.persistSessionSectionComponent = new PersistSessionSectionComponent(state, requestRender);
     this.profileSectionComponent = new ProfileSectionComponent(state, requestRender);
     this.checkEnvironmentSectionComponent = new CheckEnvironmentSectionComponent(
@@ -64,6 +68,7 @@ export class EnvironmentControlsPanelComponent {
     return html`
       <section class="panel" aria-label="Environment controls">
         <p class="panelDescription">${panelDescription}</p>
+        ${this.editModeSectionComponent.render()}
         ${this.persistSessionSectionComponent.render()}
         ${this.profileSectionComponent.render()}
         ${this.checkEnvironmentSectionComponent.render()}

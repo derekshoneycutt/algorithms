@@ -19,7 +19,7 @@ import {
   AlgorithmImplementationFilterMode,
   AlgorithmImplementationViewMode,
   AlgorithmsTreeDataProvider,
-  AlgorithmTreeItem
+  AlgorithmTreeItem,
 } from './algorithmsTreeDataProvider';
 
 const setLanguageViewCommandId = "algos.algorithmsTreeView.setLanguageView";
@@ -35,6 +35,7 @@ const createFileInAlgorithmFolderCommandId = "algos.algorithmsTreeView.createFil
 const runImplementationFileCommandId = "algos.algorithmsTreeView.runImplementationFile";
 const stopImplementationRunCommandId = "algos.algorithmsTreeView.stopImplementationRun";
 const clearImplementationRunStatusCommandId = "algos.algorithmsTreeView.clearImplementationRunStatus";
+const addImplementationIncludeFileCommandId = "algos.algorithmsTreeView.addImplementationIncludeFile";
 const clearAlgorithmRunStatusesCommandId = "algos.algorithmsTreeView.clearAlgorithmRunStatuses";
 const startAlgorithmSmokeRunCommandId = "algos.algorithmsTreeView.startAlgorithmSmokeRun";
 const stopAlgorithmSmokeRunCommandId = "algos.algorithmsTreeView.stopAlgorithmSmokeRun";
@@ -67,6 +68,7 @@ export class AlgorithmsTreeView implements vscode.Disposable {
   private runImplementationFileCommandSubscription: vscode.Disposable | undefined;
   private stopImplementationRunCommandSubscription: vscode.Disposable | undefined;
   private clearImplementationRunStatusCommandSubscription: vscode.Disposable | undefined;
+  private addImplementationIncludeFileCommandSubscription: vscode.Disposable | undefined;
   private clearAlgorithmRunStatusesCommandSubscription: vscode.Disposable | undefined;
   private startAlgorithmSmokeRunCommandSubscription: vscode.Disposable | undefined;
   private stopAlgorithmSmokeRunCommandSubscription: vscode.Disposable | undefined;
@@ -104,6 +106,7 @@ export class AlgorithmsTreeView implements vscode.Disposable {
     this.runImplementationFileCommandSubscription = undefined;
     this.stopImplementationRunCommandSubscription = undefined;
     this.clearImplementationRunStatusCommandSubscription = undefined;
+    this.addImplementationIncludeFileCommandSubscription = undefined;
     this.clearAlgorithmRunStatusesCommandSubscription = undefined;
     this.startAlgorithmSmokeRunCommandSubscription = undefined;
     this.stopAlgorithmSmokeRunCommandSubscription = undefined;
@@ -577,13 +580,55 @@ export class AlgorithmsTreeView implements vscode.Disposable {
   }
 
   /**
-   * Moves one implementation file (non-child row) to Trash.
+   * Moves one implementation file to Trash.
+   *
+   * Handles both implementation rows and include child-file rows.
    *
    * @param {AlgorithmTreeItem | undefined} item Selected implementation tree item.
    * @returns {Promise<void>} Resolves when move-to-trash flow completes.
    */
   private async deleteImplementationFile(item: AlgorithmTreeItem | undefined): Promise<void> {
-    if (!item?.isImplementationRow || !item.algorithmImplementation?.filePath) {
+    if (!item?.algorithmImplementation || !item.implementationParentDirectory) {
+      return;
+    }
+
+    if (item.algorithmImplementation.languageKey === docsImplementationKey) {
+      return;
+    }
+
+    if (!item.isImplementationRow) {
+      const includeFilePath = item.resourceUri?.fsPath;
+      if (!includeFilePath) {
+        return;
+      }
+
+      const includeFileName = path.basename(includeFilePath);
+      const confirmedIncludeDelete = await vscode.window.showWarningMessage(
+        `Move include file '${includeFileName}' to Trash?`,
+        { modal: true },
+        "Move to Trash",
+      );
+
+      if (confirmedIncludeDelete !== "Move to Trash") {
+        return;
+      }
+
+      try {
+        await this.languages.deleteAlgorithmIncludeFile({
+          algorithmDirectoryPath: item.implementationParentDirectory.directoryPath,
+          languageKey: item.algorithmImplementation.languageKey,
+          fileName: includeFileName,
+        });
+        this.dataProvider?.refresh();
+        void vscode.window.showInformationMessage(`Moved include file to Trash: ${includeFileName}`);
+      } catch (error) {
+        const errorMessage = error instanceof Error ? error.message : String(error);
+        void vscode.window.showErrorMessage(`Failed to move include file to Trash: ${errorMessage}`);
+      }
+      return;
+    }
+
+    if (!item.algorithmImplementation.filePath) {
       return;
     }
 
@@ -717,6 +762,85 @@ export class AlgorithmsTreeView implements vscode.Disposable {
     });
 
     this.dataProvider?.refresh();
+  }
+
+  /**
+   * Creates one include file under the selected implementation language include directory.
+   *
+   * @param {AlgorithmTreeItem | undefined} item Selected implementation tree item.
+   * @returns {Promise<void>} Resolves when include-file creation completes.
+   */
+  private async addImplementationIncludeFile(item: AlgorithmTreeItem | undefined): Promise<void> {
+    const algorithmImplementation = item?.algorithmImplementation;
+    const implementationParentDirectory = item?.implementationParentDirectory;
+    if (!item?.isImplementationRow || !algorithmImplementation || !implementationParentDirectory) {
+      return;
+    }
+
+    if (!algorithmImplementation.hasImplementation || !algorithmImplementation.filePath) {
+      return;
+    }
+
+    if (algorithmImplementation.languageKey === docsImplementationKey) {
+      return;
+    }
+
+    const primaryFileName = path.basename(algorithmImplementation.filePath);
+    const primaryFileStem = this.getFileStem(primaryFileName);
+    const extension = path.extname(primaryFileName) || this.getLanguageExtensionForItem(item) || "";
+    const defaultIncludeFileName = `${primaryFileStem}_include${extension}`;
+
+    const fileName = await vscode.window.showInputBox({
+      title: "Add Include File",
+      prompt: `Enter include file name for ${algorithmImplementation.languageDisplayName}`,
+      placeHolder: defaultIncludeFileName,
+      value: defaultIncludeFileName,
+      ignoreFocusOut: true,
+      validateInput: (value) => {
+        const normalizedValue = value.trim();
+        if (normalizedValue.length === 0) {
+          return "File name is required.";
+        }
+
+        if (normalizedValue.includes("/") || normalizedValue.includes("\\")) {
+          return "Use a single file name only (no path separators).";
+        }
+
+        if (normalizedValue === "." || normalizedValue === "..") {
+          return "File name cannot be '.' or '..'.";
+        }
+
+        return undefined;
+      },
+    });
+
+    if (fileName === undefined) {
+      return;
+    }
+
+    const normalizedFileName = fileName.trim();
+
+    try {
+      const createdFilePath = await this.languages.createAlgorithmIncludeFile({
+        algorithmDirectoryPath: implementationParentDirectory.directoryPath,
+        languageKey: algorithmImplementation.languageKey,
+        fileName: normalizedFileName,
+      });
+
+      this.dataProvider?.refresh();
+      await this.revealFile(createdFilePath);
+      await this.openFileInEditor(createdFilePath);
+      void vscode.window.showInformationMessage(`Created include file: ${normalizedFileName}`);
+    } catch (error) {
+      const errorCode = (error as NodeJS.ErrnoException).code;
+      if (errorCode === "EEXIST") {
+        void vscode.window.showWarningMessage(`Include file already exists: ${normalizedFileName}`);
+        return;
+      }
+
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      void vscode.window.showErrorMessage(`Failed to create include file: ${errorMessage}`);
+    }
   }
 
   /**
@@ -1157,6 +1281,13 @@ export class AlgorithmsTreeView implements vscode.Disposable {
       },
     );
 
+    this.addImplementationIncludeFileCommandSubscription = vscode.commands.registerCommand(
+      addImplementationIncludeFileCommandId,
+      async (item?: AlgorithmTreeItem) => {
+        await this.addImplementationIncludeFile(item);
+      },
+    );
+
     this.clearAlgorithmRunStatusesCommandSubscription = vscode.commands.registerCommand(
       clearAlgorithmRunStatusesCommandId,
       async (item?: AlgorithmTreeItem) => {
@@ -1337,6 +1468,8 @@ export class AlgorithmsTreeView implements vscode.Disposable {
     this.stopImplementationRunCommandSubscription = undefined;
     this.clearImplementationRunStatusCommandSubscription?.dispose();
     this.clearImplementationRunStatusCommandSubscription = undefined;
+    this.addImplementationIncludeFileCommandSubscription?.dispose();
+    this.addImplementationIncludeFileCommandSubscription = undefined;
     this.clearAlgorithmRunStatusesCommandSubscription?.dispose();
     this.clearAlgorithmRunStatusesCommandSubscription = undefined;
     this.startAlgorithmSmokeRunCommandSubscription?.dispose();

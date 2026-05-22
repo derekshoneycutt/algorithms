@@ -143,6 +143,26 @@ export interface ILanguagesDeleteFileRequest {
 }
 
 /**
+ * Request for creating one `{languageKey}_include` file under an algorithm directory.
+ */
+export interface ILanguagesCreateAlgorithmIncludeFileRequest {
+  algorithmDirectoryPath: string;
+  languageKey: string;
+  fileName: string;
+  content?: string;
+  overwrite?: boolean;
+}
+
+/**
+ * Request for deleting one `{languageKey}_include` file under an algorithm directory.
+ */
+export interface ILanguagesDeleteAlgorithmIncludeFileRequest {
+  algorithmDirectoryPath: string;
+  languageKey: string;
+  fileName: string;
+}
+
+/**
  * Contract for language/category discovery and state updates.
  */
 export interface ILanguages extends vscode.Disposable {
@@ -276,4 +296,24 @@ export interface ILanguages extends vscode.Disposable {
    * @returns {Promise<string>} Absolute path of the deleted file.
    */
   deleteFile(request: ILanguagesDeleteFileRequest): Promise<string>;
+
+  /**
+   * Creates one include file under the algorithm's `{languageKey}_include` directory.
+   *
+   * Creates the include directory when it does not already exist.
+   *
+   * @param {ILanguagesCreateAlgorithmIncludeFileRequest} request Create-include-file request.
+   * @returns {Promise<string>} Absolute path of the created include file.
+   */
+  createAlgorithmIncludeFile(request: ILanguagesCreateAlgorithmIncludeFileRequest): Promise<string>;
+
+  /**
+   * Deletes one include file under the algorithm's `{languageKey}_include` directory.
+   *
+   * Removes the include directory when it becomes empty after deletion.
+   *
+   * @param {ILanguagesDeleteAlgorithmIncludeFileRequest} request Delete-include-file request.
+   * @returns {Promise<string>} Absolute path of the deleted include file.
+   */
+  deleteAlgorithmIncludeFile(request: ILanguagesDeleteAlgorithmIncludeFileRequest): Promise<string>;
 }

@@ -93,6 +93,11 @@
         "icon": "$(clear-all)"
       },
       {
+        "command": "algos.algorithmsTreeView.addImplementationIncludeFile",
+        "title": "Add Include File",
+        "icon": "$(new-file)"
+      },
+      {
         "command": "algos.algorithmsTreeView.clearAlgorithmRunStatuses",
         "title": "Clear All Run Statuses",
         "icon": "$(clear-all)"
@@ -152,7 +157,7 @@
       "view/title": [
         {
           "command": "algos.algorithmsTreeView.createFolder",
-          "when": "view == algos.algorithmsTreeView",
+          "when": "view == algos.algorithmsTreeView && algos.environment.editModeEnabled",
           "group": "navigation@1"
         },
         {
@@ -184,12 +189,12 @@
       "view/item/context": [
         {
           "command": "algos.algorithmsTreeView.createFileInAlgorithm",
-          "when": "view == algos.algorithmsTreeView && viewItem == algorithmImplementationMissingUnflagged",
+          "when": "view == algos.algorithmsTreeView && algos.environment.editModeEnabled && viewItem == algorithmImplementationMissingUnflagged",
           "group": "inline@9"
         },
         {
           "command": "algos.algorithmsTreeView.createFileInAlgorithm",
-          "when": "view == algos.algorithmsTreeView && viewItem == algorithmImplementationMissingFlagged",
+          "when": "view == algos.algorithmsTreeView && algos.environment.editModeEnabled && viewItem == algorithmImplementationMissingFlagged",
           "group": "inline@9"
         },
         {
@@ -218,6 +223,11 @@
           "group": "inline@9"
         },
         {
+          "command": "algos.algorithmsTreeView.addImplementationIncludeFile",
+          "when": "view == algos.algorithmsTreeView && algos.environment.editModeEnabled && (viewItem == algorithmImplementationUnflagged || viewItem == algorithmImplementationFlagged || viewItem == algorithmImplementationWithHistoryUnflagged || viewItem == algorithmImplementationWithHistoryFlagged || viewItem == algorithmImplementationBusyCancellableUnflagged || viewItem == algorithmImplementationBusyCancellableFlagged || viewItem == algorithmImplementationBusyUncancellableUnflagged || viewItem == algorithmImplementationBusyUncancellableFlagged)",
+          "group": "inline@9.5"
+        },
+        {
           "command": "algos.algorithmsTreeView.flagImplementation",
           "when": "view == algos.algorithmsTreeView && viewItem == algorithmImplementationMissingUnflagged",
           "group": "inline@10"
@@ -234,37 +244,42 @@
         },
         {
           "command": "algos.algorithmsTreeView.deleteImplementationFile",
-          "when": "view == algos.algorithmsTreeView && (viewItem == algorithmImplementationUnflagged || viewItem == algorithmImplementationWithHistoryUnflagged || viewItem == algorithmImplementationBusyCancellableUnflagged || viewItem == algorithmImplementationBusyUncancellableUnflagged)",
+          "when": "view == algos.algorithmsTreeView && algos.environment.editModeEnabled && (viewItem == algorithmImplementationUnflagged || viewItem == algorithmImplementationWithHistoryUnflagged || viewItem == algorithmImplementationBusyCancellableUnflagged || viewItem == algorithmImplementationBusyUncancellableUnflagged)",
           "group": "inline@11"
         },
         {
           "command": "algos.algorithmsTreeView.deleteImplementationFile",
-          "when": "view == algos.algorithmsTreeView && (viewItem == algorithmImplementationFlagged || viewItem == algorithmImplementationWithHistoryFlagged || viewItem == algorithmImplementationBusyCancellableFlagged || viewItem == algorithmImplementationBusyUncancellableFlagged)",
+          "when": "view == algos.algorithmsTreeView && algos.environment.editModeEnabled && (viewItem == algorithmImplementationFlagged || viewItem == algorithmImplementationWithHistoryFlagged || viewItem == algorithmImplementationBusyCancellableFlagged || viewItem == algorithmImplementationBusyUncancellableFlagged)",
+          "group": "inline@11"
+        },
+        {
+          "command": "algos.algorithmsTreeView.deleteImplementationFile",
+          "when": "view == algos.algorithmsTreeView && algos.environment.editModeEnabled && viewItem == algorithmImplementationIncludeFile",
           "group": "inline@11"
         },
         {
           "command": "algos.algorithmsTreeView.createDocsFile",
-          "when": "view == algos.algorithmsTreeView && viewItem == algorithmDocs",
+          "when": "view == algos.algorithmsTreeView && algos.environment.editModeEnabled && viewItem == algorithmDocs",
           "group": "inline@9"
         },
         {
           "command": "algos.algorithmsTreeView.deleteDocsFile",
-          "when": "view == algos.algorithmsTreeView && viewItem == algorithmDocsFile",
+          "when": "view == algos.algorithmsTreeView && algos.environment.editModeEnabled && viewItem == algorithmDocsFile",
           "group": "inline@10"
         },
         {
           "command": "algos.algorithmsTreeView.createFolderInCategory",
-          "when": "view == algos.algorithmsTreeView && viewItem == algorithmCategory",
+          "when": "view == algos.algorithmsTreeView && algos.environment.editModeEnabled && viewItem == algorithmCategory",
           "group": "inline@9"
         },
         {
           "command": "algos.algorithmsTreeView.deleteCategory",
-          "when": "view == algos.algorithmsTreeView && viewItem == algorithmCategory",
+          "when": "view == algos.algorithmsTreeView && algos.environment.editModeEnabled && viewItem == algorithmCategory",
           "group": "inline@10"
         },
         {
           "command": "algos.algorithmsTreeView.createFileInAlgorithm",
-          "when": "view == algos.algorithmsTreeView && (viewItem == algorithmFolder || viewItem == algorithmFolderWithRunHistory || viewItem == algorithmFolderSmokeRunning)",
+          "when": "view == algos.algorithmsTreeView && algos.environment.editModeEnabled && (viewItem == algorithmFolder || viewItem == algorithmFolderWithRunHistory || viewItem == algorithmFolderSmokeRunning)",
           "group": "inline@9"
         },
         {
@@ -284,22 +299,22 @@
         },
         {
           "command": "algos.algorithmsTreeView.deleteAlgorithm",
-          "when": "view == algos.algorithmsTreeView && (viewItem == algorithmFolder || viewItem == algorithmFolderWithRunHistory || viewItem == algorithmFolderSmokeRunning)",
+          "when": "view == algos.algorithmsTreeView && algos.environment.editModeEnabled && (viewItem == algorithmFolder || viewItem == algorithmFolderWithRunHistory || viewItem == algorithmFolderSmokeRunning)",
           "group": "inline@10"
         },
         {
           "command": "algos.stdlibTreeView.createFile",
-          "when": "view == algos.stdlibTreeView && viewItem == stdlibFolder",
+          "when": "view == algos.stdlibTreeView && viewItem == stdlibFolder && algos.environment.editModeEnabled",
           "group": "inline@9"
         },
         {
           "command": "algos.stdlibTreeView.deleteFolder",
-          "when": "view == algos.stdlibTreeView && viewItem == stdlibFolder",
+          "when": "view == algos.stdlibTreeView && viewItem == stdlibFolder && algos.environment.editModeEnabled",
           "group": "inline@10"
         },
         {
           "command": "algos.stdlibTreeView.deleteFile",
-          "when": "view == algos.stdlibTreeView && viewItem == stdlibFile",
+          "when": "view == algos.stdlibTreeView && viewItem == stdlibFile && algos.environment.editModeEnabled",
           "group": "inline@10"
         }
       ]
@@ -317,7 +332,7 @@
       "algosSidebar": [
         {
           "id": "algos.smokeView",
-          "name": "Smoke",
+          "name": "Smoke Controls",
           "type": "webview",
           "when": "algos.workspaceSupported",
           "icon": "./icons/play-sidebar.svg",
@@ -325,7 +340,7 @@
         },
         {
           "id": "algos.runView",
-          "name": "Run",
+          "name": "Run Controls",
           "type": "webview",
           "when": "algos.workspaceSupported",
           "icon": "./icons/play-sidebar.svg",

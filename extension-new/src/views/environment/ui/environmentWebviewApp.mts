@@ -36,6 +36,7 @@ interface EnvironmentRunCopyIconsMessage {
 }
 
 const initialEnvironmentControlsViewState: EnvironmentControlsViewState = {
+  editModeEnabled: true,
   persistSessionEnabled: true,
   profilePath: "",
   profilePlaceholder: "~/.profile",
@@ -164,6 +165,7 @@ class EnvironmentWebviewApp {
   private applyStateFromExtension(inboundState: EnvironmentControlsViewState): void {
     this.isApplyingStateFromExtension = true;
 
+    this.environmentControlsViewState.editModeEnabled = inboundState.editModeEnabled;
     this.environmentControlsViewState.persistSessionEnabled = inboundState.persistSessionEnabled;
     this.environmentControlsViewState.profilePath = inboundState.profilePath;
     this.environmentControlsViewState.profilePlaceholder = inboundState.profilePlaceholder;

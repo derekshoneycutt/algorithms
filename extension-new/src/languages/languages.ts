@@ -7,8 +7,10 @@ import {
   IAlgorithmDirectory,
   IAlgorithmImplementation,
   IAlgorithmImplementationChild,
+  ILanguagesCreateAlgorithmIncludeFileRequest,
   ILanguagesCreateDirectoryRequest,
   ILanguagesCreateFileRequest,
+  ILanguagesDeleteAlgorithmIncludeFileRequest,
   ILanguagesDeleteDirectoryRequest,
   ILanguagesDeleteFileRequest,
   ILanguagesDataChangeEvent,
@@ -48,6 +50,12 @@ const supportedLanguageExtensions = new Set(
 interface WritableRootResolution {
   rootPath: string;
   dataScope: "algorithms" | "stdlib";
+}
+
+interface IncludeDirectoryResolution {
+  algorithmDirectoryPath: string;
+  includeDirectoryPath: string;
+  includeDirectoryName: string;
 }
 
 /**
@@ -1290,6 +1298,80 @@ export class Languages implements ILanguages {
   }
 
   /**
+   * Creates one include file under an algorithm's `{languageKey}_include` directory.
+   *
+   * @param {ILanguagesCreateAlgorithmIncludeFileRequest} request Create-include-file request.
+   * @returns {Promise<string>} Absolute created include-file path.
+   */
+  public async createAlgorithmIncludeFile(
+    request: ILanguagesCreateAlgorithmIncludeFileRequest,
+  ): Promise<string> {
+    const includeDirectory = await this.resolveIncludeDirectory(request.algorithmDirectoryPath, request.languageKey);
+    const fileName = this.normalizeIncludeFileName(request.fileName);
+    const targetPath = path.join(includeDirectory.includeDirectoryPath, fileName);
+
+    await fsp.mkdir(includeDirectory.includeDirectoryPath, { recursive: true });
+    const writeFlag = request.overwrite === true ? "w" : "wx";
+    await fsp.writeFile(targetPath, String(request.content ?? ""), {
+      encoding: "utf8",
+      flag: writeFlag,
+    });
+
+    this.invalidateCachesForFileSystemChange(vscode.Uri.file(includeDirectory.includeDirectoryPath));
+    this.invalidateCachesForFileSystemChange(vscode.Uri.file(targetPath));
+    this.emitDataChange({
+      scope: "algorithms",
+      reason: "fs-create",
+      path: targetPath,
+    });
+
+    return targetPath;
+  }
+
+  /**
+   * Deletes one include file under an algorithm's `{languageKey}_include` directory.
+   *
+   * Deletes the include directory when no files remain after deletion.
+   *
+   * @param {ILanguagesDeleteAlgorithmIncludeFileRequest} request Delete-include-file request.
+   * @returns {Promise<string>} Absolute deleted include-file path.
+   */
+  public async deleteAlgorithmIncludeFile(
+    request: ILanguagesDeleteAlgorithmIncludeFileRequest,
+  ): Promise<string> {
+    const includeDirectory = await this.resolveIncludeDirectory(request.algorithmDirectoryPath, request.languageKey);
+    const fileName = this.normalizeIncludeFileName(request.fileName);
+    const targetPath = path.join(includeDirectory.includeDirectoryPath, fileName);
+
+    await this.deletePathPreferTrash(targetPath, false);
+
+    let deletedIncludeDirectory = false;
+    try {
+      const includeEntries = await fsp.readdir(includeDirectory.includeDirectoryPath, { withFileTypes: true });
+      const visibleEntries = includeEntries.filter((entry) => !entry.name.startsWith("."));
+      if (visibleEntries.length === 0) {
+        await this.deletePathPreferTrash(includeDirectory.includeDirectoryPath, false);
+        deletedIncludeDirectory = true;
+      }
+    } catch {
+      // Ignore include-directory stat/read/delete errors after file deletion.
+    }
+
+    if (deletedIncludeDirectory) {
+      this.invalidateCachesForFileSystemChange(vscode.Uri.file(includeDirectory.includeDirectoryPath));
+    }
+
+    this.invalidateCachesForFileSystemChange(vscode.Uri.file(targetPath));
+    this.emitDataChange({
+      scope: "algorithms",
+      reason: "fs-delete",
+      path: targetPath,
+    });
+
+    return targetPath;
+  }
+
+  /**
    * Resolves the writable root directory for one create operation.
    *
    * @param {"src" | "stdlib"} root Requested writable root key.
@@ -1311,6 +1393,44 @@ export class Languages implements ILanguages {
     return {
       rootPath: path.join(baseDirectory, stdlibSourceDir),
       dataScope: "stdlib",
+    };
+  }
+
+  /**
+   * Resolves one `{languageKey}_include` directory path for a target algorithm directory.
+   *
+   * @param {string} algorithmDirectoryPath Candidate algorithm directory path.
+   * @param {string} languageKey Language key owning the include directory.
+   * @returns {Promise<IncludeDirectoryResolution>} Normalized include-directory resolution.
+   */
+  private async resolveIncludeDirectory(
+    algorithmDirectoryPath: string,
+    languageKey: string,
+  ): Promise<IncludeDirectoryResolution> {
+    const baseDirectory = await SupportedWorkspaceChecker.getCurrentBaseDirectory();
+    if (!baseDirectory) {
+      throw new Error("No supported workspace base directory is available.");
+    }
+
+    const normalizedAlgorithmDirectoryPath = path.resolve(String(algorithmDirectoryPath ?? ""));
+    const srcRootPath = path.resolve(path.join(baseDirectory, algorithmsSourceDir));
+    const algorithmPathRelativeToSrc = path.relative(srcRootPath, normalizedAlgorithmDirectoryPath);
+    if (algorithmPathRelativeToSrc.startsWith("..") || path.isAbsolute(algorithmPathRelativeToSrc)) {
+      throw new Error("Algorithm directory must be inside the writable src root.");
+    }
+
+    if (!await this.isDirectoryCached(normalizedAlgorithmDirectoryPath)) {
+      throw new Error(`Algorithm directory does not exist: ${normalizedAlgorithmDirectoryPath}`);
+    }
+
+    const normalizedLanguageKey = this.normalizeLanguageKey(languageKey);
+    const includeDirectoryName = `${normalizedLanguageKey}_include`;
+    const includeDirectoryPath = path.join(normalizedAlgorithmDirectoryPath, includeDirectoryName);
+
+    return {
+      algorithmDirectoryPath: normalizedAlgorithmDirectoryPath,
+      includeDirectoryPath,
+      includeDirectoryName,
     };
   }
 
@@ -1343,6 +1463,44 @@ export class Languages implements ILanguages {
     }
 
     return pathSegments.join(path.sep);
+  }
+
+  /**
+   * Normalizes one language key used for include-directory operations.
+   *
+   * @param {string} languageKey Raw language key.
+   * @returns {string} Normalized language key.
+   */
+  private normalizeLanguageKey(languageKey: string): string {
+    const normalizedLanguageKey = String(languageKey ?? "").trim().toLowerCase();
+    if (!/^[a-z0-9_+-]+$/.test(normalizedLanguageKey)) {
+      throw new Error("Language key is invalid for include file operations.");
+    }
+
+    return normalizedLanguageKey;
+  }
+
+  /**
+   * Normalizes one include-file name and rejects paths/traversal.
+   *
+   * @param {string} fileName Raw include-file name.
+   * @returns {string} Normalized include-file name.
+   */
+  private normalizeIncludeFileName(fileName: string): string {
+    const normalizedFileName = String(fileName ?? "").trim();
+    if (normalizedFileName.length === 0) {
+      throw new Error("Include file name is required.");
+    }
+
+    if (normalizedFileName === "." || normalizedFileName === "..") {
+      throw new Error("Include file name is invalid.");
+    }
+
+    if (normalizedFileName.includes("/") || normalizedFileName.includes("\\")) {
+      throw new Error("Include file name must not contain path separators.");
+    }
+
+    return normalizedFileName;
   }
 
   /**

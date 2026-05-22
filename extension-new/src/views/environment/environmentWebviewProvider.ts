@@ -69,6 +69,7 @@ export class EnvironmentWebviewProvider implements vscode.WebviewViewProvider {
     const batchRoutingSshEnabled = inboundState.batchRouting?.sshEnabled ?? currentState.batchRouting.sshEnabled;
 
     return {
+      editModeEnabled: inboundState.editModeEnabled ?? currentState.editModeEnabled,
       persistSessionEnabled: inboundState.persistSessionEnabled ?? currentState.persistSessionEnabled,
       profilePath: inboundState.profilePath ?? currentState.profilePath,
       profilePlaceholder: inboundState.profilePlaceholder ?? currentState.profilePlaceholder,

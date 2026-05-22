@@ -4,6 +4,11 @@ import { unsafeHTML } from "lit/directives/unsafe-html.js";
 import type { EnvironmentSectionIconName } from "./types.mjs";
 
 const sectionIconSvgByName: Record<EnvironmentSectionIconName, string> = {
+  edit:
+    '<svg class="sectionIcon" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-hidden="true">'
+    + '<path d="M11.7 2.3C12.1 1.9 12.7 1.9 13.1 2.3L13.7 2.9C14.1 3.3 14.1 3.9 13.7 4.3L6.1 11.9L3.5 12.5L4.1 9.9L11.7 2.3Z" stroke="currentColor" stroke-width="1" stroke-linejoin="round"/>'
+    + '<path d="M10.8 3.2L12.8 5.2" stroke="currentColor" stroke-width="1" stroke-linecap="round"/>'
+    + "</svg>",
   session:
     '<svg class="sectionIcon" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-hidden="true">'
     + '<path d="M8 2.5L12.5 4.5V8.8C12.5 11 10.95 13.02 8 13.8C5.05 13.02 3.5 11 3.5 8.8V4.5L8 2.5Z" stroke="currentColor" stroke-width="1"/>'

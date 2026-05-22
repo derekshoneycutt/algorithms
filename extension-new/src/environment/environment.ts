@@ -25,6 +25,10 @@ interface EnvironmentControlsEvent {
   patch: EnvironmentControlsPatch;
 }
 
+interface EnvironmentToggleEditModeEvent {
+  type: "toggle-edit-mode";
+}
+
 /**
  * Storage key used for persisting environment-controls state across sessions.
  */
@@ -122,6 +126,7 @@ function createDefaultVariableState(): EnvironmentVariableState[] {
  */
 function createInitialEnvironmentControlsState(): EnvironmentControlsState {
   return {
+    editModeEnabled: true,
     persistSessionEnabled: true,
     profilePath: "",
     profilePlaceholder: getProfilePlaceholderForPlatform(),
@@ -277,7 +282,7 @@ function serializeParsedSshRoute(route: ParsedSshRoute | undefined): string {
 const environmentControlsMachine = createMachine({
   types: {} as {
     context: EnvironmentControlsState;
-    events: EnvironmentControlsEvent;
+    events: EnvironmentControlsEvent | EnvironmentToggleEditModeEvent;
   },
   context: createInitialEnvironmentControlsState(),
   on: {
@@ -285,6 +290,12 @@ const environmentControlsMachine = createMachine({
       actions: assign(({ context, event }) => ({
         ...context,
         ...event.patch,
+      })),
+    },
+    "toggle-edit-mode": {
+      actions: assign(({ context }) => ({
+        ...context,
+        editModeEnabled: !context.editModeEnabled,
       })),
     },
   },
@@ -353,6 +364,29 @@ export class Environment implements IEnvironment {
     this.environmentControlsActor.send({
       type: "patch",
       patch,
+    });
+  }
+
+  /**
+   * Sets whether the extension should operate in editable mode.
+   *
+   * @param {boolean} enabled True to enable edit mode, false for read-only mode.
+   * @returns {void} No return value.
+   */
+  public setEditModeEnabled(enabled: boolean): void {
+    this.patchEnvironmentControls({
+      editModeEnabled: enabled,
+    });
+  }
+
+  /**
+   * Toggles editable mode on/off in environment-controls state.
+   *
+   * @returns {void} No return value.
+   */
+  public toggleEditModeEnabled(): void {
+    this.environmentControlsActor.send({
+      type: "toggle-edit-mode",
     });
   }
 

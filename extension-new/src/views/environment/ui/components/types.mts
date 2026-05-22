@@ -1,6 +1,7 @@
 import type { TemplateResult } from "lit";
 
 export type EnvironmentSectionIconName =
+  | "edit"
   | "session"
   | "profile"
   | "check"
@@ -41,6 +42,7 @@ export interface EnvironmentRoutingLanguageState {
 }
 
 export interface EnvironmentControlsViewState {
+  editModeEnabled: boolean;
   persistSessionEnabled: boolean;
   profilePath: string;
   profilePlaceholder: string;

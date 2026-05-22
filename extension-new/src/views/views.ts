@@ -29,6 +29,7 @@ export class Views implements IViews {
   private algorithmsTreeVisibilitySubscription : vscode.Disposable | undefined;
   private stdlibTreeVisibilitySubscription : vscode.Disposable | undefined;
   private trackerStateSubscription : vscode.Disposable | undefined;
+  private environmentStateSubscription : vscode.Disposable | undefined;
   private lastRevealKey: string;
 
   /**
@@ -62,7 +63,18 @@ export class Views implements IViews {
     this.algorithmsTreeVisibilitySubscription = undefined;
     this.stdlibTreeVisibilitySubscription = undefined;
     this.trackerStateSubscription = undefined;
+    this.environmentStateSubscription = undefined;
     this.lastRevealKey = "";
+  }
+
+  /**
+   * Updates the context key that controls Algorithms tree edit-only icon visibility.
+   *
+   * @param {boolean} editModeEnabled True when environment edit mode is enabled.
+   * @returns {void} No return value.
+   */
+  private updateAlgorithmsEditModeContext(editModeEnabled: boolean): void {
+    void vscode.commands.executeCommand("setContext", "algos.environment.editModeEnabled", editModeEnabled);
   }
 
   /**
@@ -186,6 +198,8 @@ export class Views implements IViews {
     this.stdlibTreeView.register(context.extensionUri);
     this.environmentView.register(context.extensionUri);
 
+    this.updateAlgorithmsEditModeContext(this.environment.getEnvironmentControlsState().editModeEnabled);
+
     this.dataChangeSubscription = this.languages.subscribeToDataChanges((event) => {
       this.handleLanguagesDataChange(event);
     });
@@ -210,6 +224,10 @@ export class Views implements IViews {
       this.algosTreeView.refresh();
     });
 
+    this.environmentStateSubscription = this.environment.subscribeToStateChanges((state) => {
+      this.updateAlgorithmsEditModeContext(state.editModeEnabled);
+    });
+
     // Initial pass for already-open editors in the debug host.
     this.revealCurrentActiveEditor();
   }
@@ -232,6 +250,12 @@ export class Views implements IViews {
     this.stdlibTreeVisibilitySubscription = undefined;
     this.trackerStateSubscription?.dispose();
     this.trackerStateSubscription = undefined;
+
+    this.environmentStateSubscription?.dispose();
+    this.environmentStateSubscription = undefined;
+
+    this.updateAlgorithmsEditModeContext(false);
+
     this.lastRevealKey = "";
 
     this.smokeView.dispose();
