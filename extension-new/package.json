@@ -78,6 +78,26 @@
         "icon": "$(new-file)"
       },
       {
+        "command": "algos.algorithmsTreeView.runImplementationFile",
+        "title": "Run File",
+        "icon": "$(play)"
+      },
+      {
+        "command": "algos.algorithmsTreeView.stopImplementationRun",
+        "title": "Stop Run",
+        "icon": "$(debug-stop)"
+      },
+      {
+        "command": "algos.algorithmsTreeView.clearImplementationRunStatus",
+        "title": "Clear Run Status",
+        "icon": "$(clear-all)"
+      },
+      {
+        "command": "algos.algorithmsTreeView.clearAlgorithmRunStatuses",
+        "title": "Clear All Run Statuses",
+        "icon": "$(clear-all)"
+      },
+      {
         "command": "algos.algorithmsTreeView.deleteAlgorithm",
         "title": "Delete Folder",
         "icon": "$(trash)"
@@ -164,8 +184,28 @@
         },
         {
           "command": "algos.algorithmsTreeView.flagImplementation",
-          "when": "view == algos.algorithmsTreeView && viewItem == algorithmImplementationUnflagged",
+          "when": "view == algos.algorithmsTreeView && (viewItem == algorithmImplementationUnflagged || viewItem == algorithmImplementationWithHistoryUnflagged || viewItem == algorithmImplementationBusyCancellableUnflagged || viewItem == algorithmImplementationBusyUncancellableUnflagged)",
           "group": "inline@10"
+        },
+        {
+          "command": "algos.algorithmsTreeView.runImplementationFile",
+          "when": "view == algos.algorithmsTreeView && (viewItem == algorithmImplementationUnflagged || viewItem == algorithmImplementationWithHistoryUnflagged)",
+          "group": "inline@8"
+        },
+        {
+          "command": "algos.algorithmsTreeView.runImplementationFile",
+          "when": "view == algos.algorithmsTreeView && (viewItem == algorithmImplementationFlagged || viewItem == algorithmImplementationWithHistoryFlagged)",
+          "group": "inline@8"
+        },
+        {
+          "command": "algos.algorithmsTreeView.stopImplementationRun",
+          "when": "view == algos.algorithmsTreeView && (viewItem == algorithmImplementationBusyCancellableUnflagged || viewItem == algorithmImplementationBusyCancellableFlagged)",
+          "group": "inline@8"
+        },
+        {
+          "command": "algos.algorithmsTreeView.clearImplementationRunStatus",
+          "when": "view == algos.algorithmsTreeView && (viewItem == algorithmImplementationWithHistoryUnflagged || viewItem == algorithmImplementationWithHistoryFlagged || viewItem == algorithmImplementationBusyCancellableUnflagged || viewItem == algorithmImplementationBusyCancellableFlagged || viewItem == algorithmImplementationBusyUncancellableUnflagged || viewItem == algorithmImplementationBusyUncancellableFlagged)",
+          "group": "inline@9"
         },
         {
           "command": "algos.algorithmsTreeView.flagImplementation",
@@ -174,7 +214,7 @@
         },
         {
           "command": "algos.algorithmsTreeView.unflagImplementation",
-          "when": "view == algos.algorithmsTreeView && viewItem == algorithmImplementationFlagged",
+          "when": "view == algos.algorithmsTreeView && (viewItem == algorithmImplementationFlagged || viewItem == algorithmImplementationWithHistoryFlagged || viewItem == algorithmImplementationBusyCancellableFlagged || viewItem == algorithmImplementationBusyUncancellableFlagged)",
           "group": "inline@10"
         },
         {
@@ -184,12 +224,12 @@
         },
         {
           "command": "algos.algorithmsTreeView.deleteImplementationFile",
-          "when": "view == algos.algorithmsTreeView && viewItem == algorithmImplementationUnflagged",
+          "when": "view == algos.algorithmsTreeView && (viewItem == algorithmImplementationUnflagged || viewItem == algorithmImplementationWithHistoryUnflagged || viewItem == algorithmImplementationBusyCancellableUnflagged || viewItem == algorithmImplementationBusyUncancellableUnflagged)",
           "group": "inline@11"
         },
         {
           "command": "algos.algorithmsTreeView.deleteImplementationFile",
-          "when": "view == algos.algorithmsTreeView && viewItem == algorithmImplementationFlagged",
+          "when": "view == algos.algorithmsTreeView && (viewItem == algorithmImplementationFlagged || viewItem == algorithmImplementationWithHistoryFlagged || viewItem == algorithmImplementationBusyCancellableFlagged || viewItem == algorithmImplementationBusyUncancellableFlagged)",
           "group": "inline@11"
         },
         {
@@ -214,12 +254,17 @@
         },
         {
           "command": "algos.algorithmsTreeView.createFileInAlgorithm",
-          "when": "view == algos.algorithmsTreeView && viewItem == algorithmFolder",
+          "when": "view == algos.algorithmsTreeView && (viewItem == algorithmFolder || viewItem == algorithmFolderWithRunHistory)",
           "group": "inline@9"
         },
         {
+          "command": "algos.algorithmsTreeView.clearAlgorithmRunStatuses",
+          "when": "view == algos.algorithmsTreeView && viewItem == algorithmFolderWithRunHistory",
+          "group": "inline@8"
+        },
+        {
           "command": "algos.algorithmsTreeView.deleteAlgorithm",
-          "when": "view == algos.algorithmsTreeView && viewItem == algorithmFolder",
+          "when": "view == algos.algorithmsTreeView && (viewItem == algorithmFolder || viewItem == algorithmFolderWithRunHistory)",
           "group": "inline@10"
         },
         {

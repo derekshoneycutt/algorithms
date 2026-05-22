@@ -8,6 +8,7 @@ import {
 } from ".";
 import { ILanguages, type ISupportedLanguage } from "../languages";
 import { IEnvironment } from "../environment";
+import { ITracker } from "../tracker";
 
 interface SmokeControlsEvent {
   type: "patch";
@@ -122,7 +123,7 @@ export class Smoker implements ISmoker {
   /**
    * Creates the Smoker and starts the smoke-controls actor.
    */
-  public constructor(languages : ILanguages, environment: IEnvironment) {
+  public constructor(languages : ILanguages, environment: IEnvironment, _tracker: ITracker) {
     this.languages = languages;
     this.environment = environment;
     this.smokeControlsActor = createActor(smokeControlsMachine);

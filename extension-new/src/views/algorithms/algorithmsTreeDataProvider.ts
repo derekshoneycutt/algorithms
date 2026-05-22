@@ -5,20 +5,37 @@ import {
   IAlgorithmImplementation,
   ILanguages,
 } from '../../languages';
+import {
+  ITracker,
+  TrackerLanguageRunState,
+  TrackerRunStatus,
+} from '../../tracker';
 
 export const algorithmsTreeViewId = "algos.algorithmsTreeView";
 export const docsImplementationKey = "__docs";
 export const algorithmsIndicatorScheme = "algos-indicator";
 export const zeroCountLanguageFragment = "zero-language-count";
 export const flaggedImplementationFragment = "flagged-implementation";
+export const runStatusQueuedFragment = "run-status-queued";
+export const runStatusRunningFragment = "run-status-running";
+export const runStatusCompletedFragment = "run-status-completed";
+export const runStatusFailedFragment = "run-status-failed";
+export const runStatusCancelledFragment = "run-status-cancelled";
 export const implementationItemContextValueUnflagged = "algorithmImplementationUnflagged";
 export const implementationItemContextValueFlagged = "algorithmImplementationFlagged";
+export const implementationItemContextValueWithHistoryUnflagged = "algorithmImplementationWithHistoryUnflagged";
+export const implementationItemContextValueWithHistoryFlagged = "algorithmImplementationWithHistoryFlagged";
+export const implementationItemContextValueBusyCancellableUnflagged = "algorithmImplementationBusyCancellableUnflagged";
+export const implementationItemContextValueBusyCancellableFlagged = "algorithmImplementationBusyCancellableFlagged";
+export const implementationItemContextValueBusyUncancellableUnflagged = "algorithmImplementationBusyUncancellableUnflagged";
+export const implementationItemContextValueBusyUncancellableFlagged = "algorithmImplementationBusyUncancellableFlagged";
 export const implementationItemContextValueMissingUnflagged = "algorithmImplementationMissingUnflagged";
 export const implementationItemContextValueMissingFlagged = "algorithmImplementationMissingFlagged";
 export const docsImplementationItemContextValue = "algorithmDocs";
 export const docsFileItemContextValue = "algorithmDocsFile";
 export const algorithmCategoryItemContextValue = "algorithmCategory";
 export const algorithmFolderItemContextValue = "algorithmFolder";
+export const algorithmFolderItemContextValueWithRunHistory = "algorithmFolderWithRunHistory";
 
 export type AlgorithmImplementationViewMode = "language" | "file";
 export type AlgorithmImplementationFilterMode = "all" | "problem";
@@ -76,6 +93,7 @@ export class AlgorithmTreeItem extends vscode.TreeItem {
  */
 export class AlgorithmsTreeDataProvider implements vscode.TreeDataProvider<AlgorithmTreeItem> {
   private languages : ILanguages;
+  private tracker: ITracker;
   private extensionUri : vscode.Uri;
   private implementationViewMode: AlgorithmImplementationViewMode;
   private implementationFilterMode: AlgorithmImplementationFilterMode;
@@ -89,9 +107,11 @@ export class AlgorithmsTreeDataProvider implements vscode.TreeDataProvider<Algor
    *
    * @param {ILanguages} languages Language/discovery service.
    * @param {vscode.Uri} extensionUri Extension root URI for icon resolution.
+   * @param {ITracker} tracker Tracker for language run-status lookup.
    */
-  public constructor(languages : ILanguages, extensionUri: vscode.Uri) {
+  public constructor(languages : ILanguages, extensionUri: vscode.Uri, tracker: ITracker) {
     this.languages = languages;
+    this.tracker = tracker;
     this.extensionUri = extensionUri;
     this.implementationViewMode = "language";
     this.implementationFilterMode = "all";
@@ -202,7 +222,18 @@ export class AlgorithmsTreeDataProvider implements vscode.TreeDataProvider<Algor
     algorithmDirectory: IAlgorithmDirectory,
     implementation: IAlgorithmImplementation,
     fileCount: number,
+    runStatus?: TrackerRunStatus,
   ): vscode.Uri {
+    const runStatusFragment = this.getRunStatusFragment(runStatus);
+    if (runStatusFragment !== undefined) {
+      const key = `${algorithmDirectory.directoryPath}|${implementation.languageKey}`;
+      return vscode.Uri.from({
+        scheme: algorithmsIndicatorScheme,
+        path: `/${encodeURIComponent(key)}`,
+        fragment: runStatusFragment,
+      });
+    }
+
     const flaggedBadge = implementation.languageKey !== docsImplementationKey
       && implementation.isFlagged;
 
@@ -219,6 +250,118 @@ export class AlgorithmsTreeDataProvider implements vscode.TreeDataProvider<Algor
       path: `/${encodeURIComponent(key)}`,
       fragment,
     });
+  }
+
+  /**
+   * Returns one synthetic URI fragment for tracker run status.
+   *
+   * @param {TrackerRunStatus | undefined} runStatus Tracker run status.
+   * @returns {string | undefined} Run-status fragment for decoration lookup.
+   */
+  private getRunStatusFragment(runStatus: TrackerRunStatus | undefined): string | undefined {
+    if (runStatus === "queued") {
+      return runStatusQueuedFragment;
+    }
+
+    if (runStatus === "running") {
+      return runStatusRunningFragment;
+    }
+
+    if (runStatus === "completed") {
+      return runStatusCompletedFragment;
+    }
+
+    if (runStatus === "failed") {
+      return runStatusFailedFragment;
+    }
+
+    if (runStatus === "cancelled") {
+      return runStatusCancelledFragment;
+    }
+
+    return undefined;
+  }
+
+  /**
+   * Builds one run-status tooltip text from tracker details.
+   *
+   * @param {TrackerRunStatus} status Tracker run status.
+   * @param {string} message Tracker status message.
+   * @returns {string} Tooltip text.
+   */
+  private buildRunStatusTooltip(status: TrackerRunStatus, message: string): string {
+    const statusLabel = status.charAt(0).toUpperCase() + status.slice(1);
+    const trimmedMessage = String(message || "").trim();
+
+    if (trimmedMessage.length === 0) {
+      return `Run File: ${statusLabel}`;
+    }
+
+    return `Run File: ${statusLabel}\n${trimmedMessage}`;
+  }
+
+  /**
+   * Resolves one implementation row context value from missing/flagged/run-status inputs.
+   *
+   * @param {IAlgorithmImplementation} implementation Implementation row metadata.
+   * @param {TrackerLanguageRunState | undefined} trackerRunState Optional tracker run state.
+   * @returns {string} Context value used by menu when-clauses.
+   */
+  private getImplementationContextValue(
+    implementation: IAlgorithmImplementation,
+    trackerRunState: TrackerLanguageRunState | undefined,
+  ): string {
+    const isMissingInLanguageView = this.implementationViewMode === "language"
+      && !implementation.hasImplementation;
+
+    if (isMissingInLanguageView) {
+      return implementation.isFlagged
+        ? implementationItemContextValueMissingFlagged
+        : implementationItemContextValueMissingUnflagged;
+    }
+
+    const runStatus = trackerRunState?.status;
+    const hasRunHistory = runStatus !== undefined && runStatus !== "idle";
+    const isBusy = runStatus === "queued" || runStatus === "running";
+    const isSingleCancellable = trackerRunState?.cancelability === "single-run";
+
+    if (hasRunHistory && isBusy) {
+      if (isSingleCancellable) {
+        return implementation.isFlagged
+          ? implementationItemContextValueBusyCancellableFlagged
+          : implementationItemContextValueBusyCancellableUnflagged;
+      }
+
+      return implementation.isFlagged
+        ? implementationItemContextValueBusyUncancellableFlagged
+        : implementationItemContextValueBusyUncancellableUnflagged;
+    }
+
+    if (hasRunHistory) {
+      return implementation.isFlagged
+        ? implementationItemContextValueWithHistoryFlagged
+        : implementationItemContextValueWithHistoryUnflagged;
+    }
+
+    return implementation.isFlagged
+      ? implementationItemContextValueFlagged
+      : implementationItemContextValueUnflagged;
+  }
+
+  /**
+   * Returns true when one algorithm has any retained non-idle run status.
+   *
+   * @param {string} algorithmPath Algorithm directory path.
+   * @returns {boolean} True when any implementation under the algorithm has run history.
+   */
+  private hasAlgorithmRunHistory(algorithmPath: string): boolean {
+    const trackerState = this.tracker.getTrackerState();
+    const languageRuns = trackerState.languageRunsByAlgorithmPath?.[algorithmPath];
+    if (!languageRuns) {
+      return false;
+    }
+
+    return Object.values(languageRuns).some((runState) => runState.status !== "idle");
   }
 
   /**
@@ -305,7 +448,9 @@ export class AlgorithmsTreeDataProvider implements vscode.TreeDataProvider<Algor
         category,
         algorithm,
       );
-      item.contextValue = algorithmFolderItemContextValue;
+      item.contextValue = this.hasAlgorithmRunHistory(algorithm.directoryPath)
+        ? algorithmFolderItemContextValueWithRunHistory
+        : algorithmFolderItemContextValue;
       return item;
     });
   }
@@ -384,6 +529,11 @@ export class AlgorithmsTreeDataProvider implements vscode.TreeDataProvider<Algor
       ? implementation.languageDisplayName
       : (implementation.fileName ?? implementation.languageDisplayName);
 
+    const normalizedLanguageKey = implementation.languageKey.trim().toLowerCase();
+    const trackerRunState = implementation.languageKey === docsImplementationKey
+      ? undefined
+      : this.tracker.getLanguageRunStatus(algorithmDirectory.directoryPath, normalizedLanguageKey);
+
     const item = new AlgorithmTreeItem(
       label,
       implementation.filePath,
@@ -402,25 +552,18 @@ export class AlgorithmsTreeDataProvider implements vscode.TreeDataProvider<Algor
       algorithmDirectory,
       implementation,
       fileCount,
+      trackerRunState?.status,
     );
+
+    if (trackerRunState?.status && trackerRunState.status !== "idle") {
+      item.tooltip = this.buildRunStatusTooltip(trackerRunState.status, trackerRunState.message);
+    }
 
     if (implementation.languageKey === docsImplementationKey) {
       item.contextValue = docsImplementationItemContextValue;
     }
     else {
-      const isMissingInLanguageView = this.implementationViewMode === "language"
-        && !implementation.hasImplementation;
-
-      if (isMissingInLanguageView) {
-        item.contextValue = implementation.isFlagged
-          ? implementationItemContextValueMissingFlagged
-          : implementationItemContextValueMissingUnflagged;
-      }
-      else {
-        item.contextValue = implementation.isFlagged
-          ? implementationItemContextValueFlagged
-          : implementationItemContextValueUnflagged;
-      }
+      item.contextValue = this.getImplementationContextValue(implementation, trackerRunState);
     }
 
     item.iconPath = this.getImplementationIconUri(implementation);

@@ -9,6 +9,7 @@ import { ILanguages, ILanguagesDataChangeEvent } from '../languages';
 import { IRunner } from '../runner';
 import { ISmoker } from '../smoker';
 import { IEnvironment } from '../environment';
+import { ITracker } from '../tracker';
 
 export class Views implements IViews {
 
@@ -16,6 +17,7 @@ export class Views implements IViews {
   private readonly environment : IEnvironment;
   private readonly runner : IRunner;
   private readonly smoker : ISmoker;
+  private readonly tracker : ITracker;
 
   private readonly smokeView : SmokeView;
   private readonly runView : RunView;
@@ -26,6 +28,7 @@ export class Views implements IViews {
   private activeEditorChangeSubscription : vscode.Disposable | undefined;
   private algorithmsTreeVisibilitySubscription : vscode.Disposable | undefined;
   private stdlibTreeVisibilitySubscription : vscode.Disposable | undefined;
+  private trackerStateSubscription : vscode.Disposable | undefined;
   private lastRevealKey: string;
 
   /**
@@ -35,26 +38,30 @@ export class Views implements IViews {
    * @param {IEnvironment} environment Enviroment actor managing environment state.
    * @param {IRunner} runner Runner actor managing run states.
    * @param {ISmoker} smoker Smoker actor managing smoke states.
+   * @param {ITracker} tracker Tracker actor managing language run statuses.
    */
   public constructor(
     languages : ILanguages,
     environment: IEnvironment,
     runner: IRunner,
-    smoker: ISmoker) {
+    smoker: ISmoker,
+    tracker: ITracker) {
   
     this.languages = languages;
     this.environment = environment;
     this.runner = runner;
     this.smoker = smoker;
+    this.tracker = tracker;
     this.smokeView = new SmokeView(this.smoker);
     this.runView = new RunView(this.runner);
-    this.algosTreeView = new AlgorithmsTreeView(this.languages);
+    this.algosTreeView = new AlgorithmsTreeView(this.languages, this.runner, this.tracker);
     this.stdlibTreeView = new StdLibTreeView(this.languages);
     this.environmentView = new EnvironmentView(this.environment);
     this.dataChangeSubscription = undefined;
     this.activeEditorChangeSubscription = undefined;
     this.algorithmsTreeVisibilitySubscription = undefined;
     this.stdlibTreeVisibilitySubscription = undefined;
+    this.trackerStateSubscription = undefined;
     this.lastRevealKey = "";
   }
 
@@ -199,6 +206,10 @@ export class Views implements IViews {
         this.revealCurrentActiveEditor();
       });
 
+    this.trackerStateSubscription = this.tracker.subscribeToStateChanges(() => {
+      this.algosTreeView.refresh();
+    });
+
     // Initial pass for already-open editors in the debug host.
     this.revealCurrentActiveEditor();
   }
@@ -219,6 +230,8 @@ export class Views implements IViews {
     this.algorithmsTreeVisibilitySubscription = undefined;
     this.stdlibTreeVisibilitySubscription?.dispose();
     this.stdlibTreeVisibilitySubscription = undefined;
+    this.trackerStateSubscription?.dispose();
+    this.trackerStateSubscription = undefined;
     this.lastRevealKey = "";
 
     this.smokeView.dispose();

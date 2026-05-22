@@ -1,6 +1,8 @@
 import * as vscode from 'vscode';
 import * as path from 'node:path';
 import { ILanguages } from '../../languages';
+import { IRunner } from '../../runner';
+import { ITracker } from '../../tracker';
 import { GENERATED_LANGUAGE_DATA } from '../../languages/generated/languages.generated';
 import {
   algorithmsTreeViewId,
@@ -8,6 +10,11 @@ import {
   algorithmsIndicatorScheme,
   zeroCountLanguageFragment,
   flaggedImplementationFragment,
+  runStatusQueuedFragment,
+  runStatusRunningFragment,
+  runStatusCompletedFragment,
+  runStatusFailedFragment,
+  runStatusCancelledFragment,
   AlgorithmImplementationFilterMode,
   AlgorithmImplementationViewMode,
   AlgorithmsTreeDataProvider,
@@ -24,6 +31,10 @@ const createTopLevelAlgorithmFolderCommandId = "algos.algorithmsTreeView.createF
 const createAlgorithmFolderInCategoryCommandId = "algos.algorithmsTreeView.createFolderInCategory";
 const deleteAlgorithmCategoryCommandId = "algos.algorithmsTreeView.deleteCategory";
 const createFileInAlgorithmFolderCommandId = "algos.algorithmsTreeView.createFileInAlgorithm";
+const runImplementationFileCommandId = "algos.algorithmsTreeView.runImplementationFile";
+const stopImplementationRunCommandId = "algos.algorithmsTreeView.stopImplementationRun";
+const clearImplementationRunStatusCommandId = "algos.algorithmsTreeView.clearImplementationRunStatus";
+const clearAlgorithmRunStatusesCommandId = "algos.algorithmsTreeView.clearAlgorithmRunStatuses";
 const deleteAlgorithmFolderCommandId = "algos.algorithmsTreeView.deleteAlgorithm";
 const deleteImplementationFileCommandId = "algos.algorithmsTreeView.deleteImplementationFile";
 const createDocsFileCommandId = "algos.algorithmsTreeView.createDocsFile";
@@ -34,6 +45,8 @@ const deleteDocsFileCommandId = "algos.algorithmsTreeView.deleteDocsFile";
  */
 export class AlgorithmsTreeView implements vscode.Disposable {
   private languages : ILanguages;
+  private runner: IRunner;
+  private tracker: ITracker;
   private dataProvider : AlgorithmsTreeDataProvider | undefined;
   private treeView : vscode.TreeView<AlgorithmTreeItem> | undefined;
   private indicatorDecorationProviderSubscription: vscode.Disposable | undefined;
@@ -47,6 +60,10 @@ export class AlgorithmsTreeView implements vscode.Disposable {
   private createAlgorithmFolderInCategoryCommandSubscription: vscode.Disposable | undefined;
   private deleteAlgorithmCategoryCommandSubscription: vscode.Disposable | undefined;
   private createFileInAlgorithmFolderCommandSubscription: vscode.Disposable | undefined;
+  private runImplementationFileCommandSubscription: vscode.Disposable | undefined;
+  private stopImplementationRunCommandSubscription: vscode.Disposable | undefined;
+  private clearImplementationRunStatusCommandSubscription: vscode.Disposable | undefined;
+  private clearAlgorithmRunStatusesCommandSubscription: vscode.Disposable | undefined;
   private deleteAlgorithmFolderCommandSubscription: vscode.Disposable | undefined;
   private deleteImplementationFileCommandSubscription: vscode.Disposable | undefined;
   private createDocsFileCommandSubscription: vscode.Disposable | undefined;
@@ -56,9 +73,13 @@ export class AlgorithmsTreeView implements vscode.Disposable {
    * Creates the Algorithms tree view manager.
    *
    * @param {ILanguages} languages Language/discovery service.
+   * @param {IRunner} runner Run execution service.
+   * @param {ITracker} tracker Run status tracker service.
    */
-  public constructor(languages : ILanguages) {
+  public constructor(languages : ILanguages, runner: IRunner, tracker: ITracker) {
     this.languages = languages;
+    this.runner = runner;
+    this.tracker = tracker;
     this.dataProvider = undefined;
     this.treeView = undefined;
     this.indicatorDecorationProviderSubscription = undefined;
@@ -72,6 +93,10 @@ export class AlgorithmsTreeView implements vscode.Disposable {
     this.createAlgorithmFolderInCategoryCommandSubscription = undefined;
     this.deleteAlgorithmCategoryCommandSubscription = undefined;
     this.createFileInAlgorithmFolderCommandSubscription = undefined;
+    this.runImplementationFileCommandSubscription = undefined;
+    this.stopImplementationRunCommandSubscription = undefined;
+    this.clearImplementationRunStatusCommandSubscription = undefined;
+    this.clearAlgorithmRunStatusesCommandSubscription = undefined;
     this.deleteAlgorithmFolderCommandSubscription = undefined;
     this.deleteImplementationFileCommandSubscription = undefined;
     this.createDocsFileCommandSubscription = undefined;
@@ -582,6 +607,125 @@ export class AlgorithmsTreeView implements vscode.Disposable {
   }
 
   /**
+   * Executes run.sh for one implementation row file.
+   *
+   * @param {AlgorithmTreeItem | undefined} item Selected implementation tree item.
+   * @returns {Promise<void>} Resolves when run flow completes.
+   */
+  private async runImplementationFile(item: AlgorithmTreeItem | undefined): Promise<void> {
+    const algorithmImplementation = item?.algorithmImplementation;
+    const implementationParentDirectory = item?.implementationParentDirectory;
+
+    if (!item?.isImplementationRow || !algorithmImplementation || !implementationParentDirectory) {
+      return;
+    }
+
+    if (!algorithmImplementation.hasImplementation || !algorithmImplementation.filePath) {
+      return;
+    }
+
+    if (algorithmImplementation.languageKey === docsImplementationKey) {
+      return;
+    }
+
+    const targetFilePath = algorithmImplementation.filePath;
+    const targetToken = path.basename(targetFilePath);
+
+    try {
+      const result = await this.runner.executeRun({
+        algorithmDirectoryPath: implementationParentDirectory.directoryPath,
+        targetToken,
+        targetFilePath,
+        languageKey: algorithmImplementation.languageKey,
+      });
+
+      if (result.ok) {
+        void vscode.window.showInformationMessage(`Run completed: ${targetToken}`);
+      }
+      else {
+        void vscode.window.showErrorMessage(result.text);
+      }
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      void vscode.window.showErrorMessage(`Failed to run file: ${errorMessage}`);
+    }
+  }
+
+  /**
+   * Sends Ctrl+C to stop the currently active implementation run when allowed.
+   *
+   * @param {AlgorithmTreeItem | undefined} item Selected implementation tree item.
+   * @returns {Promise<void>} Resolves when stop request flow completes.
+   */
+  private async stopImplementationRun(item: AlgorithmTreeItem | undefined): Promise<void> {
+    const algorithmImplementation = item?.algorithmImplementation;
+    const implementationParentDirectory = item?.implementationParentDirectory;
+    if (!item?.isImplementationRow || !algorithmImplementation || !implementationParentDirectory) {
+      return;
+    }
+
+    const runState = this.tracker.getLanguageRunStatus(
+      implementationParentDirectory.directoryPath,
+      algorithmImplementation.languageKey.trim().toLowerCase(),
+    );
+
+    const isBusy = runState?.status === "queued" || runState?.status === "running";
+    const isSingleCancellable = runState?.cancelability === "single-run";
+    if (!isBusy || !isSingleCancellable) {
+      return;
+    }
+
+    const interrupted = this.runner.interruptActiveRun();
+    if (!interrupted) {
+      void vscode.window.showWarningMessage("No active run is available to stop.");
+      return;
+    }
+
+    void vscode.window.showInformationMessage("Sent Ctrl+C to Algorithms Runner.");
+  }
+
+  /**
+   * Clears retained run status for one implementation language row.
+   *
+   * @param {AlgorithmTreeItem | undefined} item Selected implementation tree item.
+   * @returns {Promise<void>} Resolves when clear flow completes.
+   */
+  private async clearImplementationRunStatus(item: AlgorithmTreeItem | undefined): Promise<void> {
+    const algorithmImplementation = item?.algorithmImplementation;
+    const implementationParentDirectory = item?.implementationParentDirectory;
+    if (!item?.isImplementationRow || !algorithmImplementation || !implementationParentDirectory) {
+      return;
+    }
+
+    if (algorithmImplementation.languageKey === docsImplementationKey) {
+      return;
+    }
+
+    this.tracker.clearLanguageRunStatus({
+      algorithmPath: implementationParentDirectory.directoryPath,
+      languageKey: algorithmImplementation.languageKey.trim().toLowerCase(),
+    });
+
+    this.dataProvider?.refresh();
+  }
+
+  /**
+   * Clears retained run statuses for every implementation under one algorithm folder.
+   *
+   * @param {AlgorithmTreeItem | undefined} item Selected algorithm folder tree item.
+   * @returns {Promise<void>} Resolves when clear flow completes.
+   */
+  private async clearAlgorithmRunStatuses(item: AlgorithmTreeItem | undefined): Promise<void> {
+    const algorithmDirectoryPath = item?.algorithmDirectory?.directoryPath;
+    if (!algorithmDirectoryPath) {
+      return;
+    }
+
+    this.tracker.clearAlgorithmRunStatuses(algorithmDirectoryPath);
+    this.dataProvider?.refresh();
+  }
+
+  /**
    * Creates one docs file under the selected algorithm directory.
    *
    * @param {AlgorithmTreeItem | undefined} item Selected Docs implementation row.
@@ -728,6 +872,46 @@ export class AlgorithmsTreeView implements vscode.Disposable {
         badge: "●",
         color: new vscode.ThemeColor("testing.iconFailed"),
         tooltip: "Language is flagged for this algorithm",
+      };
+    }
+
+    if (uri.fragment === runStatusQueuedFragment) {
+      return {
+        badge: "◷",
+        color: new vscode.ThemeColor("testing.iconQueued"),
+        tooltip: "Run File: Queued",
+      };
+    }
+
+    if (uri.fragment === runStatusRunningFragment) {
+      return {
+        badge: "▶",
+        color: new vscode.ThemeColor("testing.iconQueued"),
+        tooltip: "Run File: Running",
+      };
+    }
+
+    if (uri.fragment === runStatusCompletedFragment) {
+      return {
+        badge: "✓",
+        color: new vscode.ThemeColor("testing.iconPassed"),
+        tooltip: "Run File: Completed",
+      };
+    }
+
+    if (uri.fragment === runStatusFailedFragment) {
+      return {
+        badge: "✕",
+        color: new vscode.ThemeColor("testing.iconFailed"),
+        tooltip: "Run File: Failed",
+      };
+    }
+
+    if (uri.fragment === runStatusCancelledFragment) {
+      return {
+        badge: "■",
+        color: new vscode.ThemeColor("testing.iconQueued"),
+        tooltip: "Run File: Cancelled",
       };
     }
 
@@ -898,6 +1082,34 @@ export class AlgorithmsTreeView implements vscode.Disposable {
       },
     );
 
+    this.runImplementationFileCommandSubscription = vscode.commands.registerCommand(
+      runImplementationFileCommandId,
+      async (item?: AlgorithmTreeItem) => {
+        await this.runImplementationFile(item);
+      },
+    );
+
+    this.stopImplementationRunCommandSubscription = vscode.commands.registerCommand(
+      stopImplementationRunCommandId,
+      async (item?: AlgorithmTreeItem) => {
+        await this.stopImplementationRun(item);
+      },
+    );
+
+    this.clearImplementationRunStatusCommandSubscription = vscode.commands.registerCommand(
+      clearImplementationRunStatusCommandId,
+      async (item?: AlgorithmTreeItem) => {
+        await this.clearImplementationRunStatus(item);
+      },
+    );
+
+    this.clearAlgorithmRunStatusesCommandSubscription = vscode.commands.registerCommand(
+      clearAlgorithmRunStatusesCommandId,
+      async (item?: AlgorithmTreeItem) => {
+        await this.clearAlgorithmRunStatuses(item);
+      },
+    );
+
     this.deleteAlgorithmFolderCommandSubscription = vscode.commands.registerCommand(
       deleteAlgorithmFolderCommandId,
       async (item?: AlgorithmTreeItem) => {
@@ -939,7 +1151,7 @@ export class AlgorithmsTreeView implements vscode.Disposable {
       return;
     }
 
-    this.dataProvider = new AlgorithmsTreeDataProvider(this.languages, context.extensionUri);
+    this.dataProvider = new AlgorithmsTreeDataProvider(this.languages, context.extensionUri, this.tracker);
     this.treeView = vscode.window.createTreeView(
       algorithmsTreeViewId,
       {
@@ -1051,6 +1263,14 @@ export class AlgorithmsTreeView implements vscode.Disposable {
     this.deleteAlgorithmCategoryCommandSubscription = undefined;
     this.createFileInAlgorithmFolderCommandSubscription?.dispose();
     this.createFileInAlgorithmFolderCommandSubscription = undefined;
+    this.runImplementationFileCommandSubscription?.dispose();
+    this.runImplementationFileCommandSubscription = undefined;
+    this.stopImplementationRunCommandSubscription?.dispose();
+    this.stopImplementationRunCommandSubscription = undefined;
+    this.clearImplementationRunStatusCommandSubscription?.dispose();
+    this.clearImplementationRunStatusCommandSubscription = undefined;
+    this.clearAlgorithmRunStatusesCommandSubscription?.dispose();
+    this.clearAlgorithmRunStatusesCommandSubscription = undefined;
     this.deleteAlgorithmFolderCommandSubscription?.dispose();
     this.deleteAlgorithmFolderCommandSubscription = undefined;
     this.deleteImplementationFileCommandSubscription?.dispose();

@@ -9,6 +9,8 @@ import { ISmoker } from "./smoker";
 import { Smoker } from "./smoker/smoker";
 import { IEnvironment } from "./environment";
 import { Environment } from "./environment/environment";
+import { ITracker } from "./tracker";
+import { Tracker } from "./tracker/tracker";
 
 /**
  * Activates the extension.
@@ -19,18 +21,21 @@ import { Environment } from "./environment/environment";
 export function activate(context: vscode.ExtensionContext): void {
   const languages : ILanguages = new Languages();
   const environment : IEnvironment = new Environment(languages);
-  const runner : IRunner = new Runner(environment);
-  const smoker : ISmoker = new Smoker(languages, environment);
-  const views : IViews = new Views(languages, environment, runner, smoker);
+  const tracker : ITracker = new Tracker();
+  const runner : IRunner = new Runner(environment, tracker);
+  const smoker : ISmoker = new Smoker(languages, environment, tracker);
+  const views : IViews = new Views(languages, environment, runner, smoker, tracker);
 
   languages.activate(context);
   environment.activate(context);
+  tracker.activate(context);
   runner.activate(context);
   smoker.activate(context);
   views.activate(context);
 
   context.subscriptions.push(languages);
   context.subscriptions.push(environment);
+  context.subscriptions.push(tracker);
   context.subscriptions.push(runner);
   context.subscriptions.push(smoker);
   context.subscriptions.push(views);

@@ -1,7 +1,17 @@
 import * as vscode from "vscode";
+import * as fs from "node:fs/promises";
+import * as path from "node:path";
 import { assign, createActor, createMachine, type ActorRefFrom } from "xstate";
-import { IRunner, type RunOptionsPatch, type RunOptionsState } from ".";
+import {
+  IRunner,
+  type RunOptionsPatch,
+  type RunOptionsState,
+  type RunnerExecuteRunRequest,
+  type RunnerExecuteRunResult,
+} from ".";
 import { IEnvironment } from "../environment";
+import { ITracker } from "../tracker";
+import { RunHandler } from "./runHandler";
 
 interface RunOptionsEvent {
   type: "patch";
@@ -53,22 +63,26 @@ const runOptionsMachine = createMachine({
 export class Runner implements IRunner {
 
   private readonly environment : IEnvironment;
+  private readonly tracker: ITracker;
   private readonly runOptionsActor: ActorRefFrom<typeof runOptionsMachine>;
   private readonly onDidChangeRunOptionsEmitter: vscode.EventEmitter<RunOptionsState>;
   private readonly runOptionsActorSubscription: { unsubscribe: () => void };
   private readonly environmentStateSubscription: vscode.Disposable;
   private shouldPersistSessionState: boolean;
   private extensionContext: vscode.ExtensionContext | undefined;
+  private runHandler: RunHandler | undefined;
 
   /**
    * Creates the Runner and starts the run-options actor.
    */
-  public constructor(environment: IEnvironment) {
+  public constructor(environment: IEnvironment, tracker: ITracker) {
     this.environment = environment;
+    this.tracker = tracker;
     this.runOptionsActor = createActor(runOptionsMachine);
     this.onDidChangeRunOptionsEmitter = new vscode.EventEmitter<RunOptionsState>();
     this.shouldPersistSessionState = this.environment.getEnvironmentControlsState().persistSessionEnabled;
     this.extensionContext = undefined;
+    this.runHandler = undefined;
 
     this.environmentStateSubscription = this.environment.subscribeToStateChanges((state) => {
       this.handlePersistSessionPreferenceChanged(state.persistSessionEnabled);
@@ -153,6 +167,38 @@ export class Runner implements IRunner {
   }
 
   /**
+   * Executes one run.sh invocation through the shared RunHandler.
+   *
+   * @param {RunnerExecuteRunRequest} request Run execution request.
+   * @returns {Promise<RunnerExecuteRunResult>} Run execution result.
+   */
+  public async executeRun(request: RunnerExecuteRunRequest): Promise<RunnerExecuteRunResult> {
+    const runHandler = await this.getRunHandler();
+
+    return await runHandler.execute({
+      algorithmDirectoryPath: request.algorithmDirectoryPath,
+      runOptions: this.getRunOptionsState(),
+      languageKey: request.languageKey,
+      runId: request.runId,
+      targetToken: request.targetToken,
+      targetFilePath: request.targetFilePath,
+    });
+  }
+
+  /**
+   * Sends Ctrl+C to the active runner terminal when available.
+   *
+   * @returns {boolean} True when interrupt was sent; false when runner terminal is unavailable.
+   */
+  public interruptActiveRun(): boolean {
+    if (!this.runHandler) {
+      return false;
+    }
+
+    return this.runHandler.interruptActiveRun();
+  }
+
+  /**
    * Persists the current run-options state to workspace-global storage.
    *
    * @returns {void} No return value.
@@ -182,6 +228,58 @@ export class Runner implements IRunner {
       runOptionsStorageKey,
       undefined,
     );
+  }
+
+  /**
+   * Returns a cached RunHandler or initializes one using the resolved repository root.
+   *
+   * @returns {Promise<RunHandler>} Initialized run handler.
+   */
+  private async getRunHandler(): Promise<RunHandler> {
+    if (this.runHandler) {
+      return this.runHandler;
+    }
+
+    const repositoryRoot = await this.resolveRepositoryRootForRun();
+    if (!repositoryRoot) {
+      throw new Error("Unable to locate repository root containing run.sh.");
+    }
+
+    this.runHandler = new RunHandler(repositoryRoot, this.tracker);
+    return this.runHandler;
+  }
+
+  /**
+   * Locates the nearest known root that contains run.sh.
+   *
+   * @returns {Promise<string | undefined>} Repository root path when found.
+   */
+  private async resolveRepositoryRootForRun(): Promise<string | undefined> {
+    const candidatePaths: string[] = [];
+
+    if (this.extensionContext) {
+      const extensionPath = this.extensionContext.extensionUri.fsPath;
+      candidatePaths.push(extensionPath);
+      candidatePaths.push(path.dirname(extensionPath));
+    }
+
+    for (const workspaceFolder of vscode.workspace.workspaceFolders ?? []) {
+      candidatePaths.push(workspaceFolder.uri.fsPath);
+      candidatePaths.push(path.dirname(workspaceFolder.uri.fsPath));
+    }
+
+    const uniqueCandidatePaths = [...new Set(candidatePaths)];
+    for (const candidatePath of uniqueCandidatePaths) {
+      const runScriptPath = path.join(candidatePath, "run.sh");
+      try {
+        await fs.access(runScriptPath);
+        return candidatePath;
+      } catch {
+        continue;
+      }
+    }
+
+    return undefined;
   }
 
   /**
