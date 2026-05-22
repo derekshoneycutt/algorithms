@@ -1,22 +1,48 @@
 import * as vscode from "vscode";
-
-import { createActivationServices } from "./activator";
-import { createCoordinator } from "./coordinator";
+import { IViews } from "./views";
+import { Views } from "./views/views";
+import { ILanguages } from "./languages";
+import { Languages } from "./languages/languages";
+import { Runner } from "./runner/runner";
+import { IRunner } from "./runner";
+import { ISmoker } from "./smoker";
+import { Smoker } from "./smoker/smoker";
+import { IEnvironment } from "./environment";
+import { Environment } from "./environment/environment";
+import { ITracker } from "./tracker";
+import { Tracker } from "./tracker/tracker";
 
 /**
- * Activates the TypeScript bootstrap extension runtime.
+ * Activates the extension.
  *
- * @param {vscode.ExtensionContext} context Extension activation context.
+ * @param {vscode.ExtensionContext} context Extension lifecycle context.
  * @returns {void} No return value.
  */
 export function activate(context: vscode.ExtensionContext): void {
-  const activationServices = createActivationServices(context);
-  const coordinator = createCoordinator(context, activationServices);
-  context.subscriptions.push(coordinator);
+  const languages : ILanguages = new Languages();
+  const environment : IEnvironment = new Environment(languages);
+  const tracker : ITracker = new Tracker();
+  const runner : IRunner = new Runner(environment, tracker);
+  const smoker : ISmoker = new Smoker(languages, environment, tracker);
+  const views : IViews = new Views(languages, environment, runner, smoker, tracker);
+
+  languages.activate(context);
+  environment.activate(context);
+  tracker.activate(context);
+  runner.activate(context);
+  smoker.activate(context);
+  views.activate(context);
+
+  context.subscriptions.push(languages);
+  context.subscriptions.push(environment);
+  context.subscriptions.push(tracker);
+  context.subscriptions.push(runner);
+  context.subscriptions.push(smoker);
+  context.subscriptions.push(views);
 }
 
 /**
- * Deactivates the TypeScript bootstrap extension runtime.
+ * Deactivates the extension.
  *
  * @returns {void} No return value.
  */

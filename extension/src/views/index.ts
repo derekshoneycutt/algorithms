@@ -1,37 +1,14 @@
-export type { ITreeViewHandle, IViewHost } from "./IViewHost";
-export { createViewHost } from "./viewHost";
-export { getSmokeControlsSidebarViewId } from "./viewIds";
-export { getRunControlsSidebarViewId } from "./viewIds";
-export { getEnvironmentControlsSidebarViewId } from "./viewIds";
-export { getWorkspaceAlgorithmsTreeViewId } from "./viewIds";
-export { getWorkspaceStandardLibraryTreeViewId } from "./viewIds";
-export {
-  registerControlsChannels,
-} from "./controlsChannelRegistration";
-export type {
-  ControlsChannelRegistrations,
-  RegisterControlsChannelsInput,
-} from "./controlsChannelRegistration";
-export {
-  createWorkspaceWatcherAdapter,
-} from "./workspaceWatcherAdapter";
-export type {
-  CreateWorkspaceWatcherAdapterInput,
-  IWorkspaceWatcherAdapter,
-} from "./workspaceWatcherAdapter";
-export {
-  createWorkspaceAlgorithmsTreeDataProvider,
-  createWorkspaceStandardLibraryTreeDataProvider,
-  createLanguageStatusDecorationProvider,
-} from "./trees";
-export type {
-  RefreshableWorkspaceTreeDataProvider,
-  WorkspaceTreeNode,
-} from "./trees";
-export type {
-  CoordinatorViewLayer,
-  CreateCoordinatorViewLayerInput,
-} from "./createCoordinatorViewLayer";
-export { createCoordinatorViewLayer } from "./createCoordinatorViewLayer";
-export type { CreateCoordinatorControlsChannelsInput } from "./createCoordinatorControlsChannels";
-export { createCoordinatorControlsChannels } from "./createCoordinatorControlsChannels";
+import * as vscode from 'vscode';
+
+/**
+ * Contract for managing extension views.
+ */
+export interface IViews extends vscode.Disposable {
+  /**
+   * Activates and registers all extension views.
+   *
+   * @param {vscode.ExtensionContext} context Extension lifecycle context.
+   * @returns {void} No return value.
+   */
+  activate(context: vscode.ExtensionContext): void;
+}

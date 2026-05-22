@@ -3,7 +3,7 @@ import * as path from "node:path";
 import { runTests } from "@vscode/test-electron";
 
 /**
- * Runs the extension host test suite for the bootstrap package.
+ * Runs the extension host test suite for this bootstrap package.
  *
  * @returns {Promise<void>} Resolves when the suite completes successfully.
  */

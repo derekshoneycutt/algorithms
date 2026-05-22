@@ -36,33 +36,6 @@ module.exports = tseslint.config(
       "no-undef": "off",
       "no-var": "error",
       "prefer-const": "error",
-      "no-restricted-imports": [
-        "error",
-        {
-          paths: [
-            {
-              name: "../algorithms",
-              importNames: ["resolveAlgorithmsRootPath", "resolveStdlibRootPath"],
-              message: "Use IRootPathResolver via coordinator wiring instead of raw resolver imports.",
-            },
-            {
-              name: "../../algorithms",
-              importNames: ["resolveAlgorithmsRootPath", "resolveStdlibRootPath"],
-              message: "Use IRootPathResolver via coordinator wiring instead of raw resolver imports.",
-            },
-            {
-              name: "../../../algorithms",
-              importNames: ["resolveAlgorithmsRootPath", "resolveStdlibRootPath"],
-              message: "Use IRootPathResolver via coordinator wiring instead of raw resolver imports.",
-            },
-            {
-              name: "../../../../algorithms",
-              importNames: ["resolveAlgorithmsRootPath", "resolveStdlibRootPath"],
-              message: "Use IRootPathResolver via coordinator wiring instead of raw resolver imports.",
-            },
-          ],
-        },
-      ],
       "@typescript-eslint/no-unused-vars": [
         "error",
         {
