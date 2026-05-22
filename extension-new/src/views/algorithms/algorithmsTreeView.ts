@@ -4,6 +4,7 @@ import { ILanguages } from '../../languages';
 import { IRunner } from '../../runner';
 import { ISmoker } from '../../smoker';
 import { ITracker } from '../../tracker';
+import { ContextMenuRunHelper } from '../shared/contextMenuRunHelper';
 import { GENERATED_LANGUAGE_DATA } from '../../languages/generated/languages.generated';
 import {
   algorithmsTreeViewId,
@@ -33,6 +34,12 @@ const createAlgorithmFolderInCategoryCommandId = "algos.algorithmsTreeView.creat
 const deleteAlgorithmCategoryCommandId = "algos.algorithmsTreeView.deleteCategory";
 const createFileInAlgorithmFolderCommandId = "algos.algorithmsTreeView.createFileInAlgorithm";
 const runImplementationFileCommandId = "algos.algorithmsTreeView.runImplementationFile";
+const compileImplementationFileCommandId = "algos.algorithmsTreeView.compileImplementationFile";
+const checkImplementationFileNativeCommandId = "algos.algorithmsTreeView.checkImplementationFileNative";
+const checkImplementationFileDockerCommandId = "algos.algorithmsTreeView.checkImplementationFileDocker";
+const checkImplementationFileSshCommandId = "algos.algorithmsTreeView.checkImplementationFileSsh";
+const cleanImplementationCommandId = "algos.algorithmsTreeView.cleanImplementation";
+const localCleanImplementationCommandId = "algos.algorithmsTreeView.localCleanImplementation";
 const stopImplementationRunCommandId = "algos.algorithmsTreeView.stopImplementationRun";
 const clearImplementationRunStatusCommandId = "algos.algorithmsTreeView.clearImplementationRunStatus";
 const addImplementationIncludeFileCommandId = "algos.algorithmsTreeView.addImplementationIncludeFile";
@@ -52,6 +59,7 @@ export class AlgorithmsTreeView implements vscode.Disposable {
   private runner: IRunner;
   private smoker: ISmoker;
   private tracker: ITracker;
+  private contextMenuRunHelper: ContextMenuRunHelper;
   private dataProvider : AlgorithmsTreeDataProvider | undefined;
   private treeView : vscode.TreeView<AlgorithmTreeItem> | undefined;
   private indicatorDecorationProviderSubscription: vscode.Disposable | undefined;
@@ -66,6 +74,12 @@ export class AlgorithmsTreeView implements vscode.Disposable {
   private deleteAlgorithmCategoryCommandSubscription: vscode.Disposable | undefined;
   private createFileInAlgorithmFolderCommandSubscription: vscode.Disposable | undefined;
   private runImplementationFileCommandSubscription: vscode.Disposable | undefined;
+  private compileImplementationFileCommandSubscription: vscode.Disposable | undefined;
+  private checkImplementationFileNativeCommandSubscription: vscode.Disposable | undefined;
+  private checkImplementationFileDockerCommandSubscription: vscode.Disposable | undefined;
+  private checkImplementationFileSshCommandSubscription: vscode.Disposable | undefined;
+  private cleanImplementationCommandSubscription: vscode.Disposable | undefined;
+  private localCleanImplementationCommandSubscription: vscode.Disposable | undefined;
   private stopImplementationRunCommandSubscription: vscode.Disposable | undefined;
   private clearImplementationRunStatusCommandSubscription: vscode.Disposable | undefined;
   private addImplementationIncludeFileCommandSubscription: vscode.Disposable | undefined;
@@ -90,6 +104,7 @@ export class AlgorithmsTreeView implements vscode.Disposable {
     this.runner = runner;
     this.smoker = smoker;
     this.tracker = tracker;
+    this.contextMenuRunHelper = new ContextMenuRunHelper(this.languages, this.runner);
     this.dataProvider = undefined;
     this.treeView = undefined;
     this.indicatorDecorationProviderSubscription = undefined;
@@ -104,6 +119,12 @@ export class AlgorithmsTreeView implements vscode.Disposable {
     this.deleteAlgorithmCategoryCommandSubscription = undefined;
     this.createFileInAlgorithmFolderCommandSubscription = undefined;
     this.runImplementationFileCommandSubscription = undefined;
+    this.compileImplementationFileCommandSubscription = undefined;
+    this.checkImplementationFileNativeCommandSubscription = undefined;
+    this.checkImplementationFileDockerCommandSubscription = undefined;
+    this.checkImplementationFileSshCommandSubscription = undefined;
+    this.cleanImplementationCommandSubscription = undefined;
+    this.localCleanImplementationCommandSubscription = undefined;
     this.stopImplementationRunCommandSubscription = undefined;
     this.clearImplementationRunStatusCommandSubscription = undefined;
     this.addImplementationIncludeFileCommandSubscription = undefined;
@@ -668,42 +689,91 @@ export class AlgorithmsTreeView implements vscode.Disposable {
    * @returns {Promise<void>} Resolves when run flow completes.
    */
   private async runImplementationFile(item: AlgorithmTreeItem | undefined): Promise<void> {
-    const algorithmImplementation = item?.algorithmImplementation;
-    const implementationParentDirectory = item?.implementationParentDirectory;
+    await this.contextMenuRunHelper.executeAction({
+      actionKind: "run-file",
+      treeItem: item,
+    });
+  }
 
-    if (!item?.isImplementationRow || !algorithmImplementation || !implementationParentDirectory) {
-      return;
-    }
+  /**
+   * Executes compile-only run action for one implementation row.
+   *
+   * @param {AlgorithmTreeItem | undefined} item Selected implementation tree item.
+   * @returns {Promise<void>} Resolves when run flow completes.
+   */
+  private async compileImplementationFile(item: AlgorithmTreeItem | undefined): Promise<void> {
+    await this.contextMenuRunHelper.executeAction({
+      actionKind: "compile-only",
+      treeItem: item,
+    });
+  }
 
-    if (!algorithmImplementation.hasImplementation || !algorithmImplementation.filePath) {
-      return;
-    }
+  /**
+   * Executes native check-only run action for one implementation row.
+   *
+   * @param {AlgorithmTreeItem | undefined} item Selected implementation tree item.
+   * @returns {Promise<void>} Resolves when run flow completes.
+   */
+  private async checkImplementationFileNative(item: AlgorithmTreeItem | undefined): Promise<void> {
+    await this.contextMenuRunHelper.executeAction({
+      actionKind: "check-only",
+      checkOnlyRouteOverride: "native",
+      treeItem: item,
+    });
+  }
 
-    if (algorithmImplementation.languageKey === docsImplementationKey) {
-      return;
-    }
+  /**
+   * Executes docker check-only run action for one implementation row.
+   *
+   * @param {AlgorithmTreeItem | undefined} item Selected implementation tree item.
+   * @returns {Promise<void>} Resolves when run flow completes.
+   */
+  private async checkImplementationFileDocker(item: AlgorithmTreeItem | undefined): Promise<void> {
+    await this.contextMenuRunHelper.executeAction({
+      actionKind: "check-only",
+      checkOnlyRouteOverride: "docker",
+      treeItem: item,
+    });
+  }
 
-    const targetFilePath = algorithmImplementation.filePath;
-    const targetToken = path.basename(targetFilePath);
+  /**
+   * Executes ssh check-only run action for one implementation row.
+   *
+   * @param {AlgorithmTreeItem | undefined} item Selected implementation tree item.
+   * @returns {Promise<void>} Resolves when run flow completes.
+   */
+  private async checkImplementationFileSsh(item: AlgorithmTreeItem | undefined): Promise<void> {
+    await this.contextMenuRunHelper.executeAction({
+      actionKind: "check-only",
+      checkOnlyRouteOverride: "ssh",
+      treeItem: item,
+    });
+  }
 
-    try {
-      const result = await this.runner.executeRun({
-        algorithmDirectoryPath: implementationParentDirectory.directoryPath,
-        targetToken,
-        targetFilePath,
-        languageKey: algorithmImplementation.languageKey,
-      });
+  /**
+   * Executes clean run action for one implementation row.
+   *
+   * @param {AlgorithmTreeItem | undefined} item Selected implementation tree item.
+   * @returns {Promise<void>} Resolves when run flow completes.
+   */
+  private async cleanImplementation(item: AlgorithmTreeItem | undefined): Promise<void> {
+    await this.contextMenuRunHelper.executeAction({
+      actionKind: "clean",
+      treeItem: item,
+    });
+  }
 
-      if (result.ok) {
-        void vscode.window.showInformationMessage(`Run completed: ${targetToken}`);
-      }
-      else {
-        void vscode.window.showErrorMessage(result.text);
-      }
-    } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : String(error);
-      void vscode.window.showErrorMessage(`Failed to run file: ${errorMessage}`);
-    }
+  /**
+   * Executes local clean run action for one implementation row.
+   *
+   * @param {AlgorithmTreeItem | undefined} item Selected implementation tree item.
+   * @returns {Promise<void>} Resolves when run flow completes.
+   */
+  private async localCleanImplementation(item: AlgorithmTreeItem | undefined): Promise<void> {
+    await this.contextMenuRunHelper.executeAction({
+      actionKind: "localclean",
+      treeItem: item,
+    });
   }
 
   /**
@@ -1267,6 +1337,48 @@ export class AlgorithmsTreeView implements vscode.Disposable {
       },
     );
 
+    this.compileImplementationFileCommandSubscription = vscode.commands.registerCommand(
+      compileImplementationFileCommandId,
+      async (item?: AlgorithmTreeItem) => {
+        await this.compileImplementationFile(item);
+      },
+    );
+
+    this.checkImplementationFileNativeCommandSubscription = vscode.commands.registerCommand(
+      checkImplementationFileNativeCommandId,
+      async (item?: AlgorithmTreeItem) => {
+        await this.checkImplementationFileNative(item);
+      },
+    );
+
+    this.checkImplementationFileDockerCommandSubscription = vscode.commands.registerCommand(
+      checkImplementationFileDockerCommandId,
+      async (item?: AlgorithmTreeItem) => {
+        await this.checkImplementationFileDocker(item);
+      },
+    );
+
+    this.checkImplementationFileSshCommandSubscription = vscode.commands.registerCommand(
+      checkImplementationFileSshCommandId,
+      async (item?: AlgorithmTreeItem) => {
+        await this.checkImplementationFileSsh(item);
+      },
+    );
+
+    this.cleanImplementationCommandSubscription = vscode.commands.registerCommand(
+      cleanImplementationCommandId,
+      async (item?: AlgorithmTreeItem) => {
+        await this.cleanImplementation(item);
+      },
+    );
+
+    this.localCleanImplementationCommandSubscription = vscode.commands.registerCommand(
+      localCleanImplementationCommandId,
+      async (item?: AlgorithmTreeItem) => {
+        await this.localCleanImplementation(item);
+      },
+    );
+
     this.stopImplementationRunCommandSubscription = vscode.commands.registerCommand(
       stopImplementationRunCommandId,
       async (item?: AlgorithmTreeItem) => {
@@ -1464,6 +1576,18 @@ export class AlgorithmsTreeView implements vscode.Disposable {
     this.createFileInAlgorithmFolderCommandSubscription = undefined;
     this.runImplementationFileCommandSubscription?.dispose();
     this.runImplementationFileCommandSubscription = undefined;
+    this.compileImplementationFileCommandSubscription?.dispose();
+    this.compileImplementationFileCommandSubscription = undefined;
+    this.checkImplementationFileNativeCommandSubscription?.dispose();
+    this.checkImplementationFileNativeCommandSubscription = undefined;
+    this.checkImplementationFileDockerCommandSubscription?.dispose();
+    this.checkImplementationFileDockerCommandSubscription = undefined;
+    this.checkImplementationFileSshCommandSubscription?.dispose();
+    this.checkImplementationFileSshCommandSubscription = undefined;
+    this.cleanImplementationCommandSubscription?.dispose();
+    this.cleanImplementationCommandSubscription = undefined;
+    this.localCleanImplementationCommandSubscription?.dispose();
+    this.localCleanImplementationCommandSubscription = undefined;
     this.stopImplementationRunCommandSubscription?.dispose();
     this.stopImplementationRunCommandSubscription = undefined;
     this.clearImplementationRunStatusCommandSubscription?.dispose();

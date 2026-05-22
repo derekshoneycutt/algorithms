@@ -1,7 +1,7 @@
 import * as fs from "node:fs/promises";
 import * as path from "node:path";
 import * as vscode from "vscode";
-import type { RunOptionsState } from ".";
+import type { RunnerCheckOnlyRoute, RunnerRunActionKind, RunOptionsState } from ".";
 import type { ITracker, TrackerRunStatus } from "../tracker";
 
 const runScriptFileName = "run.sh";
@@ -14,8 +14,10 @@ let runnerTerminal: vscode.Terminal | undefined;
  */
 export interface RunHandlerExecuteRequest {
   algorithmDirectoryPath: string;
-  targetToken: string;
-  targetFilePath: string;
+  actionKind?: RunnerRunActionKind;
+  checkOnlyRouteOverride?: RunnerCheckOnlyRoute;
+  targetToken?: string;
+  targetFilePath?: string;
   runOptions: RunOptionsState;
   languageKey?: string;
   runId?: string;
@@ -54,13 +56,35 @@ interface TrackerExecutionContext {
  * Fully prepared execution payload derived from one run request.
  */
 interface RunHandlerPreparedExecution {
+  actionKind: RunnerRunActionKind;
   algorithmDirectoryPath: string;
   commandPreview: string;
   runScriptPath: string;
-  optionTokens: string[];
+  preTargetOptionTokens: string[];
+  postTargetOptionTokens: string[];
   passthroughTokens: string[];
-  targetToken: string;
+  targetToken: string | undefined;
   trackerExecutionContext: TrackerExecutionContext | undefined;
+}
+
+/**
+ * Returns true when an action requires one concrete target file.
+ *
+ * @param {RunnerRunActionKind} actionKind Requested run action.
+ * @returns {boolean} True when target token and file path are required.
+ */
+function actionRequiresConcreteTargetFile(actionKind: RunnerRunActionKind): boolean {
+  return actionKind !== "clean" && actionKind !== "localclean";
+}
+
+/**
+ * Returns true when an action supports trailing passthrough args.
+ *
+ * @param {RunnerRunActionKind} actionKind Requested run action.
+ * @returns {boolean} True when passthrough args should be forwarded.
+ */
+function actionSupportsPassthroughArguments(actionKind: RunnerRunActionKind): boolean {
+  return actionKind === "run-file" || actionKind === "compile-only" || actionKind === "check-only";
 }
 
 /**
@@ -178,7 +202,10 @@ export class RunHandler {
    * @param {RunHandlerExecuteRequest} request Run invocation request.
    * @returns {Promise<RunHandlerPreparedExecution>} Prepared execution metadata.
    */
-  private async prepareExecutionRequest(request: RunHandlerExecuteRequest): Promise<RunHandlerPreparedExecution> {
+  private async prepareExecutionRequest(
+    request: RunHandlerExecuteRequest): Promise<RunHandlerPreparedExecution> {
+
+    const actionKind: RunnerRunActionKind = request.actionKind ?? "run-file";
     const algorithmDirectoryPath = path.resolve(request.algorithmDirectoryPath);
     const trackerExecutionContext = this.resolveTrackerExecutionContext(request, algorithmDirectoryPath);
 
@@ -188,25 +215,56 @@ export class RunHandler {
     const runScriptPath = path.join(this.repositoryRoot, runScriptFileName);
     await this.ensureRunScriptExists(runScriptPath);
 
-    const optionTokens = this.buildRunOptionTokens(request.runOptions);
-    const passthroughTokens = this.buildRunPassthroughTokens(request.runOptions);
+    const {
+      preTargetOptionTokens,
+      postTargetOptionTokens,
+    } = this.buildRunOptionTokens(
+      request.runOptions,
+      actionKind,
+      request.checkOnlyRouteOverride,
+    );
+    const passthroughTokens = actionSupportsPassthroughArguments(actionKind)
+      ? this.buildRunPassthroughTokens(request.runOptions)
+      : [];
 
-    const targetToken = String(request.targetToken || "").trim();
-    if (targetToken.length === 0) {
-      throw new Error("A target token is required for file run execution.");
+    let targetToken: string | undefined;
+    if (actionKind === "clean") {
+      targetToken = "clean";
+    } else if (actionKind === "localclean") {
+      targetToken = "localclean";
+    } else {
+      const candidateTargetToken = String(request.targetToken || "").trim();
+      if (candidateTargetToken.length === 0) {
+        throw new Error("A target token is required for this run action.");
+      }
+
+      targetToken = candidateTargetToken;
     }
 
-    const targetFilePath = path.resolve(request.targetFilePath);
-    await this.ensureFileExists(targetFilePath);
+    if (actionRequiresConcreteTargetFile(actionKind)) {
+      const targetFilePath = String(request.targetFilePath || "").trim();
+      if (targetFilePath.length === 0) {
+        throw new Error("A target file path is required for this run action.");
+      }
 
-    const allTokens = this.composeRunTokens(optionTokens, targetToken, passthroughTokens);
+      await this.ensureFileExists(path.resolve(targetFilePath));
+    }
+
+    const allTokens = this.composeRunTokens(
+      preTargetOptionTokens,
+      targetToken,
+      postTargetOptionTokens,
+      passthroughTokens,
+    );
     const commandPreview = this.buildCommandPreview(runScriptPath, allTokens);
 
     return {
+      actionKind,
       algorithmDirectoryPath,
       commandPreview,
       runScriptPath,
-      optionTokens,
+      preTargetOptionTokens,
+      postTargetOptionTokens,
       passthroughTokens,
       targetToken,
       trackerExecutionContext,
@@ -341,10 +399,13 @@ export class RunHandler {
       this.quoteTokenForShell(preparedExecution.algorithmDirectoryPath),
       "&&",
       this.quoteTokenForShell(preparedExecution.runScriptPath),
-      ...preparedExecution.optionTokens.map((optionToken) => {
+      ...preparedExecution.preTargetOptionTokens.map((optionToken) => {
         return this.quoteTokenForShell(optionToken);
       }),
       ...targetTokenSegment,
+      ...preparedExecution.postTargetOptionTokens.map((optionToken) => {
+        return this.quoteTokenForShell(optionToken);
+      }),
       ...preparedExecution.passthroughTokens.map((token) => {
         return this.quoteTokenForShell(token);
       }),
@@ -445,14 +506,74 @@ export class RunHandler {
    * @param {RunOptionsState} runOptions Current run options snapshot.
    * @returns {string[]} Option tokens that must appear before the target token.
    */
-  private buildRunOptionTokens(runOptions: RunOptionsState): string[] {
-    const optionTokens: string[] = [];
+  private buildRunOptionTokens(
+    runOptions: RunOptionsState,
+    actionKind: RunnerRunActionKind,
+    checkOnlyRouteOverride?: RunnerCheckOnlyRoute): {
+      preTargetOptionTokens: string[];
+      postTargetOptionTokens: string[];
+    } {
+
+    const preTargetOptionTokens: string[] = [];
+    const postTargetOptionTokens: string[] = [];
 
     if (runOptions.sourceProfileEnabled) {
-      optionTokens.push(`--source-profile=${runOptions.sourceProfileText}`);
+      preTargetOptionTokens.push(`--source-profile=${runOptions.sourceProfileText}`);
     }
 
-    return optionTokens;
+    if (actionKind === "compile-only") {
+      preTargetOptionTokens.push("--compile-only");
+      return {
+        preTargetOptionTokens,
+        postTargetOptionTokens,
+      };
+    }
+
+    if (actionKind === "check-only") {
+      preTargetOptionTokens.push(`--check-only=${checkOnlyRouteOverride ?? runOptions.runChecksRoute}`);
+      return {
+        preTargetOptionTokens,
+        postTargetOptionTokens,
+      };
+    }
+
+    if (actionKind === "clean") {
+      postTargetOptionTokens.push(this.buildCleanDefaultsOptionToken(runOptions));
+      return {
+        preTargetOptionTokens,
+        postTargetOptionTokens,
+      };
+    }
+
+    if (actionKind === "localclean") {
+      return {
+        preTargetOptionTokens,
+        postTargetOptionTokens,
+      };
+    }
+
+    if (runOptions.runChecksMode === "compile-only") {
+      preTargetOptionTokens.push("--compile-only");
+    } else if (runOptions.runChecksMode === "check-only") {
+      preTargetOptionTokens.push(`--check-only=${runOptions.runChecksRoute}`);
+    }
+
+    return {
+      preTargetOptionTokens,
+      postTargetOptionTokens,
+    };
+  }
+
+  /**
+   * Builds one clean defaults token from run options.
+   *
+   * @param {RunOptionsState} runOptions Current run options snapshot.
+   * @returns {string} Clean defaults option token.
+   */
+  private buildCleanDefaultsOptionToken(runOptions: RunOptionsState): string {
+    const stdlibDefault = runOptions.cleanStdlibEnabled ? "y" : "n";
+    const archiveDefault = runOptions.cleanArchivesEnabled ? "y" : "n";
+    return `--defaults=${stdlibDefault}|${archiveDefault}`;
   }
 
   /**
@@ -462,6 +583,7 @@ export class RunHandler {
     * @returns {string[]} Passthrough tokens that appear after the target token.
    */
   private buildRunPassthroughTokens(runOptions: RunOptionsState): string[] {
+
     if (!runOptions.runArgsEnabled) {
       return [];
     }
@@ -483,12 +605,16 @@ export class RunHandler {
    * @returns {string[]} Full token vector.
    */
   private composeRunTokens(
-    optionTokens: string[],
-    targetToken: string,
-    passthroughTokens: string[],
-  ): string[] {
-    const runTokens: string[] = [...optionTokens];
-    runTokens.push(targetToken);
+    preTargetOptionTokens: string[],
+    targetToken: string | undefined,
+    postTargetOptionTokens: string[],
+    passthroughTokens: string[]): string[] {
+
+    const runTokens: string[] = [...preTargetOptionTokens];
+    if (targetToken !== undefined && targetToken.length > 0) {
+      runTokens.push(targetToken);
+    }
+    runTokens.push(...postTargetOptionTokens);
     runTokens.push(...passthroughTokens);
     return runTokens;
   }

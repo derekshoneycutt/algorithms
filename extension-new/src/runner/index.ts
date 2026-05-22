@@ -18,6 +18,21 @@ export interface RunOptionsState {
 }
 
 /**
+ * Supported runner action kinds routed through run.sh.
+ */
+export type RunnerRunActionKind =
+  | "run-file"
+  | "compile-only"
+  | "check-only"
+  | "clean"
+  | "localclean";
+
+/**
+ * Route override values used for check-only execution.
+ */
+export type RunnerCheckOnlyRoute = "native" | "docker" | "ssh";
+
+/**
  * Partial update payload for run-options state.
  */
 export interface RunOptionsPatch {
@@ -38,6 +53,19 @@ export interface RunnerExecuteRunRequest {
   algorithmDirectoryPath: string;
   targetToken: string;
   targetFilePath: string;
+  languageKey?: string;
+  runId?: string;
+}
+
+/**
+ * Input for one run action request routed through IRunner.
+ */
+export interface RunnerExecuteRunActionRequest {
+  algorithmDirectoryPath: string;
+  actionKind?: RunnerRunActionKind;
+  checkOnlyRouteOverride?: RunnerCheckOnlyRoute;
+  targetToken?: string;
+  targetFilePath?: string;
   languageKey?: string;
   runId?: string;
 }
@@ -74,6 +102,14 @@ export interface IRunner extends vscode.Disposable {
    * @returns {Promise<RunnerExecuteRunResult>} Run execution result.
    */
   executeRun(request: RunnerExecuteRunRequest): Promise<RunnerExecuteRunResult>;
+
+  /**
+   * Executes one run.sh action through the Runner command pipeline.
+   *
+   * @param {RunnerExecuteRunActionRequest} request Run action execution request.
+   * @returns {Promise<RunnerExecuteRunResult>} Run execution result.
+   */
+  executeRunAction(request: RunnerExecuteRunActionRequest): Promise<RunnerExecuteRunResult>;
 
   /**
    * Sends Ctrl+C to the active runner terminal to interrupt a stuck run.

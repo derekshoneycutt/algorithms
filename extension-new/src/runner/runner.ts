@@ -4,6 +4,7 @@ import * as path from "node:path";
 import { assign, createActor, createMachine, type ActorRefFrom } from "xstate";
 import {
   IRunner,
+  type RunnerExecuteRunActionRequest,
   type RunOptionsPatch,
   type RunOptionsState,
   type RunnerExecuteRunRequest,
@@ -173,10 +174,29 @@ export class Runner implements IRunner {
    * @returns {Promise<RunnerExecuteRunResult>} Run execution result.
    */
   public async executeRun(request: RunnerExecuteRunRequest): Promise<RunnerExecuteRunResult> {
+    return await this.executeRunAction({
+      algorithmDirectoryPath: request.algorithmDirectoryPath,
+      actionKind: "run-file",
+      targetToken: request.targetToken,
+      targetFilePath: request.targetFilePath,
+      languageKey: request.languageKey,
+      runId: request.runId,
+    });
+  }
+
+  /**
+   * Executes one run.sh action through the shared RunHandler.
+   *
+   * @param {RunnerExecuteRunActionRequest} request Run action execution request.
+   * @returns {Promise<RunnerExecuteRunResult>} Run execution result.
+   */
+  public async executeRunAction(request: RunnerExecuteRunActionRequest): Promise<RunnerExecuteRunResult> {
     const runHandler = await this.getRunHandler();
 
     return await runHandler.execute({
       algorithmDirectoryPath: request.algorithmDirectoryPath,
+      actionKind: request.actionKind,
+      checkOnlyRouteOverride: request.checkOnlyRouteOverride,
       runOptions: this.getRunOptionsState(),
       languageKey: request.languageKey,
       runId: request.runId,

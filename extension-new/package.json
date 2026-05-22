@@ -83,6 +83,36 @@
         "icon": "$(play)"
       },
       {
+        "command": "algos.algorithmsTreeView.compileImplementationFile",
+        "title": "Compile Only",
+        "icon": "$(tools)"
+      },
+      {
+        "command": "algos.algorithmsTreeView.checkImplementationFileNative",
+        "title": "Check Only (Native)",
+        "icon": "$(pass)"
+      },
+      {
+        "command": "algos.algorithmsTreeView.checkImplementationFileDocker",
+        "title": "Check Only (Docker)",
+        "icon": "$(pass)"
+      },
+      {
+        "command": "algos.algorithmsTreeView.checkImplementationFileSsh",
+        "title": "Check Only (SSH)",
+        "icon": "$(pass)"
+      },
+      {
+        "command": "algos.algorithmsTreeView.cleanImplementation",
+        "title": "Clean",
+        "icon": "$(clear-all)"
+      },
+      {
+        "command": "algos.algorithmsTreeView.localCleanImplementation",
+        "title": "Local Clean",
+        "icon": "$(trash)"
+      },
+      {
         "command": "algos.algorithmsTreeView.stopImplementationRun",
         "title": "Stop Run",
         "icon": "$(debug-stop)"
@@ -151,6 +181,13 @@
         "command": "algos.stdlibTreeView.deleteFile",
         "title": "Delete File",
         "icon": "$(trash)"
+      }
+    ],
+    "submenus": [
+      {
+        "id": "algos.algorithmsTreeView.runActionsSubmenu",
+        "label": "Run Actions",
+        "icon": "$(kebab-vertical)"
       }
     ],
     "menus": {
@@ -226,6 +263,11 @@
           "command": "algos.algorithmsTreeView.addImplementationIncludeFile",
           "when": "view == algos.algorithmsTreeView && algos.environment.editModeEnabled && (viewItem == algorithmImplementationUnflagged || viewItem == algorithmImplementationFlagged || viewItem == algorithmImplementationWithHistoryUnflagged || viewItem == algorithmImplementationWithHistoryFlagged || viewItem == algorithmImplementationBusyCancellableUnflagged || viewItem == algorithmImplementationBusyCancellableFlagged || viewItem == algorithmImplementationBusyUncancellableUnflagged || viewItem == algorithmImplementationBusyUncancellableFlagged)",
           "group": "inline@9.5"
+        },
+        {
+          "submenu": "algos.algorithmsTreeView.runActionsSubmenu",
+          "when": "view == algos.algorithmsTreeView && (viewItem == algorithmImplementationUnflagged || viewItem == algorithmImplementationFlagged || viewItem == algorithmImplementationWithHistoryUnflagged || viewItem == algorithmImplementationWithHistoryFlagged || viewItem == algorithmImplementationBusyCancellableUnflagged || viewItem == algorithmImplementationBusyCancellableFlagged || viewItem == algorithmImplementationBusyUncancellableUnflagged || viewItem == algorithmImplementationBusyUncancellableFlagged)",
+          "group": "inline@99"
         },
         {
           "command": "algos.algorithmsTreeView.flagImplementation",
@@ -316,6 +358,43 @@
           "command": "algos.stdlibTreeView.deleteFile",
           "when": "view == algos.stdlibTreeView && viewItem == stdlibFile && algos.environment.editModeEnabled",
           "group": "inline@10"
+        }
+      ],
+      "algos.algorithmsTreeView.runActionsSubmenu": [
+        {
+          "command": "algos.algorithmsTreeView.runImplementationFile",
+          "when": "view == algos.algorithmsTreeView && (viewItem == algorithmImplementationUnflagged || viewItem == algorithmImplementationFlagged || viewItem == algorithmImplementationWithHistoryUnflagged || viewItem == algorithmImplementationWithHistoryFlagged || viewItem == algorithmImplementationBusyCancellableUnflagged || viewItem == algorithmImplementationBusyCancellableFlagged || viewItem == algorithmImplementationBusyUncancellableUnflagged || viewItem == algorithmImplementationBusyUncancellableFlagged)",
+          "group": "1_run@1"
+        },
+        {
+          "command": "algos.algorithmsTreeView.compileImplementationFile",
+          "when": "view == algos.algorithmsTreeView && (viewItem == algorithmImplementationUnflagged || viewItem == algorithmImplementationFlagged || viewItem == algorithmImplementationWithHistoryUnflagged || viewItem == algorithmImplementationWithHistoryFlagged || viewItem == algorithmImplementationBusyCancellableUnflagged || viewItem == algorithmImplementationBusyCancellableFlagged || viewItem == algorithmImplementationBusyUncancellableUnflagged || viewItem == algorithmImplementationBusyUncancellableFlagged)",
+          "group": "1_run@2"
+        },
+        {
+          "command": "algos.algorithmsTreeView.checkImplementationFileNative",
+          "when": "view == algos.algorithmsTreeView && (viewItem == algorithmImplementationUnflagged || viewItem == algorithmImplementationFlagged || viewItem == algorithmImplementationWithHistoryUnflagged || viewItem == algorithmImplementationWithHistoryFlagged || viewItem == algorithmImplementationBusyCancellableUnflagged || viewItem == algorithmImplementationBusyCancellableFlagged || viewItem == algorithmImplementationBusyUncancellableUnflagged || viewItem == algorithmImplementationBusyUncancellableFlagged)",
+          "group": "1_run@3"
+        },
+        {
+          "command": "algos.algorithmsTreeView.checkImplementationFileDocker",
+          "when": "view == algos.algorithmsTreeView && (viewItem == algorithmImplementationUnflagged || viewItem == algorithmImplementationFlagged || viewItem == algorithmImplementationWithHistoryUnflagged || viewItem == algorithmImplementationWithHistoryFlagged || viewItem == algorithmImplementationBusyCancellableUnflagged || viewItem == algorithmImplementationBusyCancellableFlagged || viewItem == algorithmImplementationBusyUncancellableUnflagged || viewItem == algorithmImplementationBusyUncancellableFlagged)",
+          "group": "1_run@4"
+        },
+        {
+          "command": "algos.algorithmsTreeView.checkImplementationFileSsh",
+          "when": "view == algos.algorithmsTreeView && (viewItem == algorithmImplementationUnflagged || viewItem == algorithmImplementationFlagged || viewItem == algorithmImplementationWithHistoryUnflagged || viewItem == algorithmImplementationWithHistoryFlagged || viewItem == algorithmImplementationBusyCancellableUnflagged || viewItem == algorithmImplementationBusyCancellableFlagged || viewItem == algorithmImplementationBusyUncancellableUnflagged || viewItem == algorithmImplementationBusyUncancellableFlagged)",
+          "group": "1_run@5"
+        },
+        {
+          "command": "algos.algorithmsTreeView.cleanImplementation",
+          "when": "view == algos.algorithmsTreeView && (viewItem == algorithmImplementationUnflagged || viewItem == algorithmImplementationFlagged || viewItem == algorithmImplementationWithHistoryUnflagged || viewItem == algorithmImplementationWithHistoryFlagged || viewItem == algorithmImplementationBusyCancellableUnflagged || viewItem == algorithmImplementationBusyCancellableFlagged || viewItem == algorithmImplementationBusyUncancellableUnflagged || viewItem == algorithmImplementationBusyUncancellableFlagged)",
+          "group": "2_clean@1"
+        },
+        {
+          "command": "algos.algorithmsTreeView.localCleanImplementation",
+          "when": "view == algos.algorithmsTreeView && (viewItem == algorithmImplementationUnflagged || viewItem == algorithmImplementationFlagged || viewItem == algorithmImplementationWithHistoryUnflagged || viewItem == algorithmImplementationWithHistoryFlagged || viewItem == algorithmImplementationBusyCancellableUnflagged || viewItem == algorithmImplementationBusyCancellableFlagged || viewItem == algorithmImplementationBusyUncancellableUnflagged || viewItem == algorithmImplementationBusyUncancellableFlagged)",
+          "group": "2_clean@2"
         }
       ]
     },
