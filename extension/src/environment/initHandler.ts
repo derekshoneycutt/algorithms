@@ -86,10 +86,6 @@ export class InitHandler {
     request?: InitHandlerCheckEnvironmentRequest,
   ): Promise<InitHandlerCheckEnvironmentResult> {
     const args = ["--no-prompt", "--no-icons", "--check-env"];
-    const profilePath = this.normalizeOptionalValue(request?.profilePath);
-    if (profilePath) {
-      args.push(`--update-profile=${profilePath}`);
-    }
 
     try {
       const processResult = await this.runInitScript(args, request?.timeoutMs);
@@ -130,10 +126,6 @@ export class InitHandler {
     request?: InitHandlerCopyIconsRequest,
   ): Promise<InitHandlerCopyIconsResult> {
     const args = ["--no-prompt", "--copy-icons", "--skip-environment"];
-    const profilePath = this.normalizeOptionalValue(request?.profilePath);
-    if (profilePath) {
-      args.push(`--update-profile=${profilePath}`);
-    }
 
     const copyIconsPath = this.normalizeOptionalValue(request?.copyIconsPath);
     if (copyIconsPath) {

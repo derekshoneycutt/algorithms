@@ -2,6 +2,13 @@ import * as vscode from "vscode";
 import { TemplateLoader } from "../shared/templateLoader";
 import { IEnvironment, type EnvironmentControlsPatch, type EnvironmentControlsState } from "../../environment";
 
+type SupportedVariableKey =
+  | "timeout"
+  | "eiffel"
+  | "gcc13Directory"
+  | "gcc13Name"
+  | "gxx13Name";
+
 export const environmentViewId = "algos.environmentView";
 
 const environmentWebviewName = "environment";
@@ -77,7 +84,9 @@ export class EnvironmentWebviewProvider implements vscode.WebviewViewProvider {
       checkEnvFilteredOutput: inboundState.checkEnvFilteredOutput ?? currentState.checkEnvFilteredOutput,
       checkEnvRawOutput: inboundState.checkEnvRawOutput ?? currentState.checkEnvRawOutput,
       copyIconsPath: inboundState.copyIconsPath ?? currentState.copyIconsPath,
-      variables: inboundState.variables ?? currentState.variables,
+      // Variable saves are explicit and handled by a dedicated message.
+      // Ignore generic variable payloads from full-state updates.
+      variables: currentState.variables,
       batchRouting: {
         dockerEnabled: batchRoutingDockerEnabled,
         dockerValue: inboundState.batchRouting?.dockerValue ?? currentState.batchRouting.dockerValue,
@@ -118,7 +127,17 @@ export class EnvironmentWebviewProvider implements vscode.WebviewViewProvider {
       ],
     };
 
-    webviewView.webview.onDidReceiveMessage((message: { type?: string; state?: unknown }) => {
+    webviewView.webview.onDidReceiveMessage((message: {
+      type?: string;
+      state?: unknown;
+      key?: SupportedVariableKey;
+      value?: string;
+      languageKey?: string;
+      dockerEnabled?: boolean;
+      dockerValue?: string;
+      sshEnabled?: boolean;
+      sshValue?: string;
+    }) => {
       if (message.type === "environment-webview-ready") {
         webviewView.webview.postMessage({
           type: "environment-controls-state",
@@ -134,6 +153,55 @@ export class EnvironmentWebviewProvider implements vscode.WebviewViewProvider {
 
       if (message.type === "environment-run-copy-icons") {
         void this.environment.runCopyIcons();
+        return;
+      }
+
+      if (message.type === "environment-save-variable") {
+        if (typeof message.key !== "string" || typeof message.value !== "string") {
+          return;
+        }
+
+        void this.environment.saveEnvironmentVariable(message.key, message.value);
+        return;
+      }
+
+      if (message.type === "environment-save-routing-entry") {
+        if (
+          typeof message.languageKey !== "string"
+          || typeof message.dockerEnabled !== "boolean"
+          || typeof message.dockerValue !== "string"
+          || typeof message.sshEnabled !== "boolean"
+          || typeof message.sshValue !== "string"
+        ) {
+          return;
+        }
+
+        void this.environment.saveRoutingEntry(
+          message.languageKey,
+          message.dockerEnabled,
+          message.dockerValue,
+          message.sshEnabled,
+          message.sshValue,
+        );
+        return;
+      }
+
+      if (message.type === "environment-save-batch-routing") {
+        if (
+          typeof message.dockerEnabled !== "boolean"
+          || typeof message.dockerValue !== "string"
+          || typeof message.sshEnabled !== "boolean"
+          || typeof message.sshValue !== "string"
+        ) {
+          return;
+        }
+
+        void this.environment.saveBatchRouting(
+          message.dockerEnabled,
+          message.dockerValue,
+          message.sshEnabled,
+          message.sshValue,
+        );
         return;
       }
 

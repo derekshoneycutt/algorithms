@@ -58,6 +58,20 @@ export interface EnvironmentControlsViewState {
 export interface EnvironmentActionHandlers {
   onCheckEnvironment: () => void;
   onCopyIcons: () => void;
+  onSaveVariable: (key: SupportedVariableKey, value: string) => void;
+  onSaveRoutingEntry: (
+    languageKey: string,
+    dockerEnabled: boolean,
+    dockerValue: string,
+    sshEnabled: boolean,
+    sshValue: string,
+  ) => void;
+  onSaveBatchRouting: (
+    dockerEnabled: boolean,
+    dockerValue: string,
+    sshEnabled: boolean,
+    sshValue: string,
+  ) => void;
 }
 
 export interface IEnvironmentControlsSectionComponent {

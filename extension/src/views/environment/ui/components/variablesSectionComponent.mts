@@ -4,6 +4,7 @@ import { html, type TemplateResult } from "lit";
 
 import { renderSectionHeader } from "./sectionHeader.mjs";
 import type {
+  EnvironmentActionHandlers,
   EnvironmentControlsViewState,
   EnvironmentVariableState,
   IEnvironmentControlsSectionComponent,
@@ -13,16 +14,23 @@ export class VariablesSectionComponent implements IEnvironmentControlsSectionCom
   private readonly state: EnvironmentControlsViewState;
 
   private readonly requestRender: () => void;
+  private readonly onSaveVariable: EnvironmentActionHandlers["onSaveVariable"];
 
   /**
    * Creates a variables section component.
    *
    * @param {EnvironmentControlsViewState} state Shared view state.
    * @param {() => void} requestRender Callback to trigger rerender.
+   * @param {EnvironmentActionHandlers["onSaveVariable"]} onSaveVariable Callback to save one variable.
    */
-  public constructor(state: EnvironmentControlsViewState, requestRender: () => void) {
+  public constructor(
+    state: EnvironmentControlsViewState,
+    requestRender: () => void,
+    onSaveVariable: EnvironmentActionHandlers["onSaveVariable"],
+  ) {
     this.state = state;
     this.requestRender = requestRender;
+    this.onSaveVariable = onSaveVariable;
   }
 
   /**
@@ -57,10 +65,18 @@ export class VariablesSectionComponent implements IEnvironmentControlsSectionCom
                 };
               });
 
-              this.requestRender();
             }}
           />
-          <button class="button" type="button">Save</button>
+          <button
+            class="button"
+            type="button"
+            @click=${() => {
+              this.onSaveVariable(variable.key, variable.value);
+              this.requestRender();
+            }}
+          >
+            Save
+          </button>
         </div>
       </div>
     `;

@@ -146,6 +146,49 @@ export interface IEnvironment extends vscode.Disposable {
   runCopyIcons(): Promise<InitHandlerCopyIconsResult>;
 
   /**
+   * Saves one environment variable value without modifying any other variable rows.
+   *
+   * @param {EnvironmentVariableKey} key Variable key to update.
+   * @param {string} value Variable value to store.
+    * @returns {Promise<void>} Resolves when the variable save operation completes.
+   */
+    saveEnvironmentVariable(key: EnvironmentVariableKey, value: string): Promise<void>;
+
+    /**
+     * Saves routing values for one language key.
+     *
+     * @param {string} languageKey Language key to update.
+     * @param {boolean} dockerEnabled Whether docker routing is enabled.
+     * @param {string} dockerValue Docker routing value.
+     * @param {boolean} sshEnabled Whether SSH routing is enabled.
+     * @param {string} sshValue SSH routing value.
+     * @returns {Promise<void>} Resolves when the routing save operation completes.
+     */
+    saveRoutingEntry(
+      languageKey: string,
+      dockerEnabled: boolean,
+      dockerValue: string,
+      sshEnabled: boolean,
+      sshValue: string,
+    ): Promise<void>;
+
+    /**
+     * Saves batch routing values across all supported languages.
+     *
+     * @param {boolean} dockerEnabled Whether docker routing is enabled.
+     * @param {string} dockerValue Docker routing value.
+     * @param {boolean} sshEnabled Whether SSH routing is enabled.
+     * @param {string} sshValue SSH routing value.
+     * @returns {Promise<void>} Resolves when batch routing save completes.
+     */
+    saveBatchRouting(
+      dockerEnabled: boolean,
+      dockerValue: string,
+      sshEnabled: boolean,
+      sshValue: string,
+    ): Promise<void>;
+
+  /**
    * Subscribes to environment-controls state changes.
    *
    * @param {(state: EnvironmentControlsState) => void} listener Listener invoked on state changes.

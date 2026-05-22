@@ -6,6 +6,7 @@ import {
   IEnvironment,
   type EnvironmentControlsPatch,
   type EnvironmentControlsState,
+  type EnvironmentVariableKey,
   type EnvironmentRoutingLanguageState,
 } from ".";
 import {
@@ -13,8 +14,25 @@ import {
   type InitHandlerCheckEnvironmentResult,
   type InitHandlerCopyIconsResult,
 } from "./initHandler";
-import { ProfileHandler, type ParsedAlgorithmsProfile } from "./profileHandler";
+import {
+  ProfileHandler,
+  type AlgorithmsProfileWritableValues,
+  type ParsedAlgorithmsProfile,
+} from "./profileHandler";
 import { ILanguages, type ISupportedLanguage } from "../languages";
+
+const profileWritableKeyByEnvironmentKey: Record<EnvironmentVariableKey, keyof AlgorithmsProfileWritableValues> = {
+  timeout: "timeout",
+  eiffel: "eiffel",
+  gcc13Directory: "gcc13Directory",
+  gcc13Name: "gcc13Name",
+  gxx13Name: "gxx13Name",
+};
+
+interface ParsedRouteToken {
+  raw: string;
+  key: string | null;
+}
 
 interface EnvironmentControlsEvent {
   type: "patch";
@@ -23,6 +41,20 @@ interface EnvironmentControlsEvent {
 
 interface EnvironmentToggleEditModeEvent {
   type: "toggle-edit-mode";
+}
+
+/**
+ * Returns whether one unknown error is an ENOENT-style file-not-found error.
+ *
+ * @param {unknown} error Candidate error value.
+ * @returns {boolean} True when the error indicates a missing file.
+ */
+function isFileNotFoundError(error: unknown): boolean {
+  if (!(error instanceof Error)) {
+    return false;
+  }
+
+  return String((error as NodeJS.ErrnoException).code || "") === "ENOENT";
 }
 
 /**
@@ -95,6 +127,7 @@ export class Environment implements IEnvironment {
   private initHandler: InitHandler | undefined;
   private extensionContext: vscode.ExtensionContext | undefined;
   private isHydrating: boolean;
+  private isInitialized: boolean;
 
   /**
    * Creates the Environment actor and starts state updates.
@@ -107,6 +140,7 @@ export class Environment implements IEnvironment {
     this.initHandler = undefined;
     this.extensionContext = undefined;
     this.isHydrating = false;
+    this.isInitialized = false;
     this.languagesDataChangeSubscription = this.languages.subscribeToDataChanges(() => {
       void this.syncRoutingEntriesFromCurrentProfile();
     });
@@ -114,13 +148,12 @@ export class Environment implements IEnvironment {
     this.environmentControlsActor.start();
     this.environmentControlsActorSubscription = this.environmentControlsActor.subscribe(() => {
       const environmentControlsState = this.environmentControlsActor.getSnapshot().context;
-      if (this.isHydrating) {
+      if (this.isHydrating || !this.extensionContext || !this.isInitialized) {
         this.onDidChangeEnvironmentControlsEmitter.fire(environmentControlsState);
         return;
       }
 
       this.persistEnvironmentControlsState(environmentControlsState);
-      void this.persistProfileBackedState(environmentControlsState);
       this.onDidChangeEnvironmentControlsEmitter.fire(environmentControlsState);
     });
   }
@@ -208,14 +241,10 @@ export class Environment implements IEnvironment {
    * @returns {Promise<InitHandlerCheckEnvironmentResult>} Check-environment result.
    */
   public async runCheckEnvironment(): Promise<InitHandlerCheckEnvironmentResult> {
-    const currentState = this.getEnvironmentControlsState();
-
     let result: InitHandlerCheckEnvironmentResult;
     try {
       const initHandler = await this.getInitHandler();
-      result = await initHandler.checkEnvironment({
-        profilePath: currentState.profilePath,
-      });
+      result = await initHandler.checkEnvironment();
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : String(error);
       result = {
@@ -246,7 +275,6 @@ export class Environment implements IEnvironment {
     try {
       const initHandler = await this.getInitHandler();
       return await initHandler.copyIcons({
-        profilePath: currentState.profilePath,
         copyIconsPath: currentState.copyIconsPath,
       });
     } catch (error) {
@@ -258,6 +286,175 @@ export class Environment implements IEnvironment {
         exitCode: null,
       };
     }
+  }
+
+  /**
+   * Saves one environment variable while reloading all other managed values from profile first.
+   *
+   * @param {EnvironmentVariableKey} key Variable key to save.
+   * @param {string} value Variable value to save.
+   * @returns {Promise<void>} Resolves when the profile write and state patch are complete.
+   */
+  public async saveEnvironmentVariable(key: EnvironmentVariableKey, value: string): Promise<void> {
+    const currentState = this.getEnvironmentControlsState();
+    const effectiveProfilePath = this.profileHandler.resolveEffectiveProfilePath(currentState.profilePath);
+    const existingProfileText = await this.readProfileText(effectiveProfilePath);
+    const parsedProfile = this.profileHandler.parseAlgorithmsProfile(existingProfileText);
+    const routingEntries = await this.createLanguageRoutingEntries(parsedProfile);
+    const variablesFromProfile = this.profileHandler.applyProfileValuesToVariables(
+      currentState.variables,
+      parsedProfile.values,
+    );
+
+    const variables = variablesFromProfile.map((variable) => {
+      if (variable.key !== key) {
+        return variable;
+      }
+
+      return {
+        ...variable,
+        value,
+      };
+    });
+
+    const writableValues = this.createWritableValuesFromParsedProfile(parsedProfile);
+    writableValues[profileWritableKeyByEnvironmentKey[key]] = value;
+    const updatedProfileText = this.profileHandler.upsertAlgorithmsProfileBlock(existingProfileText, writableValues);
+    await fs.writeFile(effectiveProfilePath, updatedProfileText, "utf8");
+
+    this.patchEnvironmentControls({
+      effectiveProfilePath,
+      variables,
+      routingEntries,
+    });
+  }
+
+  /**
+   * Saves routing values for one language while preserving all other route tokens.
+   *
+   * @param {string} languageKey Language key to save.
+   * @param {boolean} dockerEnabled Whether docker routing is enabled.
+   * @param {string} dockerValue Docker routing value.
+   * @param {boolean} sshEnabled Whether SSH routing is enabled.
+   * @param {string} sshValue SSH routing value.
+   * @returns {Promise<void>} Resolves when profile write and state patch are complete.
+   */
+  public async saveRoutingEntry(
+    languageKey: string,
+    dockerEnabled: boolean,
+    dockerValue: string,
+    sshEnabled: boolean,
+    sshValue: string,
+  ): Promise<void> {
+    const normalizedLanguageKey = String(languageKey || "").trim().toLowerCase();
+    if (normalizedLanguageKey.length === 0) {
+      return;
+    }
+
+    const currentState = this.getEnvironmentControlsState();
+    const effectiveProfilePath = this.profileHandler.resolveEffectiveProfilePath(currentState.profilePath);
+    const existingProfileText = await this.readProfileText(effectiveProfilePath);
+    const parsedProfile = this.profileHandler.parseAlgorithmsProfile(existingProfileText);
+    const routingEntriesFromProfile = await this.createLanguageRoutingEntries(parsedProfile);
+    const routingEntries = routingEntriesFromProfile.map((entry) => {
+      if (entry.languageKey !== normalizedLanguageKey) {
+        return entry;
+      }
+
+      return {
+        ...entry,
+        dockerEnabled,
+        dockerValue,
+        sshEnabled,
+        sshValue,
+        isConflict: dockerEnabled && sshEnabled,
+      };
+    });
+
+    const writableValues = this.createWritableValuesFromParsedProfile(parsedProfile);
+    writableValues.dockerMapText = this.upsertRouteMapEntry(
+      parsedProfile.values.dockerMapText.value,
+      normalizedLanguageKey,
+      dockerEnabled,
+      dockerValue,
+    );
+    writableValues.sshMapText = this.upsertRouteMapEntry(
+      parsedProfile.values.sshMapText.value,
+      normalizedLanguageKey,
+      sshEnabled,
+      sshValue,
+    );
+
+    const updatedProfileText = this.profileHandler.upsertAlgorithmsProfileBlock(existingProfileText, writableValues);
+    await fs.writeFile(effectiveProfilePath, updatedProfileText, "utf8");
+
+    this.patchEnvironmentControls({
+      effectiveProfilePath,
+      routingEntries,
+    });
+  }
+
+  /**
+   * Saves batch routing values across all supported languages and preserves unknown tokens.
+   *
+   * @param {boolean} dockerEnabled Whether docker routing is enabled.
+   * @param {string} dockerValue Docker routing value.
+   * @param {boolean} sshEnabled Whether SSH routing is enabled.
+   * @param {string} sshValue SSH routing value.
+   * @returns {Promise<void>} Resolves when profile write and state patch are complete.
+   */
+  public async saveBatchRouting(
+    dockerEnabled: boolean,
+    dockerValue: string,
+    sshEnabled: boolean,
+    sshValue: string,
+  ): Promise<void> {
+    const currentState = this.getEnvironmentControlsState();
+    const effectiveProfilePath = this.profileHandler.resolveEffectiveProfilePath(currentState.profilePath);
+    const existingProfileText = await this.readProfileText(effectiveProfilePath);
+    const parsedProfile = this.profileHandler.parseAlgorithmsProfile(existingProfileText);
+    const routingEntriesFromProfile = await this.createLanguageRoutingEntries(parsedProfile);
+    const supportedLanguageKeys = routingEntriesFromProfile.map((entry) => entry.languageKey);
+
+    const routingEntries = routingEntriesFromProfile.map((entry) => {
+      return {
+        ...entry,
+        dockerEnabled,
+        dockerValue,
+        sshEnabled,
+        sshValue,
+        isConflict: dockerEnabled && sshEnabled,
+      };
+    });
+
+    const writableValues = this.createWritableValuesFromParsedProfile(parsedProfile);
+    writableValues.dockerMapText = this.upsertRouteMapForLanguages(
+      parsedProfile.values.dockerMapText.value,
+      supportedLanguageKeys,
+      dockerEnabled,
+      dockerValue,
+    );
+    writableValues.sshMapText = this.upsertRouteMapForLanguages(
+      parsedProfile.values.sshMapText.value,
+      supportedLanguageKeys,
+      sshEnabled,
+      sshValue,
+    );
+
+    const updatedProfileText = this.profileHandler.upsertAlgorithmsProfileBlock(existingProfileText, writableValues);
+    await fs.writeFile(effectiveProfilePath, updatedProfileText, "utf8");
+
+    this.patchEnvironmentControls({
+      effectiveProfilePath,
+      batchRouting: {
+        dockerEnabled,
+        dockerValue,
+        sshEnabled,
+        sshValue,
+        isConflict: dockerEnabled && sshEnabled,
+      },
+      routingEntries,
+    });
   }
 
   /**
@@ -324,6 +521,7 @@ export class Environment implements IEnvironment {
       },
     });
     this.isHydrating = false;
+    this.isInitialized = true;
 
     const finalState = this.getEnvironmentControlsState();
     this.persistEnvironmentControlsState(finalState);
@@ -360,7 +558,11 @@ export class Environment implements IEnvironment {
 
     try {
       profileText = await fs.readFile(effectiveProfilePath, "utf8");
-    } catch {
+    } catch (error) {
+      if (!isFileNotFoundError(error)) {
+        throw error;
+      }
+
       profileText = "";
     }
 
@@ -514,33 +716,144 @@ export class Environment implements IEnvironment {
   }
 
   /**
-   * Persists profile-backed environment values to the managed shell-profile block.
+   * Reads profile text from disk and returns an empty body when the file is missing.
    *
-   * @param {EnvironmentControlsState} state Current environment controls state.
-   * @returns {Promise<void>} Resolves when profile values are persisted.
+   * @param {string} effectiveProfilePath Effective profile path.
+   * @returns {Promise<string>} Profile text content.
    */
-  private async persistProfileBackedState(state: EnvironmentControlsState): Promise<void> {
-    const effectiveProfilePath = this.profileHandler.resolveEffectiveProfilePath(state.profilePath);
-
-    let existingProfileText = "";
+  private async readProfileText(effectiveProfilePath: string): Promise<string> {
     try {
-      existingProfileText = await fs.readFile(effectiveProfilePath, "utf8");
-    } catch {
-      existingProfileText = "";
-    }
+      return await fs.readFile(effectiveProfilePath, "utf8");
+    } catch (error) {
+      if (!isFileNotFoundError(error)) {
+        throw error;
+      }
 
-    const updatedProfileText = this.profileHandler.upsertAlgorithmsProfileBlock(
-      existingProfileText,
-      this.profileHandler.createProfileWritableValues(state),
-    );
-
-    await fs.writeFile(effectiveProfilePath, updatedProfileText, "utf8");
-
-    const currentState = this.getEnvironmentControlsState();
-    if (currentState.effectiveProfilePath !== effectiveProfilePath) {
-      this.patchEnvironmentControls({
-        effectiveProfilePath,
-      });
+      return "";
     }
   }
+
+  /**
+   * Creates writable profile values from one parsed managed-profile snapshot.
+   *
+   * @param {ParsedAlgorithmsProfile} parsedProfile Parsed profile snapshot.
+   * @returns {AlgorithmsProfileWritableValues} Writable profile values initialized from file state.
+   */
+  private createWritableValuesFromParsedProfile(
+    parsedProfile: ParsedAlgorithmsProfile,
+  ): AlgorithmsProfileWritableValues {
+    return {
+      timeout: parsedProfile.values.timeout.value,
+      eiffel: parsedProfile.values.eiffel.value,
+      gcc13Directory: parsedProfile.values.gcc13Directory.value,
+      gcc13Name: parsedProfile.values.gcc13Name.value,
+      gxx13Name: parsedProfile.values.gxx13Name.value,
+      dockerMapText: parsedProfile.values.dockerMapText.value,
+      sshMapText: parsedProfile.values.sshMapText.value,
+    };
+  }
+
+  /**
+   * Replaces one routing-map entry while preserving untouched tokens.
+   *
+   * @param {string} mapText Existing map text.
+   * @param {string} languageKey Target language key.
+   * @param {boolean} enabled Whether the route entry should be present.
+   * @param {string} value Route value.
+   * @returns {string} Updated map text.
+   */
+  private upsertRouteMapEntry(
+    mapText: string,
+    languageKey: string,
+    enabled: boolean,
+    value: string,
+  ): string {
+    const normalizedLanguageKey = String(languageKey || "").trim().toLowerCase();
+    const normalizedValue = String(value || "").trim();
+    const tokens = this.parseRouteTokens(mapText)
+      .filter((token) => token.key !== normalizedLanguageKey)
+      .map((token) => token.raw);
+
+    if (enabled && normalizedValue.length > 0 && normalizedLanguageKey.length > 0) {
+      tokens.push(`${normalizedLanguageKey}=${normalizedValue}`);
+    }
+
+    return tokens.join(" ");
+  }
+
+  /**
+   * Replaces routing-map entries for one language set while preserving untouched tokens.
+   *
+   * @param {string} mapText Existing map text.
+   * @param {string[]} languageKeys Language keys to replace.
+   * @param {boolean} enabled Whether route entries should be present.
+   * @param {string} value Route value.
+   * @returns {string} Updated map text.
+   */
+  private upsertRouteMapForLanguages(
+    mapText: string,
+    languageKeys: string[],
+    enabled: boolean,
+    value: string,
+  ): string {
+    const normalizedKeys = new Set(languageKeys.map((key) => String(key || "").trim().toLowerCase()));
+    const normalizedValue = String(value || "").trim();
+    const tokens = this.parseRouteTokens(mapText)
+      .filter((token) => {
+        return token.key === null || !normalizedKeys.has(token.key);
+      })
+      .map((token) => token.raw);
+
+    if (enabled && normalizedValue.length > 0) {
+      for (const languageKey of normalizedKeys) {
+        if (languageKey.length === 0) {
+          continue;
+        }
+
+        tokens.push(`${languageKey}=${normalizedValue}`);
+      }
+    }
+
+    return tokens.join(" ");
+  }
+
+  /**
+   * Parses whitespace-delimited route-map tokens and extracts key names when valid.
+   *
+   * @param {string} mapText Existing route-map text.
+   * @returns {ParsedRouteToken[]} Parsed route tokens.
+   */
+  private parseRouteTokens(mapText: string): ParsedRouteToken[] {
+    const normalizedMapText = String(mapText || "").trim();
+    if (normalizedMapText.length === 0) {
+      return [];
+    }
+
+    return normalizedMapText
+      .split(/\s+/)
+      .filter((token) => token.length > 0)
+      .map((rawToken) => {
+        const separatorIndex = rawToken.indexOf("=");
+        if (separatorIndex <= 0) {
+          return {
+            raw: rawToken,
+            key: null,
+          };
+        }
+
+        const rawKey = rawToken.slice(0, separatorIndex).trim().toLowerCase();
+        if (rawKey.length === 0) {
+          return {
+            raw: rawToken,
+            key: null,
+          };
+        }
+
+        return {
+          raw: rawToken,
+          key: rawKey,
+        };
+      });
+  }
+
 }

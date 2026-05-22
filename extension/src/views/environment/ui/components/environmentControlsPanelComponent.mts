@@ -55,8 +55,17 @@ export class EnvironmentControlsPanelComponent {
       requestRender,
       actionHandlers.onCopyIcons,
     );
-    this.variablesSectionComponent = new VariablesSectionComponent(state, requestRender);
-    this.languageRoutingSectionComponent = new LanguageRoutingSectionComponent(state, requestRender);
+    this.variablesSectionComponent = new VariablesSectionComponent(
+      state,
+      requestRender,
+      actionHandlers.onSaveVariable,
+    );
+    this.languageRoutingSectionComponent = new LanguageRoutingSectionComponent(
+      state,
+      requestRender,
+      actionHandlers.onSaveRoutingEntry,
+      actionHandlers.onSaveBatchRouting,
+    );
   }
 
   /**

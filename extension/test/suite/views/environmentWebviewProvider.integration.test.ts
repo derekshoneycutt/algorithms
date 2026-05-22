@@ -68,6 +68,20 @@ describe("EnvironmentWebviewProvider integration", () => {
   let resolveCount = 0;
   let runCheckEnvironmentCalls = 0;
   let runCopyIconsCalls = 0;
+  let saveEnvironmentVariableCalls: Array<{ key: string; value: string }> = [];
+  let saveRoutingEntryCalls: Array<{
+    languageKey: string;
+    dockerEnabled: boolean;
+    dockerValue: string;
+    sshEnabled: boolean;
+    sshValue: string;
+  }> = [];
+  let saveBatchRoutingCalls: Array<{
+    dockerEnabled: boolean;
+    dockerValue: string;
+    sshEnabled: boolean;
+    sshValue: string;
+  }> = [];
   let patchEnvironmentControlsCalls: unknown[];
 
   beforeEach(() => {
@@ -78,6 +92,9 @@ describe("EnvironmentWebviewProvider integration", () => {
     resolveCount = 0;
     runCheckEnvironmentCalls = 0;
     runCopyIconsCalls = 0;
+    saveEnvironmentVariableCalls = [];
+    saveRoutingEntryCalls = [];
+    saveBatchRoutingCalls = [];
     patchEnvironmentControlsCalls = [];
   });
 
@@ -151,6 +168,20 @@ describe("EnvironmentWebviewProvider integration", () => {
         getEnvironmentControlsState: () => EnvironmentStateShape;
         runCheckEnvironment: () => Promise<void>;
         runCopyIcons: () => Promise<void>;
+        saveEnvironmentVariable: (key: string, value: string) => Promise<void>;
+        saveRoutingEntry: (
+          languageKey: string,
+          dockerEnabled: boolean,
+          dockerValue: string,
+          sshEnabled: boolean,
+          sshValue: string,
+        ) => Promise<void>;
+        saveBatchRouting: (
+          dockerEnabled: boolean,
+          dockerValue: string,
+          sshEnabled: boolean,
+          sshValue: string,
+        ) => Promise<void>;
         patchEnvironmentControls: (patch: unknown) => void;
       }) => {
         resolveWebviewView: (webviewView: unknown) => Promise<void>;
@@ -165,6 +196,26 @@ describe("EnvironmentWebviewProvider integration", () => {
       },
       runCopyIcons: async () => {
         runCopyIconsCalls += 1;
+      },
+      saveEnvironmentVariable: async (key, value) => {
+        saveEnvironmentVariableCalls.push({ key, value });
+      },
+      saveRoutingEntry: async (languageKey, dockerEnabled, dockerValue, sshEnabled, sshValue) => {
+        saveRoutingEntryCalls.push({
+          languageKey,
+          dockerEnabled,
+          dockerValue,
+          sshEnabled,
+          sshValue,
+        });
+      },
+      saveBatchRouting: async (dockerEnabled, dockerValue, sshEnabled, sshValue) => {
+        saveBatchRoutingCalls.push({
+          dockerEnabled,
+          dockerValue,
+          sshEnabled,
+          sshValue,
+        });
       },
       patchEnvironmentControls: (patch) => {
         patchEnvironmentControlsCalls.push(patch);
@@ -209,8 +260,38 @@ describe("EnvironmentWebviewProvider integration", () => {
 
     updateCallback?.({ type: "environment-run-check-environment" });
     updateCallback?.({ type: "environment-run-copy-icons" });
+    updateCallback?.({ type: "environment-save-variable", key: "timeout", value: "15s" });
+    updateCallback?.({
+      type: "environment-save-routing-entry",
+      languageKey: "python",
+      dockerEnabled: true,
+      dockerValue: "code-runner",
+      sshEnabled: false,
+      sshValue: "",
+    });
+    updateCallback?.({
+      type: "environment-save-batch-routing",
+      dockerEnabled: false,
+      dockerValue: "",
+      sshEnabled: true,
+      sshValue: "vm|/code|run.sh",
+    });
     assert.strictEqual(runCheckEnvironmentCalls, 1);
     assert.strictEqual(runCopyIconsCalls, 1);
+    assert.deepStrictEqual(saveEnvironmentVariableCalls, [{ key: "timeout", value: "15s" }]);
+    assert.deepStrictEqual(saveRoutingEntryCalls, [{
+      languageKey: "python",
+      dockerEnabled: true,
+      dockerValue: "code-runner",
+      sshEnabled: false,
+      sshValue: "",
+    }]);
+    assert.deepStrictEqual(saveBatchRoutingCalls, [{
+      dockerEnabled: false,
+      dockerValue: "",
+      sshEnabled: true,
+      sshValue: "vm|/code|run.sh",
+    }]);
 
     updateCallback?.({
       type: "environment-controls-update",

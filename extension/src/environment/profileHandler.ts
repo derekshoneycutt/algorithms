@@ -245,6 +245,14 @@ export class ProfileHandler {
   public resolveEffectiveProfilePath(profilePath: string): string {
     const trimmedProfilePath = String(profilePath || "").trim();
     if (trimmedProfilePath.length > 0) {
+      if (trimmedProfilePath === "~") {
+        return this.homeDirectory;
+      }
+
+      if (trimmedProfilePath.startsWith("~/")) {
+        return path.join(this.homeDirectory, trimmedProfilePath.slice(2));
+      }
+
       return trimmedProfilePath;
     }
 

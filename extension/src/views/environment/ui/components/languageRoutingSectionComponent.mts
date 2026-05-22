@@ -4,6 +4,7 @@ import { html, nothing, type TemplateResult } from "lit";
 
 import { renderSectionHeader } from "./sectionHeader.mjs";
 import type {
+  EnvironmentActionHandlers,
   EnvironmentControlsViewState,
   EnvironmentRoutingLanguageState,
   IEnvironmentControlsSectionComponent,
@@ -13,16 +14,27 @@ export class LanguageRoutingSectionComponent implements IEnvironmentControlsSect
   private readonly state: EnvironmentControlsViewState;
 
   private readonly requestRender: () => void;
+  private readonly onSaveRoutingEntry: EnvironmentActionHandlers["onSaveRoutingEntry"];
+  private readonly onSaveBatchRouting: EnvironmentActionHandlers["onSaveBatchRouting"];
 
   /**
    * Creates a language-routing section component.
    *
    * @param {EnvironmentControlsViewState} state Shared view state.
    * @param {() => void} requestRender Callback to trigger rerender.
+   * @param {EnvironmentActionHandlers["onSaveRoutingEntry"]} onSaveRoutingEntry Callback to save one routing entry.
+   * @param {EnvironmentActionHandlers["onSaveBatchRouting"]} onSaveBatchRouting Callback to save batch routing.
    */
-  public constructor(state: EnvironmentControlsViewState, requestRender: () => void) {
+  public constructor(
+    state: EnvironmentControlsViewState,
+    requestRender: () => void,
+    onSaveRoutingEntry: EnvironmentActionHandlers["onSaveRoutingEntry"],
+    onSaveBatchRouting: EnvironmentActionHandlers["onSaveBatchRouting"],
+  ) {
     this.state = state;
     this.requestRender = requestRender;
+    this.onSaveRoutingEntry = onSaveRoutingEntry;
+    this.onSaveBatchRouting = onSaveBatchRouting;
   }
 
   /**
@@ -195,7 +207,21 @@ export class LanguageRoutingSectionComponent implements IEnvironmentControlsSect
             }}
           />
           <div class="buttonRow">
-            <button class="button" type="button">Save</button>
+            <button
+              class="button"
+              type="button"
+              @click=${() => {
+                this.onSaveRoutingEntry(
+                  entry.languageKey,
+                  entry.dockerEnabled,
+                  entry.dockerValue,
+                  entry.sshEnabled,
+                  entry.sshValue,
+                );
+              }}
+            >
+              Save
+            </button>
           </div>
         </div>
       </details>
@@ -291,6 +317,12 @@ export class LanguageRoutingSectionComponent implements IEnvironmentControlsSect
             type="button"
             @click=${() => {
               this.applyBatchRoutingToAllEntries();
+              this.onSaveBatchRouting(
+                this.state.batchRouting.dockerEnabled,
+                this.state.batchRouting.dockerValue,
+                this.state.batchRouting.sshEnabled,
+                this.state.batchRouting.sshValue,
+              );
             }}
           >
             Save

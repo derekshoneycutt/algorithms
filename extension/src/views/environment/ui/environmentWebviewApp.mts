@@ -3,7 +3,7 @@
 import { html, render, type TemplateResult } from "lit";
 import { Debouncer } from "../../shared/ui/debouncer.mjs";
 import { EnvironmentControlsPanelComponent } from "./components/environmentControlsPanelComponent.mjs";
-import type { EnvironmentControlsViewState } from "./components/types.mjs";
+import type { EnvironmentControlsViewState, SupportedVariableKey } from "./components/types.mjs";
 
 const appRootId = "environment-webview-app";
 declare function acquireVsCodeApi(): {
@@ -33,6 +33,29 @@ interface EnvironmentRunCheckEnvironmentMessage {
 
 interface EnvironmentRunCopyIconsMessage {
   type: "environment-run-copy-icons";
+}
+
+interface EnvironmentSaveVariableMessage {
+  type: "environment-save-variable";
+  key: SupportedVariableKey;
+  value: string;
+}
+
+interface EnvironmentSaveRoutingEntryMessage {
+  type: "environment-save-routing-entry";
+  languageKey: string;
+  dockerEnabled: boolean;
+  dockerValue: string;
+  sshEnabled: boolean;
+  sshValue: string;
+}
+
+interface EnvironmentSaveBatchRoutingMessage {
+  type: "environment-save-batch-routing";
+  dockerEnabled: boolean;
+  dockerValue: string;
+  sshEnabled: boolean;
+  sshValue: string;
 }
 
 const initialEnvironmentControlsViewState: EnvironmentControlsViewState = {
@@ -109,6 +132,49 @@ class EnvironmentWebviewApp {
           const message: EnvironmentRunCopyIconsMessage = {
             type: "environment-run-copy-icons",
           };
+          vscodeApi.postMessage(message);
+        },
+        onSaveVariable: (key: SupportedVariableKey, value: string) => {
+          const message: EnvironmentSaveVariableMessage = {
+            type: "environment-save-variable",
+            key,
+            value,
+          };
+
+          vscodeApi.postMessage(message);
+        },
+        onSaveRoutingEntry: (
+          languageKey: string,
+          dockerEnabled: boolean,
+          dockerValue: string,
+          sshEnabled: boolean,
+          sshValue: string,
+        ) => {
+          const message: EnvironmentSaveRoutingEntryMessage = {
+            type: "environment-save-routing-entry",
+            languageKey,
+            dockerEnabled,
+            dockerValue,
+            sshEnabled,
+            sshValue,
+          };
+
+          vscodeApi.postMessage(message);
+        },
+        onSaveBatchRouting: (
+          dockerEnabled: boolean,
+          dockerValue: string,
+          sshEnabled: boolean,
+          sshValue: string,
+        ) => {
+          const message: EnvironmentSaveBatchRoutingMessage = {
+            type: "environment-save-batch-routing",
+            dockerEnabled,
+            dockerValue,
+            sshEnabled,
+            sshValue,
+          };
+
           vscodeApi.postMessage(message);
         },
       },

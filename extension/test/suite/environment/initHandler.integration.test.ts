@@ -40,9 +40,7 @@ describe("InitHandler integration", () => {
     ].join("\n")), "utf8");
 
     const handler = new InitHandler(tempRootPath);
-    const result = await handler.checkEnvironment({
-      profilePath: " ~/.bash_profile ",
-    });
+    const result = await handler.checkEnvironment();
 
     assert.strictEqual(result.kind, "ok");
     assert.strictEqual(result.exitCode, 0);
@@ -67,7 +65,7 @@ describe("InitHandler integration", () => {
     assert.strictEqual(result.filteredOutput.includes("ERROR: bad env"), true);
   });
 
-  it("copyIcons forwards profile and icon path args", async () => {
+  it("copyIcons forwards icon path arg without profile updates", async () => {
     const initScriptPath = path.join(tempRootPath, "init.sh");
     await fs.writeFile(initScriptPath, makeInitScriptContent([
       "echo \"$@\"",
@@ -76,7 +74,6 @@ describe("InitHandler integration", () => {
 
     const handler = new InitHandler(tempRootPath);
     const result = await handler.copyIcons({
-      profilePath: " ~/.zprofile ",
       copyIconsPath: " ./icons-copy ",
     });
 
@@ -84,7 +81,7 @@ describe("InitHandler integration", () => {
     assert.strictEqual(result.exitCode, 0);
     assert.strictEqual(result.rawOutput.includes("--copy-icons"), true);
     assert.strictEqual(result.rawOutput.includes("--skip-environment"), true);
-    assert.strictEqual(result.rawOutput.includes("--update-profile=~/.zprofile"), true);
+    assert.strictEqual(result.rawOutput.includes("--update-profile="), false);
     assert.strictEqual(result.rawOutput.includes("--icons-to=./icons-copy"), true);
   });
 

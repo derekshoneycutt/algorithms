@@ -75,7 +75,6 @@ describe("InitHandler edge integration", () => {
 
     const handler = new InitHandler(tempRootPath);
     const result = await handler.copyIcons({
-      profilePath: "   ",
       copyIconsPath: "   ",
     });
 

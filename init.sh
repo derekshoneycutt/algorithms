@@ -1041,7 +1041,11 @@ if [ "$updateEnvironment" -eq 1 ]; then
                 done
             } > "$sed_script_file"
 
-            sed -f "$sed_script_file" "$useProfile" > "$profile_tmp"
+            if ! sed -f "$sed_script_file" "$useProfile" > "$profile_tmp"; then
+                rm -f "$sed_script_file"
+                echo "Unable to rewrite existing profile content from: $useProfile" >&2
+                exit "$exitIoFailure"
+            fi
             rm -f "$sed_script_file"
         else
             : > "$profile_tmp"
@@ -1058,7 +1062,10 @@ if [ "$updateEnvironment" -eq 1 ]; then
             echo "$managedProfileBlockEnd"
         } >> "$profile_tmp"
 
-        mv "$profile_tmp" "$useProfile"
+        if ! mv "$profile_tmp" "$useProfile"; then
+            echo "Unable to replace profile file: $useProfile" >&2
+            exit "$exitIoFailure"
+        fi
         profileTmpFile=""
     fi
 
