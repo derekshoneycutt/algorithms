@@ -2,6 +2,7 @@ import * as vscode from 'vscode';
 import * as path from 'node:path';
 import { ILanguages } from '../../languages';
 import { IRunner } from '../../runner';
+import { ISmoker } from '../../smoker';
 import { ITracker } from '../../tracker';
 import { GENERATED_LANGUAGE_DATA } from '../../languages/generated/languages.generated';
 import {
@@ -35,6 +36,8 @@ const runImplementationFileCommandId = "algos.algorithmsTreeView.runImplementati
 const stopImplementationRunCommandId = "algos.algorithmsTreeView.stopImplementationRun";
 const clearImplementationRunStatusCommandId = "algos.algorithmsTreeView.clearImplementationRunStatus";
 const clearAlgorithmRunStatusesCommandId = "algos.algorithmsTreeView.clearAlgorithmRunStatuses";
+const startAlgorithmSmokeRunCommandId = "algos.algorithmsTreeView.startAlgorithmSmokeRun";
+const stopAlgorithmSmokeRunCommandId = "algos.algorithmsTreeView.stopAlgorithmSmokeRun";
 const deleteAlgorithmFolderCommandId = "algos.algorithmsTreeView.deleteAlgorithm";
 const deleteImplementationFileCommandId = "algos.algorithmsTreeView.deleteImplementationFile";
 const createDocsFileCommandId = "algos.algorithmsTreeView.createDocsFile";
@@ -46,6 +49,7 @@ const deleteDocsFileCommandId = "algos.algorithmsTreeView.deleteDocsFile";
 export class AlgorithmsTreeView implements vscode.Disposable {
   private languages : ILanguages;
   private runner: IRunner;
+  private smoker: ISmoker;
   private tracker: ITracker;
   private dataProvider : AlgorithmsTreeDataProvider | undefined;
   private treeView : vscode.TreeView<AlgorithmTreeItem> | undefined;
@@ -64,6 +68,8 @@ export class AlgorithmsTreeView implements vscode.Disposable {
   private stopImplementationRunCommandSubscription: vscode.Disposable | undefined;
   private clearImplementationRunStatusCommandSubscription: vscode.Disposable | undefined;
   private clearAlgorithmRunStatusesCommandSubscription: vscode.Disposable | undefined;
+  private startAlgorithmSmokeRunCommandSubscription: vscode.Disposable | undefined;
+  private stopAlgorithmSmokeRunCommandSubscription: vscode.Disposable | undefined;
   private deleteAlgorithmFolderCommandSubscription: vscode.Disposable | undefined;
   private deleteImplementationFileCommandSubscription: vscode.Disposable | undefined;
   private createDocsFileCommandSubscription: vscode.Disposable | undefined;
@@ -74,11 +80,13 @@ export class AlgorithmsTreeView implements vscode.Disposable {
    *
    * @param {ILanguages} languages Language/discovery service.
    * @param {IRunner} runner Run execution service.
+   * @param {ISmoker} smoker Smoke execution service.
    * @param {ITracker} tracker Run status tracker service.
    */
-  public constructor(languages : ILanguages, runner: IRunner, tracker: ITracker) {
+  public constructor(languages : ILanguages, runner: IRunner, smoker: ISmoker, tracker: ITracker) {
     this.languages = languages;
     this.runner = runner;
+    this.smoker = smoker;
     this.tracker = tracker;
     this.dataProvider = undefined;
     this.treeView = undefined;
@@ -97,6 +105,8 @@ export class AlgorithmsTreeView implements vscode.Disposable {
     this.stopImplementationRunCommandSubscription = undefined;
     this.clearImplementationRunStatusCommandSubscription = undefined;
     this.clearAlgorithmRunStatusesCommandSubscription = undefined;
+    this.startAlgorithmSmokeRunCommandSubscription = undefined;
+    this.stopAlgorithmSmokeRunCommandSubscription = undefined;
     this.deleteAlgorithmFolderCommandSubscription = undefined;
     this.deleteImplementationFileCommandSubscription = undefined;
     this.createDocsFileCommandSubscription = undefined;
@@ -726,6 +736,50 @@ export class AlgorithmsTreeView implements vscode.Disposable {
   }
 
   /**
+   * Starts a smoke run for one algorithm folder.
+   *
+   * @param {AlgorithmTreeItem | undefined} item Selected algorithm folder tree item.
+   * @returns {Promise<void>} Resolves when start flow completes.
+   */
+  private async startAlgorithmSmokeRun(item: AlgorithmTreeItem | undefined): Promise<void> {
+    const algorithmDirectoryPath = item?.algorithmDirectory?.directoryPath;
+    if (!algorithmDirectoryPath) {
+      return;
+    }
+
+    try {
+      const result = await this.smoker.executeSmokeRun({
+        algorithmDirectoryPath,
+      });
+
+      if (!result.ok) {
+        void vscode.window.showErrorMessage(result.text);
+      }
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      void vscode.window.showErrorMessage(`Failed to start smoke run: ${errorMessage}`);
+    }
+  }
+
+  /**
+   * Stops an active smoke run for one algorithm folder.
+   *
+   * @param {AlgorithmTreeItem | undefined} item Selected algorithm folder tree item.
+   * @returns {Promise<void>} Resolves when stop flow completes.
+   */
+  private async stopAlgorithmSmokeRun(item: AlgorithmTreeItem | undefined): Promise<void> {
+    const algorithmDirectoryPath = item?.algorithmDirectory?.directoryPath;
+    if (!algorithmDirectoryPath) {
+      return;
+    }
+
+    const interrupted = this.smoker.interruptSmokeRun(algorithmDirectoryPath);
+    if (!interrupted) {
+      void vscode.window.showWarningMessage("No active smoke run is available to stop for this folder.");
+    }
+  }
+
+  /**
    * Creates one docs file under the selected algorithm directory.
    *
    * @param {AlgorithmTreeItem | undefined} item Selected Docs implementation row.
@@ -1110,6 +1164,20 @@ export class AlgorithmsTreeView implements vscode.Disposable {
       },
     );
 
+    this.startAlgorithmSmokeRunCommandSubscription = vscode.commands.registerCommand(
+      startAlgorithmSmokeRunCommandId,
+      async (item?: AlgorithmTreeItem) => {
+        await this.startAlgorithmSmokeRun(item);
+      },
+    );
+
+    this.stopAlgorithmSmokeRunCommandSubscription = vscode.commands.registerCommand(
+      stopAlgorithmSmokeRunCommandId,
+      async (item?: AlgorithmTreeItem) => {
+        await this.stopAlgorithmSmokeRun(item);
+      },
+    );
+
     this.deleteAlgorithmFolderCommandSubscription = vscode.commands.registerCommand(
       deleteAlgorithmFolderCommandId,
       async (item?: AlgorithmTreeItem) => {
@@ -1271,6 +1339,10 @@ export class AlgorithmsTreeView implements vscode.Disposable {
     this.clearImplementationRunStatusCommandSubscription = undefined;
     this.clearAlgorithmRunStatusesCommandSubscription?.dispose();
     this.clearAlgorithmRunStatusesCommandSubscription = undefined;
+    this.startAlgorithmSmokeRunCommandSubscription?.dispose();
+    this.startAlgorithmSmokeRunCommandSubscription = undefined;
+    this.stopAlgorithmSmokeRunCommandSubscription?.dispose();
+    this.stopAlgorithmSmokeRunCommandSubscription = undefined;
     this.deleteAlgorithmFolderCommandSubscription?.dispose();
     this.deleteAlgorithmFolderCommandSubscription = undefined;
     this.deleteImplementationFileCommandSubscription?.dispose();

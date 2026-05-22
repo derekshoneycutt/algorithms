@@ -54,7 +54,7 @@ export class Views implements IViews {
     this.tracker = tracker;
     this.smokeView = new SmokeView(this.smoker);
     this.runView = new RunView(this.runner);
-    this.algosTreeView = new AlgorithmsTreeView(this.languages, this.runner, this.tracker);
+    this.algosTreeView = new AlgorithmsTreeView(this.languages, this.runner, this.smoker, this.tracker);
     this.stdlibTreeView = new StdLibTreeView(this.languages);
     this.environmentView = new EnvironmentView(this.environment);
     this.dataChangeSubscription = undefined;

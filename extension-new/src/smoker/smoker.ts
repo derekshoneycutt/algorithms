@@ -1,7 +1,11 @@
 import * as vscode from "vscode";
+import * as fs from "node:fs/promises";
+import * as path from "node:path";
 import { assign, createActor, createMachine, type ActorRefFrom } from "xstate";
 import {
   ISmoker,
+  type SmokerExecuteSmokeRequest,
+  type SmokerExecuteSmokeResult,
   type SmokeControlsPatch,
   type SmokeLanguageState,
   type SmokeControlsState,
@@ -9,6 +13,7 @@ import {
 import { ILanguages, type ISupportedLanguage } from "../languages";
 import { IEnvironment } from "../environment";
 import { ITracker } from "../tracker";
+import { SmokeHandler } from "./smokeHandler";
 
 interface SmokeControlsEvent {
   type: "patch";
@@ -113,23 +118,29 @@ export class Smoker implements ISmoker {
 
   private readonly languages : ILanguages;
   private readonly environment : IEnvironment;
+  private readonly tracker: ITracker;
   private readonly smokeControlsActor: ActorRefFrom<typeof smokeControlsMachine>;
   private readonly onDidChangeSmokeControlsEmitter: vscode.EventEmitter<SmokeControlsState>;
   private readonly smokeControlsActorSubscription: { unsubscribe: () => void };
   private readonly environmentStateSubscription: vscode.Disposable;
   private shouldPersistSessionState: boolean;
   private extensionContext: vscode.ExtensionContext | undefined;
+  private smokeHandler: SmokeHandler | undefined;
+  private activeSmokeAlgorithmPath: string | undefined;
 
   /**
    * Creates the Smoker and starts the smoke-controls actor.
    */
-  public constructor(languages : ILanguages, environment: IEnvironment, _tracker: ITracker) {
+  public constructor(languages : ILanguages, environment: IEnvironment, tracker: ITracker) {
     this.languages = languages;
     this.environment = environment;
+    this.tracker = tracker;
     this.smokeControlsActor = createActor(smokeControlsMachine);
     this.onDidChangeSmokeControlsEmitter = new vscode.EventEmitter<SmokeControlsState>();
     this.shouldPersistSessionState = this.environment.getEnvironmentControlsState().persistSessionEnabled;
     this.extensionContext = undefined;
+    this.smokeHandler = undefined;
+    this.activeSmokeAlgorithmPath = undefined;
 
     this.environmentStateSubscription = this.environment.subscribeToStateChanges((state) => {
       this.handlePersistSessionPreferenceChanged(state.persistSessionEnabled);
@@ -212,6 +223,60 @@ export class Smoker implements ISmoker {
   }
 
   /**
+   * Executes one smoke run for the target algorithm folder.
+   *
+   * @param {SmokerExecuteSmokeRequest} request Smoke execution request.
+   * @returns {Promise<SmokerExecuteSmokeResult>} Smoke execution result.
+   */
+  public async executeSmokeRun(request: SmokerExecuteSmokeRequest): Promise<SmokerExecuteSmokeResult> {
+    const algorithmDirectoryPath = path.resolve(request.algorithmDirectoryPath);
+
+    if (this.activeSmokeAlgorithmPath && this.activeSmokeAlgorithmPath !== algorithmDirectoryPath) {
+      return {
+        ok: false,
+        text: `Smoke test is already running for ${this.activeSmokeAlgorithmPath}.`,
+        commandPreview: "",
+        exitCode: null,
+        selectedLanguageKeys: [],
+      };
+    }
+
+    const smokeHandler = await this.getSmokeHandler();
+    this.activeSmokeAlgorithmPath = algorithmDirectoryPath;
+
+    try {
+      return await smokeHandler.execute({
+        algorithmDirectoryPath,
+        smokeControls: this.getSmokeControlsState(),
+        runId: request.runId,
+      });
+    } finally {
+      if (this.activeSmokeAlgorithmPath === algorithmDirectoryPath) {
+        this.activeSmokeAlgorithmPath = undefined;
+      }
+    }
+  }
+
+  /**
+   * Requests cancellation for the active smoke run for one algorithm folder.
+   *
+   * @param {string} algorithmDirectoryPath Algorithm folder path.
+   * @returns {boolean} True when a stop request was delivered.
+   */
+  public interruptSmokeRun(algorithmDirectoryPath: string): boolean {
+    const normalizedAlgorithmPath = path.resolve(algorithmDirectoryPath);
+    if (!this.smokeHandler || !this.activeSmokeAlgorithmPath) {
+      return false;
+    }
+
+    if (this.activeSmokeAlgorithmPath !== normalizedAlgorithmPath) {
+      return false;
+    }
+
+    return this.smokeHandler.interruptActiveSmoke();
+  }
+
+  /**
    * Returns the current smoke-controls snapshot.
    *
    * @returns {SmokeControlsState} Current smoke-controls state.
@@ -284,6 +349,58 @@ export class Smoker implements ISmoker {
     }
 
     this.persistSmokeControlsState(this.getSmokeControlsState());
+  }
+
+  /**
+   * Returns a cached SmokeHandler or initializes one using the resolved repository root.
+   *
+   * @returns {Promise<SmokeHandler>} Initialized smoke handler.
+   */
+  private async getSmokeHandler(): Promise<SmokeHandler> {
+    if (this.smokeHandler) {
+      return this.smokeHandler;
+    }
+
+    const repositoryRoot = await this.resolveRepositoryRootForSmoke();
+    if (!repositoryRoot) {
+      throw new Error("Unable to locate repository root containing run.sh.");
+    }
+
+    this.smokeHandler = new SmokeHandler(repositoryRoot, this.tracker);
+    return this.smokeHandler;
+  }
+
+  /**
+   * Locates the nearest known root that contains run.sh.
+   *
+   * @returns {Promise<string | undefined>} Repository root path when found.
+   */
+  private async resolveRepositoryRootForSmoke(): Promise<string | undefined> {
+    const candidatePaths: string[] = [];
+
+    if (this.extensionContext) {
+      const extensionPath = this.extensionContext.extensionUri.fsPath;
+      candidatePaths.push(extensionPath);
+      candidatePaths.push(path.dirname(extensionPath));
+    }
+
+    for (const workspaceFolder of vscode.workspace.workspaceFolders ?? []) {
+      candidatePaths.push(workspaceFolder.uri.fsPath);
+      candidatePaths.push(path.dirname(workspaceFolder.uri.fsPath));
+    }
+
+    const uniqueCandidatePaths = [...new Set(candidatePaths)];
+    for (const candidatePath of uniqueCandidatePaths) {
+      const runScriptPath = path.join(candidatePath, "run.sh");
+      try {
+        await fs.access(runScriptPath);
+        return candidatePath;
+      } catch {
+        continue;
+      }
+    }
+
+    return undefined;
   }
 
   /**

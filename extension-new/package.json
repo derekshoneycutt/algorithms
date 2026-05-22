@@ -98,6 +98,16 @@
         "icon": "$(clear-all)"
       },
       {
+        "command": "algos.algorithmsTreeView.startAlgorithmSmokeRun",
+        "title": "Start Smoke Run",
+        "icon": "$(play)"
+      },
+      {
+        "command": "algos.algorithmsTreeView.stopAlgorithmSmokeRun",
+        "title": "Stop Smoke Run",
+        "icon": "$(debug-stop)"
+      },
+      {
         "command": "algos.algorithmsTreeView.deleteAlgorithm",
         "title": "Delete Folder",
         "icon": "$(trash)"
@@ -254,17 +264,27 @@
         },
         {
           "command": "algos.algorithmsTreeView.createFileInAlgorithm",
-          "when": "view == algos.algorithmsTreeView && (viewItem == algorithmFolder || viewItem == algorithmFolderWithRunHistory)",
+          "when": "view == algos.algorithmsTreeView && (viewItem == algorithmFolder || viewItem == algorithmFolderWithRunHistory || viewItem == algorithmFolderSmokeRunning)",
           "group": "inline@9"
         },
         {
+          "command": "algos.algorithmsTreeView.startAlgorithmSmokeRun",
+          "when": "view == algos.algorithmsTreeView && (viewItem == algorithmFolder || viewItem == algorithmFolderWithRunHistory)",
+          "group": "inline@7"
+        },
+        {
+          "command": "algos.algorithmsTreeView.stopAlgorithmSmokeRun",
+          "when": "view == algos.algorithmsTreeView && viewItem == algorithmFolderSmokeRunning",
+          "group": "inline@7"
+        },
+        {
           "command": "algos.algorithmsTreeView.clearAlgorithmRunStatuses",
-          "when": "view == algos.algorithmsTreeView && viewItem == algorithmFolderWithRunHistory",
+          "when": "view == algos.algorithmsTreeView && (viewItem == algorithmFolderWithRunHistory || viewItem == algorithmFolderSmokeRunning)",
           "group": "inline@8"
         },
         {
           "command": "algos.algorithmsTreeView.deleteAlgorithm",
-          "when": "view == algos.algorithmsTreeView && (viewItem == algorithmFolder || viewItem == algorithmFolderWithRunHistory)",
+          "when": "view == algos.algorithmsTreeView && (viewItem == algorithmFolder || viewItem == algorithmFolderWithRunHistory || viewItem == algorithmFolderSmokeRunning)",
           "group": "inline@10"
         },
         {

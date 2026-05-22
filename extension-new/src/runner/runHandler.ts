@@ -32,18 +32,27 @@ export interface RunHandlerExecuteResult {
   exitCode: number | null;
 }
 
+/**
+ * Parsed tokenization result for raw run-arguments text.
+ */
 interface ParsedRunArgumentsResult {
   ok: boolean;
   tokens: string[];
   reason: string | null;
 }
 
+/**
+ * Tracker metadata attached to one active terminal run.
+ */
 interface TrackerExecutionContext {
   algorithmPath: string;
   languageKey: string;
   runId: string;
 }
 
+/**
+ * Fully prepared execution payload derived from one run request.
+ */
 interface RunHandlerPreparedExecution {
   algorithmDirectoryPath: string;
   commandPreview: string;

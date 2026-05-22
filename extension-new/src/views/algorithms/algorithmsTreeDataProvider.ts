@@ -36,6 +36,7 @@ export const docsFileItemContextValue = "algorithmDocsFile";
 export const algorithmCategoryItemContextValue = "algorithmCategory";
 export const algorithmFolderItemContextValue = "algorithmFolder";
 export const algorithmFolderItemContextValueWithRunHistory = "algorithmFolderWithRunHistory";
+export const algorithmFolderItemContextValueSmokeRunning = "algorithmFolderSmokeRunning";
 
 export type AlgorithmImplementationViewMode = "language" | "file";
 export type AlgorithmImplementationFilterMode = "all" | "problem";
@@ -365,6 +366,28 @@ export class AlgorithmsTreeDataProvider implements vscode.TreeDataProvider<Algor
   }
 
   /**
+   * Returns true when one algorithm currently has an in-progress smoke run.
+   *
+   * @param {string} algorithmPath Algorithm directory path.
+   * @returns {boolean} True when any smoker language state is queued/running.
+   */
+  private hasAlgorithmActiveSmokeRun(algorithmPath: string): boolean {
+    const trackerState = this.tracker.getTrackerState();
+    const languageRuns = trackerState.languageRunsByAlgorithmPath?.[algorithmPath];
+    if (!languageRuns) {
+      return false;
+    }
+
+    return Object.values(languageRuns).some((runState) => {
+      if (runState.source !== "smoker") {
+        return false;
+      }
+
+      return runState.status === "queued" || runState.status === "running";
+    });
+  }
+
+  /**
    * Configures a tree item to open its file in the active editor.
    *
    * @param {AlgorithmTreeItem} item Tree item to configure.
@@ -448,9 +471,16 @@ export class AlgorithmsTreeDataProvider implements vscode.TreeDataProvider<Algor
         category,
         algorithm,
       );
-      item.contextValue = this.hasAlgorithmRunHistory(algorithm.directoryPath)
-        ? algorithmFolderItemContextValueWithRunHistory
-        : algorithmFolderItemContextValue;
+      const hasActiveSmokeRun = this.hasAlgorithmActiveSmokeRun(algorithm.directoryPath);
+      const hasRunHistory = this.hasAlgorithmRunHistory(algorithm.directoryPath);
+      if (hasActiveSmokeRun) {
+        item.contextValue = algorithmFolderItemContextValueSmokeRunning;
+      }
+      else {
+        item.contextValue = hasRunHistory
+          ? algorithmFolderItemContextValueWithRunHistory
+          : algorithmFolderItemContextValue;
+      }
       return item;
     });
   }
