@@ -130,7 +130,7 @@ the project stand in waiting for my return.
 Initially, this was just a bunch of code files, but it has called for me to
 make a development environment and overall architectural decisions that make
 working with and identifying errors in the various languages easier. There are
-some 60 languages included in this project, and the development environment
+some 76 languages included in this project, and the development environment
 quickly becomes messy and difficult without a central management. Any other
 algorithms at this time might be broken or not in the desired final position;
 Euclid GCD is approaching complete.
@@ -139,8 +139,9 @@ Euclid GCD is approaching complete.
 
 The general architecture is that algorithms are sorted into a category with a directory
 under `src/`. Each algorithm then has a single directory named after itself, which
-contains *one* single code file for that algorithm per language.
-Each file contains enough to complete the algorithm in question.
+contains *one* single code file for that algorithm per language. Each file contains enough
+to complete the algorithm in question. Additional code files for a language are included
+in `{lang}_include/` subdirectories where required for the algorithms.
 
 Beyond this, the architecture of each language necessarily varies significantly.
 I do typically try to explore somewhat similar concepts. For example,
@@ -168,11 +169,6 @@ run `./init.sh` in an sh terminal. This will provide a prompt that you can inter
 set the various environment variables, re-copy the icons (to a different if you like), etc.
 See `./init.sh --help` for tips on using the script non-interactively as well.
 
-If you open the folder in VS Code, you should get a recommendation list for
-the extensions that are used throughout this project. This should be enough to
-have a basic environment to code in. To see this list, go to the Extensions tab
-and search for `@recommended`. You can select which to install from this list.
-
 There is also a custom VS Code extension built just for this project that makes it easy
 to manage and navigate. You can run `npm run buildextension`
 from the git repository root directory, and this extension will be built into
@@ -190,7 +186,7 @@ a system going from scratch instead of just using a reproducible docker.
 ```
 
 The docker built from this is quite sizable, as should probably be expected from
-containing the compiler and runtimes for 60 different programming languages. It
+containing the compiler and runtimes for 76 different programming languages. It
 tends to build fastest on a multicore linux machine in my experience, but then it
 is about 8.4GB saved into a .tar.gz to transfer to other computers.
 
@@ -432,27 +428,3 @@ they're included here moreso because they make my VS Code look nice. I highly re
 the above stated extension. Any that you cannot find there, look for the language
 extension with the logo included, or feel free to use the one I probably scavanged
 via the online tools with no promises or charge.
-
-## MIT License
-
-The code in here is open source, under the MIT license.
-
-Copyright (c) 2026 Derek Honeycutt
-
-Permission is hereby granted, free of charge, to any person obtaining a copy
-of this software and associated documentation files (the "Software"), to deal
-in the Software without restriction, including without limitation the rights
-to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-copies of the Software, and to permit persons to whom the Software is
-furnished to do so, subject to the following conditions:
-
-The above copyright notice and this permission notice shall be included in all
-copies or substantial portions of the Software.
-
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-SOFTWARE.
