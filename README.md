@@ -108,16 +108,22 @@ the MMIXAL alone (although it is included), I have decided to add a bunch
 of other languages to learn the algorithms and techniques in even more
 depth. I figured I can make this public, maybe it will benefit someone.
 Mostly it is unabashedly for my own entertainment, though. I will not try to
-do all of Knuth's examples and exercises, and I make not promises about doing
+do all of Knuth's examples and exercises, and I make no promises about doing
 them in Knuth's style, either. Reading Knuth is my guide, but I am totally
 free to do my own thing here as well.
 
 **NOTE**: The current code is in progress with some algorithms further ahead
-than the formal current position. Mostly, this is because of unsure exactly
-what I was doing at first and have been solidifying it with further enhancements.
-Max is complete while Prime Sieve and Easter are currently under progress. As I catch
-up, this should be reduced to a single algorithm ahead at times, perhaps with
-some MMIX (and assembly stdlib) exploring otherwise.
+than the formal current position. Max is complete while Prime Sieve and Easter are
+currently under progress.
+
+**DELAY**: The start of this project was basically the first signs that I was about to
+sign up for getting my Master's in Computer Science. I have since been accepted and am
+starting those classes. I am not cancelling this project over this, but as it overlaps
+significantly with some of my earlier classes, especially, this project will be delayed
+for any updates for several months. Once through the overlapping classes and comfortable
+with returning, my plan is to do a large revision of the existing code and writings first.
+Then I will continue on to new code and writings as well. In the mean time, I will let
+the project stand in waiting for my return.
 
 ## Architectural Notes
 
